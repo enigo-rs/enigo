@@ -5,7 +5,7 @@ use std::{thread, time};
 fn main() {
 
     let wait_time = time::Duration::from_millis(200);
-    let mut enigo = Enigo::new();
+    let enigo = Enigo::new();
 
     enigo.mouse_move_to(500, 200);
     thread::sleep(wait_time);

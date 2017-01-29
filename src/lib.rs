@@ -1,12 +1,12 @@
 pub trait MouseControllable {
     fn new() -> Self;
-    fn mouse_move_to(&mut self, x: i32, y: i32);
-    fn mouse_move_relative(&mut self, x: i32, y: i32);
-    fn mouse_down(&mut self, button: u32);
-    fn mouse_up(&mut self, button: u32);
-    fn mouse_click(&mut self, button: u32);
-    fn mouse_scroll_x(&mut self, length: i32);
-    fn mouse_scroll_y(&mut self, length: i32);
+    fn mouse_move_to(&self, x: i32, y: i32);
+    fn mouse_move_relative(&self, x: i32, y: i32);
+    fn mouse_down(&self, button: u32);
+    fn mouse_up(&self, button: u32);
+    fn mouse_click(&self, button: u32);
+    fn mouse_scroll_x(&self, length: i32);
+    fn mouse_scroll_y(&self, length: i32);
 }
 
 #[cfg(target_os = "linux")]
