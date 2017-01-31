@@ -1,5 +1,4 @@
 pub trait MouseControllable {
-    fn new() -> Self;
     fn mouse_move_to(&self, x: i32, y: i32);
     fn mouse_move_relative(&self, x: i32, y: i32);
     fn mouse_down(&self, button: u32);
@@ -17,6 +16,5 @@ pub use linux::Enigo;
 #[cfg(test)]
 mod tests {
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 }

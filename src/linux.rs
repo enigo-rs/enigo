@@ -11,8 +11,8 @@ pub struct Enigo {
     pub xtest: xtest::Xf86vmode,
 }
 
-impl MouseControllable for Enigo {
-    fn new() -> Self {
+impl Enigo {
+    pub fn new() -> Self {
         unsafe {
             let xlib = xlib::Xlib::open().unwrap();
             let xtest = xtest::Xf86vmode::open().unwrap();
@@ -24,12 +24,19 @@ impl MouseControllable for Enigo {
 
             let window = (xlib.XDefaultRootWindow)(display);
 
-            Enigo{ display: display, window: window, xlib: xlib, xtest: xtest }
+            Enigo {
+                display: display,
+                window: window,
+                xlib: xlib,
+                xtest: xtest,
+            }
         }
     }
+}
 
+impl MouseControllable for Enigo {
     fn mouse_move_to(&self, x: i32, y: i32) {
-        if self.display == ptr::null_mut(){
+        if self.display == ptr::null_mut() {
             panic!("display is not available")
         }
 
@@ -40,7 +47,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&self, x: i32, y: i32) {
-        if self.display == ptr::null_mut(){
+        if self.display == ptr::null_mut() {
             panic!("display is not available")
         }
 
@@ -52,7 +59,7 @@ impl MouseControllable for Enigo {
 
     //TODO(dustin): make button a new type
     fn mouse_down(&self, button: u32) {
-        if self.display == ptr::null_mut(){
+        if self.display == ptr::null_mut() {
             panic!("display is not available")
         }
 
@@ -64,7 +71,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_up(&self, button: u32) {
-        if self.display == ptr::null_mut(){
+        if self.display == ptr::null_mut() {
             panic!("display is not available")
         }
 
@@ -88,9 +95,9 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 6;  //scroll left button
+            button = 6; //scroll left button
         } else {
-            button = 7;  //scroll right button
+            button = 7; //scroll right button
         }
 
         if length < 0 {
@@ -108,7 +115,7 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 4;  //scroll up button
+            button = 4; //scroll up button
         } else {
             button = 5; //scroll down button
         }

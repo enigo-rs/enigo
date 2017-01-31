@@ -3,13 +3,6 @@
 // These bindings are public domain.
 
 
-// extern crate metadeps;
-
-// fn main () {
-//   metadeps::probe().unwrap();
-// }
-
-
 extern crate pkg_config;
 
 use std::env;
