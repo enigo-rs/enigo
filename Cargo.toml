@@ -10,7 +10,7 @@ description = "Enigo lets you control your mouse (and keyboard in the future) in
 repository = "https://github.com/pythoneer/enigo"
 readme = "README.md"
 keywords = ["input", "mouse", "testing", "keyboard"]
-categories = ["gui"]
+categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
 
 [dependencies]
