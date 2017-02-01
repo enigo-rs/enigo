@@ -3,7 +3,6 @@ use enigo::*;
 use std::{thread, time};
 
 fn main() {
-
     let wait_time = time::Duration::from_millis(200);
     let enigo = Enigo::new();
 
@@ -33,5 +32,4 @@ fn main() {
 
     enigo.mouse_scroll_y(-2);
     thread::sleep(wait_time);
-
 }
