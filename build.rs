@@ -1,15 +1,18 @@
-// x11-rs: Rust bindings for X11 libraries
-// The X11 libraries are available under the MIT license.
-// These bindings are public domain.
-
-
 extern crate pkg_config;
 
+#[cfg(target_os = "macos")]
+fn main() { }
+
+#[cfg(target_os = "linux")]
 use std::env;
+#[cfg(target_os = "linux")]
 use std::fs::File;
+#[cfg(target_os = "linux")]
 use std::io::Write;
+#[cfg(target_os = "linux")]
 use std::path::Path;
 
+#[cfg(target_os = "linux")]
 fn main() {
     let libraries = ["xext",
                      "gl",

@@ -8,6 +8,12 @@ pub trait MouseControllable {
     fn mouse_scroll_y(&self, length: i32);
 }
 
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::Enigo;
+
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
