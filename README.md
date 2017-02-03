@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.org/pythoneer/enigo.svg?branch=master)](https://travis-ci.org/pythoneer/enigo)
+[![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
+
+
 # enigo
 Cross platform input simulation in Rust
 
