@@ -8,12 +8,12 @@ use self::winapi::*;
 
 use super::{MouseControllable, KeyboardControllable};
 
+/// The main struct for handling the event emitting
 pub struct Enigo {
     current_x: i32,
     current_y: i32,
  }
 
-/// The main struct for handling the event emitting
 impl Enigo {
     //TODO(dustin): to the right initialisation
 
