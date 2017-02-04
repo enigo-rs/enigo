@@ -13,8 +13,18 @@ pub struct Enigo {
     current_y: i32,
  }
 
+/// The main struct for handling the event emitting
 impl Enigo {
     //TODO(dustin): to the right initialisation
+
+    /// Constructs a new `Enigo` instance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// ```
     pub fn new() -> Self {
         Enigo{ current_x: 0, current_y: 0}
     }

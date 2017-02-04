@@ -9,6 +9,7 @@ use self::regex::Regex;
 
 use super::{MouseControllable, KeyboardControllable};
 
+/// The main struct for handling the event emitting
 pub struct Enigo {
     display: *mut xlib::Display,
     window: xlib::Window,
@@ -17,6 +18,14 @@ pub struct Enigo {
 }
 
 impl Enigo {
+    /// Constructs a new `Enigo` instance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// ```
     pub fn new() -> Self {
         unsafe {
             let xlib = xlib::Xlib::open().unwrap();

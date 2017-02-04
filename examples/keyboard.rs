@@ -7,5 +7,5 @@ fn main() {
     let mut enigo = Enigo::new();
 
     thread::sleep(wait_time);
-    enigo.key_sequence("Das → ❤ ist ein Hörz!!!");
+    enigo.key_sequence("This → ❤ is a Hörz!!!");
 }

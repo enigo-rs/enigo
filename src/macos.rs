@@ -47,6 +47,7 @@ enum ScrollUnit {
 }
 // hack
 
+/// The main struct for handling the event emitting
 pub struct Enigo {
     current_x: i32,
     current_y: i32,
@@ -55,6 +56,14 @@ pub struct Enigo {
 }
 
 impl Enigo {
+    /// Constructs a new `Enigo` instance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// ```
     pub fn new() -> Self {
         let displayID = unsafe{CGMainDisplayID()};
         let width = unsafe{CGDisplayPixelsWide(displayID)};
