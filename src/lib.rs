@@ -23,7 +23,7 @@
 //! enigo.mouse_down(1);
 //! enigo.mouse_move_relative(100, 100);
 //! enigo.mouse_up(1);
-//! enigo.key_sequence("hello world!");
+//! enigo.key_sequence("hello world");
 //! ```
 
 #![deny(missing_docs)]
@@ -184,7 +184,7 @@ pub trait KeyboardControllable {
     /// ```
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.key_sequence("This → ❤ is a Hörz!!!");
+    /// enigo.key_sequence("hello world");
     /// ```
     fn key_sequence(&self, sequence: &str);
 }

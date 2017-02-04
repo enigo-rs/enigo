@@ -27,7 +27,7 @@ let mut enigo = Enigo::new();
 enigo.mouse_move_to(500, 200);
 enigo.mouse_click(1);
 //only on linux currently
-enigo.key_sequence("This → ❤ is a Hörz!!!");
+enigo.key_sequence("hello world");
 
 ```
 
