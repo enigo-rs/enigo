@@ -10,10 +10,10 @@ use self::regex::Regex;
 use super::{MouseControllable, KeyboardControllable};
 
 pub struct Enigo {
-    pub display: *mut xlib::Display,
-    pub window: xlib::Window,
-    pub xlib: xlib::Xlib,
-    pub xtest: xtest::Xf86vmode,
+    display: *mut xlib::Display,
+    window: xlib::Window,
+    xlib: xlib::Xlib,
+    xtest: xtest::Xf86vmode,
 }
 
 impl Enigo {
