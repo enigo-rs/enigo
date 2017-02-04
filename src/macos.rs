@@ -13,7 +13,7 @@ use self::libc::*;
 
 use super::MouseControllable;
 
-//little hack until servo fixed a bug in core_graphics
+// little hack until servo fixed a bug in core_graphics
 // https://github.com/servo/core-graphics-rs/issues/70
 // https://github.com/servo/core-graphics-rs/pull/71
 #[link(name = "ApplicationServices", kind = "framework")]

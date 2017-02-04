@@ -16,6 +16,11 @@ pub trait KeyboardControllable {
     fn key_sequence(&self, sequence: &str);
 }
 
+#[cfg(target_os = "windows")]
+mod win;
+#[cfg(target_os = "windows")]
+pub use win::Enigo;
+
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
