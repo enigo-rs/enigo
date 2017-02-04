@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/pythoneer/enigo.svg?branch=master)](https://travis-ci.org/pythoneer/enigo)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/pythoneer/enigo)](https://ci.appveyor.com/api/projects/status/github/pythoneer/enigo)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
 
 
