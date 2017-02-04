@@ -16,7 +16,7 @@
 //! interfaces unaccessible by a public API or scripting laguage. 
 //!
 //! # Examples
-//! ```
+//! ```no_run
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
 //! enigo.mouse_move_to(500, 200);
@@ -45,7 +45,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_move_to(500, 200);
@@ -62,7 +62,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_move_relative(100, 100);
@@ -84,7 +84,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_down(1);
@@ -107,7 +107,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_up(1);
@@ -128,7 +128,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_click(1);
@@ -145,7 +145,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_scroll_x(2);
@@ -162,7 +162,7 @@ pub trait MouseControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_scroll_y(2);
@@ -181,7 +181,7 @@ pub trait KeyboardControllable {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// enigo.key_sequence("hello world");

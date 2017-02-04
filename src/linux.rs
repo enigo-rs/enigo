@@ -22,7 +22,7 @@ impl Enigo {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// ```
