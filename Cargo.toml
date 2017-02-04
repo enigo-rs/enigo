@@ -1,10 +1,10 @@
 [package]
 name = "enigo"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 build = "build.rs"
 
-description = "Enigo lets you control your mouse (and keyboard in the future) in an abstract way on different operating systems (currently only Linux and macOS – Win and Redox planned)"
+description = "Enigo lets you control your mouse (and keyboard in the future) in an abstract way on different operating systems (currently only Linux, macOS, Win – and Redox planned)"
 #documentation = "..."
 #homepage = "..."
 repository = "https://github.com/pythoneer/enigo"

@@ -14,7 +14,7 @@ Cross platform input simulation in Rust
 - [x] macOS mouse
 - [ ] macOS text
 - [ ] macOS keyboard DSL
-- [ ] Win mouse
+- [x] Win mouse
 - [ ] Win text
 - [ ] Win keyboard DSL
 
@@ -25,6 +25,7 @@ let mut enigo = Enigo::new();
 
 enigo.mouse_move_to(500, 200);
 enigo.mouse_click(1);
+//only on linux currently
 enigo.key_sequence("Das → ❤ ist ein Hörz!!!");
 
 ```
