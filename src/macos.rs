@@ -11,7 +11,7 @@ use std::ptr;
 use std::mem;
 use self::libc::*;
 
-use super::MouseControllable;
+use super::{MouseControllable, KeyboardControllable};
 
 // little hack until servo fixed a bug in core_graphics
 // https://github.com/servo/core-graphics-rs/issues/70
@@ -200,4 +200,10 @@ impl MouseControllable for Enigo {
             }
         }
     }
+}
+
+impl KeyboardControllable for Enigo {
+     fn key_sequence(&self, sequence: &str) {
+         unimplemented!()
+     }
 }
