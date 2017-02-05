@@ -11,6 +11,10 @@
 //!
 //! `"hello {+SHIFT}world{-SHIFT} and break line{ENTER}"`
 //!
+//! The current status is that you can just print plain [ASCII](https://en.wikipedia.org/wiki/ASCII)
+//! characters without the `{+SHIFT}` [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
+//! or any other "special" key on the linux operating system.
+//!
 //! Possible use cases could be for testing user interfaces on different plattforms,
 //! building remote control applications or just automating tasks for user 
 //! interfaces unaccessible by a public API or scripting laguage. 
