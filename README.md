@@ -6,7 +6,7 @@
 
 
 # enigo
-Cross platform input simulation in Rust
+Cross platform input simulation in Rust!
 
 - [x] Linux X11 mouse
 - [x] Linux X11 text
