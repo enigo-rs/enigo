@@ -213,6 +213,9 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
      fn key_sequence(&self, sequence: &str) {
-         unimplemented!()
+         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+         let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
+         event.set_string(sequence);
+         event.post(CGEventTapLocation::HID);
      }
 }

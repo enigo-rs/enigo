@@ -15,7 +15,7 @@ Cross platform input simulation in Rust!
 - [ ] Linux Wayland text
 - [ ] Linux Wayland keyboard DSL
 - [x] macOS mouse
-- [ ] macOS text
+- [x] macOS text
 - [ ] macOS keyboard DSL
 - [x] Win mouse
 - [ ] Win text
