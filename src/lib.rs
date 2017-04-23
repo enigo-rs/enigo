@@ -1,6 +1,6 @@
 //! Enigo lets you simulate mouse and keyboard input-events as if they were 
 //! made by the actual hardware. The goal is to make it available on different
-//! operating systems like Linux, macOS and Windows – possible many more but 
+//! operating systems like Linux, macOS and Windows – possibly many more but 
 //! [Redox](https://redox-os.org/) and *BSD are planned. Please see the 
 //! [Repo](https://github.com/pythoneer/enigo) for the current status. 
 //!
