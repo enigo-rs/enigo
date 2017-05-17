@@ -1,5 +1,5 @@
 extern crate enigo;
-use enigo::*;
+use enigo::{Enigo, MouseControllable};
 use std::{thread, time};
 
 fn main() {

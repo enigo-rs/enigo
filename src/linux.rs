@@ -3,7 +3,7 @@ extern crate regex;
 
 use self::x11_dl::{xlib, xtest};
 use std::ffi::CString;
-use std::os::raw::*;
+use std::os::raw::{c_void, c_char};
 use std::ptr;
 use self::regex::Regex;
 
