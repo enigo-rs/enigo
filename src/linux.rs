@@ -1,13 +1,13 @@
 extern crate x11_dl;
 extern crate regex;
 
-use self::x11_dl::{xlib, xtest};
-use std::ffi::CString;
-use std::os::raw::{c_void, c_char};
-use std::ptr;
 use self::regex::Regex;
+use self::x11_dl::{xlib, xtest};
 
-use super::{MouseControllable, KeyboardControllable};
+use super::MouseControllable;
+use std::ffi::CString;
+use std::{io, ptr};
+use std::os::raw::{c_char, c_void};
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
@@ -47,7 +47,7 @@ impl Enigo {
         }
     }
 
-    //TODO(dustin): implement drop
+    // TODO(dustin): implement drop
 }
 
 impl Default for Enigo {
@@ -79,14 +79,14 @@ impl MouseControllable for Enigo {
         }
     }
 
-    //TODO(dustin): make button a new type
+    // TODO(dustin): make button a new type
     fn mouse_down(&mut self, button: u32) {
         if self.display.is_null() {
             panic!("display is not available")
         }
 
         unsafe {
-            //TODO(dustin): make 1, 0 / true false a new type
+            // TODO(dustin): make 1, 0 / true false a new type
             (self.xtest.XTestFakeButtonEvent)(self.display, button, 1, 0);
             (self.xlib.XFlush)(self.display);
         }
@@ -98,7 +98,7 @@ impl MouseControllable for Enigo {
         }
 
         unsafe {
-            //TODO(dustin): make 1, 0 / true false a new type
+            // TODO(dustin): make 1, 0 / true false a new type
             (self.xtest.XTestFakeButtonEvent)(self.display, button, 0, 0);
             (self.xlib.XFlush)(self.display);
         }
@@ -117,9 +117,9 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 6; //scroll left button
+            button = 6; // scroll left button
         } else {
-            button = 7; //scroll right button
+            button = 7; // scroll right button
         }
 
         if length < 0 {
@@ -137,9 +137,9 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 4; //scroll up button
+            button = 4; // scroll up button
         } else {
-            button = 5; //scroll down button
+            button = 5; // scroll down button
         }
 
         if length < 0 {
@@ -153,28 +153,45 @@ impl MouseControllable for Enigo {
     }
 }
 
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&self, sequence: &str) {
+impl io::Write for Enigo {
+    /*
+	fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()> {
+		// TODO
+	}
+	*/
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        let sequence = ::std::str::from_utf8(buf).unwrap();
+
         lazy_static! {
-            //NOTE(dustin): no error handling nessesary, this is a bug
-            static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap(); 
-        }
+			//NOTE(dustin):   no error handling nessesary, this is a bug
+			static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap();
+		}
 
         for c in sequence.chars() {
             let rust_unicode: String = c.escape_unicode().collect();
-            //TODO(dustin): handle this error
-            let unicode_string =
-                format!("U{}",
-                        RE.captures(&rust_unicode).unwrap().get(1).unwrap().as_str());
+            // TODO(dustin): handle this error
+            let unicode_string = format!("U{}",
+                                         RE.captures(&rust_unicode)
+                                             .unwrap()
+                                             .get(1)
+                                             .unwrap()
+                                             .as_str());
             let keycode = self.unicode_string_to_keycode(&unicode_string);
             self.keycode_click(keycode)
         }
+        Ok(())
+    }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.write_all(buf)?;
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 
 impl Enigo {
     fn unicode_string_to_keycode(&self, unicode_string: &str) -> i32 {
-
         let unicode_as_c_string = CString::new(unicode_string).unwrap();
         let key_sym =
             unsafe { (self.xlib.XStringToKeysym)(unicode_as_c_string.as_ptr() as *mut c_char) };

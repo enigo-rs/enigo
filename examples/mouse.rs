@@ -7,7 +7,7 @@ fn main() {
     let mut enigo = Enigo::new();
 
     thread::sleep(wait_time);
-    
+
     enigo.mouse_move_to(500, 200);
     thread::sleep(wait_time);
 
@@ -24,7 +24,7 @@ fn main() {
     thread::sleep(wait_time);
 
     enigo.mouse_scroll_x(2);
-    thread::sleep(wait_time); ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    thread::sleep(wait_time);
 
     enigo.mouse_scroll_x(-2);
     thread::sleep(wait_time);
