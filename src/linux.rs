@@ -3,7 +3,7 @@ extern crate regex;
 
 use self::regex::Regex;
 
-use super::MouseControllable;
+use super::{KeyboardControllable, MouseControllable};
 use std::ffi::CString;
 use std::{io, ptr};
 use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
@@ -228,6 +228,14 @@ impl io::Write for Enigo {
     }
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+impl KeyboardControllable for Enigo {
+    fn key_sequence(&mut self, sequence: &str) {
+        // Currently will not fail.
+        use std::io::Write;
+        self.write_all(sequence.as_bytes()).unwrap();
     }
 }
 

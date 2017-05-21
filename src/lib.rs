@@ -220,12 +220,6 @@ pub trait KeyboardControllable {
     /// ```
     fn key_sequence(&mut self, sequence: &str);
 }
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&mut self, sequence: &str) {
-        // Currently will not fail.
-        self.write_all(sequence.as_bytes()).unwrap();
-    }
-}
 
 #[cfg(test)]
 mod tests {}
