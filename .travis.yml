@@ -4,6 +4,10 @@ rust:
   - beta
   - nightly
 matrix:
+  include:
+    - os: linux
+      before_install:
+        - sudo apt-get install libxtst-dev
   allow_failures:
     - rust: nightly
 os:
