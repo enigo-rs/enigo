@@ -151,7 +151,7 @@ impl MouseControllable for Enigo {
 }
 
 impl KeyboardControllable for Enigo {
-    fn key_sequence(&self, sequence: &str) {
+    fn key_sequence(&mut self, sequence: &str) {
         //unimplemented!()
         
         for c in sequence.chars() {
