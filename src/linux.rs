@@ -1,20 +1,67 @@
-extern crate x11_dl;
+extern crate libc;
 extern crate regex;
 
 use self::regex::Regex;
-use self::x11_dl::{xlib, xtest};
 
 use super::MouseControllable;
 use std::ffi::CString;
 use std::{io, ptr};
-use std::os::raw::{c_char, c_void};
+use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
+
+pub type Display = *const c_void;
+pub type Window = c_int;
+
+pub type KeySym = *const c_void;
+pub type KeyCode = c_uint;
+
+type Bool = c_int;
+
+#[link(name = "X11")]
+extern "C" {
+    fn XOpenDisplay(string: *const c_char) -> Display;
+    fn XRootWindow(display: Display, index: c_int) -> Window;
+    fn XFree(data: *const c_void) -> c_int;
+    fn XFlush(display: Display) -> c_int;
+
+    fn XStringToKeysym(string: *const c_char) -> KeySym;
+    fn XKeysymToKeycode(display: Display, keysym: KeySym, index: c_int) -> KeyCode;
+    fn XChangeKeyboardMapping(display: Display,
+                              first_keycode: c_int,
+                              keycode_count: c_int,
+                              keysyms: *const KeySym,
+                              keysyms_per_keycode_return: c_int)
+                              -> KeySym;
+    fn XGetKeyboardMapping(display: Display,
+                           first_keycode: KeyCode,
+                           keycode_count: c_int,
+                           keysyms_per_keycode_return: *mut c_int)
+                           -> *mut KeySym;
+    fn XDisplayKeycodes(display: Display,
+                        min_keycodes_return: *mut c_int,
+                        max_keycodes_return: *mut c_int)
+                        -> c_int;
+
+    fn XWarpPointer(display: Display,
+                    src_w: Window,
+                    dest_w: Window,
+                    src_x: c_int,
+                    src_y: c_int,
+                    src_width: c_int,
+                    src_height: c_int,
+                    dest_x: c_int,
+                    dest_y: c_int);
+}
+
+#[link(name = "Xtst")]
+extern "C" {
+    fn XTestFakeKeyEvent(display: Display, keycode: KeyCode, state: Bool, delay: c_ulong);
+    fn XTestFakeButtonEvent(display: Display, keycode: KeyCode, state: Bool, delay: c_ulong);
+}
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    display: *mut xlib::Display,
-    window: xlib::Window,
-    xlib: xlib::Xlib,
-    xtest: xtest::Xf86vmode,
+    display: Display,
+    window: Window,
 }
 
 impl Enigo {
@@ -27,23 +74,17 @@ impl Enigo {
     /// let mut enigo = Enigo::new();
     /// ```
     pub fn new() -> Self {
-        unsafe {
-            let xlib = xlib::Xlib::open().unwrap();
-            let xtest = xtest::Xf86vmode::open().unwrap();
+        let display;
+        unsafe { display = XOpenDisplay(ptr::null()) };
+        if display.is_null() {
+            panic!("can't open display");
+        }
 
-            let display = (xlib.XOpenDisplay)(ptr::null());
-            if display.is_null() {
-                panic!("can't open display");
-            }
+        let window = unsafe { XRootWindow(display, 0) };
 
-            let window = (xlib.XDefaultRootWindow)(display);
-
-            Enigo {
-                display: display,
-                window: window,
-                xlib: xlib,
-                xtest: xtest,
-            }
+        Enigo {
+            display: display,
+            window: window,
         }
     }
 
@@ -63,8 +104,8 @@ impl MouseControllable for Enigo {
         }
 
         unsafe {
-            (self.xlib.XWarpPointer)(self.display, 0, self.window, 0, 0, 0, 0, x, y);
-            (self.xlib.XFlush)(self.display);
+            XWarpPointer(self.display, 0, self.window, 0, 0, 0, 0, x, y);
+            XFlush(self.display);
         }
     }
 
@@ -74,8 +115,8 @@ impl MouseControllable for Enigo {
         }
 
         unsafe {
-            (self.xlib.XWarpPointer)(self.display, 0, 0, 0, 0, 0, 0, x, y);
-            (self.xlib.XFlush)(self.display);
+            XWarpPointer(self.display, 0, 0, 0, 0, 0, 0, x, y);
+            XFlush(self.display);
         }
     }
 
@@ -87,8 +128,8 @@ impl MouseControllable for Enigo {
 
         unsafe {
             // TODO(dustin): make 1, 0 / true false a new type
-            (self.xtest.XTestFakeButtonEvent)(self.display, button, 1, 0);
-            (self.xlib.XFlush)(self.display);
+            XTestFakeButtonEvent(self.display, button, 1, 0);
+            XFlush(self.display);
         }
     }
 
@@ -99,8 +140,8 @@ impl MouseControllable for Enigo {
 
         unsafe {
             // TODO(dustin): make 1, 0 / true false a new type
-            (self.xtest.XTestFakeButtonEvent)(self.display, button, 0, 0);
-            (self.xlib.XFlush)(self.display);
+            XTestFakeButtonEvent(self.display, button, 0, 0);
+            XFlush(self.display);
         }
     }
 
@@ -155,17 +196,17 @@ impl MouseControllable for Enigo {
 
 impl io::Write for Enigo {
     /*
-	fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()> {
-		// TODO
-	}
-	*/
+	   fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()> {
+// TODO
+}
+*/
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         let sequence = ::std::str::from_utf8(buf).unwrap();
 
         lazy_static! {
-			//NOTE(dustin):   no error handling nessesary, this is a bug
-			static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap();
-		}
+		//NOTE(dustin):   no error handling nessesary, this is a bug
+		static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap();
+	}
 
         for c in sequence.chars() {
             let rust_unicode: String = c.escape_unicode().collect();
@@ -193,19 +234,17 @@ impl io::Write for Enigo {
 impl Enigo {
     fn unicode_string_to_keycode(&self, unicode_string: &str) -> i32 {
         let unicode_as_c_string = CString::new(unicode_string).unwrap();
-        let key_sym =
-            unsafe { (self.xlib.XStringToKeysym)(unicode_as_c_string.as_ptr() as *mut c_char) };
+        let key_sym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
 
         let mut min = 0;
         let mut max = 0;
         let mut numcodes = 0;
 
-        unsafe { (self.xlib.XDisplayKeycodes)(self.display, &mut min, &mut max) };
+        unsafe { XDisplayKeycodes(self.display, &mut min, &mut max) };
 
         let upper = max as i32 - min as i32 + 1;
-        let key_sym_mapped = unsafe {
-            (self.xlib.XGetKeyboardMapping)(self.display, min as u8, upper, &mut numcodes)
-        };
+        let key_sym_mapped =
+            unsafe { XGetKeyboardMapping(self.display, min as u32, upper, &mut numcodes) };
         let idx = ((max as i32 - min as i32 - 1) * numcodes as i32) as isize;
 
         unsafe {
@@ -214,14 +253,14 @@ impl Enigo {
         }
 
         unsafe {
-            (self.xlib.XChangeKeyboardMapping)(self.display,
-                                               min as i32,
-                                               numcodes as i32,
-                                               key_sym_mapped,
-                                               (max as i32 - min as i32));
-            (self.xlib.XFree)(key_sym_mapped as *mut c_void);
-            (self.xlib.XFlush)(self.display);
-            let keycode = (self.xlib.XKeysymToKeycode)(self.display, key_sym);
+            XChangeKeyboardMapping(self.display,
+                                   min as i32,
+                                   numcodes as i32,
+                                   key_sym_mapped,
+                                   (max as i32 - min as i32));
+            XFree(key_sym_mapped as *mut c_void);
+            XFlush(self.display);
+            let keycode = XKeysymToKeycode(self.display, key_sym, 0);
 
             keycode as i32
         }
@@ -238,15 +277,15 @@ impl Enigo {
 
     fn keycode_down(&self, keycode: i32) {
         unsafe {
-            (self.xtest.XTestFakeKeyEvent)(self.display, keycode as u32, 1, 1);
-            (self.xlib.XFlush)(self.display);
+            XTestFakeKeyEvent(self.display, keycode as u32, 1, 1);
+            XFlush(self.display);
         }
     }
 
     fn keycode_up(&self, keycode: i32) {
         unsafe {
-            (self.xtest.XTestFakeKeyEvent)(self.display, keycode as u32, 0, 1);
-            (self.xlib.XFlush)(self.display);
+            XTestFakeKeyEvent(self.display, keycode as u32, 0, 1);
+            XFlush(self.display);
         }
     }
 }
