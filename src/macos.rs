@@ -205,7 +205,7 @@ impl MouseControllable for Enigo {
 }
 
 impl KeyboardControllable for Enigo {
-    fn key_sequence(&self, sequence: &str) {
+    fn key_sequence(&mut self, sequence: &str) {
         unimplemented!()
         //TODO(dustin): postpone this until it is added in public core_graphics crate. possibly after 0.7.0
         //  let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
