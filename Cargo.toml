@@ -14,8 +14,8 @@ categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
 
 [badges]
-travis-ci = { repository = "pythoneer/enigo" }
-appveyor = { repository = "pythoneer/enigo" }
+travis-ci = { repository = "enigo-rs/enigo" }
+appveyor = { repository = "enigo-rs/enigo" }
 
 [dependencies]
 lazy_static = "0.2.0"

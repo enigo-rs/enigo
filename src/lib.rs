@@ -181,7 +181,7 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux and macos. 
+    /// This is currently only implemented on Linux and Windows (macOS waiting for core-graphics crate update). 
     ///
     /// # Example
     ///
