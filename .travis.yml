@@ -4,13 +4,11 @@ rust:
   - beta
   - nightly
 matrix:
-  include:
-    - os: linux
-      before_install:
-        - sudo apt-get -qq update
-        - sudo apt-get install -y libxtst-dev
   allow_failures:
     - rust: nightly
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libxtst-dev
 os:
   - linux
   - osx
