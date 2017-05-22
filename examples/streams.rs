@@ -12,5 +12,6 @@ fn main() {
     thread::sleep(wait_time);
 
     // Currently will not fail.
+    #[cfg(target_os = "linux")]
     write!(enigo, "Hello World").unwrap();
 }
