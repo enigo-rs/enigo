@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/enigo-rs/enigo.svg?branch=master)](https://travis-ci.org/enigo-rs/enigo)
-[![Build Status](https://ci.appveyor.com/api/projects/status/github/pythoneer/enigo)](https://ci.appveyor.com/project/pythoneer/enigo)
+[![Build Status](https://ci.appveyor.com/api/projects/status/project/pythoneer/enigo-85xiy)](https://ci.appveyor.com/project/pythoneer/enigo-85xiy)
 [![Dependency Status](https://dependencyci.com/github/pythoneer/enigo/badge)](https://dependencyci.com/github/pythoneer/enigo)
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
