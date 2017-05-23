@@ -200,6 +200,8 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::Enigo;
 
+mod parser;
+
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
 pub trait KeyboardControllable {
