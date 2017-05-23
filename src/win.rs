@@ -15,7 +15,7 @@ pub struct Enigo {
 }
 
 impl Enigo {
-    // TODO(dustin): to the right initialisation
+    // TODO(dustin): do the right initialisation
 
     /// Constructs a new `Enigo` instance.
     ///
@@ -152,15 +152,25 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-        //unimplemented!()
+        let mut buffer = [0; 2];
 
         for c in sequence.chars() {
-            let mut buffer = [0; 2];
+            //Windows uses uft-16 encoding. We need to check
+            //for variable length characters. As such some
+            //characters can be 32 bit long and those are 
+            //encoded in such called hight and low surrogates
+            //each 16 bit wide that needs to be send after
+            //another to the SendInput function without 
+            //being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
-            //Note(dustin): this is wrong utf16 is variable length
-            //but i don't know how to feed that properly into SendInput
-            let single_u16_result = result[0];
-            self.keyclick(single_u16_result);
+            if result.len() == 1 {
+                self.keyclick(result[0]);
+            } else {
+                for utf16_surrogate in result {
+                    self.keydown(utf16_surrogate.clone());
+                }
+                self.keyup(0);
+            }
         }
     }
 }
