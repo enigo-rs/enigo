@@ -200,8 +200,6 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::Enigo;
 
-use std::io::Write;
-
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
 pub trait KeyboardControllable {
@@ -209,7 +207,7 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux and Windows (macOS waiting for core-graphics crate update). 
+    /// This is currently only implemented on Linux and Windows (macOS waiting for core-graphics crate update).
     ///
     /// # Example
     ///

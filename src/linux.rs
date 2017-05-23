@@ -5,7 +5,7 @@ use self::regex::Regex;
 
 use super::{KeyboardControllable, MouseControllable};
 use std::ffi::CString;
-use std::{io, ptr};
+use std::ptr;
 use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
 
 pub type Display = *const c_void;
@@ -194,48 +194,22 @@ impl MouseControllable for Enigo {
     }
 }
 
-impl io::Write for Enigo {
-    /*
-	   fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()> {
-// TODO
-}
-*/
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        let sequence = ::std::str::from_utf8(buf).unwrap();
-
+impl KeyboardControllable for Enigo {
+    fn key_sequence(&mut self, sequence: &str) {
         lazy_static! {
-		//NOTE(dustin):   no error handling nessesary, this is a bug
-		static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap();
-	}
+			//NOTE(dustin):   no error handling nessesary, this is a bug
+			static ref RE: Regex = Regex::new(r"\\u\{(.*)\}").unwrap();
+		}
 
         for c in sequence.chars() {
             let rust_unicode: String = c.escape_unicode().collect();
             // TODO(dustin): handle this error
-            let unicode_string = format!("U{}",
-                                         RE.captures(&rust_unicode)
-                                             .unwrap()
-                                             .get(1)
-                                             .unwrap()
-                                             .as_str());
+            let unicode_string =
+                format!("U{}",
+                        RE.captures(&rust_unicode).unwrap().get(1).unwrap().as_str());
             let keycode = self.unicode_string_to_keycode(&unicode_string);
             self.keycode_click(keycode)
         }
-        Ok(())
-    }
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.write_all(buf)?;
-        Ok(buf.len())
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&mut self, sequence: &str) {
-        // Currently will not fail.
-        use std::io::Write;
-        self.write_all(sequence.as_bytes()).unwrap();
     }
 }
 

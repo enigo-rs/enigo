@@ -55,13 +55,13 @@ impl MouseControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
                 u: transmute_copy(&MOUSEINPUT {
-                                       dx: 0,
-                                       dy: 0,
-                                       mouseData: 0,
-                                       dwFlags: MOUSEEVENTF_LEFTDOWN,
-                                       time: 0,
-                                       dwExtraInfo: 0,
-                                   }),
+                                      dx: 0,
+                                      dy: 0,
+                                      mouseData: 0,
+                                      dwFlags: MOUSEEVENTF_LEFTDOWN,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -75,13 +75,13 @@ impl MouseControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
                 u: transmute_copy(&MOUSEINPUT {
-                                       dx: 0,
-                                       dy: 0,
-                                       mouseData: 0,
-                                       dwFlags: MOUSEEVENTF_LEFTUP,
-                                       time: 0,
-                                       dwExtraInfo: 0,
-                                   }),
+                                      dx: 0,
+                                      dy: 0,
+                                      mouseData: 0,
+                                      dwFlags: MOUSEEVENTF_LEFTUP,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -107,13 +107,13 @@ impl MouseControllable for Enigo {
                 let mut input = INPUT {
                     type_: INPUT_MOUSE,
                     u: transmute_copy(&MOUSEINPUT {
-                                           dx: 0,
-                                           dy: 0,
-                                           mouseData: transmute_copy(&scroll_direction),
-                                           dwFlags: MOUSEEVENTF_HWHEEL,
-                                           time: 0,
-                                           dwExtraInfo: 0,
-                                       }),
+                                          dx: 0,
+                                          dy: 0,
+                                          mouseData: transmute_copy(&scroll_direction),
+                                          dwFlags: MOUSEEVENTF_HWHEEL,
+                                          time: 0,
+                                          dwExtraInfo: 0,
+                                      }),
                 };
 
                 SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -135,13 +135,13 @@ impl MouseControllable for Enigo {
                 let mut input = INPUT {
                     type_: INPUT_MOUSE,
                     u: transmute_copy(&MOUSEINPUT {
-                                           dx: 0,
-                                           dy: 0,
-                                           mouseData: transmute_copy(&scroll_direction),
-                                           dwFlags: MOUSEEVENTF_WHEEL,
-                                           time: 0,
-                                           dwExtraInfo: 0,
-                                       }),
+                                          dx: 0,
+                                          dy: 0,
+                                          mouseData: transmute_copy(&scroll_direction),
+                                          dwFlags: MOUSEEVENTF_WHEEL,
+                                          time: 0,
+                                          dwExtraInfo: 0,
+                                      }),
                 };
 
                 SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -153,15 +153,15 @@ impl MouseControllable for Enigo {
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         //unimplemented!()
-        
+
         for c in sequence.chars() {
             let mut buffer = [0; 2];
             let result = c.encode_utf16(&mut buffer);
             //Note(dustin): this is wrong utf16 is variable length
             //but i don't know how to feed that properly into SendInput
-            let single_u16_result = result[0]; 
+            let single_u16_result = result[0];
             self.keyclick(single_u16_result);
-        }       
+        }
     }
 }
 
@@ -170,7 +170,7 @@ impl Enigo {
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
         self.keydown(unicode_char);
-        self.keyup(unicode_char); 
+        self.keyup(unicode_char);
         thread::sleep(time::Duration::from_millis(20));
     }
 
@@ -179,14 +179,14 @@ impl Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                    wVk: 0,
-                    wScan: unicode_char,
-                    dwFlags: KEYEVENTF_UNICODE,
-                    time: 0,
-                    dwExtraInfo: 0,
-                }),
+                                      wVk: 0,
+                                      wScan: unicode_char,
+                                      dwFlags: KEYEVENTF_UNICODE,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
             };
-        
+
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
         }
     }
@@ -196,14 +196,14 @@ impl Enigo {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
                 u: transmute_copy(&KEYBDINPUT {
-                    wVk: 0,
-                    wScan: unicode_char,
-                    dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                    time: 0,
-                    dwExtraInfo: 0,
-                }),
+                                      wVk: 0,
+                                      wScan: unicode_char,
+                                      dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
             };
-        
+
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
         }
     }
