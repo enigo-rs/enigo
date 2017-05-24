@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/enigo-rs/enigo.svg?branch=master)](https://travis-ci.org/enigo-rs/enigo)
-[![Build Status](https://ci.appveyor.com/api/projects/status/project/pythoneer/enigo-85xiy)](https://ci.appveyor.com/project/pythoneer/enigo-85xiy)
+[![Build status](https://ci.appveyor.com/api/projects/status/6cd00pajx4tvvl3e?svg=true)](https://ci.appveyor.com/project/pythoneer/enigo-85xiy)
 [![Dependency Status](https://dependencyci.com/github/pythoneer/enigo/badge)](https://dependencyci.com/github/pythoneer/enigo)
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
@@ -16,7 +16,7 @@ Cross platform input simulation in Rust!
 - [ ] Linux Wayland text
 - [ ] Linux Wayland keyboard DSL
 - [x] macOS mouse
-- [ ] macOS text (waiting for core-graphics crate update)
+- [x] macOS text
 - [ ] macOS keyboard DSL
 - [x] Win mouse
 - [x] Win text
@@ -29,7 +29,6 @@ let mut enigo = Enigo::new();
 
 enigo.mouse_move_to(500, 200);
 enigo.mouse_click(1);
-//only on linux and windows currently
 enigo.key_sequence("hello world");
 
 ```
