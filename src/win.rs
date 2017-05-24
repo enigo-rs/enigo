@@ -5,7 +5,7 @@ extern crate user32;
 use self::user32::*;
 use self::winapi::*;
 
-use super::{KeyboardControllable, MouseControllable};
+use super::{KeyboardControllable, MouseControllable, Key};
 use std::mem::*;
 
 /// The main struct for handling the event emitting
@@ -172,6 +172,18 @@ impl KeyboardControllable for Enigo {
                 self.keyup(0);
             }
         }
+    }
+
+    fn key_click(&mut self, key: Key) {
+        unimplemented!();
+    }
+
+    fn key_down(&mut self, key: Key) {
+        unimplemented!();
+    }
+
+    fn key_up(&mut self, key: Key) {
+        unimplemented!();
     }
 }
 

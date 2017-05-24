@@ -9,7 +9,7 @@ use self::core_graphics::event_source::*;
 use self::core_graphics::geometry::*;
 use self::libc::*;
 
-use super::{KeyboardControllable, MouseControllable};
+use super::{KeyboardControllable, MouseControllable, Key};
 use std::mem;
 
 use std::ptr;
@@ -210,5 +210,17 @@ impl KeyboardControllable for Enigo {
          let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
          event.set_string(sequence);
          event.post(CGEventTapLocation::HID);
+    }
+
+    fn key_click(&mut self, key: Key) {
+        unimplemented!();
+    }
+
+    fn key_down(&mut self, key: Key) {
+        unimplemented!();
+    }
+
+    fn key_up(&mut self, key: Key) {
+        unimplemented!();
     }
 }

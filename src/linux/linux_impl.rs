@@ -3,7 +3,8 @@ extern crate regex;
 
 use self::regex::Regex;
 
-use super::{KeyboardControllable, MouseControllable};
+use ::{KeyboardControllable, MouseControllable, Key};
+use linux::keysyms::*;
 use std::ffi::CString;
 use std::ptr;
 use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
@@ -211,10 +212,22 @@ impl KeyboardControllable for Enigo {
             self.keycode_click(keycode)
         }
     }
+
+    fn key_click(&mut self, key: Key) {
+        self.keycode_click(self.key_to_keycode(key));
+    }
+
+    fn key_down(&mut self, key: Key) {
+        self.keycode_down(self.key_to_keycode(key));
+    }
+
+    fn key_up(&mut self, key: Key) {
+        self.keycode_up(self.key_to_keycode(key));
+    }
 }
 
 impl Enigo {
-    fn unicode_string_to_keycode(&self, unicode_string: &str) -> i32 {
+    fn unicode_string_to_keycode(&self, unicode_string: &str) -> u32 {
         let unicode_as_c_string = CString::new(unicode_string).unwrap();
         let key_sym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
 
@@ -244,12 +257,23 @@ impl Enigo {
             XFlush(self.display);
             let keycode = XKeysymToKeycode(self.display, key_sym, 0);
 
-            keycode as i32
+            keycode
         }
 
     }
 
-    fn keycode_click(&self, keycode: i32) {
+    fn key_to_keycode(&self, key: Key) -> u32 {
+        unsafe {
+            match key {
+                Key::RETURN => XKeysymToKeycode(self.display, XK_Return as *const c_void, 0),
+                Key::TAB => XKeysymToKeycode(self.display, XK_Tab as *const c_void, 0),
+                Key::SHIFT => XKeysymToKeycode(self.display, XK_Shift_L as *const c_void, 0),
+                _ => 0,
+            }
+        }
+    }
+
+    fn keycode_click(&self, keycode: u32) {
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
         self.keycode_down(keycode);
@@ -257,14 +281,14 @@ impl Enigo {
         thread::sleep(time::Duration::from_millis(20));
     }
 
-    fn keycode_down(&self, keycode: i32) {
+    fn keycode_down(&self, keycode: u32) {
         unsafe {
             XTestFakeKeyEvent(self.display, keycode as u32, 1, 1);
             XFlush(self.display);
         }
     }
 
-    fn keycode_up(&self, keycode: i32) {
+    fn keycode_up(&self, keycode: u32) {
         unsafe {
             XTestFakeKeyEvent(self.display, keycode as u32, 0, 1);
             XFlush(self.display);

@@ -185,22 +185,18 @@ pub trait MouseControllable {
     fn mouse_scroll_y(&mut self, length: i32);
 }
 
-#[cfg(target_os = "windows")]
-mod win;
-#[cfg(target_os = "windows")]
-pub use win::Enigo;
-
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "macos")]
-pub use macos::Enigo;
-
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "linux")]
-pub use linux::Enigo;
-
-mod parser;
+/// Keys to be used TODO(dustin): make a real documentation
+#[derive(Debug)]
+pub enum Key {
+    ///shift key 
+    SHIFT,
+    ///tab key 
+    TAB,
+    ///return key 
+    RETURN,
+    ///unicode key
+    UNICODE(String),
+}
 
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
@@ -219,7 +215,34 @@ pub trait KeyboardControllable {
     /// enigo.key_sequence("hello world");
     /// ```
     fn key_sequence(&mut self, sequence: &str);
+
+    ///key_down
+    fn key_down(&mut self, key: Key);
+
+    ///key_down
+    fn key_up(&mut self, key: Key);
+
+    ///key_down
+    fn key_click(&mut self, key: Key);
 }
+
+#[cfg(target_os = "windows")]
+mod win;
+#[cfg(target_os = "windows")]
+pub use win::Enigo;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::Enigo;
+
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::Enigo;
+
+mod parser;
+
 
 #[cfg(test)]
 mod tests {}
