@@ -25,8 +25,7 @@ winapi = "0.2.8"
 user32-sys = "0.2.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-#core-graphics = { git = "https://github.com/servo/core-graphics-rs", rev = "17535154051138dd5f52dcdf14f46a8b6537c95e" }
-core-graphics  = "0.7.0"
+core-graphics = "0.8.0"
 libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]

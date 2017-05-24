@@ -16,7 +16,7 @@ Cross platform input simulation in Rust!
 - [ ] Linux Wayland text
 - [ ] Linux Wayland keyboard DSL
 - [x] macOS mouse
-- [ ] macOS text (waiting for core-graphics crate update)
+- [x] macOS text
 - [ ] macOS keyboard DSL
 - [x] Win mouse
 - [x] Win text
@@ -29,7 +29,6 @@ let mut enigo = Enigo::new();
 
 enigo.mouse_move_to(500, 200);
 enigo.mouse_click(1);
-//only on linux and windows currently
 enigo.key_sequence("hello world");
 
 ```
