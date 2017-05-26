@@ -191,6 +191,10 @@ pub enum Key {
     TAB,
     ///return key 
     RETURN,
+    ///ctrl key
+    CONTROL,
+    ///a key,
+    A,
     ///unicode key
     UNICODE(String),
 }
