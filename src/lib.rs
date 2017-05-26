@@ -39,6 +39,9 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(target_os = "macos")]
+extern crate libc;
+
 // TODO(dustin) use interior mutability not &mut self
 
 /// Representing an interface and a set of mouse functions every
