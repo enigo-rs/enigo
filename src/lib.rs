@@ -36,9 +36,6 @@
 
 #![deny(missing_docs)]
 
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(target_os = "macos")]
 extern crate libc;
 
