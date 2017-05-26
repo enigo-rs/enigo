@@ -1,5 +1,5 @@
 extern crate enigo;
-use enigo::{Enigo, KeyboardControllable, Key};
+use enigo::{Enigo, KeyboardControllable};
 use std::{thread, time};
 
 fn main() {
@@ -9,4 +9,3 @@ fn main() {
     thread::sleep(wait_time);
     enigo.key_sequence("hello world");
 }
-

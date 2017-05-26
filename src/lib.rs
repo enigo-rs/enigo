@@ -36,9 +36,6 @@
 
 #![deny(missing_docs)]
 
-#[macro_use]
-extern crate lazy_static;
-
 // TODO(dustin) use interior mutability not &mut self
 
 /// Representing an interface and a set of mouse functions every

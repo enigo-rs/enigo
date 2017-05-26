@@ -1,7 +1,4 @@
 extern crate libc;
-extern crate regex;
-
-use self::regex::Regex;
 
 use {KeyboardControllable, MouseControllable, Key};
 use linux::keysyms::*;
@@ -111,6 +108,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
+
         if self.display.is_null() {
             panic!("display is not available")
         }
@@ -198,7 +196,7 @@ impl MouseControllable for Enigo {
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         for c in sequence.chars() {
-            let mut rust_unicode: String = format!("U{:x}", c as u32);
+            let rust_unicode: String = format!("U{:x}", c as u32);
             let keycode = self.unicode_string_to_keycode(&rust_unicode);
 
             self.keycode_click(keycode);

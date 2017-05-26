@@ -8,7 +8,6 @@
  */
 extern crate enigo;
 use enigo::{Enigo, KeyboardControllable, Key};
-use std::{thread, time};
 
 fn main() {
     let mut enigo = Enigo::new();
