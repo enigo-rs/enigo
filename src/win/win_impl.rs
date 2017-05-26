@@ -5,7 +5,8 @@ extern crate user32;
 use self::user32::*;
 use self::winapi::*;
 
-use super::{KeyboardControllable, MouseControllable, Key};
+use ::{KeyboardControllable, MouseControllable, Key};
+use win::keycodes::*;
 use std::mem::*;
 
 /// The main struct for handling the event emitting
@@ -164,39 +165,105 @@ impl KeyboardControllable for Enigo {
             //being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             if result.len() == 1 {
-                self.keyclick(result[0]);
+                self.unicode_key_click(result[0]);
             } else {
                 for utf16_surrogate in result {
-                    self.keydown(utf16_surrogate.clone());
+                    self.unicode_key_down(utf16_surrogate.clone());
                 }
-                self.keyup(0);
+                //do i need to produce a keyup?
+                //self.unicode_key_up(0);
             }
         }
     }
 
     fn key_click(&mut self, key: Key) {
-        unimplemented!();
+        let keycode = self.key_to_keycode(key);
+
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
+
+        unsafe {
+            let mut input = INPUT {
+                type_: INPUT_KEYBOARD,
+                u: transmute_copy(&KEYBDINPUT {
+                                      wVk: keycode,
+                                      wScan: 0,
+                                      dwFlags: 0,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
+            };
+
+            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
+        }
+
+        thread::sleep(time::Duration::from_millis(20));
+
+        unsafe {
+            let mut input = INPUT {
+                type_: INPUT_KEYBOARD,
+                u: transmute_copy(&KEYBDINPUT {
+                                      wVk: keycode,
+                                      wScan: 0,
+                                      dwFlags: KEYEVENTF_KEYUP,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
+            };
+
+            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
+        }
+
+        thread::sleep(time::Duration::from_millis(20));
     }
 
     fn key_down(&mut self, key: Key) {
-        unimplemented!();
+        //unimplemented!();
+        unsafe {
+            let mut input = INPUT {
+                type_: INPUT_KEYBOARD,
+                u: transmute_copy(&KEYBDINPUT {
+                                      wVk: self.key_to_keycode(key),
+                                      wScan: 0,
+                                      dwFlags: 0,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
+            };
+
+            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
+        }
     }
 
     fn key_up(&mut self, key: Key) {
-        unimplemented!();
+        //unimplemented!();
+        unsafe {
+            let mut input = INPUT {
+                type_: INPUT_KEYBOARD,
+                u: transmute_copy(&KEYBDINPUT {
+                                      wVk: self.key_to_keycode(key),
+                                      wScan: 0,
+                                      dwFlags: KEYEVENTF_KEYUP,
+                                      time: 0,
+                                      dwExtraInfo: 0,
+                                  }),
+            };
+
+            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
+        }
     }
 }
 
 impl Enigo {
-    fn keyclick(&self, unicode_char: u16) {
+    fn unicode_key_click(&self, unicode_char: u16) {
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
-        self.keydown(unicode_char);
-        self.keyup(unicode_char);
+        self.unicode_key_down(unicode_char);
+        self.unicode_key_up(unicode_char);
         thread::sleep(time::Duration::from_millis(20));
     }
 
-    fn keydown(&self, unicode_char: u16) {
+    fn unicode_key_down(&self, unicode_char: u16) {
         unsafe {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
@@ -213,10 +280,10 @@ impl Enigo {
         }
     }
 
-    fn keyup(&self, unicode_char: u16) {
+    fn unicode_key_up(&self, unicode_char: u16) {
         unsafe {
             let mut input = INPUT {
-                type_: INPUT_MOUSE,
+                type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
                                       wVk: 0,
                                       wScan: unicode_char,
@@ -227,6 +294,21 @@ impl Enigo {
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
+        }
+    }
+
+    fn key_to_keycode(&self, key: Key) -> u16 {
+        //do not use the codes from crate winapi they're 
+        //wrongly typed with i32 instead of i16 use the
+        //ones provided by keycodes.re that are prefixed
+        //with an 'E' infront of the original name
+        match key {
+            Key::TAB => EVK_TAB,
+            Key::RETURN => EVK_RETURN,
+            Key::SHIFT => EVK_SHIFT,
+            Key::CONTROL => EVK_CONTROL,
+            Key::A => EVK_A,
+            _ => 0,
         }
     }
 }
