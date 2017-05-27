@@ -9,7 +9,8 @@ use self::core_graphics::event_source::*;
 use self::core_graphics::geometry::*;
 use self::libc::*;
 
-use super::{KeyboardControllable, MouseControllable, Key};
+use ::{KeyboardControllable, MouseControllable, Key};
+use macos::keycodes::*;
 use std::mem;
 
 use std::ptr;
@@ -26,6 +27,10 @@ extern "C" {
                                -> CGEventRef;
 
     fn CGEventPost(tapLocation: CGEventTapLocation, event: CGEventRef);
+
+    fn CGEventCreateKeyboardEvent(source: CGEventSourceRef, 
+                                  keycode: CGKeyCode, 
+                                  keydown: bool) -> CGEventRef;
 
     // not present in servo/core-graphics
     fn CGEventCreateScrollWheelEvent(source: CGEventSourceRef,
@@ -204,6 +209,8 @@ impl MouseControllable for Enigo {
     }
 }
 
+//https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
+
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
          let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
@@ -213,14 +220,42 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_click(&mut self, key: Key) {
-        unimplemented!();
+        unsafe {
+            let keycode = self.key_to_keycode(key);
+            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), keycode, true);
+            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
+            CFRelease(mem::transmute(keyboard_ev));
+
+            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), keycode, false);
+            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
+            CFRelease(mem::transmute(keyboard_ev));
+        }
     }
 
     fn key_down(&mut self, key: Key) {
-        unimplemented!();
+        unsafe {
+            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), self.key_to_keycode(key), true);
+            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
+            CFRelease(mem::transmute(keyboard_ev));
+        }
     }
 
     fn key_up(&mut self, key: Key) {
-        unimplemented!();
+        unsafe {
+            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), self.key_to_keycode(key), false);
+            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
+            CFRelease(mem::transmute(keyboard_ev));
+        }
+    }
+}
+
+impl Enigo {
+    fn key_to_keycode(&self, key: Key) -> CGKeyCode {
+        match key {
+            Key::RETURN => kVK_Return,
+            Key::TAB => kVK_Tab,
+            Key::SHIFT => kVK_Shift,
+            _ => 0,
+        }
     }
 }

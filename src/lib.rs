@@ -36,8 +36,8 @@
 
 #![deny(missing_docs)]
 
-#[macro_use]
-extern crate lazy_static;
+#[cfg(target_os = "macos")]
+extern crate libc;
 
 // TODO(dustin) use interior mutability not &mut self
 
@@ -194,6 +194,10 @@ pub enum Key {
     TAB,
     ///return key 
     RETURN,
+    ///ctrl key
+    CONTROL,
+    ///a key,
+    A,
     ///unicode key
     UNICODE(String),
 }
