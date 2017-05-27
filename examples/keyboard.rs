@@ -9,4 +9,3 @@ fn main() {
     thread::sleep(wait_time);
     enigo.key_sequence("hello world");
 }
-

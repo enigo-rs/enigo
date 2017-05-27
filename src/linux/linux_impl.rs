@@ -264,13 +264,16 @@ impl Enigo {
 
     fn key_to_keycode(&self, key: Key) -> u32 {
         unsafe {
-            match key {
+            let keycode = match key {
                 Key::RETURN => XKeysymToKeycode(self.display, XK_Return as *const c_void, 0),
                 Key::TAB => XKeysymToKeycode(self.display, XK_Tab as *const c_void, 0),
                 Key::SHIFT => XKeysymToKeycode(self.display, XK_Shift_L as *const c_void, 0),
                 _ => 0,
-            }
+            };
+
+            keycode
         }
+
     }
 
     fn keycode_click(&self, keycode: u32) {
