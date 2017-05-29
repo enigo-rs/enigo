@@ -28,9 +28,9 @@
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
 //! enigo.mouse_move_to(500, 200);
-//! enigo.mouse_down(1);
+//! enigo.mouse_down(MouseButton::Right);
 //! enigo.mouse_move_relative(100, 100);
-//! enigo.mouse_up(1);
+//! enigo.mouse_up(MouseButton::Right);
 //! enigo.key_sequence("hello world");
 //! ```
 
@@ -138,7 +138,7 @@ pub trait MouseControllable {
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_down(1);
+    /// enigo.mouse_down(MouseButton::Right);
     /// ```
     fn mouse_down(&mut self, button: MouseButton);
 
@@ -162,7 +162,7 @@ pub trait MouseControllable {
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_up(1);
+    /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton);
 
@@ -184,7 +184,7 @@ pub trait MouseControllable {
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_click(1);
+    /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton);
 
