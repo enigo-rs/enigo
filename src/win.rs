@@ -5,7 +5,7 @@ extern crate user32;
 use self::user32::*;
 use self::winapi::*;
 
-use super::{KeyboardControllable, MouseControllable};
+use {KeyboardControllable, MouseControllable, MouseButton};
 use std::mem::*;
 
 /// The main struct for handling the event emitting
@@ -48,9 +48,7 @@ impl MouseControllable for Enigo {
         unsafe { SetCursorPos(self.current_x, self.current_y) };
     }
 
-    // TODO(dustin): use button parameter, current implementation
-    // is using the left mouse button every time
-    fn mouse_down(&mut self, button: u32) {
+    fn mouse_down(&mut self, button: MouseButton) {
         unsafe {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
@@ -58,7 +56,11 @@ impl MouseControllable for Enigo {
                                       dx: 0,
                                       dy: 0,
                                       mouseData: 0,
-                                      dwFlags: MOUSEEVENTF_LEFTDOWN,
+                                      dwFlags: if button == MouseButton::Left {
+                                          MOUSEEVENTF_LEFTDOWN
+                                      } else {
+                                          MOUSEEVENTF_RIGHTDOWN
+                                      },
                                       time: 0,
                                       dwExtraInfo: 0,
                                   }),
@@ -68,9 +70,7 @@ impl MouseControllable for Enigo {
         }
     }
 
-    // TODO(dustin): use button parameter, current implementation
-    // is using the left mouse button every time
-    fn mouse_up(&mut self, button: u32) {
+    fn mouse_up(&mut self, button: MouseButton) {
         unsafe {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
@@ -78,7 +78,11 @@ impl MouseControllable for Enigo {
                                       dx: 0,
                                       dy: 0,
                                       mouseData: 0,
-                                      dwFlags: MOUSEEVENTF_LEFTUP,
+                                      dwFlags: if button == MouseButton::Left {
+                                          MOUSEEVENTF_LEFTUP
+                                      } else {
+                                          MOUSEEVENTF_RIGHTUP
+                                      },
                                       time: 0,
                                       dwExtraInfo: 0,
                                   }),
@@ -88,7 +92,7 @@ impl MouseControllable for Enigo {
         }
     }
 
-    fn mouse_click(&mut self, button: u32) {
+    fn mouse_click(&mut self, button: MouseButton) {
         self.mouse_down(button);
         self.mouse_up(button);
     }
@@ -157,10 +161,10 @@ impl KeyboardControllable for Enigo {
         for c in sequence.chars() {
             //Windows uses uft-16 encoding. We need to check
             //for variable length characters. As such some
-            //characters can be 32 bit long and those are 
+            //characters can be 32 bit long and those are
             //encoded in such called hight and low surrogates
             //each 16 bit wide that needs to be send after
-            //another to the SendInput function without 
+            //another to the SendInput function without
             //being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             if result.len() == 1 {

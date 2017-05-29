@@ -41,6 +41,44 @@ extern crate lazy_static;
 
 // TODO(dustin) use interior mutability not &mut self
 
+#[cfg(target_os = "windows")]
+mod win;
+#[cfg(target_os = "windows")]
+pub use win::Enigo;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::Enigo;
+
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::Enigo;
+
+mod parser;
+
+/// MouseButton represents a mouse button,
+/// and is used in for example mouse_click.
+/// WARNING: Types with the prefix Scroll
+/// IS NOT intended to be used, and may not work on
+/// all operating systems.
+#[derive(Clone, Copy)]
+pub enum MouseButton {
+    /// Left mouse button
+    Left,
+    /// Right mouse button
+    Right,
+    /// Scroll up button
+    ScrollUp,
+    /// Left right button
+    ScrollDown,
+    /// Left right button
+    ScrollLeft,
+    /// Left right button
+    ScrollRight,
+}
+
 /// Representing an interface and a set of mouse functions every
 /// operating system implementation _should_ implement.
 pub trait MouseControllable {
@@ -102,7 +140,7 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_down(1);
     /// ```
-    fn mouse_down(&mut self, button: u32);
+    fn mouse_down(&mut self, button: MouseButton);
 
     /// Lift up a pushed down mouse button
     ///
@@ -126,7 +164,7 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_up(1);
     /// ```
-    fn mouse_up(&mut self, button: u32);
+    fn mouse_up(&mut self, button: MouseButton);
 
     /// Click a mouse button
     ///
@@ -148,7 +186,7 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_click(1);
     /// ```
-    fn mouse_click(&mut self, button: u32);
+    fn mouse_click(&mut self, button: MouseButton);
 
     /// Scroll the mouse (wheel) left or right
     ///
@@ -184,23 +222,6 @@ pub trait MouseControllable {
     /// ```
     fn mouse_scroll_y(&mut self, length: i32);
 }
-
-#[cfg(target_os = "windows")]
-mod win;
-#[cfg(target_os = "windows")]
-pub use win::Enigo;
-
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "macos")]
-pub use macos::Enigo;
-
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "linux")]
-pub use linux::Enigo;
-
-mod parser;
 
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
