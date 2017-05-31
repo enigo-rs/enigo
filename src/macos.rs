@@ -133,7 +133,7 @@ impl MouseControllable for Enigo {
                                                                 self.current_y as f64),
                                                    match button {
                                                        MouseButton::Left => CGMouseButton::Left,
-                                                       MouseButton::Middle => CGMouseButton::Middle,
+                                                       MouseButton::Middle => CGMouseButton::Center,
                                                        MouseButton::Right => CGMouseButton::Right,
 
                                                        _ => unimplemented!(),
@@ -154,7 +154,7 @@ impl MouseControllable for Enigo {
                                                                 self.current_y as f64),
                                                    match button {
                                                        MouseButton::Left => CGMouseButton::Left,
-                                                       MouseButton::Middle => CGMouseButton::Middle,
+                                                       MouseButton::Middle => CGMouseButton::Center,
                                                        MouseButton::Right => CGMouseButton::Right,
 
                                                        _ => unimplemented!(),
