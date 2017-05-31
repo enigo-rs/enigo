@@ -3,7 +3,7 @@ extern crate regex;
 
 use self::regex::Regex;
 
-use super::{KeyboardControllable, MouseControllable};
+use {KeyboardControllable, MouseControllable, MouseButton};
 use std::ffi::CString;
 use std::ptr;
 use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
@@ -121,31 +121,51 @@ impl MouseControllable for Enigo {
     }
 
     // TODO(dustin): make button a new type
-    fn mouse_down(&mut self, button: u32) {
+    fn mouse_down(&mut self, button: MouseButton) {
         if self.display.is_null() {
             panic!("display is not available")
         }
 
         unsafe {
-            // TODO(dustin): make 1, 0 / true false a new type
-            XTestFakeButtonEvent(self.display, button, 1, 0);
+            XTestFakeButtonEvent(self.display,
+                                 match button {
+                                     MouseButton::Left => 1,
+                                     MouseButton::Middle => 2,
+                                     MouseButton::Right => 3,
+                                     MouseButton::ScrollUp => 4,
+                                     MouseButton::ScrollDown => 5,
+                                     MouseButton::ScrollLeft => 6,
+                                     MouseButton::ScrollRight => 7,
+                                 },
+                                 1,
+                                 0);
             XFlush(self.display);
         }
     }
 
-    fn mouse_up(&mut self, button: u32) {
+    fn mouse_up(&mut self, button: MouseButton) {
         if self.display.is_null() {
             panic!("display is not available")
         }
 
         unsafe {
-            // TODO(dustin): make 1, 0 / true false a new type
-            XTestFakeButtonEvent(self.display, button, 0, 0);
+            XTestFakeButtonEvent(self.display,
+                                 match button {
+                                     MouseButton::Left => 1,
+                                     MouseButton::Middle => 2,
+                                     MouseButton::Right => 3,
+                                     MouseButton::ScrollUp => 4,
+                                     MouseButton::ScrollDown => 5,
+                                     MouseButton::ScrollLeft => 6,
+                                     MouseButton::ScrollRight => 7,
+                                 },
+                                 0,
+                                 0);
             XFlush(self.display);
         }
     }
 
-    fn mouse_click(&mut self, button: u32) {
+    fn mouse_click(&mut self, button: MouseButton) {
         use std::{thread, time};
 
         self.mouse_down(button);
@@ -158,9 +178,9 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 6; // scroll left button
+            button = MouseButton::ScrollLeft;
         } else {
-            button = 7; // scroll right button
+            button = MouseButton::ScrollRight;
         }
 
         if length < 0 {
@@ -178,9 +198,9 @@ impl MouseControllable for Enigo {
         let mut length = length;
 
         if length < 0 {
-            button = 4; // scroll up button
+            button = MouseButton::ScrollUp;
         } else {
-            button = 5; // scroll down button
+            button = MouseButton::ScrollDown;
         }
 
         if length < 0 {
