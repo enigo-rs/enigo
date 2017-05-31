@@ -131,10 +131,12 @@ impl MouseControllable for Enigo {
                                                    FIXMEEventType::LeftMouseDown,
                                                    CGPoint::new(self.current_x as f64,
                                                                 self.current_y as f64),
-                                                   if button == MouseButton::Left {
-                                                       CGMouseButton::Left
-                                                   } else {
-                                                       CGMouseButton::Right
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Middle,
+                                                       MouseButton::Right => CGMouseButton::Right,
+
+                                                       _ => unimplemented!(),
                                                    });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
@@ -150,10 +152,12 @@ impl MouseControllable for Enigo {
                                                    FIXMEEventType::LeftMouseUp,
                                                    CGPoint::new(self.current_x as f64,
                                                                 self.current_y as f64),
-                                                   if button == MouseButton::Left {
-                                                       CGMouseButton::Left
-                                                   } else {
-                                                       CGMouseButton::Right
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Middle,
+                                                       MouseButton::Right => CGMouseButton::Right,
+
+                                                       _ => unimplemented!(),
                                                    });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);

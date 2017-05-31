@@ -56,10 +56,12 @@ impl MouseControllable for Enigo {
                                       dx: 0,
                                       dy: 0,
                                       mouseData: 0,
-                                      dwFlags: if button == MouseButton::Left {
-                                          MOUSEEVENTF_LEFTDOWN
-                                      } else {
-                                          MOUSEEVENTF_RIGHTDOWN
+                                      dwFlags: match button {
+                                          MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                                          MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+
+                                          _ => unimplemented!(),
                                       },
                                       time: 0,
                                       dwExtraInfo: 0,
@@ -78,10 +80,12 @@ impl MouseControllable for Enigo {
                                       dx: 0,
                                       dy: 0,
                                       mouseData: 0,
-                                      dwFlags: if button == MouseButton::Left {
-                                          MOUSEEVENTF_LEFTUP
-                                      } else {
-                                          MOUSEEVENTF_RIGHTUP
+                                      dwFlags: match button {
+                                          MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                                          MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+
+                                          _ => unimplemented!(),
                                       },
                                       time: 0,
                                       dwExtraInfo: 0,

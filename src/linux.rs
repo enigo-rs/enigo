@@ -129,8 +129,9 @@ impl MouseControllable for Enigo {
         unsafe {
             XTestFakeButtonEvent(self.display,
                                  match button {
-                                     MouseButton::Left => 0,
-                                     MouseButton::Right => 1,
+                                     MouseButton::Left => 1,
+                                     MouseButton::Middle => 2,
+                                     MouseButton::Right => 3,
                                      MouseButton::ScrollUp => 4,
                                      MouseButton::ScrollDown => 5,
                                      MouseButton::ScrollLeft => 6,
@@ -150,8 +151,9 @@ impl MouseControllable for Enigo {
         unsafe {
             XTestFakeButtonEvent(self.display,
                                  match button {
-                                     MouseButton::Left => 0,
-                                     MouseButton::Right => 1,
+                                     MouseButton::Left => 1,
+                                     MouseButton::Middle => 2,
+                                     MouseButton::Right => 3,
                                      MouseButton::ScrollUp => 4,
                                      MouseButton::ScrollDown => 5,
                                      MouseButton::ScrollLeft => 6,

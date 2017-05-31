@@ -63,12 +63,15 @@ mod parser;
 /// WARNING: Types with the prefix Scroll
 /// IS NOT intended to be used, and may not work on
 /// all operating systems.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum MouseButton {
     /// Left mouse button
     Left,
+    /// Middle mouse button
+    Middle,
     /// Right mouse button
     Right,
+
     /// Scroll up button
     ScrollUp,
     /// Left right button
