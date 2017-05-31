@@ -2,7 +2,7 @@
 //! made by the actual hardware. The goal is to make it available on different
 //! operating systems like Linux, macOS and Windows – possibly many more but
 //! [Redox](https://redox-os.org/) and *BSD are planned. Please see the
-//! [Repo](https://github.com/pythoneer/enigo) for the current status.
+//! [Repo](https://github.com/enigo-rs/enigo) for the current status.
 //!
 //! I consider this library in an early alpha status, the API will change in
 //! in the future. The keyboard handling is far from being very usable. I plan
@@ -16,7 +16,7 @@
 //! [ASCII](https://en.wikipedia.org/wiki/ASCII)
 //! characters without the `{+SHIFT}`
 //! [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
-//! or any other "special" key on the linux operating system.
+//! or any other "special" key on the Linux, macOS and Windows operating system.
 //!
 //! Possible use cases could be for testing user interfaces on different
 //! plattforms,
@@ -28,9 +28,9 @@
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
 //! enigo.mouse_move_to(500, 200);
-//! enigo.mouse_down(MouseButton::Right);
+//! enigo.mouse_down(MouseButton::Left);
 //! enigo.mouse_move_relative(100, 100);
-//! enigo.mouse_up(MouseButton::Right);
+//! enigo.mouse_up(MouseButton::Left);
 //! enigo.key_sequence("hello world");
 //! ```
 
@@ -59,7 +59,8 @@ pub use linux::Enigo;
 mod parser;
 
 /// MouseButton represents a mouse button,
-/// and is used in for example mouse_click.
+/// and is used in for example 
+/// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
 /// WARNING: Types with the prefix Scroll
 /// IS NOT intended to be used, and may not work on
 /// all operating systems.
@@ -106,7 +107,7 @@ pub trait MouseControllable {
     /// The amount specified in the x and y parameters are added to the
     /// current location of the mouse cursor. A positive x values lets
     /// the mouse cursor move an amount of `x` pixels to the right. A negative
-    /// value for `x` lets the mouse cursor go to the right. A positive value
+    /// value for `x` lets the mouse cursor go to the left. A positive value
     /// of y
     /// lets the mouse cursor go down, a negative one lets the mouse cursor go
     /// up.
@@ -122,26 +123,20 @@ pub trait MouseControllable {
 
     /// Push down one of the mouse buttons
     ///
-    /// Push down the mouse button specified by the parameter `button`
-    /// and holds it until it is released by [mouse_up]
-    /// (trait.MouseControllable.html#tymethod.mouse_up).
-    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.
-    /// mouse_move_to) or
-    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.
-    /// mouse_move_relative)
+    /// Push down the mouse button specified by the parameter `button` of
+    /// type [MouseButton](enum.MouseButton.html)
+    /// and holds it until it is released by 
+    /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
+    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.mouse_move_to) or
+    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.mouse_move_relative)
     /// will work like expected and will e.g. drag widgets or highlight text.
-    ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_down(MouseButton::Right);
+    /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton);
 
@@ -154,11 +149,6 @@ pub trait MouseControllable {
     /// will emit lift up events. It depends on the
     /// operating system whats actually happening – my guess is it will just
     /// get ignored.
-    ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
     ///
     /// # Example
     ///
@@ -176,11 +166,6 @@ pub trait MouseControllable {
     /// by a [mouse_up](trait.MouseControllable.html#tymethod.mouse_up). Just
     /// for
     /// convenience.
-    ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
     ///
     /// # Example
     ///
@@ -233,7 +218,7 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux and Windows (macOS waiting for core-graphics crate update).
+    /// This is currently only implemented on Linux macOS and Windows.
     ///
     /// # Example
     ///

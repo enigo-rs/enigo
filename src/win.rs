@@ -47,7 +47,7 @@ impl MouseControllable for Enigo {
         self.current_y += y;
         unsafe { SetCursorPos(self.current_x, self.current_y) };
     }
-//xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
     fn mouse_down(&mut self, button: MouseButton) {
         unsafe {
             let mut input = INPUT {

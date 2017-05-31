@@ -29,7 +29,7 @@ Cross platform input simulation in Rust!
 let mut enigo = Enigo::new();
 
 enigo.mouse_move_to(500, 200);
-enigo.mouse_click(1);
+enigo.mouse_click(MouseButton::Left);
 enigo.key_sequence("hello world");
 
 ```
