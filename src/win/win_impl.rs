@@ -226,7 +226,6 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_down(&mut self, key: Key) {
-        //unimplemented!();
         unsafe {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
@@ -244,7 +243,6 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_up(&mut self, key: Key) {
-        //unimplemented!();
         unsafe {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
@@ -308,7 +306,7 @@ impl Enigo {
     fn key_to_keycode(&self, key: Key) -> u16 {
         //do not use the codes from crate winapi they're 
         //wrongly typed with i32 instead of i16 use the
-        //ones provided by keycodes.re that are prefixed
+        //ones provided by win/keycodes.rs that are prefixed
         //with an 'E' infront of the original name
         match key {
             Key::TAB => EVK_TAB,
