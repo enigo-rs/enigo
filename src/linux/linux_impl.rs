@@ -200,6 +200,7 @@ impl KeyboardControllable for Enigo {
             let keycode = self.unicode_string_to_keycode(&rust_unicode);
 
             self.keycode_click(keycode);
+            self.reset_keycode(keycode);
         }
     }
 
@@ -217,39 +218,87 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Enigo {
+    fn reset_keycode(&self, keycode: u32) {
+        unsafe {
+            let keysym_list = [0 as KeySym, 0 as KeySym].as_ptr();
+            XChangeKeyboardMapping(
+                self.display,
+                keycode as i32,
+                2,
+                keysym_list,
+                1,
+            );
+        }
+    }
+
     fn unicode_string_to_keycode(&self, unicode_string: &str) -> u32 {
-        let unicode_as_c_string = CString::new(unicode_string).unwrap();
-        let key_sym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
+        let mut keysyms_per_keycode = 0;
+        //scratch space for temporary keycode bindings
+        let mut scratch_keycode = 0;
+        let mut keycode_low = 0;
+        let mut keycode_high = 0;
 
-        let mut min = 0;
-        let mut max = 0;
-        let mut numcodes = 0;
+        let keysyms = unsafe {
+            //get the range of keycodes usually from 8 - 255
+            XDisplayKeycodes(self.display, &mut keycode_low, &mut keycode_high);
+            //get all the mapped keysysms available
+            let keycode_count = keycode_high - keycode_low;
+            XGetKeyboardMapping(self.display, keycode_low as u32, keycode_count, &mut keysyms_per_keycode)
+        };
 
-        unsafe { XDisplayKeycodes(self.display, &mut min, &mut max) };
-
-        let upper = max as i32 - min as i32 + 1;
-        let key_sym_mapped =
-            unsafe { XGetKeyboardMapping(self.display, min as u32, upper, &mut numcodes) };
-        let idx = ((max as i32 - min as i32 - 1) * numcodes as i32) as isize;
-
-        unsafe {
-            let map = key_sym_mapped.offset(idx);
-            *map = key_sym;
+        //find unused keycode for unmapped keysyms so we can 
+        //hook up our own keycode and map every keysym on it
+        //so we just need to 'click' our once unmapped keycode
+        for cidx in keycode_low...keycode_high {
+            let mut key_is_empty = true;
+            for sidx in 0..keysyms_per_keycode {
+                let map_idx = (cidx - keycode_low) * keysyms_per_keycode + sidx;
+                let sym_at_idx = unsafe {
+                    keysyms.offset(map_idx as isize)
+                };
+                if unsafe{*sym_at_idx} != 0 as *const c_void {
+                    key_is_empty = false;
+                } else {
+                    break;
+                }
+            }
+            if key_is_empty {
+                scratch_keycode = cidx;
+                break;
+            }
         }
 
         unsafe {
-            XChangeKeyboardMapping(self.display,
-                                   min as i32,
-                                   numcodes as i32,
-                                   key_sym_mapped,
-                                   (max as i32 - min as i32));
-            XFree(key_sym_mapped as *mut c_void);
+            XFree(keysyms as *mut c_void);
             XFlush(self.display);
-            let keycode = XKeysymToKeycode(self.display, key_sym, 0);
-
-            keycode
         }
 
+        //TODO(dustin) make this an error!
+        if scratch_keycode == 0 {
+            panic!("cannot find free keycode");
+        }
+
+        //find the keysym for the given unicode char
+        //map that keysym to our previous unmapped keycode
+        //click that keycode/'button' with our keysym on it
+        let unicode_as_c_string = CString::new(unicode_string).unwrap();
+        let keysym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
+        let keysym_list = [keysym, keysym].as_ptr();
+        unsafe {
+            XChangeKeyboardMapping(
+                self.display,
+                scratch_keycode,
+                2,
+                keysym_list,
+                1,
+            );
+        }
+
+        unsafe {
+            XFlush(self.display);
+        }
+
+        scratch_keycode as u32
     }
 
     fn key_to_keycode(&self, key: Key) -> u32 {
@@ -258,31 +307,38 @@ impl Enigo {
                 Key::RETURN => XKeysymToKeycode(self.display, XK_RETURN as *const c_void, 0),
                 Key::TAB => XKeysymToKeycode(self.display, XK_TAB as *const c_void, 0),
                 Key::SHIFT => XKeysymToKeycode(self.display, XK_SHIFT_L as *const c_void, 0),
+                Key::A => XKeysymToKeycode(self.display, XK_A as *const c_void, 0),
+                Key::CONTROL => XKeysymToKeycode(self.display, XK_CONTROL_L as *const c_void, 0),
                 _ => 0,
             }
         }
-
     }
 
     fn keycode_click(&self, keycode: u32) {
-        use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(20));
+        // use std::{thread, time};
+        // thread::sleep(time::Duration::from_millis(20));
         self.keycode_down(keycode);
         self.keycode_up(keycode);
-        thread::sleep(time::Duration::from_millis(20));
+        //thread::sleep(time::Duration::from_millis(20));
     }
 
     fn keycode_down(&self, keycode: u32) {
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
         unsafe {
-            XTestFakeKeyEvent(self.display, keycode, 1, 1);
+            XTestFakeKeyEvent(self.display, keycode, 1, 0);
             XFlush(self.display);
         }
+        thread::sleep(time::Duration::from_millis(20));
     }
 
     fn keycode_up(&self, keycode: u32) {
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
         unsafe {
-            XTestFakeKeyEvent(self.display, keycode, 0, 1);
+            XTestFakeKeyEvent(self.display, keycode, 0, 0);
             XFlush(self.display);
         }
+        thread::sleep(time::Duration::from_millis(20));
     }
 }
