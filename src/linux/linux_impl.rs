@@ -270,7 +270,7 @@ impl Enigo {
         //find unused keycode for unmapped keysyms so we can 
         //hook up our own keycode and map every keysym on it
         //so we just need to 'click' our once unmapped keycode
-        for cidx in keycode_low...keycode_high {
+        for cidx in keycode_low..keycode_high + 1 {
             let mut key_is_empty = true;
             for sidx in 0..keysyms_per_keycode {
                 let map_idx = (cidx - keycode_low) * keysyms_per_keycode + sidx;

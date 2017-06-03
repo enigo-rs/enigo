@@ -33,7 +33,6 @@
 //! enigo.mouse_up(MouseButton::Left);
 //! enigo.key_sequence("hello world");
 //! ```
-#![feature(inclusive_range_syntax)]
 #![deny(missing_docs)]
 
 #[cfg(target_os = "macos")]
