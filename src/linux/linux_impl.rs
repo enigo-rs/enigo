@@ -338,8 +338,12 @@ impl Enigo {
     }
 
     fn get_layoutdependent_keycode(&self, string: String) -> u32 {
-        //TODO(dustin): implement this method
-        0x0061 as u32 //key that has the letter 'a' on it on english like keylayout
+        let c_string = CString::new(string).unwrap();
+        let keysym = unsafe { XStringToKeysym(c_string.as_ptr() as *mut c_char) };
+
+        unsafe {
+            XKeysymToKeycode(self.display, keysym, 0)
+        }
     }
 
     fn keycode_click(&self, keycode: u32) {

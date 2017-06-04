@@ -7,4 +7,7 @@ fn main() {
     let mut enigo = Enigo::new();
 
     enigo.key_sequence("Hello World!");
+    enigo.key_down(Key::Control);
+    enigo.key_click(Key::Layout("a".into()));
+    enigo.key_up(Key::Control);
 }
