@@ -213,38 +213,51 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
-         let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
-         event.set_string(sequence);
-         event.post(CGEventTapLocation::HID);
+        //TODO(dustin): return error rather than panic here
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+        let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
+        event.set_string(sequence);
+        event.post(CGEventTapLocation::HID);
     }
 
     fn key_click(&mut self, key: Key) {
         unsafe {
             let keycode = self.key_to_keycode(key);
-            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), keycode, true);
-            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
-            CFRelease(mem::transmute(keyboard_ev));
 
-            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), keycode, false);
-            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
-            CFRelease(mem::transmute(keyboard_ev));
+            use std::{thread, time};
+            thread::sleep(time::Duration::from_millis(20));
+            //TODO(dustin): return error rather than panic here
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, true).expect("Failed creating event");
+            event.post(CGEventTapLocation::HID);
+
+            thread::sleep(time::Duration::from_millis(20));
+            //TODO(dustin): return error rather than panic here
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, false).expect("Failed creating event");
+            event.post(CGEventTapLocation::HID);
         }
     }
 
     fn key_down(&mut self, key: Key) {
         unsafe {
-            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), self.key_to_keycode(key), true);
-            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
-            CFRelease(mem::transmute(keyboard_ev));
+            use std::{thread, time};
+            thread::sleep(time::Duration::from_millis(20));
+            //TODO(dustin): return error rather than panic here
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true).expect("Failed creating event");
+            event.post(CGEventTapLocation::HID);
         }
     }
 
     fn key_up(&mut self, key: Key) {
         unsafe {
-            let keyboard_ev = CGEventCreateKeyboardEvent(ptr::null(), self.key_to_keycode(key), false);
-            CGEventPost(CGEventTapLocation::HID, keyboard_ev);
-            CFRelease(mem::transmute(keyboard_ev));
+            use std::{thread, time};
+            thread::sleep(time::Duration::from_millis(20));
+            //TODO(dustin): return error rather than panic here
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false).expect("Failed creating event");
+            event.post(CGEventTapLocation::HID);
         }
     }
 }
@@ -255,6 +268,8 @@ impl Enigo {
             Key::RETURN => kVK_Return,
             Key::TAB => kVK_Tab,
             Key::SHIFT => kVK_Shift,
+            Key::A => kVK_ANSI_A,
+            Key::CONTROL => kVK_Command,
             _ => 0,
         }
     }
