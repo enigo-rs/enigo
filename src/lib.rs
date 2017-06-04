@@ -214,17 +214,17 @@ pub trait MouseControllable {
 #[derive(Debug)]
 pub enum Key {
     ///shift key 
-    SHIFT,
+    Shift,
     ///tab key 
-    TAB,
+    Tab,
     ///return key 
-    RETURN,
+    Return,
     ///ctrl key
-    CONTROL,
-    ///a key,
-    A,
-    ///unicode key
-    UNICODE(String),
+    Control,
+    ///keyboard layout dependent key
+    Layout(String),
+    ///raw keycode eg 0x38
+    Raw(u16),
 }
 
 /// Representing an interface and a set of keyboard functions every

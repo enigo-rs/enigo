@@ -325,14 +325,21 @@ impl Enigo {
     fn key_to_keycode(&self, key: Key) -> u32 {
         unsafe {
             match key {
-                Key::RETURN => XKeysymToKeycode(self.display, XK_RETURN as *const c_void, 0),
-                Key::TAB => XKeysymToKeycode(self.display, XK_TAB as *const c_void, 0),
-                Key::SHIFT => XKeysymToKeycode(self.display, XK_SHIFT_L as *const c_void, 0),
-                Key::A => XKeysymToKeycode(self.display, XK_A as *const c_void, 0),
-                Key::CONTROL => XKeysymToKeycode(self.display, XK_CONTROL_L as *const c_void, 0),
+                Key::Return => XKeysymToKeycode(self.display, XK_RETURN as *const c_void, 0),
+                Key::Tab => XKeysymToKeycode(self.display, XK_TAB as *const c_void, 0),
+                Key::Shift => XKeysymToKeycode(self.display, XK_SHIFT_L as *const c_void, 0),
+                //Key::A => XKeysymToKeycode(self.display, XK_A as *const c_void, 0),
+                Key::Control => XKeysymToKeycode(self.display, XK_CONTROL_L as *const c_void, 0),
+                Key::Raw(raw_keycode) => raw_keycode as u32,
+                key::Layout(string) => self.get_layoutdependent_keycode(string),
                 _ => 0,
             }
         }
+    }
+
+    fn get_layoutdependent_keycode(&self, string: String) -> u32 {
+        //TODO(dustin): implement this method
+        0x0061 as u32 //key that has the letter 'a' on it on english like keylayout
     }
 
     fn keycode_click(&self, keycode: u32) {

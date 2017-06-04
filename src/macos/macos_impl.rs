@@ -277,12 +277,18 @@ impl KeyboardControllable for Enigo {
 impl Enigo {
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         match key {
-            Key::RETURN => kVK_Return,
-            Key::TAB => kVK_Tab,
-            Key::SHIFT => kVK_Shift,
-            Key::A => kVK_ANSI_A,
-            Key::CONTROL => kVK_Command,
+            Key::Return => kVK_Return,
+            Key::Tab => kVK_Tab,
+            Key::Shift => kVK_Shift,
+            Key::Control => kVK_Command,
+            Key::Raw(raw_keycode) => raw_keycode,
+            Key::Layout(string) => self.get_layoutdependent_keycode(string), 
             _ => 0,
         }
+    }
+
+    fn get_layoutdependent_keycode(&self, string: String) -> CGKeyCode {
+        //TODO(dustin): implement this method
+        0x0 //key that has the letter 'a' on it on english like keylayout
     }
 }

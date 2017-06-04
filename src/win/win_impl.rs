@@ -309,12 +309,19 @@ impl Enigo {
         //ones provided by win/keycodes.rs that are prefixed
         //with an 'E' infront of the original name
         match key {
-            Key::TAB => EVK_TAB,
-            Key::RETURN => EVK_RETURN,
-            Key::SHIFT => EVK_SHIFT,
-            Key::CONTROL => EVK_CONTROL,
-            Key::A => EVK_A,
+            Key::Tab => EVK_TAB,
+            Key::Return => EVK_RETURN,
+            Key::Shift => EVK_SHIFT,
+            Key::Control => EVK_CONTROL,
+            //Key::A => EVK_A,
+            Key::Raw(raw_keycode) => raw_keycode,
+            key::Layout(string) => self.get_layoutdependent_keycode(string),
             _ => 0,
         }
+    }
+
+    fn get_layoutdependent_keycode(&self, string: String) -> u16 {
+        //TODO(dustin): implement this method
+        0x41 as u16 //key that has the letter 'a' on it on english like keylayout
     }
 }
