@@ -15,6 +15,6 @@ fn main() {
     //enigo.key_sequence("ä#+ -> hello world ... 𝕊");
     enigo.key_sequence("aaa𝕊");
     println!("woot m9");
-    enigo.key_click(Key::RETURN);
+    enigo.key_click(Key::Return);
     println!("m9 woot");
 }
