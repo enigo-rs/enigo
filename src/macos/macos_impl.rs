@@ -9,7 +9,7 @@ use self::core_graphics::event_source::*;
 use self::core_graphics::geometry::*;
 use self::libc::*;
 
-use ::{KeyboardControllable, MouseControllable, Key};
+use ::{KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
 
@@ -130,13 +130,19 @@ impl MouseControllable for Enigo {
 
     // TODO(dustin): use button parameter, current implementation
     // is using the left mouse button every time
-    fn mouse_down(&mut self, button: u32) {
+    fn mouse_down(&mut self, button: MouseButton) {
         unsafe {
             let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
                                                    FIXMEEventType::LeftMouseDown,
                                                    CGPoint::new(self.current_x as f64,
                                                                 self.current_y as f64),
-                                                   CGMouseButton::Left);
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Center,
+                                                       MouseButton::Right => CGMouseButton::Right,
+
+                                                       _ => unimplemented!(),
+                                                   });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
@@ -145,20 +151,26 @@ impl MouseControllable for Enigo {
 
     // TODO(dustin): use button parameter, current implementation
     // is using the left mouse button every time
-    fn mouse_up(&mut self, button: u32) {
+    fn mouse_up(&mut self, button: MouseButton) {
         unsafe {
             let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
                                                    FIXMEEventType::LeftMouseUp,
                                                    CGPoint::new(self.current_x as f64,
                                                                 self.current_y as f64),
-                                                   CGMouseButton::Left);
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Center,
+                                                       MouseButton::Right => CGMouseButton::Right,
+
+                                                       _ => unimplemented!(),
+                                                   });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
         }
     }
 
-    fn mouse_click(&mut self, button: u32) {
+    fn mouse_click(&mut self, button: MouseButton) {
         self.mouse_down(button);
         self.mouse_up(button);
     }

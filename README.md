@@ -3,6 +3,7 @@
 [![Dependency Status](https://dependencyci.com/github/pythoneer/enigo/badge)](https://dependencyci.com/github/pythoneer/enigo)
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
+[![Discord chat](https://img.shields.io/discord/315925376486342657.svg)](https://discord.gg/Eb8CsnN)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/enigo-rs/Lobby)
 
 
@@ -28,7 +29,7 @@ Cross platform input simulation in Rust!
 let mut enigo = Enigo::new();
 
 enigo.mouse_move_to(500, 200);
-enigo.mouse_click(1);
+enigo.mouse_click(MouseButton::Left);
 enigo.key_sequence("hello world");
 
 ```

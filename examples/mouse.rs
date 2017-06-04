@@ -1,5 +1,5 @@
 extern crate enigo;
-use enigo::{Enigo, MouseControllable};
+use enigo::{Enigo, MouseControllable, MouseButton};
 use std::{thread, time};
 
 fn main() {
@@ -11,16 +11,16 @@ fn main() {
     enigo.mouse_move_to(500, 200);
     thread::sleep(wait_time);
 
-    enigo.mouse_down(1);
+    enigo.mouse_down(MouseButton::Left);
     thread::sleep(wait_time);
 
     enigo.mouse_move_relative(100, 100);
     thread::sleep(wait_time);
 
-    enigo.mouse_up(1);
+    enigo.mouse_up(MouseButton::Left);
     thread::sleep(wait_time);
 
-    enigo.mouse_click(1);
+    enigo.mouse_click(MouseButton::Left);
     thread::sleep(wait_time);
 
     enigo.mouse_scroll_x(2);

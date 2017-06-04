@@ -2,7 +2,7 @@
 //! made by the actual hardware. The goal is to make it available on different
 //! operating systems like Linux, macOS and Windows – possibly many more but
 //! [Redox](https://redox-os.org/) and *BSD are planned. Please see the
-//! [Repo](https://github.com/pythoneer/enigo) for the current status.
+//! [Repo](https://github.com/enigo-rs/enigo) for the current status.
 //!
 //! I consider this library in an early alpha status, the API will change in
 //! in the future. The keyboard handling is far from being very usable. I plan
@@ -16,7 +16,7 @@
 //! [ASCII](https://en.wikipedia.org/wiki/ASCII)
 //! characters without the `{+SHIFT}`
 //! [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
-//! or any other "special" key on the linux operating system.
+//! or any other "special" key on the Linux, macOS and Windows operating system.
 //!
 //! Possible use cases could be for testing user interfaces on different
 //! plattforms,
@@ -28,18 +28,59 @@
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
 //! enigo.mouse_move_to(500, 200);
-//! enigo.mouse_down(1);
+//! enigo.mouse_down(MouseButton::Left);
 //! enigo.mouse_move_relative(100, 100);
-//! enigo.mouse_up(1);
+//! enigo.mouse_up(MouseButton::Left);
 //! enigo.key_sequence("hello world");
 //! ```
-
 #![deny(missing_docs)]
 
 #[cfg(target_os = "macos")]
 extern crate libc;
 
 // TODO(dustin) use interior mutability not &mut self
+
+#[cfg(target_os = "windows")]
+mod win;
+#[cfg(target_os = "windows")]
+pub use win::Enigo;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::Enigo;
+
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::Enigo;
+
+mod parser;
+
+/// MouseButton represents a mouse button,
+/// and is used in for example 
+/// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
+/// WARNING: Types with the prefix Scroll
+/// IS NOT intended to be used, and may not work on
+/// all operating systems.
+#[derive(Clone, Copy, PartialEq)]
+pub enum MouseButton {
+    /// Left mouse button
+    Left,
+    /// Middle mouse button
+    Middle,
+    /// Right mouse button
+    Right,
+
+    /// Scroll up button
+    ScrollUp,
+    /// Left right button
+    ScrollDown,
+    /// Left right button
+    ScrollLeft,
+    /// Left right button
+    ScrollRight,
+}
 
 /// Representing an interface and a set of mouse functions every
 /// operating system implementation _should_ implement.
@@ -65,7 +106,7 @@ pub trait MouseControllable {
     /// The amount specified in the x and y parameters are added to the
     /// current location of the mouse cursor. A positive x values lets
     /// the mouse cursor move an amount of `x` pixels to the right. A negative
-    /// value for `x` lets the mouse cursor go to the right. A positive value
+    /// value for `x` lets the mouse cursor go to the left. A positive value
     /// of y
     /// lets the mouse cursor go down, a negative one lets the mouse cursor go
     /// up.
@@ -81,28 +122,22 @@ pub trait MouseControllable {
 
     /// Push down one of the mouse buttons
     ///
-    /// Push down the mouse button specified by the parameter `button`
-    /// and holds it until it is released by [mouse_up]
-    /// (trait.MouseControllable.html#tymethod.mouse_up).
-    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.
-    /// mouse_move_to) or
-    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.
-    /// mouse_move_relative)
+    /// Push down the mouse button specified by the parameter `button` of
+    /// type [MouseButton](enum.MouseButton.html)
+    /// and holds it until it is released by 
+    /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
+    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.mouse_move_to) or
+    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.mouse_move_relative)
     /// will work like expected and will e.g. drag widgets or highlight text.
-    ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_down(1);
+    /// enigo.mouse_down(MouseButton::Left);
     /// ```
-    fn mouse_down(&mut self, button: u32);
+    fn mouse_down(&mut self, button: MouseButton);
 
     /// Lift up a pushed down mouse button
     ///
@@ -114,19 +149,14 @@ pub trait MouseControllable {
     /// operating system whats actually happening – my guess is it will just
     /// get ignored.
     ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
-    ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_up(1);
+    /// enigo.mouse_up(MouseButton::Right);
     /// ```
-    fn mouse_up(&mut self, button: u32);
+    fn mouse_up(&mut self, button: MouseButton);
 
     /// Click a mouse button
     ///
@@ -136,19 +166,14 @@ pub trait MouseControllable {
     /// for
     /// convenience.
     ///
-    /// buttons are currently mapped like 1=left, 2=right, 3=middle
-    /// in the linux implementation. On macOS and Windows only leftclicks are
-    /// generated regardless of the parameter button – this will change
-    /// in future version of course.
-    ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.mouse_click(1);
+    /// enigo.mouse_click(MouseButton::Right);
     /// ```
-    fn mouse_click(&mut self, button: u32);
+    fn mouse_click(&mut self, button: MouseButton);
 
     /// Scroll the mouse (wheel) left or right
     ///
@@ -209,7 +234,7 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux and Windows (macOS waiting for core-graphics crate update).
+    /// This is currently only implemented on Linux macOS and Windows.
     ///
     /// # Example
     ///
@@ -229,23 +254,6 @@ pub trait KeyboardControllable {
     ///key_down
     fn key_click(&mut self, key: Key);
 }
-
-#[cfg(target_os = "windows")]
-mod win;
-#[cfg(target_os = "windows")]
-pub use win::Enigo;
-
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "macos")]
-pub use macos::Enigo;
-
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "linux")]
-pub use linux::Enigo;
-
-mod parser;
 
 
 #[cfg(test)]
