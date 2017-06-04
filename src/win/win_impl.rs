@@ -316,12 +316,28 @@ impl Enigo {
             //Key::A => EVK_A,
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(string) => self.get_layoutdependent_keycode(string),
-            _ => 0,
+            //_ => 0,
         }
     }
 
     fn get_layoutdependent_keycode(&self, string: String) -> u16 {
-        //TODO(dustin): implement this method
-        0x41 as u16 //key that has the letter 'a' on it on english like keylayout
+        let mut buffer = [0; 2];
+        //get the first char from the string ignore the rest
+        //ensure its not a multybyte char
+        let utf16 = string
+            .chars()
+            .nth(0)
+            .expect("no valid input") //TODO(dustin): no panic here make an error
+            .encode_utf16(&mut buffer);
+        if utf16.len() != 1 {
+            //TODO(dustin) don't panic here use an apropriate errors
+            panic!("this char is not allowd");
+        }
+        //NOTE VkKeyScanW uses the current keyboard layout
+        //to specify a layout use VkKeyScanExW and GetKeyboardLayout
+        //or load one with LoadKeyboardLayoutW
+        let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
+        //0x41 as u16 //key that has the letter 'a' on it on english like keylayout
+        keycode_and_shiftstate as u16
     }
 }
