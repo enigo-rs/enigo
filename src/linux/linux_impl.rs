@@ -331,7 +331,7 @@ impl Enigo {
                 //Key::A => XKeysymToKeycode(self.display, XK_A as *const c_void, 0),
                 Key::Control => XKeysymToKeycode(self.display, XK_CONTROL_L as *const c_void, 0),
                 Key::Raw(raw_keycode) => raw_keycode as u32,
-                key::Layout(string) => self.get_layoutdependent_keycode(string),
+                Key::Layout(string) => self.get_layoutdependent_keycode(string),
                 _ => 0,
             }
         }

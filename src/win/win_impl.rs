@@ -315,7 +315,7 @@ impl Enigo {
             Key::Control => EVK_CONTROL,
             //Key::A => EVK_A,
             Key::Raw(raw_keycode) => raw_keycode,
-            key::Layout(string) => self.get_layoutdependent_keycode(string),
+            Key::Layout(string) => self.get_layoutdependent_keycode(string),
             _ => 0,
         }
     }
