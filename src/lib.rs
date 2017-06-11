@@ -213,17 +213,73 @@ pub trait MouseControllable {
 /// Keys to be used TODO(dustin): make a real documentation
 #[derive(Debug)]
 pub enum Key {
-    ///shift key 
-    Shift,
-    ///tab key 
-    Tab,
-    ///return key 
+    /// return key
     Return,
-    ///ctrl key
+    /// tab key (tabulator)
+    Tab,
+    /// space key
+    Space,
+    /// backspace key
+    Backspace,
+    /// escape key (esc)
+    Escape,
+    /// super key on linux (command key on macOS, windows key on Windows)
+    Super,
+    /// command key on macOS (super key on Linux, windows key on Windows)
+    Command,
+    /// windows key on Windows (super key on Linux, command key on macOS)
+    Windows,
+    /// shift key
+    Shift,
+    /// caps lock key
+    CapsLock,
+    /// alt key on Linux and Windows (option key on macOS)
+    Alt,
+    /// option key on macOS (alt key on Linux and Windows)
+    Option,
+    /// control key
     Control,
-    ///keyboard layout dependent key
+    /// home key
+    Home,
+    /// page up key
+    PageUp,
+    /// page down key
+    PageDown,
+    /// left arrow key
+    LeftArrow,
+    /// right arrow key
+    RightArrow,
+    /// down arrow key
+    DownArrow,
+    /// up arrow key
+    UpArrow,
+    /// F1 key
+    F1,
+    /// F2 key
+    F2,
+    /// F3 key
+    F3,
+    /// F4 key
+    F4,
+    /// F5 key
+    F5,
+    /// F6 key
+    F6,
+    /// F7 key
+    F7,
+    /// F8 key
+    F8,
+    /// F9 key
+    F9,
+    /// F10 key
+    F10,
+    /// F11 key
+    F11,
+    /// F12 key
+    F12,
+    /// keyboard layout dependent key
     Layout(String),
-    ///raw keycode eg 0x38
+    /// raw keycode eg 0x38
     Raw(u16),
 }
 

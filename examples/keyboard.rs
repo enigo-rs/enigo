@@ -4,10 +4,11 @@ use std::{thread, time};
 
 fn main() {
     let wait_time = time::Duration::from_millis(2000);
+    thread::sleep(wait_time);
     let mut enigo = Enigo::new();
 
-    enigo.key_sequence("Hello World!");
-    enigo.key_down(Key::Control);
+    //enigo.key_sequence("Hello World!");
+    enigo.key_down(Key::Command);
     enigo.key_click(Key::Layout("a".into()));
-    enigo.key_up(Key::Control);
+    enigo.key_up(Key::Command);
 }
