@@ -1,10 +1,10 @@
 [package]
 name = "enigo"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 build = "build.rs"
 
-description = "Enigo lets you control your mouse (and keyboard in the future) in an abstract way on different operating systems (currently only Linux, macOS, Win – Redox and *BSD planned)"
+description = "Enigo lets you control your mouse and keyboard in an abstract way on different operating systems (currently only Linux, macOS, Win – Redox and *BSD planned)"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
 repository = "https://github.com/enigo-rs/enigo"
