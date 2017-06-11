@@ -7,7 +7,10 @@ fn main() {
     thread::sleep(wait_time);
     let mut enigo = Enigo::new();
 
-    //enigo.key_sequence("Hello World!");
+    //write text
+    enigo.key_sequence("Hello World! ❤️");
+    
+    //select all
     enigo.key_down(Key::Control);
     enigo.key_click(Key::Layout("a".into()));
     enigo.key_up(Key::Control);

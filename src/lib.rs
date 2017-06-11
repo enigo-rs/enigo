@@ -12,9 +12,9 @@
 //!
 //! `"hello {+SHIFT}world{-SHIFT} and break line{ENTER}"`
 //!
-//! The current status is that you can just print plain
-//! [ASCII](https://en.wikipedia.org/wiki/ASCII)
-//! characters without the `{+SHIFT}`
+//! The current status is that you can just print
+//! [unicode](http://unicode.org/)
+//! characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
 //! [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
 //! or any other "special" key on the Linux, macOS and Windows operating system.
 //!
@@ -23,7 +23,24 @@
 //! building remote control applications or just automating tasks for user
 //! interfaces unaccessible by a public API or scripting laguage.
 //!
+//! For the keyboard there are currently two modes you can use. The first mode
+//! is represented by the [key_sequence]() function
+//! its purpose is to simply write unicode characters. This is independent of 
+//! the keyboardlayout. Please note that
+//! you're not be able to use modifier keys like Control
+//! to influence the outcome. If you want to use modifier keys to e.g. copy/paste
+//! use the Layout variant. Please note that this is indeed layout dependent.
+
 //! # Examples
+//! ```no_run
+//! use enigo::*;
+//! let mut enigo = Enigo::new();
+//! //paste
+//! enigo.key_down(Key::Control);
+//! enigo.key_click(Key::Layout("v".into()));
+//! enigo.key_up(Key::Control);
+//! ```
+//!
 //! ```no_run
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
@@ -290,24 +307,27 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux macOS and Windows.
+    /// You can use many unicode here like: ❤️. This works
+    /// regadless of the current keyboardlayout.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.key_sequence("hello world");
+    /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str);
 
-    ///key_down
+    ///presses a given key down
     fn key_down(&mut self, key: Key);
 
-    ///key_down
+    ///release a given key formally pressed down by
+    ///[key_down](trait.KeyboardControllable.html#tymethod.key_down)
     fn key_up(&mut self, key: Key);
 
-    ///key_down
+    ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
+    ///function they're just invoked consecutively 
     fn key_click(&mut self, key: Key);
 }
 
