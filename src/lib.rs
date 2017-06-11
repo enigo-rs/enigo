@@ -12,9 +12,9 @@
 //!
 //! `"hello {+SHIFT}world{-SHIFT} and break line{ENTER}"`
 //!
-//! The current status is that you can just print plain
-//! [ASCII](https://en.wikipedia.org/wiki/ASCII)
-//! characters without the `{+SHIFT}`
+//! The current status is that you can just print
+//! [unicode](http://unicode.org/)
+//! characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
 //! [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
 //! or any other "special" key on the Linux, macOS and Windows operating system.
 //!
@@ -23,7 +23,24 @@
 //! building remote control applications or just automating tasks for user
 //! interfaces unaccessible by a public API or scripting laguage.
 //!
+//! For the keyboard there are currently two modes you can use. The first mode
+//! is represented by the [key_sequence]() function
+//! its purpose is to simply write unicode characters. This is independent of 
+//! the keyboardlayout. Please note that
+//! you're not be able to use modifier keys like Control
+//! to influence the outcome. If you want to use modifier keys to e.g. copy/paste
+//! use the Layout variant. Please note that this is indeed layout dependent.
+
 //! # Examples
+//! ```no_run
+//! use enigo::*;
+//! let mut enigo = Enigo::new();
+//! //paste
+//! enigo.key_down(Key::Control);
+//! enigo.key_click(Key::Layout("v".into()));
+//! enigo.key_up(Key::Control);
+//! ```
+//!
 //! ```no_run
 //! use enigo::*;
 //! let mut enigo = Enigo::new();
@@ -33,11 +50,10 @@
 //! enigo.mouse_up(MouseButton::Left);
 //! enigo.key_sequence("hello world");
 //! ```
-
 #![deny(missing_docs)]
 
-#[macro_use]
-extern crate lazy_static;
+#[cfg(target_os = "macos")]
+extern crate libc;
 
 // TODO(dustin) use interior mutability not &mut self
 
@@ -211,6 +227,79 @@ pub trait MouseControllable {
     fn mouse_scroll_y(&mut self, length: i32);
 }
 
+/// Keys to be used TODO(dustin): make a real documentation
+#[derive(Debug)]
+pub enum Key {
+    /// return key
+    Return,
+    /// tab key (tabulator)
+    Tab,
+    /// space key
+    Space,
+    /// backspace key
+    Backspace,
+    /// escape key (esc)
+    Escape,
+    /// super key on linux (command key on macOS, windows key on Windows)
+    Super,
+    /// command key on macOS (super key on Linux, windows key on Windows)
+    Command,
+    /// windows key on Windows (super key on Linux, command key on macOS)
+    Windows,
+    /// shift key
+    Shift,
+    /// caps lock key
+    CapsLock,
+    /// alt key on Linux and Windows (option key on macOS)
+    Alt,
+    /// option key on macOS (alt key on Linux and Windows)
+    Option,
+    /// control key
+    Control,
+    /// home key
+    Home,
+    /// page up key
+    PageUp,
+    /// page down key
+    PageDown,
+    /// left arrow key
+    LeftArrow,
+    /// right arrow key
+    RightArrow,
+    /// down arrow key
+    DownArrow,
+    /// up arrow key
+    UpArrow,
+    /// F1 key
+    F1,
+    /// F2 key
+    F2,
+    /// F3 key
+    F3,
+    /// F4 key
+    F4,
+    /// F5 key
+    F5,
+    /// F6 key
+    F6,
+    /// F7 key
+    F7,
+    /// F8 key
+    F8,
+    /// F9 key
+    F9,
+    /// F10 key
+    F10,
+    /// F11 key
+    F11,
+    /// F12 key
+    F12,
+    /// keyboard layout dependent key
+    Layout(String),
+    /// raw keycode eg 0x38
+    Raw(u16),
+}
+
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
 pub trait KeyboardControllable {
@@ -218,17 +307,30 @@ pub trait KeyboardControllable {
     ///
     /// Emits keystrokes such that the given string is inputted.
     ///
-    /// This is currently only implemented on Linux macOS and Windows.
+    /// You can use many unicode here like: ❤️. This works
+    /// regadless of the current keyboardlayout.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// enigo.key_sequence("hello world");
+    /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str);
+
+    ///presses a given key down
+    fn key_down(&mut self, key: Key);
+
+    ///release a given key formally pressed down by
+    ///[key_down](trait.KeyboardControllable.html#tymethod.key_down)
+    fn key_up(&mut self, key: Key);
+
+    ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
+    ///function they're just invoked consecutively 
+    fn key_click(&mut self, key: Key);
 }
+
 
 #[cfg(test)]
 mod tests {}

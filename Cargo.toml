@@ -1,6 +1,6 @@
 [package]
 name = "enigo"
-version = "0.0.8"
+version = "0.0.9"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 build = "build.rs"
 
@@ -17,9 +17,6 @@ license = "MIT"
 travis-ci = { repository = "enigo-rs/enigo" }
 appveyor = { repository = "pythoneer/enigo-85xiy" }
 
-[dependencies]
-lazy_static = "0.2.0"
-
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = "0.2.8"
 user32-sys = "0.2.0"
@@ -30,7 +27,6 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
-regex = "0.2"
 
 [build-dependencies]
 pkg-config = "0.3.8"
