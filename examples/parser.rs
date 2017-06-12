@@ -1,5 +1,5 @@
 extern crate enigo;
-use enigo::{Enigo, KeyboardControllable, Key};
+use enigo::{Enigo, KeyboardControllable};
 use std::{thread, time};
 
 fn main() {
@@ -7,6 +7,6 @@ fn main() {
     thread::sleep(wait_time);
     let mut enigo = Enigo::new();
 
-    //write text and select all
-    enigo.key_sequence_parse("{+SHIFT}hello{-SHIFT}{+CTRL}a{-CTRL}");
+    // write text and select all
+    enigo.key_sequence_parse("{+UNICODE}Hello World! ❤️{-UNICODE}{+CTRL}a{-CTRL}");
 }

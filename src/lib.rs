@@ -310,7 +310,14 @@ pub trait KeyboardControllable {
     fn key_sequence_parse(&mut self, sequence: &str)
         where Self: Sized
     {
-        parser::parse(self, sequence);
+        self.key_sequence_parse_try(sequence)
+            .expect("Could not parse sequence");
+    }
+    /// Same as key_sequence_parse except returns any errors
+    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), parser::ParseError>
+        where Self: Sized
+    {
+        parser::parse(self, sequence)
     }
 
     /// Types the string
