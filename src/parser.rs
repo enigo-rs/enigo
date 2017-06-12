@@ -1,4 +1,6 @@
-pub fn parse(string: &str) {
+use {Enigo, Key, KeyboardControllable};
+
+pub(crate) fn parse(enigo: &mut KeyboardControllable, string: &str) {
     let mut capture = None;
 
     let mut escapeopen = false;
@@ -28,10 +30,11 @@ pub fn parse(string: &str) {
 
             if capture.is_some() {
                 match capture.unwrap().as_str() {
-                    "+SHIFT" => println!("\n> shift on"),
-                    "-SHIFT" => println!("\n> shift off"),
-                    _ => println!("\n> unknown"),
-                    // TODO!!
+                    "+SHIFT" => enigo.key_down(Key::Shift),
+                    "-SHIFT" => enigo.key_up(Key::Shift),
+                    "+CTRL" => enigo.key_down(Key::Control),
+                    "-CTRL" => enigo.key_up(Key::Control),
+                    _ => {}
                 }
                 capture = None;
                 continue;
@@ -43,8 +46,7 @@ pub fn parse(string: &str) {
         if let Some(ref mut string) = capture {
             string.push(c);
         } else {
-            print!("{}", c);
-            // TODO!!
+            enigo.key_click(Key::Layout(c.to_string()));
         }
     }
 }

@@ -120,7 +120,6 @@ impl MouseControllable for Enigo {
         }
     }
 
-    // TODO(dustin): make button a new type
     fn mouse_down(&mut self, button: MouseButton) {
         if self.display.is_null() {
             panic!("display is not available")
@@ -242,13 +241,7 @@ impl Enigo {
     fn reset_keycode(&self, keycode: u32) {
         unsafe {
             let keysym_list = [0 as KeySym, 0 as KeySym].as_ptr();
-            XChangeKeyboardMapping(
-                self.display,
-                keycode as i32,
-                2,
-                keysym_list,
-                1,
-            );
+            XChangeKeyboardMapping(self.display, keycode as i32, 2, keysym_list, 1);
         }
     }
 
@@ -264,20 +257,21 @@ impl Enigo {
             XDisplayKeycodes(self.display, &mut keycode_low, &mut keycode_high);
             //get all the mapped keysysms available
             let keycode_count = keycode_high - keycode_low;
-            XGetKeyboardMapping(self.display, keycode_low as u32, keycode_count, &mut keysyms_per_keycode)
+            XGetKeyboardMapping(self.display,
+                                keycode_low as u32,
+                                keycode_count,
+                                &mut keysyms_per_keycode)
         };
 
-        //find unused keycode for unmapped keysyms so we can 
+        //find unused keycode for unmapped keysyms so we can
         //hook up our own keycode and map every keysym on it
         //so we just need to 'click' our once unmapped keycode
         for cidx in keycode_low..keycode_high + 1 {
             let mut key_is_empty = true;
             for sidx in 0..keysyms_per_keycode {
                 let map_idx = (cidx - keycode_low) * keysyms_per_keycode + sidx;
-                let sym_at_idx = unsafe {
-                    keysyms.offset(map_idx as isize)
-                };
-                if unsafe{*sym_at_idx} != 0 as *const c_void {
+                let sym_at_idx = unsafe { keysyms.offset(map_idx as isize) };
+                if unsafe { *sym_at_idx } != 0 as *const c_void {
                     key_is_empty = false;
                 } else {
                     break;
@@ -306,13 +300,7 @@ impl Enigo {
         let keysym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
         let keysym_list = [keysym, keysym].as_ptr();
         unsafe {
-            XChangeKeyboardMapping(
-                self.display,
-                scratch_keycode,
-                2,
-                keysym_list,
-                1,
-            );
+            XChangeKeyboardMapping(self.display, scratch_keycode, 2, keysym_list, 1);
         }
 
         unsafe {
@@ -369,9 +357,7 @@ impl Enigo {
         let c_string = CString::new(string).unwrap();
         let keysym = unsafe { XStringToKeysym(c_string.as_ptr() as *mut c_char) };
 
-        unsafe {
-            XKeysymToKeycode(self.display, keysym, 0)
-        }
+        unsafe { XKeysymToKeycode(self.display, keysym, 0) }
     }
 
     fn keycode_click(&self, keycode: u32) {
