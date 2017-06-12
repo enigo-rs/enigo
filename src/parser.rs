@@ -1,4 +1,4 @@
-use {Enigo, Key, KeyboardControllable};
+use {Key, KeyboardControllable};
 
 pub(crate) fn parse(enigo: &mut KeyboardControllable, string: &str) {
     let mut capture = None;
