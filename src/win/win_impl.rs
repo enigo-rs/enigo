@@ -68,21 +68,21 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        mouse_event(MOUSEEVENTF_MOVE, match button {
+        mouse_event(match button {
             MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
             MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
             MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
             _ => unimplemented!()
-        }, 0, 0);
+        }, 0, 0, 0);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        mouse_event(MOUSEEVENTF_MOVE, match button {
+        mouse_event(match button {
             MouseButton::Left => MOUSEEVENTF_LEFTUP,
             MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
             MouseButton::Right => MOUSEEVENTF_RIGHTUP,
             _ => unimplemented!()
-        }, 0, 0);
+        }, 0, 0, 0);
     }
 
     fn mouse_click(&mut self, button: MouseButton) {
