@@ -5,7 +5,7 @@ extern crate user32;
 use self::user32::*;
 use self::winapi::*;
 
-use ::{KeyboardControllable, Key, MouseControllable, MouseButton};
+use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use win::keycodes::*;
 use std::mem::*;
 
@@ -54,19 +54,19 @@ impl MouseControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
                 u: transmute_copy(&MOUSEINPUT {
-                                      dx: 0,
-                                      dy: 0,
-                                      mouseData: 0,
-                                      dwFlags: match button {
-                                          MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
-                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
-                                          MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+                    dx: 0,
+                    dy: 0,
+                    mouseData: 0,
+                    dwFlags: match button {
+                        MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+                        MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                        MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
 
-                                          _ => unimplemented!(),
-                                      },
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                        _ => unimplemented!(),
+                    },
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -78,19 +78,19 @@ impl MouseControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_MOUSE,
                 u: transmute_copy(&MOUSEINPUT {
-                                      dx: 0,
-                                      dy: 0,
-                                      mouseData: 0,
-                                      dwFlags: match button {
-                                          MouseButton::Left => MOUSEEVENTF_LEFTUP,
-                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
-                                          MouseButton::Right => MOUSEEVENTF_RIGHTUP,
+                    dx: 0,
+                    dy: 0,
+                    mouseData: 0,
+                    dwFlags: match button {
+                        MouseButton::Left => MOUSEEVENTF_LEFTUP,
+                        MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
+                        MouseButton::Right => MOUSEEVENTF_RIGHTUP,
 
-                                          _ => unimplemented!(),
-                                      },
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                        _ => unimplemented!(),
+                    },
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -116,13 +116,13 @@ impl MouseControllable for Enigo {
                 let mut input = INPUT {
                     type_: INPUT_MOUSE,
                     u: transmute_copy(&MOUSEINPUT {
-                                          dx: 0,
-                                          dy: 0,
-                                          mouseData: transmute_copy(&scroll_direction),
-                                          dwFlags: MOUSEEVENTF_HWHEEL,
-                                          time: 0,
-                                          dwExtraInfo: 0,
-                                      }),
+                        dx: 0,
+                        dy: 0,
+                        mouseData: transmute_copy(&scroll_direction),
+                        dwFlags: MOUSEEVENTF_HWHEEL,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    }),
                 };
 
                 SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -144,13 +144,13 @@ impl MouseControllable for Enigo {
                 let mut input = INPUT {
                     type_: INPUT_MOUSE,
                     u: transmute_copy(&MOUSEINPUT {
-                                          dx: 0,
-                                          dy: 0,
-                                          mouseData: transmute_copy(&scroll_direction),
-                                          dwFlags: MOUSEEVENTF_WHEEL,
-                                          time: 0,
-                                          dwExtraInfo: 0,
-                                      }),
+                        dx: 0,
+                        dy: 0,
+                        mouseData: transmute_copy(&scroll_direction),
+                        dwFlags: MOUSEEVENTF_WHEEL,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    }),
                 };
 
                 SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -194,12 +194,12 @@ impl KeyboardControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: keycode,
-                                      wScan: 0,
-                                      dwFlags: 0,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: keycode,
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -211,12 +211,12 @@ impl KeyboardControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: keycode,
-                                      wScan: 0,
-                                      dwFlags: KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: keycode,
+                    wScan: 0,
+                    dwFlags: KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -230,12 +230,12 @@ impl KeyboardControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: self.key_to_keycode(key),
-                                      wScan: 0,
-                                      dwFlags: 0,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: self.key_to_keycode(key),
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -247,12 +247,12 @@ impl KeyboardControllable for Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: self.key_to_keycode(key),
-                                      wScan: 0,
-                                      dwFlags: KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: self.key_to_keycode(key),
+                    wScan: 0,
+                    dwFlags: KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -274,12 +274,12 @@ impl Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: 0,
-                                      wScan: unicode_char,
-                                      dwFlags: KEYEVENTF_UNICODE,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: 0,
+                    wScan: unicode_char,
+                    dwFlags: KEYEVENTF_UNICODE,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -291,12 +291,12 @@ impl Enigo {
             let mut input = INPUT {
                 type_: INPUT_KEYBOARD,
                 u: transmute_copy(&KEYBDINPUT {
-                                      wVk: 0,
-                                      wScan: unicode_char,
-                                      dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
+                    wVk: 0,
+                    wScan: unicode_char,
+                    dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                }),
             };
 
             SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
@@ -304,7 +304,7 @@ impl Enigo {
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
-        //do not use the codes from crate winapi they're 
+        //do not use the codes from crate winapi they're
         //wrongly typed with i32 instead of i16 use the
         //ones provided by win/keycodes.rs that are prefixed
         //with an 'E' infront of the original name

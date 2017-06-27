@@ -53,6 +53,8 @@ pub fn parse(string: &str) {
 mod test {
     #[test]
     fn test() {
-        super::parse("{+SHIFT}{{+SHIFT}} Hello {{{{{enter}}}}} World {{-SHIFT}}{-SHIFT} lol");
+        super::parse(
+            "{+SHIFT}{{+SHIFT}} Hello {{{{{enter}}}}} World {{-SHIFT}}{-SHIFT} lol",
+        );
     }
 }
