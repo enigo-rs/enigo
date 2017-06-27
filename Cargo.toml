@@ -17,10 +17,6 @@ license = "MIT"
 travis-ci = { repository = "enigo-rs/enigo" }
 appveyor = { repository = "pythoneer/enigo-85xiy" }
 
-[dependencies]
-serde = { version = "1.0", optional = true }
-serde_test = { version = "1.0", optional = true }
-
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = "0.2.8"
 user32-sys = "0.2.0"

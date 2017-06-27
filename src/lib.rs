@@ -25,7 +25,7 @@
 //!
 //! For the keyboard there are currently two modes you can use. The first mode
 //! is represented by the [key_sequence]() function
-//! its purpose is to simply write unicode characters. This is independent of
+//! its purpose is to simply write unicode characters. This is independent of 
 //! the keyboardlayout. Please note that
 //! you're not be able to use modifier keys like Control
 //! to influence the outcome. If you want to use modifier keys to e.g. copy/paste
@@ -72,15 +72,15 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::Enigo;
 
-#[cfg(feature = "serde")]
-mod serde;
-
 mod parser;
 
 /// MouseButton represents a mouse button,
-/// and is used in for example
+/// and is used in for example 
 /// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
-#[derive(Clone, Copy, PartialEq, Debug)]
+/// WARNING: Types with the prefix Scroll
+/// IS NOT intended to be used, and may not work on
+/// all operating systems.
+#[derive(Clone, Copy, PartialEq)]
 pub enum MouseButton {
     /// Left mouse button
     Left,
@@ -89,13 +89,13 @@ pub enum MouseButton {
     /// Right mouse button
     Right,
 
-    #[doc(hidden)]
+    /// Scroll up button
     ScrollUp,
-    #[doc(hidden)]
+    /// Left right button
     ScrollDown,
-    #[doc(hidden)]
+    /// Left right button
     ScrollLeft,
-    #[doc(hidden)]
+    /// Left right button
     ScrollRight,
 }
 
@@ -141,7 +141,7 @@ pub trait MouseControllable {
     ///
     /// Push down the mouse button specified by the parameter `button` of
     /// type [MouseButton](enum.MouseButton.html)
-    /// and holds it until it is released by
+    /// and holds it until it is released by 
     /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
     /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.mouse_move_to) or
     /// [mouse_move_relative](trait.MouseControllable.html#tymethod.mouse_move_relative)
@@ -327,7 +327,7 @@ pub trait KeyboardControllable {
     fn key_up(&mut self, key: Key);
 
     ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
-    ///function they're just invoked consecutively
+    ///function they're just invoked consecutively 
     fn key_click(&mut self, key: Key);
 }
 

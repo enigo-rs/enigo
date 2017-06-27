@@ -9,10 +9,10 @@ use self::core_graphics::event_source::*;
 use self::core_graphics::geometry::*;
 use self::libc::*;
 
-use {KeyboardControllable, Key, MouseControllable, MouseButton};
+use ::{KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
-use self::libc::c_void;
+use self::libc::{c_void};
 
 use std::ptr;
 
@@ -21,32 +21,28 @@ use std::ptr;
 // https://github.com/servo/core-graphics-rs/pull/71
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
-    fn CGEventCreateMouseEvent(
-        source: CGEventSourceRef,
-        mouseType: FIXMEEventType,
-        mouseCursorPosition: CGPoint,
-        mouseButton: CGMouseButton,
-    ) -> CGEventRef;
+    fn CGEventCreateMouseEvent(source: CGEventSourceRef,
+                               mouseType: FIXMEEventType,
+                               mouseCursorPosition: CGPoint,
+                               mouseButton: CGMouseButton)
+                               -> CGEventRef;
 
     fn CGEventPost(tapLocation: CGEventTapLocation, event: CGEventRef);
 
-    fn CGEventCreateKeyboardEvent(
-        source: CGEventSourceRef,
-        keycode: CGKeyCode,
-        keydown: bool,
-    ) -> CGEventRef;
+    fn CGEventCreateKeyboardEvent(source: CGEventSourceRef, 
+                                  keycode: CGKeyCode, 
+                                  keydown: bool) -> CGEventRef;
 
     // not present in servo/core-graphics
-    fn CGEventCreateScrollWheelEvent(
-        source: CGEventSourceRef,
-        units: ScrollUnit,
-        wheelCount: uint32_t,
-        wheel1: int32_t,
-        ...
-    ) -> CGEventRef;
+    fn CGEventCreateScrollWheelEvent(source: CGEventSourceRef,
+                                     units: ScrollUnit,
+                                     wheelCount: uint32_t,
+                                     wheel1: int32_t,
+                                     ...)
+                                     -> CGEventRef;
 }
 
-pub type CFDataRef = *const ::std::os::raw::c_void; //c_void;
+pub type CFDataRef = *const ::std::os::raw::c_void;//c_void;
 
 #[repr(C)]
 pub struct __TISInputSource;
@@ -72,7 +68,8 @@ pub type CFStringEncoding = UInt32;
 
 pub const TRUE: ::std::os::raw::c_uint = 1;
 
-pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDisplay;
+pub const kUCKeyActionDisplay: _bindgen_ty_702 =
+    _bindgen_ty_702::kUCKeyActionDisplay;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_702 {
@@ -108,9 +105,7 @@ pub const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 =
     _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _bindgen_ty_703 {
-    kUCKeyTranslateNoDeadKeysBit = 0,
-}
+pub enum _bindgen_ty_703 { kUCKeyTranslateNoDeadKeysBit = 0, }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -141,54 +136,45 @@ pub const kCFStringEncodingUTF8: u32 = 134217984;
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
 
-    //     extern void *
-    // TISGetInputSourceProperty(
-    //   TISInputSourceRef   inputSource,
-    //   CFStringRef         propertyKey)
+//     extern void * 
+// TISGetInputSourceProperty(
+//   TISInputSourceRef   inputSource,
+//   CFStringRef         propertyKey)
 
     #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
     pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
-    pub fn TISGetInputSourceProperty(
-        inputSource: TISInputSourceRef,
-        propertyKey: CFStringRef,
-    ) -> *mut ::std::os::raw::c_void;
+    pub fn TISGetInputSourceProperty(inputSource: TISInputSourceRef,
+                                     propertyKey: CFStringRef)
+     -> *mut ::std::os::raw::c_void;
 
 
     pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
 
-    pub fn UCKeyTranslate(
-        keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
-        virtualKeyCode: UInt16,
-        keyAction: UInt16,
-        modifierKeyState: UInt32,
-        keyboardType: UInt32,
-        keyTranslateOptions: OptionBits,
-        deadKeyState: *mut UInt32,
-        maxStringLength: UniCharCount,
-        actualStringLength: *mut UniCharCount,
-        unicodeString: *mut UniChar,
-    ) -> OSStatus;
+    pub fn UCKeyTranslate(keyLayoutPtr: *const UInt8,//*const UCKeyboardLayout,
+                          virtualKeyCode: UInt16, keyAction: UInt16,
+                          modifierKeyState: UInt32, keyboardType: UInt32,
+                          keyTranslateOptions: OptionBits,
+                          deadKeyState: *mut UInt32,
+                          maxStringLength: UniCharCount,
+                          actualStringLength: *mut UniCharCount,
+                          unicodeString: *mut UniChar) -> OSStatus;
 
     pub fn LMGetKbdType() -> UInt8;
 
-    pub fn CFStringCreateWithCharacters(
-        alloc: CFAllocatorRef,
-        chars: *const UniChar,
-        numChars: CFIndex,
-    ) -> CFStringRef;
+    pub fn CFStringCreateWithCharacters(alloc: CFAllocatorRef,
+                                    chars: *const UniChar,
+                                    numChars: CFIndex) -> CFStringRef;
 
     #[link_name = "kCFAllocatorDefault"]
-    pub static kCFAllocatorDefault: CFAllocatorRef;
+    pub static kCFAllocatorDefault: CFAllocatorRef;   
 
-    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
+    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;   
 
-    pub fn CFStringGetCString(
-        theString: CFStringRef,
-        buffer: *mut ::std::os::raw::c_char,
-        bufferSize: CFIndex,
-        encoding: CFStringEncoding,
-    ) -> Boolean;
+    pub fn CFStringGetCString(theString: CFStringRef,
+                              buffer: *mut ::std::os::raw::c_char,
+                              bufferSize: CFIndex, encoding: CFStringEncoding)
+     -> Boolean;                              
 }
 
 
@@ -244,12 +230,11 @@ impl MouseControllable for Enigo {
         self.current_y = y;
 
         unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::MouseMoved,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                CGMouseButton::Left,
-            );
+            let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
+                                                   FIXMEEventType::MouseMoved,
+                                                   CGPoint::new(self.current_x as f64,
+                                                                self.current_y as f64),
+                                                   CGMouseButton::Left);
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
@@ -261,18 +246,15 @@ impl MouseControllable for Enigo {
         let new_y = self.current_y + y;
 
         if new_x < 0 || new_x as usize > self.display_width || new_y < 0 ||
-            new_y as usize > self.display_height
-        {
+           new_y as usize > self.display_height {
             return;
         }
 
         unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::MouseMoved,
-                CGPoint::new(new_x as f64, new_y as f64),
-                CGMouseButton::Left,
-            );
+            let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
+                                                   FIXMEEventType::MouseMoved,
+                                                   CGPoint::new(new_x as f64, new_y as f64),
+                                                   CGMouseButton::Left);
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
@@ -287,18 +269,17 @@ impl MouseControllable for Enigo {
     // is using the left mouse button every time
     fn mouse_down(&mut self, button: MouseButton) {
         unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::LeftMouseDown,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                match button {
-                    MouseButton::Left => CGMouseButton::Left,
-                    MouseButton::Middle => CGMouseButton::Center,
-                    MouseButton::Right => CGMouseButton::Right,
+            let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
+                                                   FIXMEEventType::LeftMouseDown,
+                                                   CGPoint::new(self.current_x as f64,
+                                                                self.current_y as f64),
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Center,
+                                                       MouseButton::Right => CGMouseButton::Right,
 
-                    _ => unimplemented!(),
-                },
-            );
+                                                       _ => unimplemented!(),
+                                                   });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
@@ -309,18 +290,17 @@ impl MouseControllable for Enigo {
     // is using the left mouse button every time
     fn mouse_up(&mut self, button: MouseButton) {
         unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::LeftMouseUp,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                match button {
-                    MouseButton::Left => CGMouseButton::Left,
-                    MouseButton::Middle => CGMouseButton::Center,
-                    MouseButton::Right => CGMouseButton::Right,
+            let mouse_ev = CGEventCreateMouseEvent(ptr::null(),
+                                                   FIXMEEventType::LeftMouseUp,
+                                                   CGPoint::new(self.current_x as f64,
+                                                                self.current_y as f64),
+                                                   match button {
+                                                       MouseButton::Left => CGMouseButton::Left,
+                                                       MouseButton::Middle => CGMouseButton::Center,
+                                                       MouseButton::Right => CGMouseButton::Right,
 
-                    _ => unimplemented!(),
-                },
-            );
+                                                       _ => unimplemented!(),
+                                                   });
 
             CGEventPost(CGEventTapLocation::HID, mouse_ev);
             CFRelease(mem::transmute(mouse_ev));
@@ -343,13 +323,11 @@ impl MouseControllable for Enigo {
 
         for _ in 0..length {
             unsafe {
-                let mouse_ev = CGEventCreateScrollWheelEvent(
-                    ptr::null(),
-                    ScrollUnit::Line,
-                    2, // CGWheelCount 1 = y 2 = xy 3 = xyz
-                    0,
-                    scroll_direction,
-                );
+                let mouse_ev = CGEventCreateScrollWheelEvent(ptr::null(),
+                                                             ScrollUnit::Line,
+                                                             2, // CGWheelCount 1 = y 2 = xy 3 = xyz
+                                                             0,
+                                                             scroll_direction);
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
                 CFRelease(mem::transmute(mouse_ev));
@@ -368,12 +346,10 @@ impl MouseControllable for Enigo {
 
         for _ in 0..length {
             unsafe {
-                let mouse_ev = CGEventCreateScrollWheelEvent(
-                    ptr::null(),
-                    ScrollUnit::Line,
-                    1, // CGWheelCount 1 = y 2 = xy 3 = xyz
-                    scroll_direction,
-                );
+                let mouse_ev = CGEventCreateScrollWheelEvent(ptr::null(),
+                                                             ScrollUnit::Line,
+                                                             1, // CGWheelCount 1 = y 2 = xy 3 = xyz
+                                                             scroll_direction);
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
                 CFRelease(mem::transmute(mouse_ev));
@@ -387,8 +363,7 @@ impl MouseControllable for Enigo {
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         //TODO(dustin): return error rather than panic here
-        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-            .expect("Failed creating event source");
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
         let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
         event.set_string(sequence);
         event.post(CGEventTapLocation::HID);
@@ -401,18 +376,14 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event =
-                CGEvent::new_keyboard_event(source, keycode, true).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, true).expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
 
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event =
-                CGEvent::new_keyboard_event(source, keycode, false).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, false).expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -422,10 +393,8 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true)
-                .expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true).expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -435,10 +404,8 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false)
-                .expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false).expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -488,7 +455,7 @@ impl Enigo {
     fn get_layoutdependent_keycode(&self, string: String) -> CGKeyCode {
         let mut pressed_keycode = 0;
 
-        //loop through every keycode (0 - 127)
+        //loop through every keycode (0 - 127) 
         for keycode in 0..128 {
 
             // no modifier
@@ -515,7 +482,7 @@ impl Enigo {
             // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
             //     println!("{:?}", string);
             // }
-
+            
         }
 
         pressed_keycode
@@ -524,23 +491,23 @@ impl Enigo {
     fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
         let cf_string = self.create_string_for_key(keycode, modifier);
         let bufferSize = unsafe { CFStringGetLength(cf_string) + 1 };
-        let mut buffer: i8 = 0xffff;
-        let success = unsafe {
-            CFStringGetCString(cf_string, &mut buffer, bufferSize, kCFStringEncodingUTF8)
-        };
-        if success == TRUE as u8 {
-            let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-            return Some(rust_string);
-        }
+            let mut buffer:i8 = 0xffff; 
+            let success = unsafe { CFStringGetCString(  cf_string, 
+                                                        &mut buffer, 
+                                                        bufferSize, 
+                                                        kCFStringEncodingUTF8) };
+            if success == TRUE as u8 {
+                let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
+                return Some(rust_string);
+            }
 
-        None
+            None
     }
 
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
 
         let currentKeyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let layoutData =
-            unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) };
+        let layoutData = unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) }; 
         let keyboardLayout = unsafe { CFDataGetBytePtr(layoutData) };
 
         let mut keysDown: UInt32 = 0;
@@ -548,20 +515,18 @@ impl Enigo {
         let mut chars: u16 = 0;
         let mut realLength: UniCharCount = 0;
         unsafe {
-            UCKeyTranslate(
-                keyboardLayout,
+            UCKeyTranslate(keyboardLayout,
                 keycode,
                 kUCKeyActionDisplay as u16,
                 modifier,
                 LMGetKbdType() as u32,
                 kUCKeyTranslateNoDeadKeysBit as u32,
                 &mut keysDown,
-                8, //sizeof(chars) / sizeof(chars[0]),
+                8,//sizeof(chars) / sizeof(chars[0]),
                 &mut realLength,
-                &mut chars,
-            );
+                &mut chars);
         }
-
+        
         let stringRef = unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &mut chars, 1) };
 
         stringRef
