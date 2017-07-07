@@ -410,6 +410,23 @@ pub enum Key {
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
 pub trait KeyboardControllable {
+    /// Types the string parsed with DSL.
+    ///
+    /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
+    /// TODO: Full documentation
+    fn key_sequence_parse(&mut self, sequence: &str)
+        where Self: Sized
+    {
+        self.key_sequence_parse_try(sequence)
+            .expect("Could not parse sequence");
+    }
+    /// Same as key_sequence_parse except returns any errors
+    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), parser::ParseError>
+        where Self: Sized
+    {
+        parser::parse(self, sequence)
+    }
+
     /// Types the string
     ///
     /// Emits keystrokes such that the given string is inputted.
@@ -426,11 +443,11 @@ pub trait KeyboardControllable {
     /// ```
     fn key_sequence(&mut self, sequence: &str);
 
-    ///presses a given key down
+    /// presses a given key down
     fn key_down(&mut self, key: Key);
 
-    ///release a given key formally pressed down by
-    ///[key_down](trait.KeyboardControllable.html#tymethod.key_down)
+    /// release a given key formally pressed down by
+    /// [key_down](trait.KeyboardControllable.html#tymethod.key_down)
     fn key_up(&mut self, key: Key);
 
     ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)

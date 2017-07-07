@@ -9,7 +9,7 @@ fn main() {
 
     //write text
     enigo.key_sequence("Hello World! ❤️");
-    
+
     //select all
     enigo.key_down(Key::Control);
     enigo.key_click(Key::Layout("a".into()));
