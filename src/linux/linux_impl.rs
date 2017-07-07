@@ -120,7 +120,6 @@ impl MouseControllable for Enigo {
         }
     }
 
-    // TODO(dustin): make button a new type
     fn mouse_down(&mut self, button: MouseButton) {
         if self.display.is_null() {
             panic!("display is not available")
@@ -242,13 +241,7 @@ impl Enigo {
     fn reset_keycode(&self, keycode: u32) {
         unsafe {
             let keysym_list = [0 as KeySym, 0 as KeySym].as_ptr();
-            XChangeKeyboardMapping(
-                self.display,
-                keycode as i32,
-                2,
-                keysym_list,
-                1,
-            );
+            XChangeKeyboardMapping(self.display, keycode as i32, 2, keysym_list, 1);
         }
     }
 
@@ -264,20 +257,21 @@ impl Enigo {
             XDisplayKeycodes(self.display, &mut keycode_low, &mut keycode_high);
             //get all the mapped keysysms available
             let keycode_count = keycode_high - keycode_low;
-            XGetKeyboardMapping(self.display, keycode_low as u32, keycode_count, &mut keysyms_per_keycode)
+            XGetKeyboardMapping(self.display,
+                                keycode_low as u32,
+                                keycode_count,
+                                &mut keysyms_per_keycode)
         };
 
-        //find unused keycode for unmapped keysyms so we can 
+        //find unused keycode for unmapped keysyms so we can
         //hook up our own keycode and map every keysym on it
         //so we just need to 'click' our once unmapped keycode
         for cidx in keycode_low..keycode_high + 1 {
             let mut key_is_empty = true;
             for sidx in 0..keysyms_per_keycode {
                 let map_idx = (cidx - keycode_low) * keysyms_per_keycode + sidx;
-                let sym_at_idx = unsafe {
-                    keysyms.offset(map_idx as isize)
-                };
-                if unsafe{*sym_at_idx} != 0 as *const c_void {
+                let sym_at_idx = unsafe { keysyms.offset(map_idx as isize) };
+                if unsafe { *sym_at_idx } != 0 as *const c_void {
                     key_is_empty = false;
                 } else {
                     break;
@@ -306,13 +300,7 @@ impl Enigo {
         let keysym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
         let keysym_list = [keysym, keysym].as_ptr();
         unsafe {
-            XChangeKeyboardMapping(
-                self.display,
-                scratch_keycode,
-                2,
-                keysym_list,
-                1,
-            );
+            XChangeKeyboardMapping(self.display, scratch_keycode, 2, keysym_list, 1);
         }
 
         unsafe {
@@ -325,26 +313,26 @@ impl Enigo {
     fn key_to_keycode(&self, key: Key) -> u32 {
         unsafe {
             match key {
-                Key::Return => XKeysymToKeycode(self.display, XK_Return as *const c_void, 0),
-                Key::Tab => XKeysymToKeycode(self.display, XK_Tab as *const c_void, 0),
-                Key::Space => XKeysymToKeycode(self.display, XK_Space as *const c_void, 0),
-                Key::Backspace => XKeysymToKeycode(self.display, XK_BackSpace as *const c_void, 0),
-                Key::Escape => XKeysymToKeycode(self.display, XK_Escape as *const c_void, 0),
-                Key::Super => XKeysymToKeycode(self.display, XK_Super_L as *const c_void, 0),
-                Key::Command => XKeysymToKeycode(self.display, XK_Super_L as *const c_void, 0),
-                Key::Windows => XKeysymToKeycode(self.display, XK_Super_L as *const c_void, 0),
-                Key::Shift => XKeysymToKeycode(self.display, XK_Shift_L as *const c_void, 0),
-                Key::CapsLock => XKeysymToKeycode(self.display, XK_Caps_Lock as *const c_void, 0),
-                Key::Alt => XKeysymToKeycode(self.display, XK_Alt_L as *const c_void, 0),
-                Key::Option => XKeysymToKeycode(self.display, XK_Alt_L as *const c_void, 0),
-                Key::Control => XKeysymToKeycode(self.display, XK_Control_L as *const c_void, 0),
-                Key::Home => XKeysymToKeycode(self.display, XK_Home as *const c_void, 0),
-                Key::PageUp => XKeysymToKeycode(self.display, XK_Page_Up as *const c_void, 0),
-                Key::PageDown => XKeysymToKeycode(self.display, XK_Page_Down as *const c_void, 0),
-                Key::LeftArrow => XKeysymToKeycode(self.display, XK_Left as *const c_void, 0),
-                Key::RightArrow => XKeysymToKeycode(self.display, XK_Right as *const c_void, 0),
-                Key::DownArrow => XKeysymToKeycode(self.display, XK_Down as *const c_void, 0),
-                Key::UpArrow => XKeysymToKeycode(self.display, XK_Up as *const c_void, 0),
+                Key::Return => XKeysymToKeycode(self.display, XK_RETURN as *const c_void, 0),
+                Key::Tab => XKeysymToKeycode(self.display, XK_TAB as *const c_void, 0),
+                Key::Space => XKeysymToKeycode(self.display, XK_SPACE as *const c_void, 0),
+                Key::Backspace => XKeysymToKeycode(self.display, XK_BACKSPACE as *const c_void, 0),
+                Key::Escape => XKeysymToKeycode(self.display, XK_ESCAPE as *const c_void, 0),
+                Key::Super => XKeysymToKeycode(self.display, XK_SUPER_L as *const c_void, 0),
+                Key::Command => XKeysymToKeycode(self.display, XK_SUPER_L as *const c_void, 0),
+                Key::Windows => XKeysymToKeycode(self.display, XK_SUPER_L as *const c_void, 0),
+                Key::Shift => XKeysymToKeycode(self.display, XK_SHIFT_L as *const c_void, 0),
+                Key::CapsLock => XKeysymToKeycode(self.display, XK_CAPS_LOCK as *const c_void, 0),
+                Key::Alt => XKeysymToKeycode(self.display, XK_ALT_L as *const c_void, 0),
+                Key::Option => XKeysymToKeycode(self.display, XK_ALT_L as *const c_void, 0),
+                Key::Control => XKeysymToKeycode(self.display, XK_CONTROL_L as *const c_void, 0),
+                Key::Home => XKeysymToKeycode(self.display, XK_HOME as *const c_void, 0),
+                Key::PageUp => XKeysymToKeycode(self.display, XK_PAGE_UP as *const c_void, 0),
+                Key::PageDown => XKeysymToKeycode(self.display, XK_PAGE_DOWN as *const c_void, 0),
+                Key::LeftArrow => XKeysymToKeycode(self.display, XK_LEFT as *const c_void, 0),
+                Key::RightArrow => XKeysymToKeycode(self.display, XK_RIGHT as *const c_void, 0),
+                Key::DownArrow => XKeysymToKeycode(self.display, XK_DOWN as *const c_void, 0),
+                Key::UpArrow => XKeysymToKeycode(self.display, XK_UP as *const c_void, 0),
                 Key::F1 => XKeysymToKeycode(self.display, XK_F1 as *const c_void, 0),
                 Key::F2 => XKeysymToKeycode(self.display, XK_F2 as *const c_void, 0),
                 Key::F3 => XKeysymToKeycode(self.display, XK_F3 as *const c_void, 0),
@@ -360,7 +348,6 @@ impl Enigo {
 
                 Key::Raw(raw_keycode) => raw_keycode as u32,
                 Key::Layout(string) => self.get_layoutdependent_keycode(string),
-                _ => 0,
             }
         }
     }
@@ -369,9 +356,7 @@ impl Enigo {
         let c_string = CString::new(string).unwrap();
         let keysym = unsafe { XStringToKeysym(c_string.as_ptr() as *mut c_char) };
 
-        unsafe {
-            XKeysymToKeycode(self.display, keysym, 0)
-        }
+        unsafe { XKeysymToKeycode(self.display, keysym, 0) }
     }
 
     fn keycode_click(&self, keycode: u32) {

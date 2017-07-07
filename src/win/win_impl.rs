@@ -5,7 +5,7 @@ extern crate user32;
 use self::user32::*;
 use self::winapi::*;
 
-use ::{KeyboardControllable, Key, MouseControllable, MouseButton};
+use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use win::keycodes::*;
 use std::mem::*;
 
@@ -304,7 +304,7 @@ impl Enigo {
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
-        //do not use the codes from crate winapi they're 
+        //do not use the codes from crate winapi they're
         //wrongly typed with i32 instead of i16 use the
         //ones provided by win/keycodes.rs that are prefixed
         //with an 'E' infront of the original name

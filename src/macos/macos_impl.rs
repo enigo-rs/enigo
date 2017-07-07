@@ -9,10 +9,10 @@ use self::core_graphics::event_source::*;
 use self::core_graphics::geometry::*;
 use self::libc::*;
 
-use ::{KeyboardControllable, Key, MouseControllable, MouseButton};
+use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
-use self::libc::{c_void};
+use self::libc::c_void;
 
 use std::ptr;
 
@@ -29,9 +29,10 @@ extern "C" {
 
     fn CGEventPost(tapLocation: CGEventTapLocation, event: CGEventRef);
 
-    fn CGEventCreateKeyboardEvent(source: CGEventSourceRef, 
-                                  keycode: CGKeyCode, 
-                                  keydown: bool) -> CGEventRef;
+    fn CGEventCreateKeyboardEvent(source: CGEventSourceRef,
+                                  keycode: CGKeyCode,
+                                  keydown: bool)
+                                  -> CGEventRef;
 
     // not present in servo/core-graphics
     fn CGEventCreateScrollWheelEvent(source: CGEventSourceRef,
@@ -42,7 +43,7 @@ extern "C" {
                                      -> CGEventRef;
 }
 
-pub type CFDataRef = *const ::std::os::raw::c_void;//c_void;
+pub type CFDataRef = *const ::std::os::raw::c_void; //c_void;
 
 #[repr(C)]
 pub struct __TISInputSource;
@@ -68,8 +69,7 @@ pub type CFStringEncoding = UInt32;
 
 pub const TRUE: ::std::os::raw::c_uint = 1;
 
-pub const kUCKeyActionDisplay: _bindgen_ty_702 =
-    _bindgen_ty_702::kUCKeyActionDisplay;
+pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDisplay;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_702 {
@@ -105,7 +105,9 @@ pub const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 =
     _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _bindgen_ty_703 { kUCKeyTranslateNoDeadKeysBit = 0, }
+pub enum _bindgen_ty_703 {
+    kUCKeyTranslateNoDeadKeysBit = 0,
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -136,45 +138,50 @@ pub const kCFStringEncodingUTF8: u32 = 134217984;
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
 
-//     extern void * 
-// TISGetInputSourceProperty(
-//   TISInputSourceRef   inputSource,
-//   CFStringRef         propertyKey)
+    //     extern void *
+    // TISGetInputSourceProperty(
+    //   TISInputSourceRef   inputSource,
+    //   CFStringRef         propertyKey)
 
     #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
     pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
     pub fn TISGetInputSourceProperty(inputSource: TISInputSourceRef,
                                      propertyKey: CFStringRef)
-     -> *mut ::std::os::raw::c_void;
+                                     -> *mut ::std::os::raw::c_void;
 
 
     pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
 
-    pub fn UCKeyTranslate(keyLayoutPtr: *const UInt8,//*const UCKeyboardLayout,
-                          virtualKeyCode: UInt16, keyAction: UInt16,
-                          modifierKeyState: UInt32, keyboardType: UInt32,
+    pub fn UCKeyTranslate(keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
+                          virtualKeyCode: UInt16,
+                          keyAction: UInt16,
+                          modifierKeyState: UInt32,
+                          keyboardType: UInt32,
                           keyTranslateOptions: OptionBits,
                           deadKeyState: *mut UInt32,
                           maxStringLength: UniCharCount,
                           actualStringLength: *mut UniCharCount,
-                          unicodeString: *mut UniChar) -> OSStatus;
+                          unicodeString: *mut UniChar)
+                          -> OSStatus;
 
     pub fn LMGetKbdType() -> UInt8;
 
     pub fn CFStringCreateWithCharacters(alloc: CFAllocatorRef,
-                                    chars: *const UniChar,
-                                    numChars: CFIndex) -> CFStringRef;
+                                        chars: *const UniChar,
+                                        numChars: CFIndex)
+                                        -> CFStringRef;
 
     #[link_name = "kCFAllocatorDefault"]
-    pub static kCFAllocatorDefault: CFAllocatorRef;   
+    pub static kCFAllocatorDefault: CFAllocatorRef;
 
-    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;   
+    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
 
     pub fn CFStringGetCString(theString: CFStringRef,
                               buffer: *mut ::std::os::raw::c_char,
-                              bufferSize: CFIndex, encoding: CFStringEncoding)
-     -> Boolean;                              
+                              bufferSize: CFIndex,
+                              encoding: CFStringEncoding)
+                              -> Boolean;
 }
 
 
@@ -363,7 +370,8 @@ impl MouseControllable for Enigo {
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         //TODO(dustin): return error rather than panic here
-        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+            .expect("Failed creating event source");
         let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
         event.set_string(sequence);
         event.post(CGEventTapLocation::HID);
@@ -376,14 +384,18 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, keycode, true).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+                .expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, true)
+                .expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
 
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, keycode, false).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+                .expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, keycode, false)
+                .expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -393,8 +405,10 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+                .expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true)
+                .expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -404,8 +418,10 @@ impl KeyboardControllable for Enigo {
             use std::{thread, time};
             thread::sleep(time::Duration::from_millis(20));
             //TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false).expect("Failed creating event");
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+                .expect("Failed creating event source");
+            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false)
+                .expect("Failed creating event");
             event.post(CGEventTapLocation::HID);
         }
     }
@@ -447,7 +463,7 @@ impl Enigo {
             Key::F11 => kVK_F11,
             Key::F12 => kVK_F12,
             Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(string) => self.get_layoutdependent_keycode(string), 
+            Key::Layout(string) => self.get_layoutdependent_keycode(string),
             _ => 0,
         }
     }
@@ -455,7 +471,7 @@ impl Enigo {
     fn get_layoutdependent_keycode(&self, string: String) -> CGKeyCode {
         let mut pressed_keycode = 0;
 
-        //loop through every keycode (0 - 127) 
+        //loop through every keycode (0 - 127)
         for keycode in 0..128 {
 
             // no modifier
@@ -482,7 +498,7 @@ impl Enigo {
             // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
             //     println!("{:?}", string);
             // }
-            
+
         }
 
         pressed_keycode
@@ -491,23 +507,23 @@ impl Enigo {
     fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
         let cf_string = self.create_string_for_key(keycode, modifier);
         let bufferSize = unsafe { CFStringGetLength(cf_string) + 1 };
-            let mut buffer:i8 = 0xffff; 
-            let success = unsafe { CFStringGetCString(  cf_string, 
-                                                        &mut buffer, 
-                                                        bufferSize, 
-                                                        kCFStringEncodingUTF8) };
-            if success == TRUE as u8 {
-                let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-                return Some(rust_string);
-            }
+        let mut buffer: i8 = 0xffff;
+        let success = unsafe {
+            CFStringGetCString(cf_string, &mut buffer, bufferSize, kCFStringEncodingUTF8)
+        };
+        if success == TRUE as u8 {
+            let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
+            return Some(rust_string);
+        }
 
-            None
+        None
     }
 
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
 
         let currentKeyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let layoutData = unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) }; 
+        let layoutData =
+            unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) };
         let keyboardLayout = unsafe { CFDataGetBytePtr(layoutData) };
 
         let mut keysDown: UInt32 = 0;
@@ -516,17 +532,17 @@ impl Enigo {
         let mut realLength: UniCharCount = 0;
         unsafe {
             UCKeyTranslate(keyboardLayout,
-                keycode,
-                kUCKeyActionDisplay as u16,
-                modifier,
-                LMGetKbdType() as u32,
-                kUCKeyTranslateNoDeadKeysBit as u32,
-                &mut keysDown,
-                8,//sizeof(chars) / sizeof(chars[0]),
-                &mut realLength,
-                &mut chars);
+                           keycode,
+                           kUCKeyActionDisplay as u16,
+                           modifier,
+                           LMGetKbdType() as u32,
+                           kUCKeyTranslateNoDeadKeysBit as u32,
+                           &mut keysDown,
+                           8, //sizeof(chars) / sizeof(chars[0]),
+                           &mut realLength,
+                           &mut chars);
         }
-        
+
         let stringRef = unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &mut chars, 1) };
 
         stringRef

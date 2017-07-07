@@ -25,7 +25,7 @@
 //!
 //! For the keyboard there are currently two modes you can use. The first mode
 //! is represented by the [key_sequence]() function
-//! its purpose is to simply write unicode characters. This is independent of 
+//! its purpose is to simply write unicode characters. This is independent of
 //! the keyboardlayout. Please note that
 //! you're not be able to use modifier keys like Control
 //! to influence the outcome. If you want to use modifier keys to e.g. copy/paste
@@ -75,7 +75,7 @@ pub use linux::Enigo;
 mod parser;
 
 /// MouseButton represents a mouse button,
-/// and is used in for example 
+/// and is used in for example
 /// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
 /// WARNING: Types with the prefix Scroll
 /// IS NOT intended to be used, and may not work on
@@ -141,7 +141,7 @@ pub trait MouseControllable {
     ///
     /// Push down the mouse button specified by the parameter `button` of
     /// type [MouseButton](enum.MouseButton.html)
-    /// and holds it until it is released by 
+    /// and holds it until it is released by
     /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
     /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.mouse_move_to) or
     /// [mouse_move_relative](trait.MouseControllable.html#tymethod.mouse_move_relative)
@@ -303,6 +303,23 @@ pub enum Key {
 /// Representing an interface and a set of keyboard functions every
 /// operating system implementation _should_ implement.
 pub trait KeyboardControllable {
+    /// Types the string parsed with DSL.
+    ///
+    /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
+    /// TODO: Full documentation
+    fn key_sequence_parse(&mut self, sequence: &str)
+        where Self: Sized
+    {
+        self.key_sequence_parse_try(sequence)
+            .expect("Could not parse sequence");
+    }
+    /// Same as key_sequence_parse except returns any errors
+    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), parser::ParseError>
+        where Self: Sized
+    {
+        parser::parse(self, sequence)
+    }
+
     /// Types the string
     ///
     /// Emits keystrokes such that the given string is inputted.
@@ -319,15 +336,16 @@ pub trait KeyboardControllable {
     /// ```
     fn key_sequence(&mut self, sequence: &str);
 
-    ///presses a given key down
+    /// presses a given key down
     fn key_down(&mut self, key: Key);
 
-    ///release a given key formally pressed down by
-    ///[key_down](trait.KeyboardControllable.html#tymethod.key_down)
+    /// release a given key formally pressed down by
+    /// [key_down](trait.KeyboardControllable.html#tymethod.key_down)
     fn key_up(&mut self, key: Key);
 
-    ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
-    ///function they're just invoked consecutively 
+    /// Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down)
+    /// and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
+    /// function they're just invoked consecutively
     fn key_click(&mut self, key: Key);
 }
 

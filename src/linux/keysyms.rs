@@ -3,23 +3,23 @@ use std::os::raw::c_uint;
 // https://www.cl.cam.ac.uk/~mgk25/ucs/keysymdef.h
 
 
-pub const XK_Return: c_uint = 0xFF0D;
-pub const XK_Tab: c_uint = 0xff09;
-pub const XK_Space: c_uint = 0x0020;
-pub const XK_BackSpace: c_uint = 0xff08;
-pub const XK_Escape: c_uint = 0xff1b;
-pub const XK_Super_L: c_uint = 0xffeb;
-pub const XK_Shift_L: c_uint = 0xFFE1;
-pub const XK_Caps_Lock: c_uint = 0xffe5;
-pub const XK_Alt_L: c_uint = 0xffe9;
-pub const XK_Control_L: c_uint = 0xffe3;
-pub const XK_Home: c_uint = 0xff50;
-pub const XK_Page_Up: c_uint = 0xff55;
-pub const XK_Page_Down: c_uint = 0xff56;
-pub const XK_Left: c_uint = 0xff51;
-pub const XK_Right: c_uint = 0xff53;
-pub const XK_Down: c_uint = 0xff54;
-pub const XK_Up: c_uint = 0xff52;
+pub const XK_RETURN: c_uint = 0xFF0D;
+pub const XK_TAB: c_uint = 0xff09;
+pub const XK_SPACE: c_uint = 0x0020;
+pub const XK_BACKSPACE: c_uint = 0xff08;
+pub const XK_ESCAPE: c_uint = 0xff1b;
+pub const XK_SUPER_L: c_uint = 0xffeb;
+pub const XK_SHIFT_L: c_uint = 0xFFE1;
+pub const XK_CAPS_LOCK: c_uint = 0xffe5;
+pub const XK_ALT_L: c_uint = 0xffe9;
+pub const XK_CONTROL_L: c_uint = 0xffe3;
+pub const XK_HOME: c_uint = 0xff50;
+pub const XK_PAGE_UP: c_uint = 0xff55;
+pub const XK_PAGE_DOWN: c_uint = 0xff56;
+pub const XK_LEFT: c_uint = 0xff51;
+pub const XK_RIGHT: c_uint = 0xff53;
+pub const XK_DOWN: c_uint = 0xff54;
+pub const XK_UP: c_uint = 0xff52;
 
 pub const XK_F1: c_uint = 0xffbe;
 pub const XK_F2: c_uint = 0xffbf;
