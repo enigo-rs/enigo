@@ -10,14 +10,9 @@ use win::keycodes::*;
 use std::mem::*;
 
 /// The main struct for handling the event emitting
-pub struct Enigo {
-    current_x: i32,
-    current_y: i32,
-}
+pub struct Enigo {}
 
 impl Enigo {
-    // TODO(dustin): do the right initialisation
-
     /// Constructs a new `Enigo` instance.
     ///
     /// # Example
@@ -27,74 +22,67 @@ impl Enigo {
     /// let mut enigo = Enigo::new();
     /// ```
     pub fn new() -> Self {
-        Enigo {
-            current_x: 0,
-            current_y: 0,
-        }
+        Enigo {}
     }
+}
+
+fn mouse_event(flags: u32, data: u32, dx: i32, dy: i32) {
+    let mut input = INPUT {
+        type_: INPUT_MOUSE,
+        u: unsafe{transmute(MOUSEINPUT {
+            dx: dx,
+            dy: dy,
+            mouseData: data,
+            dwFlags: flags,
+            time: 0,
+            dwExtraInfo: 0,
+        })},
+    };
+    unsafe{SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int)};
+}
+
+fn keybd_event(flags: u32, vk: u16, scan: u16) {
+    let mut input = INPUT {
+        type_: INPUT_KEYBOARD,
+        u: unsafe{transmute_copy(&KEYBDINPUT {
+            wVk: vk,
+            wScan: scan,
+            dwFlags: flags,
+            time: 0,
+            dwExtraInfo: 0,
+        })}
+    };
+    unsafe{SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int)};
 }
 
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        // TODO(dustin): use interior mutability
-        self.current_x = x;
-        self.current_y = y;
-        unsafe { SetCursorPos(self.current_x, self.current_y) };
+        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, 0, 
+            x*65335/unsafe{GetSystemMetrics(78)},
+            y*65335/unsafe{GetSystemMetrics(79)}
+        );
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        // TODO(dustin): use interior mutability
-        self.current_x += x;
-        self.current_y += y;
-        unsafe { SetCursorPos(self.current_x, self.current_y) };
+        mouse_event(MOUSEEVENTF_MOVE, 0, x, y);
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_MOUSE,
-                u: transmute_copy(&MOUSEINPUT {
-                                      dx: 0,
-                                      dy: 0,
-                                      mouseData: 0,
-                                      dwFlags: match button {
-                                          MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
-                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
-                                          MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-
-                                          _ => unimplemented!(),
-                                      },
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        mouse_event(match button {
+            MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+            MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+            MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+            _ => unimplemented!()
+        }, 0, 0, 0);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_MOUSE,
-                u: transmute_copy(&MOUSEINPUT {
-                                      dx: 0,
-                                      dy: 0,
-                                      mouseData: 0,
-                                      dwFlags: match button {
-                                          MouseButton::Left => MOUSEEVENTF_LEFTUP,
-                                          MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
-                                          MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-
-                                          _ => unimplemented!(),
-                                      },
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        mouse_event(match button {
+            MouseButton::Left => MOUSEEVENTF_LEFTUP,
+            MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
+            MouseButton::Right => MOUSEEVENTF_RIGHTUP,
+            _ => unimplemented!()
+        }, 0, 0, 0);
     }
 
     fn mouse_click(&mut self, button: MouseButton) {
@@ -103,59 +91,11 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_scroll_x(&mut self, length: i32) {
-        let mut scroll_direction = 1 * 50; // 1 left -1 right
-        let mut length = length;
-
-        if length < 0 {
-            length *= -1;
-            scroll_direction *= -1;
-        }
-
-        for _ in 0..length {
-            unsafe {
-                let mut input = INPUT {
-                    type_: INPUT_MOUSE,
-                    u: transmute_copy(&MOUSEINPUT {
-                                          dx: 0,
-                                          dy: 0,
-                                          mouseData: transmute_copy(&scroll_direction),
-                                          dwFlags: MOUSEEVENTF_HWHEEL,
-                                          time: 0,
-                                          dwExtraInfo: 0,
-                                      }),
-                };
-
-                SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-            }
-        }
+        mouse_event(MOUSEEVENTF_HWHEEL, unsafe{transmute(length*120)}, 0, 0);
     }
 
     fn mouse_scroll_y(&mut self, length: i32) {
-        let mut scroll_direction = -1 * 50; // 1 left -1 right
-        let mut length = length;
-
-        if length < 0 {
-            length *= -1;
-            scroll_direction *= -1;
-        }
-
-        for _ in 0..length {
-            unsafe {
-                let mut input = INPUT {
-                    type_: INPUT_MOUSE,
-                    u: transmute_copy(&MOUSEINPUT {
-                                          dx: 0,
-                                          dy: 0,
-                                          mouseData: transmute_copy(&scroll_direction),
-                                          dwFlags: MOUSEEVENTF_WHEEL,
-                                          time: 0,
-                                          dwExtraInfo: 0,
-                                      }),
-                };
-
-                SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-            }
-        }
+        mouse_event(MOUSEEVENTF_WHEEL, unsafe{transmute(length*120)}, 0, 0);
     }
 }
 
@@ -186,121 +126,35 @@ impl KeyboardControllable for Enigo {
 
     fn key_click(&mut self, key: Key) {
         let keycode = self.key_to_keycode(key);
-
         use std::{thread, time};
+        keybd_event(0, keycode, 0);
         thread::sleep(time::Duration::from_millis(20));
-
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: keycode,
-                                      wScan: 0,
-                                      dwFlags: 0,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
-
-        thread::sleep(time::Duration::from_millis(20));
-
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: keycode,
-                                      wScan: 0,
-                                      dwFlags: KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
-
-        thread::sleep(time::Duration::from_millis(20));
+        keybd_event(KEYEVENTF_KEYUP, keycode, 0);
     }
 
     fn key_down(&mut self, key: Key) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: self.key_to_keycode(key),
-                                      wScan: 0,
-                                      dwFlags: 0,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        keybd_event(0, self.key_to_keycode(key), 0);
     }
 
     fn key_up(&mut self, key: Key) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: self.key_to_keycode(key),
-                                      wScan: 0,
-                                      dwFlags: KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        keybd_event(KEYEVENTF_KEYUP, self.key_to_keycode(key), 0);
     }
 }
 
 impl Enigo {
     fn unicode_key_click(&self, unicode_char: u16) {
         use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(20));
         self.unicode_key_down(unicode_char);
-        self.unicode_key_up(unicode_char);
         thread::sleep(time::Duration::from_millis(20));
+        self.unicode_key_up(unicode_char);
     }
 
     fn unicode_key_down(&self, unicode_char: u16) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: 0,
-                                      wScan: unicode_char,
-                                      dwFlags: KEYEVENTF_UNICODE,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        keybd_event(KEYEVENTF_UNICODE, 0, unicode_char);
     }
 
     fn unicode_key_up(&self, unicode_char: u16) {
-        unsafe {
-            let mut input = INPUT {
-                type_: INPUT_KEYBOARD,
-                u: transmute_copy(&KEYBDINPUT {
-                                      wVk: 0,
-                                      wScan: unicode_char,
-                                      dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                                      time: 0,
-                                      dwExtraInfo: 0,
-                                  }),
-            };
-
-            SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int);
-        }
+        keybd_event(KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, unicode_char);
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
