@@ -334,6 +334,8 @@ pub enum Key {
     /// raw keycode eg 0x38
     Raw(u16),
 }
+
+///Keys to be used TODO(dustin): make real documentation
 #[cfg(not(feature = "with_serde"))]
 #[derive(Debug)]
 pub enum Key {
