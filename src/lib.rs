@@ -28,7 +28,8 @@
 //! its purpose is to simply write unicode characters. This is independent of
 //! the keyboardlayout. Please note that
 //! you're not be able to use modifier keys like Control
-//! to influence the outcome. If you want to use modifier keys to e.g. copy/paste
+//! to influence the outcome. If you want to use modifier keys to e.g.
+//! copy/paste
 //! use the Layout variant. Please note that this is indeed layout dependent.
 
 //! # Examples
@@ -177,8 +178,10 @@ pub trait MouseControllable {
     /// type [MouseButton](enum.MouseButton.html)
     /// and holds it until it is released by
     /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
-    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.mouse_move_to) or
-    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.mouse_move_relative)
+    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.
+    /// mouse_move_to) or
+    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.
+    /// mouse_move_relative)
     /// will work like expected and will e.g. drag widgets or highlight text.
     ///
     /// # Example
@@ -335,7 +338,7 @@ pub enum Key {
     Raw(u16),
 }
 
-///Keys to be used TODO(dustin): make real documentation
+/// Keys to be used TODO(dustin): make real documentation
 #[cfg(not(feature = "with_serde"))]
 #[derive(Debug)]
 pub enum Key {
@@ -417,14 +420,17 @@ pub trait KeyboardControllable {
     /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
     /// TODO: Full documentation
     fn key_sequence_parse(&mut self, sequence: &str)
-        where Self: Sized
+    where
+        Self: Sized,
     {
-        self.key_sequence_parse_try(sequence)
-            .expect("Could not parse sequence");
+        self.key_sequence_parse_try(sequence).expect(
+            "Could not parse sequence",
+        );
     }
     /// Same as key_sequence_parse except returns any errors
     fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), parser::ParseError>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         parser::parse(self, sequence)
     }
@@ -452,8 +458,10 @@ pub trait KeyboardControllable {
     /// [key_down](trait.KeyboardControllable.html#tymethod.key_down)
     fn key_up(&mut self, key: Key);
 
-    ///Much like the [key_down](trait.KeyboardControllable.html#tymethod.key_down) and [key_up](trait.KeyboardControllable.html#tymethod.key_up)
-    ///function they're just invoked consecutively
+    /// Much like the
+    /// [key_down](trait.KeyboardControllable.html#tymethod.key_down) and
+    /// [key_up](trait.KeyboardControllable.html#tymethod.key_up)
+    /// function they're just invoked consecutively
     fn key_click(&mut self, key: Key);
 }
 

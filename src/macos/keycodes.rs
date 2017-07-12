@@ -1,8 +1,9 @@
 use libc::uint16_t;
 
-//https://stackoverflow.com/questions/3202629/where-can-i-find-a-list-of-mac-virtual-key-codes
+// https://stackoverflow.
+// com/questions/3202629/where-can-i-find-a-list-of-mac-virtual-key-codes
 
-/* keycodes for keys that are independent of keyboard layout*/
+/* keycodes for keys that are independent of keyboard layout */
 
 pub const kVK_Return: uint16_t = 0x24;
 pub const kVK_Tab: uint16_t = 0x30;
