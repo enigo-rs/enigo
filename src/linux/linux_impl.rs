@@ -24,31 +24,36 @@ extern "C" {
 
     fn XStringToKeysym(string: *const c_char) -> KeySym;
     fn XKeysymToKeycode(display: Display, keysym: KeySym, index: c_int) -> KeyCode;
-    fn XChangeKeyboardMapping(display: Display,
-                              first_keycode: c_int,
-                              keycode_count: c_int,
-                              keysyms: *const KeySym,
-                              keysyms_per_keycode_return: c_int)
-                              -> KeySym;
-    fn XGetKeyboardMapping(display: Display,
-                           first_keycode: KeyCode,
-                           keycode_count: c_int,
-                           keysyms_per_keycode_return: *mut c_int)
-                           -> *mut KeySym;
-    fn XDisplayKeycodes(display: Display,
-                        min_keycodes_return: *mut c_int,
-                        max_keycodes_return: *mut c_int)
-                        -> c_int;
+    fn XChangeKeyboardMapping(
+        display: Display,
+        first_keycode: c_int,
+        keycode_count: c_int,
+        keysyms: *const KeySym,
+        keysyms_per_keycode_return: c_int,
+    ) -> KeySym;
+    fn XGetKeyboardMapping(
+        display: Display,
+        first_keycode: KeyCode,
+        keycode_count: c_int,
+        keysyms_per_keycode_return: *mut c_int,
+    ) -> *mut KeySym;
+    fn XDisplayKeycodes(
+        display: Display,
+        min_keycodes_return: *mut c_int,
+        max_keycodes_return: *mut c_int,
+    ) -> c_int;
 
-    fn XWarpPointer(display: Display,
-                    src_w: Window,
-                    dest_w: Window,
-                    src_x: c_int,
-                    src_y: c_int,
-                    src_width: c_int,
-                    src_height: c_int,
-                    dest_x: c_int,
-                    dest_y: c_int);
+    fn XWarpPointer(
+        display: Display,
+        src_w: Window,
+        dest_w: Window,
+        src_x: c_int,
+        src_y: c_int,
+        src_width: c_int,
+        src_height: c_int,
+        dest_x: c_int,
+        dest_y: c_int,
+    );
 }
 
 #[link(name = "Xtst")]
@@ -126,18 +131,20 @@ impl MouseControllable for Enigo {
         }
 
         unsafe {
-            XTestFakeButtonEvent(self.display,
-                                 match button {
-                                     MouseButton::Left => 1,
-                                     MouseButton::Middle => 2,
-                                     MouseButton::Right => 3,
-                                     MouseButton::ScrollUp => 4,
-                                     MouseButton::ScrollDown => 5,
-                                     MouseButton::ScrollLeft => 6,
-                                     MouseButton::ScrollRight => 7,
-                                 },
-                                 1,
-                                 0);
+            XTestFakeButtonEvent(
+                self.display,
+                match button {
+                    MouseButton::Left => 1,
+                    MouseButton::Middle => 2,
+                    MouseButton::Right => 3,
+                    MouseButton::ScrollUp => 4,
+                    MouseButton::ScrollDown => 5,
+                    MouseButton::ScrollLeft => 6,
+                    MouseButton::ScrollRight => 7,
+                },
+                1,
+                0,
+            );
             XFlush(self.display);
         }
     }
@@ -148,18 +155,20 @@ impl MouseControllable for Enigo {
         }
 
         unsafe {
-            XTestFakeButtonEvent(self.display,
-                                 match button {
-                                     MouseButton::Left => 1,
-                                     MouseButton::Middle => 2,
-                                     MouseButton::Right => 3,
-                                     MouseButton::ScrollUp => 4,
-                                     MouseButton::ScrollDown => 5,
-                                     MouseButton::ScrollLeft => 6,
-                                     MouseButton::ScrollRight => 7,
-                                 },
-                                 0,
-                                 0);
+            XTestFakeButtonEvent(
+                self.display,
+                match button {
+                    MouseButton::Left => 1,
+                    MouseButton::Middle => 2,
+                    MouseButton::Right => 3,
+                    MouseButton::ScrollUp => 4,
+                    MouseButton::ScrollDown => 5,
+                    MouseButton::ScrollLeft => 6,
+                    MouseButton::ScrollRight => 7,
+                },
+                0,
+                0,
+            );
             XFlush(self.display);
         }
     }
@@ -247,25 +256,27 @@ impl Enigo {
 
     fn unicode_string_to_keycode(&self, unicode_string: &str) -> u32 {
         let mut keysyms_per_keycode = 0;
-        //scratch space for temporary keycode bindings
+        // scratch space for temporary keycode bindings
         let mut scratch_keycode = 0;
         let mut keycode_low = 0;
         let mut keycode_high = 0;
 
         let keysyms = unsafe {
-            //get the range of keycodes usually from 8 - 255
+            // get the range of keycodes usually from 8 - 255
             XDisplayKeycodes(self.display, &mut keycode_low, &mut keycode_high);
-            //get all the mapped keysysms available
+            // get all the mapped keysysms available
             let keycode_count = keycode_high - keycode_low;
-            XGetKeyboardMapping(self.display,
-                                keycode_low as u32,
-                                keycode_count,
-                                &mut keysyms_per_keycode)
+            XGetKeyboardMapping(
+                self.display,
+                keycode_low as u32,
+                keycode_count,
+                &mut keysyms_per_keycode,
+            )
         };
 
-        //find unused keycode for unmapped keysyms so we can
-        //hook up our own keycode and map every keysym on it
-        //so we just need to 'click' our once unmapped keycode
+        // find unused keycode for unmapped keysyms so we can
+        // hook up our own keycode and map every keysym on it
+        // so we just need to 'click' our once unmapped keycode
         for cidx in keycode_low..keycode_high + 1 {
             let mut key_is_empty = true;
             for sidx in 0..keysyms_per_keycode {
@@ -288,14 +299,14 @@ impl Enigo {
             XFlush(self.display);
         }
 
-        //TODO(dustin) make this an error!
+        // TODO(dustin) make this an error!
         if scratch_keycode == 0 {
             panic!("cannot find free keycode");
         }
 
-        //find the keysym for the given unicode char
-        //map that keysym to our previous unmapped keycode
-        //click that keycode/'button' with our keysym on it
+        // find the keysym for the given unicode char
+        // map that keysym to our previous unmapped keycode
+        // click that keycode/'button' with our keysym on it
         let unicode_as_c_string = CString::new(unicode_string).unwrap();
         let keysym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
         let keysym_list = [keysym, keysym].as_ptr();
@@ -364,7 +375,7 @@ impl Enigo {
         // thread::sleep(time::Duration::from_millis(20));
         self.keycode_down(keycode);
         self.keycode_up(keycode);
-        //thread::sleep(time::Duration::from_millis(20));
+        // thread::sleep(time::Duration::from_millis(20));
     }
 
     fn keycode_down(&self, keycode: u32) {

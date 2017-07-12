@@ -1,4 +1,5 @@
-//https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
+// https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).
+// aspx
 
 
 pub const EVK_RETURN: u16 = 0x0D;

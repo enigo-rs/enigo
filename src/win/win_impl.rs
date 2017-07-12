@@ -29,37 +29,43 @@ impl Enigo {
 fn mouse_event(flags: u32, data: u32, dx: i32, dy: i32) {
     let mut input = INPUT {
         type_: INPUT_MOUSE,
-        u: unsafe{transmute(MOUSEINPUT {
-            dx: dx,
-            dy: dy,
-            mouseData: data,
-            dwFlags: flags,
-            time: 0,
-            dwExtraInfo: 0,
-        })},
+        u: unsafe {
+            transmute(MOUSEINPUT {
+                dx: dx,
+                dy: dy,
+                mouseData: data,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            })
+        },
     };
-    unsafe{SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int)};
+    unsafe { SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int) };
 }
 
 fn keybd_event(flags: u32, vk: u16, scan: u16) {
     let mut input = INPUT {
         type_: INPUT_KEYBOARD,
-        u: unsafe{transmute_copy(&KEYBDINPUT {
-            wVk: vk,
-            wScan: scan,
-            dwFlags: flags,
-            time: 0,
-            dwExtraInfo: 0,
-        })}
+        u: unsafe {
+            transmute_copy(&KEYBDINPUT {
+                wVk: vk,
+                wScan: scan,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            })
+        },
     };
-    unsafe{SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int)};
+    unsafe { SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int) };
 }
 
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, 0, 
-            x*65335/unsafe{GetSystemMetrics(78)},
-            y*65335/unsafe{GetSystemMetrics(79)}
+        mouse_event(
+            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+            0,
+            x * 65335 / unsafe { GetSystemMetrics(78) },
+            y * 65335 / unsafe { GetSystemMetrics(79) },
         );
     }
 
@@ -68,21 +74,31 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        mouse_event(match button {
-            MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
-            MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
-            MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-            _ => unimplemented!()
-        }, 0, 0, 0);
+        mouse_event(
+            match button {
+                MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+                MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+                _ => unimplemented!(),
+            },
+            0,
+            0,
+            0,
+        );
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        mouse_event(match button {
-            MouseButton::Left => MOUSEEVENTF_LEFTUP,
-            MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
-            MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-            _ => unimplemented!()
-        }, 0, 0, 0);
+        mouse_event(
+            match button {
+                MouseButton::Left => MOUSEEVENTF_LEFTUP,
+                MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
+                MouseButton::Right => MOUSEEVENTF_RIGHTUP,
+                _ => unimplemented!(),
+            },
+            0,
+            0,
+            0,
+        );
     }
 
     fn mouse_click(&mut self, button: MouseButton) {
@@ -91,11 +107,11 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_scroll_x(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_HWHEEL, unsafe{transmute(length*120)}, 0, 0);
+        mouse_event(MOUSEEVENTF_HWHEEL, unsafe { transmute(length * 120) }, 0, 0);
     }
 
     fn mouse_scroll_y(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_WHEEL, unsafe{transmute(length*120)}, 0, 0);
+        mouse_event(MOUSEEVENTF_WHEEL, unsafe { transmute(length * 120) }, 0, 0);
     }
 }
 
@@ -104,13 +120,13 @@ impl KeyboardControllable for Enigo {
         let mut buffer = [0; 2];
 
         for c in sequence.chars() {
-            //Windows uses uft-16 encoding. We need to check
-            //for variable length characters. As such some
-            //characters can be 32 bit long and those are
-            //encoded in such called hight and low surrogates
-            //each 16 bit wide that needs to be send after
-            //another to the SendInput function without
-            //being interrupted by "keyup"
+            // Windows uses uft-16 encoding. We need to check
+            // for variable length characters. As such some
+            // characters can be 32 bit long and those are
+            // encoded in such called hight and low surrogates
+            // each 16 bit wide that needs to be send after
+            // another to the SendInput function without
+            // being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             if result.len() == 1 {
                 self.unicode_key_click(result[0]);
@@ -118,8 +134,8 @@ impl KeyboardControllable for Enigo {
                 for utf16_surrogate in result {
                     self.unicode_key_down(utf16_surrogate.clone());
                 }
-                //do i need to produce a keyup?
-                //self.unicode_key_up(0);
+                // do i need to produce a keyup?
+                // self.unicode_key_up(0);
             }
         }
     }
@@ -158,10 +174,10 @@ impl Enigo {
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
-        //do not use the codes from crate winapi they're
-        //wrongly typed with i32 instead of i16 use the
-        //ones provided by win/keycodes.rs that are prefixed
-        //with an 'E' infront of the original name
+        // do not use the codes from crate winapi they're
+        // wrongly typed with i32 instead of i16 use the
+        // ones provided by win/keycodes.rs that are prefixed
+        // with an 'E' infront of the original name
         match key {
             Key::Return => EVK_RETURN,
             Key::Tab => EVK_TAB,
@@ -204,22 +220,22 @@ impl Enigo {
 
     fn get_layoutdependent_keycode(&self, string: String) -> u16 {
         let mut buffer = [0; 2];
-        //get the first char from the string ignore the rest
-        //ensure its not a multybyte char
+        // get the first char from the string ignore the rest
+        // ensure its not a multybyte char
         let utf16 = string
             .chars()
             .nth(0)
             .expect("no valid input") //TODO(dustin): no panic here make an error
             .encode_utf16(&mut buffer);
         if utf16.len() != 1 {
-            //TODO(dustin) don't panic here use an apropriate errors
+            // TODO(dustin) don't panic here use an apropriate errors
             panic!("this char is not allowd");
         }
-        //NOTE VkKeyScanW uses the current keyboard layout
-        //to specify a layout use VkKeyScanExW and GetKeyboardLayout
-        //or load one with LoadKeyboardLayoutW
+        // NOTE VkKeyScanW uses the current keyboard layout
+        // to specify a layout use VkKeyScanExW and GetKeyboardLayout
+        // or load one with LoadKeyboardLayoutW
         let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
-        //0x41 as u16 //key that has the letter 'a' on it on english like keylayout
+        // 0x41 as u16 //key that has the letter 'a' on it on english like keylayout
         keycode_and_shiftstate as u16
     }
 }

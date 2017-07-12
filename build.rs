@@ -17,21 +17,23 @@ use std::path::Path;
 
 #[cfg(target_os = "linux")]
 fn main() {
-    let libraries = ["xext",
-                     "gl",
-                     "xcursor",
-                     "xxf86vm",
-                     "xft",
-                     "xinerama",
-                     "xi",
-                     "x11",
-                     "xlib_xcb",
-                     "xmu",
-                     "xrandr",
-                     "xtst",
-                     "xrender",
-                     "xscrnsaver",
-                     "xt"];
+    let libraries = [
+        "xext",
+        "gl",
+        "xcursor",
+        "xxf86vm",
+        "xft",
+        "xinerama",
+        "xi",
+        "x11",
+        "xlib_xcb",
+        "xmu",
+        "xrandr",
+        "xtst",
+        "xrender",
+        "xscrnsaver",
+        "xt",
+    ];
 
     let mut config = String::new();
     for lib in libraries.iter() {
@@ -39,7 +41,11 @@ fn main() {
             Ok(libdir) => format!("Some(\"{}\")", libdir),
             Err(_) => "None".to_string(),
         };
-        config.push_str(&format!("pub const {}: Option<&'static str> = {};\n", lib, libdir));
+        config.push_str(&format!(
+            "pub const {}: Option<&'static str> = {};\n",
+            lib,
+            libdir
+        ));
     }
     let config = format!("pub mod config {{ pub mod libdir {{\n{}}}\n}}", config);
     let out_dir = env::var("OUT_DIR").unwrap();
