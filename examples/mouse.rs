@@ -1,9 +1,10 @@
 extern crate enigo;
 use enigo::{Enigo, MouseControllable, MouseButton};
-use std::{thread, time};
+use std::thread;
+use std::time::Duration;
 
 fn main() {
-    let wait_time = time::Duration::from_millis(200);
+    let wait_time = Duration::from_secs(2);
     let mut enigo = Enigo::new();
 
     thread::sleep(wait_time);

@@ -1,10 +1,10 @@
 extern crate enigo;
 use enigo::{Enigo, KeyboardControllable};
-use std::{thread, time};
+use std::thread;
+use std::time::Duration;
 
 fn main() {
-    let wait_time = time::Duration::from_millis(2000);
-    thread::sleep(wait_time);
+    thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new();
 
     // write text and select all
