@@ -3,9 +3,10 @@ extern crate libc;
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use linux::keysyms::*;
 
-use std::ffi::CString;
-use std::ptr;
 use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
+use std::ffi::CString;
+use std::ops::Deref;
+use std::ptr;
 
 pub type Display = *const c_void;
 pub type Window = c_int;
@@ -228,8 +229,7 @@ impl KeyboardControllable for Enigo {
             let rust_unicode: String = format!("U{:x}", c as u32);
             let keycode = self.unicode_string_to_keycode(&rust_unicode);
 
-            self.keycode_click(keycode);
-            self.reset_keycode(keycode);
+            self.keycode_click(*keycode);
         }
     }
 
@@ -246,6 +246,21 @@ impl KeyboardControllable for Enigo {
     }
 }
 
+struct KeyGuard<'a>(&'a Enigo, u32);
+
+impl<'a> Deref for KeyGuard<'a> {
+	type Target = u32;
+
+	fn deref(&self) -> &Self::Target {
+		return &self.1;
+	}
+}
+impl<'a> Drop for KeyGuard<'a> {
+	fn drop(&mut self) {
+		self.0.reset_keycode(self.1);
+	}
+}
+
 impl Enigo {
     fn reset_keycode(&self, keycode: u32) {
         unsafe {
@@ -254,7 +269,7 @@ impl Enigo {
         }
     }
 
-    fn unicode_string_to_keycode(&self, unicode_string: &str) -> u32 {
+    fn unicode_string_to_keycode(&self, unicode_string: &str) -> KeyGuard {
         let mut keysyms_per_keycode = 0;
         // scratch space for temporary keycode bindings
         let mut scratch_keycode = 0;
@@ -318,7 +333,7 @@ impl Enigo {
             XFlush(self.display);
         }
 
-        scratch_keycode as u32
+        KeyGuard(self, scratch_keycode as u32)
     }
 
     fn key_to_keycode(&self, key: Key) -> u32 {
