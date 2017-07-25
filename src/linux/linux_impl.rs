@@ -373,7 +373,7 @@ impl Enigo {
                 Key::F12 => XKeysymToKeycode(self.display, XK_F12 as *const c_void, 0),
 
                 Key::Raw(raw_keycode) => raw_keycode as u32,
-                Key::Layout(string) => self.get_layoutdependent_keycode(string),
+                Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
             }
         }
     }

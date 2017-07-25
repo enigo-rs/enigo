@@ -481,7 +481,7 @@ impl Enigo {
             Key::F11 => kVK_F11,
             Key::F12 => kVK_F12,
             Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(string) => self.get_layoutdependent_keycode(string),
+            Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
             _ => 0,
         }
     }

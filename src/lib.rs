@@ -333,7 +333,7 @@ pub enum Key {
     /// F12 key
     F12,
     /// keyboard layout dependent key
-    Layout(String),
+    Layout(char),
     /// raw keycode eg 0x38
     Raw(u16),
 }
@@ -407,7 +407,7 @@ pub enum Key {
     /// F12 key
     F12,
     /// keyboard layout dependent key
-    Layout(String),
+    Layout(char),
     /// raw keycode eg 0x38
     Raw(u16),
 }
