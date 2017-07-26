@@ -82,33 +82,7 @@ extern crate serde_derive;
 #[cfg(feature = "with_serde")]
 extern crate serde;
 
-#[cfg(feature = "with_serde")]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-/// MouseButton represents a mouse button,
-/// and is used in for example
-/// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
-/// WARNING: Types with the prefix Scroll
-/// IS NOT intended to be used, and may not work on
-/// all operating systems.
-pub enum MouseButton {
-    /// Left mouse button
-    Left,
-    /// Middle mouse button
-    Middle,
-    /// Right mouse button
-    Right,
-
-    /// Scroll up button
-    ScrollUp,
-    /// Left right button
-    ScrollDown,
-    /// Left right button
-    ScrollLeft,
-    /// Left right button
-    ScrollRight,
-}
-
-#[cfg(not(feature = "with_serde"))]
+#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// MouseButton represents a mouse button,
 /// and is used in for example
@@ -264,82 +238,8 @@ pub trait MouseControllable {
     fn mouse_scroll_y(&mut self, length: i32);
 }
 
-/// Keys to be used TODO(dustin): make a real documentation
-#[cfg(feature = "with_serde")]
-#[derive(Serialize, Deserialize, Debug)]
-pub enum Key {
-    /// return key
-    Return,
-    /// tab key (tabulator)
-    Tab,
-    /// space key
-    Space,
-    /// backspace key
-    Backspace,
-    /// escape key (esc)
-    Escape,
-    /// super key on linux (command key on macOS, windows key on Windows)
-    Super,
-    /// command key on macOS (super key on Linux, windows key on Windows)
-    Command,
-    /// windows key on Windows (super key on Linux, command key on macOS)
-    Windows,
-    /// shift key
-    Shift,
-    /// caps lock key
-    CapsLock,
-    /// alt key on Linux and Windows (option key on macOS)
-    Alt,
-    /// option key on macOS (alt key on Linux and Windows)
-    Option,
-    /// control key
-    Control,
-    /// home key
-    Home,
-    /// page up key
-    PageUp,
-    /// page down key
-    PageDown,
-    /// left arrow key
-    LeftArrow,
-    /// right arrow key
-    RightArrow,
-    /// down arrow key
-    DownArrow,
-    /// up arrow key
-    UpArrow,
-    /// F1 key
-    F1,
-    /// F2 key
-    F2,
-    /// F3 key
-    F3,
-    /// F4 key
-    F4,
-    /// F5 key
-    F5,
-    /// F6 key
-    F6,
-    /// F7 key
-    F7,
-    /// F8 key
-    F8,
-    /// F9 key
-    F9,
-    /// F10 key
-    F10,
-    /// F11 key
-    F11,
-    /// F12 key
-    F12,
-    /// keyboard layout dependent key
-    Layout(char),
-    /// raw keycode eg 0x38
-    Raw(u16),
-}
-
 /// Keys to be used TODO(dustin): make real documentation
-#[cfg(not(feature = "with_serde"))]
+#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub enum Key {
     /// return key
