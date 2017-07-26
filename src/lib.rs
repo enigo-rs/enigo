@@ -38,7 +38,7 @@
 //! let mut enigo = Enigo::new();
 //! //paste
 //! enigo.key_down(Key::Control);
-//! enigo.key_click(Key::Layout("v".into()));
+//! enigo.key_click(Key::Layout('v'));
 //! enigo.key_up(Key::Control);
 //! ```
 //!
