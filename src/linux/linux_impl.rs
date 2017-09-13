@@ -327,9 +327,6 @@ impl Enigo {
         let keysym_list = [keysym, keysym].as_ptr();
         unsafe {
             XChangeKeyboardMapping(self.display, scratch_keycode, 2, keysym_list, 1);
-        }
-
-        unsafe {
             XFlush(self.display);
         }
 
@@ -386,30 +383,27 @@ impl Enigo {
     }
 
     fn keycode_click(&self, keycode: u32) {
-        // use std::{thread, time};
-        // thread::sleep(time::Duration::from_millis(20));
         self.keycode_down(keycode);
         self.keycode_up(keycode);
-        // thread::sleep(time::Duration::from_millis(20));
     }
 
     fn keycode_down(&self, keycode: u32) {
         use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(time::Duration::from_millis(10));
         unsafe {
             XTestFakeKeyEvent(self.display, keycode, 1, 0);
             XFlush(self.display);
         }
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(time::Duration::from_millis(10));
     }
 
     fn keycode_up(&self, keycode: u32) {
         use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(time::Duration::from_millis(10));
         unsafe {
             XTestFakeKeyEvent(self.display, keycode, 0, 0);
             XFlush(self.display);
         }
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(time::Duration::from_millis(10));
     }
 }
