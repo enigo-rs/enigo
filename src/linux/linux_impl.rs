@@ -324,7 +324,8 @@ impl Enigo {
         // click that keycode/'button' with our keysym on it
         let unicode_as_c_string = CString::new(unicode_string).unwrap();
         let keysym = unsafe { XStringToKeysym(unicode_as_c_string.as_ptr() as *mut c_char) };
-        let keysym_list = [keysym, keysym].as_ptr();
+        let keysym_list = [keysym, keysym];
+        let keysym_list = keysym_list.as_ptr();
         unsafe {
             XChangeKeyboardMapping(self.display, scratch_keycode, 2, keysym_list, 1);
             XFlush(self.display);
