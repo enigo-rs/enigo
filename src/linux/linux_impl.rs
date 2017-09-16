@@ -264,7 +264,8 @@ impl<'a> Drop for KeyGuard<'a> {
 impl Enigo {
     fn reset_keycode(&self, keycode: u32) {
         unsafe {
-            let keysym_list = [0 as KeySym, 0 as KeySym].as_ptr();
+            let keysym_list = [0 as KeySym, 0 as KeySym];
+            let keysym_list = keysym_list.as_ptr();
             XChangeKeyboardMapping(self.display, keycode as i32, 2, keysym_list, 1);
         }
     }

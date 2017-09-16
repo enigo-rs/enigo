@@ -9,3 +9,6 @@ Cargo.lock
 
 # RustFmt files
 **/*.rs.bk
+
+# intellij
+.idea
