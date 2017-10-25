@@ -93,7 +93,11 @@ pub fn parse(enigo: &mut KeyboardControllable, string: &str) -> Result<(), Parse
         } else if unicode {
             enigo.key_sequence(c.to_string().as_str());
         } else {
-            enigo.key_click(Key::Layout(c));
+            enigo.key_click(match c {
+                ' '  => Key::Space,
+                '\t' => Key::Tab,
+                c    => Key::Layout(c)
+            })
         }
     }
 
