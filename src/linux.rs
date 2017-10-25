@@ -1,12 +1,10 @@
 extern crate libc;
 
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
-use linux::keysyms::*;
 
-use self::libc::{c_ulong, c_uint, c_int, c_char, c_void};
+use self::libc::{c_ulong, c_int, c_char, c_void};
 use std::borrow::Cow;
 use std::ffi::CString;
-use std::ops::Deref;
 use std::ptr;
 
 const CURRENT_WINDOW: c_int = 0;
@@ -51,6 +49,13 @@ impl Enigo {
     pub fn new() -> Enigo {
         Enigo {
             xdo: unsafe { xdo_new(ptr::null()) }
+        }
+    }
+}
+impl Drop for Enigo {
+    fn drop(&mut self) {
+        unsafe {
+            xdo_free(self.xdo);
         }
     }
 }
