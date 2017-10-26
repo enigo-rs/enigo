@@ -6,10 +6,12 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
-before_install:
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get -qq update; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install -y libxdo-dev; fi
 os:
   - linux
   - osx
 
+sudo: false
+addons:
+  apt:
+    packages:
+      - libxdo-dev
