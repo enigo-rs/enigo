@@ -11,6 +11,11 @@ use self::libc::*;
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
+use objc::runtime::Class;
+
+// required for pressedMouseButtons on NSEvent
+#[link(name = "AppKit", kind = "framework")]
+extern "C" {}
 
 struct MyCGEvent {}
 
@@ -218,8 +223,18 @@ impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
         self.current_x = x;
         self.current_y = y;
+        let pressed = Self::pressed_buttons();
+
+        let event_type = if pressed & 1 > 0 {
+            CGEventType::LeftMouseDragged
+        } else if pressed & 2 > 0 {
+            CGEventType::RightMouseDragged
+        } else {
+            CGEventType::MouseMoved
+        };
+
         let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
-        let event = CGEvent::new_mouse_event(self.event_source.clone(), CGEventType::MouseMoved, dest, CGMouseButton::Left).unwrap();
+        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, CGMouseButton::Left).unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
@@ -358,6 +373,11 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Enigo {
+    fn pressed_buttons() -> usize {
+        let ns_event = Class::get("NSEvent").unwrap();
+        unsafe { msg_send![ns_event, pressedMouseButtons] }
+    }
+
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         match key {
             Key::Return => kVK_Return,
