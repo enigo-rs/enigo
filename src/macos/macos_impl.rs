@@ -190,8 +190,6 @@ pub struct Enigo {
     event_source: CGEventSource,
     current_x: i32,
     current_y: i32,
-    display_width: usize,
-    display_height: usize,
 }
 
 impl Enigo {
@@ -204,17 +202,11 @@ impl Enigo {
     /// let mut enigo = Enigo::new();
     /// ```
     pub fn new() -> Self {
-        let displayID = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(displayID) };
-        let height = unsafe { CGDisplayPixelsHigh(displayID) };
-
         Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),
             current_x: 500,
             current_y: 500,
-            display_width: width,
-            display_height: height,
         }
     }
 }
@@ -242,8 +234,9 @@ impl MouseControllable for Enigo {
         let new_x = self.current_x + x;
         let new_y = self.current_y + y;
 
-        if new_x < 0 || new_x as usize > self.display_width || new_y < 0 ||
-            new_y as usize > self.display_height
+        let (display_width, display_height) = Self::main_display_size();
+        if new_x < 0 || new_x as usize > display_width || new_y < 0 ||
+            new_y as usize > display_height
         {
             return;
         }
@@ -376,6 +369,14 @@ impl Enigo {
     fn pressed_buttons() -> usize {
         let ns_event = Class::get("NSEvent").unwrap();
         unsafe { msg_send![ns_event, pressedMouseButtons] }
+    }
+
+    /// Fetches the `(width, height)` in pixels of the main display
+    pub fn main_display_size() -> (usize, usize) {
+        let displayID = unsafe { CGMainDisplayID() };
+        let width = unsafe { CGDisplayPixelsWide(displayID) };
+        let height = unsafe { CGDisplayPixelsHigh(displayID) };
+        (width, height)
     }
 
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
