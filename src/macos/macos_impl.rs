@@ -35,6 +35,13 @@ extern "C" {
 pub type CFDataRef = *const ::std::os::raw::c_void; // c_void;
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+struct NSPoint {
+    x: f64,
+    y: f64,
+}
+
+#[repr(C)]
 pub struct __TISInputSource;
 pub type TISInputSourceRef = *const __TISInputSource;
 
@@ -188,8 +195,6 @@ enum ScrollUnit {
 /// The main struct for handling the event emitting
 pub struct Enigo {
     event_source: CGEventSource,
-    current_x: i32,
-    current_y: i32,
 }
 
 impl Enigo {
@@ -205,16 +210,12 @@ impl Enigo {
         Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),
-            current_x: 500,
-            current_y: 500,
         }
     }
 }
 
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        self.current_x = x;
-        self.current_y = y;
         let pressed = Self::pressed_buttons();
 
         let event_type = if pressed & 1 > 0 {
@@ -225,16 +226,18 @@ impl MouseControllable for Enigo {
             CGEventType::MouseMoved
         };
 
-        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let dest = CGPoint::new(x as f64, y as f64);
         let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, CGMouseButton::Left).unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let new_x = self.current_x + x;
-        let new_y = self.current_y + y;
-
         let (display_width, display_height) = Self::main_display_size();
+        let (current_x, y_inv) = Self::mouse_location_raw_coords();
+        let current_y = (display_height as i32) - y_inv;
+        let new_x = current_x + x;
+        let new_y = current_y + y;
+
         if new_x < 0 || new_x as usize > display_width || new_y < 0 ||
             new_y as usize > display_height
         {
@@ -245,25 +248,27 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
+        let (current_x, current_y) = Self::mouse_location();
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
             MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
             _ => unimplemented!(),
         };
-        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
+        let (current_x, current_y) = Self::mouse_location();
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
             MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
             _ => unimplemented!(),
         };
-        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
         event.post(CGEventTapLocation::HID);
     }
@@ -377,6 +382,22 @@ impl Enigo {
         let width = unsafe { CGDisplayPixelsWide(displayID) };
         let height = unsafe { CGDisplayPixelsHigh(displayID) };
         (width, height)
+    }
+
+    /// Returns the current mouse location in Cocoa coordinates which have Y inverted
+    /// from the Carbon coordinates used in the rest of the API. This function exists
+    /// so that mouse_move_relative only has to fetch the screen size once.
+    fn mouse_location_raw_coords() -> (i32, i32) {
+        let ns_event = Class::get("NSEvent").unwrap();
+        let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
+        (pt.x as i32, pt.y as i32)
+    }
+
+    /// The mouse coordinates in points, only works on the main display
+    pub fn mouse_location() -> (i32, i32) {
+        let (x,y_inv) = Self::mouse_location_raw_coords();
+        let (_, display_height) = Self::main_display_size();
+        (x, (display_height as i32) - y_inv)
     }
 
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
