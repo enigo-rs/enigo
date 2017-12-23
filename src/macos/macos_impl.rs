@@ -6,44 +6,30 @@ extern crate libc;
 use self::core_graphics::display::*;
 use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
-use self::core_graphics::geometry::*;
 use self::libc::*;
 
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
-use self::libc::c_void;
+use objc::runtime::Class;
 
-use std::ptr;
+// required for pressedMouseButtons on NSEvent
+#[link(name = "AppKit", kind = "framework")]
+extern "C" {}
 
-// little hack until servo fixed a bug in core_graphics
-// https://github.com/servo/core-graphics-rs/issues/70
-// https://github.com/servo/core-graphics-rs/pull/71
+struct MyCGEvent {}
+
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
-    fn CGEventCreateMouseEvent(
-        source: CGEventSourceRef,
-        mouseType: FIXMEEventType,
-        mouseCursorPosition: CGPoint,
-        mouseButton: CGMouseButton,
-    ) -> CGEventRef;
-
-    fn CGEventPost(tapLocation: CGEventTapLocation, event: CGEventRef);
-
-    fn CGEventCreateKeyboardEvent(
-        source: CGEventSourceRef,
-        keycode: CGKeyCode,
-        keydown: bool,
-    ) -> CGEventRef;
-
+    fn CGEventPost(tapLocation: CGEventTapLocation, event: *mut MyCGEvent);
     // not present in servo/core-graphics
     fn CGEventCreateScrollWheelEvent(
-        source: CGEventSourceRef,
+        source: &CGEventSourceRef,
         units: ScrollUnit,
         wheelCount: uint32_t,
         wheel1: int32_t,
         ...
-    ) -> CGEventRef;
+    ) -> *mut MyCGEvent;
 }
 
 pub type CFDataRef = *const ::std::os::raw::c_void; // c_void;
@@ -76,9 +62,9 @@ pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDi
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_702 {
-    kUCKeyActionDown = 0,
-    kUCKeyActionUp = 1,
-    kUCKeyActionAutoKey = 2,
+    // kUCKeyActionDown = 0,
+    // kUCKeyActionUp = 1,
+    // kUCKeyActionAutoKey = 2,
     kUCKeyActionDisplay = 3,
 }
 
@@ -191,14 +177,6 @@ extern "C" {
     ) -> Boolean;
 }
 
-
-#[derive(Debug)]
-enum FIXMEEventType {
-    LeftMouseDown = 1,
-    LeftMouseUp = 2,
-    MouseMoved = 5,
-}
-
 // not present in servo/core-graphics
 #[derive(Debug)]
 enum ScrollUnit {
@@ -209,6 +187,7 @@ enum ScrollUnit {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
+    event_source: CGEventSource,
     current_x: i32,
     current_y: i32,
     display_width: usize,
@@ -230,6 +209,8 @@ impl Enigo {
         let height = unsafe { CGDisplayPixelsHigh(displayID) };
 
         Enigo {
+            // TODO(dustin): return error rather than panic here
+            event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),
             current_x: 500,
             current_y: 500,
             display_width: width,
@@ -242,18 +223,19 @@ impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
         self.current_x = x;
         self.current_y = y;
+        let pressed = Self::pressed_buttons();
 
-        unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::MouseMoved,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                CGMouseButton::Left,
-            );
+        let event_type = if pressed & 1 > 0 {
+            CGEventType::LeftMouseDragged
+        } else if pressed & 2 > 0 {
+            CGEventType::RightMouseDragged
+        } else {
+            CGEventType::MouseMoved
+        };
 
-            CGEventPost(CGEventTapLocation::HID, mouse_ev);
-            CFRelease(mem::transmute(mouse_ev));
-        }
+        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, CGMouseButton::Left).unwrap();
+        event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
@@ -266,65 +248,31 @@ impl MouseControllable for Enigo {
             return;
         }
 
-        unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::MouseMoved,
-                CGPoint::new(new_x as f64, new_y as f64),
-                CGMouseButton::Left,
-            );
-
-            CGEventPost(CGEventTapLocation::HID, mouse_ev);
-            CFRelease(mem::transmute(mouse_ev));
-        }
-
-        // TODO(dustin): use interior mutability
-        self.current_x = new_x;
-        self.current_y = new_y;
+        self.mouse_move_to(new_x, new_y);
     }
 
-    // TODO(dustin): use button parameter, current implementation
-    // is using the left mouse button every time
     fn mouse_down(&mut self, button: MouseButton) {
-        unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::LeftMouseDown,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                match button {
-                    MouseButton::Left => CGMouseButton::Left,
-                    MouseButton::Middle => CGMouseButton::Center,
-                    MouseButton::Right => CGMouseButton::Right,
-
-                    _ => unimplemented!(),
-                },
-            );
-
-            CGEventPost(CGEventTapLocation::HID, mouse_ev);
-            CFRelease(mem::transmute(mouse_ev));
-        }
+        let (button, event_type) = match button {
+            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
+            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
+            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+            _ => unimplemented!(),
+        };
+        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        event.post(CGEventTapLocation::HID);
     }
 
-    // TODO(dustin): use button parameter, current implementation
-    // is using the left mouse button every time
     fn mouse_up(&mut self, button: MouseButton) {
-        unsafe {
-            let mouse_ev = CGEventCreateMouseEvent(
-                ptr::null(),
-                FIXMEEventType::LeftMouseUp,
-                CGPoint::new(self.current_x as f64, self.current_y as f64),
-                match button {
-                    MouseButton::Left => CGMouseButton::Left,
-                    MouseButton::Middle => CGMouseButton::Center,
-                    MouseButton::Right => CGMouseButton::Right,
-
-                    _ => unimplemented!(),
-                },
-            );
-
-            CGEventPost(CGEventTapLocation::HID, mouse_ev);
-            CFRelease(mem::transmute(mouse_ev));
-        }
+        let (button, event_type) = match button {
+            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
+            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
+            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+            _ => unimplemented!(),
+        };
+        let dest = CGPoint::new(self.current_x as f64, self.current_y as f64);
+        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_click(&mut self, button: MouseButton) {
@@ -344,7 +292,7 @@ impl MouseControllable for Enigo {
         for _ in 0..length {
             unsafe {
                 let mouse_ev = CGEventCreateScrollWheelEvent(
-                    ptr::null(),
+                    &self.event_source,
                     ScrollUnit::Line,
                     2, // CGWheelCount 1 = y 2 = xy 3 = xyz
                     0,
@@ -369,7 +317,7 @@ impl MouseControllable for Enigo {
         for _ in 0..length {
             unsafe {
                 let mouse_ev = CGEventCreateScrollWheelEvent(
-                    ptr::null(),
+                    &self.event_source,
                     ScrollUnit::Line,
                     1, // CGWheelCount 1 = y 2 = xy 3 = xyz
                     scroll_direction,
@@ -387,65 +335,49 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-        // TODO(dustin): return error rather than panic here
-        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-            .expect("Failed creating event source");
-        let event = CGEvent::new_keyboard_event(source, 0, true).expect("Failed creating event");
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true).expect("Failed creating event");
         event.set_string(sequence);
         event.post(CGEventTapLocation::HID);
     }
 
     fn key_click(&mut self, key: Key) {
-        unsafe {
-            let keycode = self.key_to_keycode(key);
+        let keycode = self.key_to_keycode(key);
 
-            use std::{thread, time};
-            thread::sleep(time::Duration::from_millis(20));
-            // TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event =
-                CGEvent::new_keyboard_event(source, keycode, true).expect("Failed creating event");
-            event.post(CGEventTapLocation::HID);
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
+        let event =
+            CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true).expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
 
-            thread::sleep(time::Duration::from_millis(20));
-            // TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event =
-                CGEvent::new_keyboard_event(source, keycode, false).expect("Failed creating event");
-            event.post(CGEventTapLocation::HID);
-        }
+        thread::sleep(time::Duration::from_millis(20));
+        let event =
+            CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false).expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
     }
 
     fn key_down(&mut self, key: Key) {
-        unsafe {
-            use std::{thread, time};
-            thread::sleep(time::Duration::from_millis(20));
-            // TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), true)
-                .expect("Failed creating event");
-            event.post(CGEventTapLocation::HID);
-        }
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
+            .expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
     }
 
     fn key_up(&mut self, key: Key) {
-        unsafe {
-            use std::{thread, time};
-            thread::sleep(time::Duration::from_millis(20));
-            // TODO(dustin): return error rather than panic here
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-                .expect("Failed creating event source");
-            let event = CGEvent::new_keyboard_event(source, self.key_to_keycode(key), false)
-                .expect("Failed creating event");
-            event.post(CGEventTapLocation::HID);
-        }
+        use std::{thread, time};
+        thread::sleep(time::Duration::from_millis(20));
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
+            .expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
     }
 }
 
 impl Enigo {
+    fn pressed_buttons() -> usize {
+        let ns_event = Class::get("NSEvent").unwrap();
+        unsafe { msg_send![ns_event, pressedMouseButtons] }
+    }
+
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         match key {
             Key::Return => kVK_Return,
@@ -482,7 +414,6 @@ impl Enigo {
             Key::F12 => kVK_F12,
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
-            _ => 0,
         }
     }
 
