@@ -141,19 +141,19 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_click(&mut self, key: Key) {
-        let keycode = self.key_to_keycode(key);
+        let scancode = self.key_to_scancode(key);
         use std::{thread, time};
-        keybd_event(0, keycode, 0);
+        keybd_event(KEYEVENTF_SCANCODE, 0, scancode);
         thread::sleep(time::Duration::from_millis(20));
-        keybd_event(KEYEVENTF_KEYUP, keycode, 0);
+        keybd_event(KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE, 0, scancode);
     }
 
     fn key_down(&mut self, key: Key) {
-        keybd_event(0, self.key_to_keycode(key), 0);
+        keybd_event(KEYEVENTF_SCANCODE, 0, self.key_to_scancode(key));
     }
 
     fn key_up(&mut self, key: Key) {
-        keybd_event(KEYEVENTF_KEYUP, self.key_to_keycode(key), 0);
+        keybd_event(KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE, 0, self.key_to_scancode(key));
     }
 }
 
@@ -215,6 +215,14 @@ impl Enigo {
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
             //_ => 0,
+        }
+    }
+
+    fn key_to_scancode(&self, key: Key) -> u16
+    {
+        let keycode = self.key_to_keycode(key);
+        unsafe {
+            MapVirtualKeyW(keycode as u32, 0) as u16
         }
     }
 
