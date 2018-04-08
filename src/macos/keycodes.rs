@@ -11,7 +11,6 @@ pub const kVK_Space: uint16_t = 0x31;
 pub const kVK_Delete: uint16_t = 0x33;
 pub const kVK_Escape: uint16_t = 0x35;
 pub const kVK_Command: uint16_t = 0x37;
-pub const kVK_Delete: uint16_t = 0x33;
 pub const kVK_Shift: uint16_t = 0x38;
 pub const kVK_CapsLock: uint16_t = 0x39;
 pub const kVK_Option: uint16_t = 0x3A;

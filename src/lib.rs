@@ -245,57 +245,32 @@ pub trait MouseControllable {
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub enum Key {
-    /// return key
-    Return,
-    /// tab key (tabulator)
-    Tab,
-    /// space key
-    Space,
-    /// backspace key
-    Backspace,
-    /// delete key
-    Delete,
-    /// escape key (esc)
-    Escape,
-    /// end key
-    End,
-    /// super key on linux (command key on macOS, windows key on Windows)
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
-    Super,
-    /// command key on macOS (super key on Linux, windows key on Windows)
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
-    Command,
-    /// windows key on Windows (super key on Linux, command key on macOS)
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
-    Windows,
-    /// meta key (also known as "windows", "super", and "command")
-    Meta,
-    /// shift key
-    Shift,
-    /// caps lock key
-    CapsLock,
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
-    /// option key on macOS (alt key on Linux and Windows)
-    Option,
+    /// backspace key
+    Backspace,
+    /// caps lock key
+    CapsLock,
+    /// command key on macOS (super key on Linux, windows key on Windows)
+    Command,
     /// control key
     Control,
-    /// home key
-    Home,
-    /// page up key
-    PageUp,
-    /// page down key
-    PageDown,
-    /// left arrow key
-    LeftArrow,
-    /// right arrow key
-    RightArrow,
+    /// delete key
+    Delete,
     /// down arrow key
     DownArrow,
-    /// up arrow key
-    UpArrow,
+    /// end key
+    End,
+    /// escape key (esc)
+    Escape,
     /// F1 key
     F1,
+    /// F10 key
+    F10,
+    /// F11 key
+    F11,
+    /// F12 key
+    F12,
     /// F2 key
     F2,
     /// F3 key
@@ -312,16 +287,41 @@ pub enum Key {
     F8,
     /// F9 key
     F9,
-    /// F10 key
-    F10,
-    /// F11 key
-    F11,
-    /// F12 key
-    F12,
+    /// home key
+    Home,
+    /// left arrow key
+    LeftArrow,
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    /// meta key (also known as "windows", "super", and "command")
+    Meta,
+    /// option key on macOS (alt key on Linux and Windows)
+    Option,
+    /// page down key
+    PageDown,
+    /// page up key
+    PageUp,
+    /// return key
+    Return,
+    /// right arrow key
+    RightArrow,
+    /// shift key
+    Shift,
+    /// space key
+    Space,
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    /// super key on linux (command key on macOS, windows key on Windows)
+    Super,
+    /// tab key (tabulator)
+    Tab,
+    /// up arrow key
+    UpArrow,
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    /// windows key on Windows (super key on Linux, command key on macOS)
+    Windows,
     /// keyboard layout dependent key
     Layout(char),
     /// raw keycode eg 0x38
-    Raw(u16),
+    Raw(u16)
 }
 
 /// Representing an interface and a set of keyboard functions every
