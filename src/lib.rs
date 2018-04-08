@@ -253,14 +253,23 @@ pub enum Key {
     Space,
     /// backspace key
     Backspace,
+    /// delete key
+    Delete,
     /// escape key (esc)
     Escape,
+    /// end key
+    End,
     /// super key on linux (command key on macOS, windows key on Windows)
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
     Super,
     /// command key on macOS (super key on Linux, windows key on Windows)
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
     Command,
     /// windows key on Windows (super key on Linux, command key on macOS)
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
     Windows,
+    /// meta key (also known as "windows", "super", and "command")
+    Meta,
     /// shift key
     Shift,
     /// caps lock key

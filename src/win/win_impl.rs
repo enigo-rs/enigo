@@ -178,15 +178,15 @@ impl Enigo {
         // wrongly typed with i32 instead of i16 use the
         // ones provided by win/keycodes.rs that are prefixed
         // with an 'E' infront of the original name
+        #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
         match key {
             Key::Return => EVK_RETURN,
             Key::Tab => EVK_TAB,
             Key::Space => EVK_SPACE,
             Key::Backspace => EVK_BACK,
+            Key::Delete => EVK_DELETE,
             Key::Escape => EVK_ESCAPE,
-            Key::Super => EVK_LWIN,
-            Key::Command => EVK_LWIN,
-            Key::Windows => EVK_LWIN,
+            Key::End => EVK_END,
             Key::Shift => EVK_SHIFT,
             Key::CapsLock => EVK_CAPITAL,
             Key::Alt => EVK_MENU,
@@ -215,6 +215,11 @@ impl Enigo {
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
             //_ => 0,
+
+            Key::Super |
+            Key::Command |
+            Key::Windows |
+            Key::Meta => EVK_WINDOWS
         }
     }
 

@@ -1,6 +1,4 @@
-// https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).
-// aspx
-
+// https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731
 
 pub const EVK_RETURN: u16 = 0x0D;
 pub const EVK_TAB: u16 = 0x09;
@@ -15,10 +13,12 @@ pub const EVK_LCONTROL: u16 = 0xa2;
 pub const EVK_HOME: u16 = 0x24;
 pub const EVK_PRIOR: u16 = 0x21;
 pub const EVK_NEXT: u16 = 0x22;
+pub const EVK_END: u16 = 0x23;
 pub const EVK_LEFT: u16 = 0x25;
 pub const EVK_RIGHT: u16 = 0x27;
 pub const EVK_UP: u16 = 0x26;
 pub const EVK_DOWN: u16 = 0x28;
+pub const EVK_DELETE: u16 = 0x2E;
 pub const EVK_F1: u16 = 0x70;
 pub const EVK_F2: u16 = 0x71;
 pub const EVK_F3: u16 = 0x72;

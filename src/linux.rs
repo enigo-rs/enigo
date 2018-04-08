@@ -124,17 +124,22 @@ impl MouseControllable for Enigo {
 }
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
-        return Cow::from(c.to_string());
+        return Cow::Owned(c.to_string());
     }
-    Cow::from(match key {
+    #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
+    Cow::Borrowed(match key {
         Key::Alt => "Alt",
         Key::Backspace => "Backspace",
         Key::CapsLock => "CapsLock",
-        Key::Command => "Command",
         Key::Control => "Control",
+        Key::Delete => "Delete",
         Key::DownArrow => "DownArrow",
+        Key::End => "End",
         Key::Escape => "Escape",
         Key::F1 => "F1",
+        Key::F10 => "F10",
+        Key::F11 => "F11",
+        Key::F12 => "F12",
         Key::F2 => "F2",
         Key::F3 => "F3",
         Key::F4 => "F4",
@@ -143,9 +148,6 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::F7 => "F7",
         Key::F8 => "F8",
         Key::F9 => "F9",
-        Key::F10 => "F10",
-        Key::F11 => "F11",
-        Key::F12 => "F12",
         Key::Home => "Home",
         Key::Layout(_) => unreachable!(),
         Key::LeftArrow => "Left",
@@ -157,10 +159,13 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::RightArrow => "Right",
         Key::Shift => "Shift",
         Key::Space => "Space",
-        Key::Super => "Super",
         Key::Tab => "Tab",
         Key::UpArrow => "Up",
-        Key::Windows => "Windows"
+
+        Key::Command |
+        Key::Super |
+        Key::Windows |
+        Key::Meta => "Meta"
     })
 }
 impl KeyboardControllable for Enigo {

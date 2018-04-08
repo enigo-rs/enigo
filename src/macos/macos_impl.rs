@@ -379,15 +379,15 @@ impl Enigo {
     }
 
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
+        #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
         match key {
             Key::Return => kVK_Return,
             Key::Tab => kVK_Tab,
             Key::Space => kVK_Space,
             Key::Backspace => kVK_Delete,
+            Key::Delete => kVK_Delete,
             Key::Escape => kVK_Escape,
-            Key::Super => kVK_Command,
-            Key::Command => kVK_Command,
-            Key::Windows => kVK_Command,
+            Key::End => kVK_End,
             Key::Shift => kVK_Shift,
             Key::CapsLock => kVK_CapsLock,
             Key::Alt => kVK_Option,
@@ -414,6 +414,11 @@ impl Enigo {
             Key::F12 => kVK_F12,
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
+
+            Key::Super |
+            Key::Command |
+            Key::Windows |
+            Key::Meta => kVK_Command,
         }
     }
 
