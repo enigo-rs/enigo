@@ -1,9 +1,7 @@
 extern crate winapi;
-extern crate user32;
 
-
-use self::user32::*;
-use self::winapi::*;
+use self::winapi::um::winuser::*;
+use self::winapi::ctypes::c_int;
 
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use win::keycodes::*;
@@ -219,7 +217,7 @@ impl Enigo {
             Key::Super |
             Key::Command |
             Key::Windows |
-            Key::Meta => EVK_WINDOWS
+            Key::Meta => EVK_LWIN,
         }
     }
 
