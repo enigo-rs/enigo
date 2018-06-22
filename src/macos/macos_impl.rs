@@ -25,8 +25,8 @@ extern "C" {
     fn CGEventCreateScrollWheelEvent(
         source: &CGEventSourceRef,
         units: ScrollUnit,
-        wheelCount: uint32_t,
-        wheel1: int32_t,
+        wheelCount: u32,
+        wheel1: i32,
         ...
     ) -> *mut MyCGEvent;
 }
@@ -197,7 +197,7 @@ pub struct Enigo {
 }
 
 impl Default for Enigo {
-    pub fn default() -> Self {
+    fn default() -> Self {
         Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),
