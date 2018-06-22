@@ -73,7 +73,8 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::Enigo;
 
-mod parser;
+/// DSL parser module
+pub mod dsl;
 
 #[cfg(feature = "with_serde")]
 #[macro_use]
@@ -334,16 +335,14 @@ pub trait KeyboardControllable {
     where
         Self: Sized,
     {
-        self.key_sequence_parse_try(sequence).expect(
-            "Could not parse sequence",
-        );
+        self.key_sequence_parse_try(sequence).expect("Could not parse sequence");
     }
     /// Same as key_sequence_parse except returns any errors
-    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), parser::ParseError>
+    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), dsl::ParseError>
     where
         Self: Sized,
     {
-        parser::parse(self, sequence)
+        dsl::eval(self, sequence)
     }
 
     /// Types the string
