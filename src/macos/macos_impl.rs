@@ -1,23 +1,22 @@
 extern crate core_graphics;
-extern crate libc;
 
 // TODO(dustin): use only the things i need
 
 use self::core_graphics::display::*;
 use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
-use self::libc::*;
 
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
 use std::mem;
+use std::os::raw::*;
 use objc::runtime::Class;
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
 
-struct MyCGEvent {}
+struct MyCGEvent;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -197,16 +196,8 @@ pub struct Enigo {
     event_source: CGEventSource,
 }
 
-impl Enigo {
-    /// Constructs a new `Enigo` instance.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut enigo = Enigo::new();
-    /// ```
-    pub fn new() -> Self {
+impl Default for Enigo {
+    pub fn default() -> Self {
         Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),

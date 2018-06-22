@@ -1,13 +1,14 @@
-extern crate libc;
-
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 
-use self::libc::{c_ulong, c_int, c_char, c_void};
-use std::borrow::Cow;
-use std::ffi::CString;
-use std::ptr;
+use std::{
+    borrow::Cow,
+    ffi::CString,
+    os::raw::*,
+    ptr
+};
 
 const CURRENT_WINDOW: c_int = 0;
+const DEFAULT_DELAY: u64 = 12000;
 type Window  = c_int;
 type Xdo     = *const c_void;
 
@@ -28,7 +29,7 @@ extern "C" {
     fn xdo_send_keysequence_window_up(xdo: Xdo, window: Window, string: *const c_char, delay: c_ulong);
 }
 
-fn mousebutton(button: MouseButton) -> i32 {
+fn mousebutton(button: MouseButton) -> c_int {
     match button {
         MouseButton::Left => 1,
         MouseButton::Middle => 2,
@@ -42,14 +43,29 @@ fn mousebutton(button: MouseButton) -> i32 {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    xdo: Xdo
+    xdo: Xdo,
+    delay: u64
+}
+impl Default for Enigo {
+    /// Create a new Enigo instance
+    fn default() -> Self {
+        Self {
+            xdo: unsafe { xdo_new(ptr::null()) },
+            delay: DEFAULT_DELAY
+        }
+    }
 }
 impl Enigo {
-    /// Create a new Enigo instance
-    pub fn new() -> Enigo {
-        Enigo {
-            xdo: unsafe { xdo_new(ptr::null()) }
-        }
+    /// Get the delay per keypress.
+    /// Default value is 12000.
+    /// This is Linux-specific.
+    pub fn delay(&self) -> u64 {
+        self.delay
+    }
+    /// Set the delay per keypress.
+    /// This is Linux-specific.
+    pub fn set_delay(&mut self, delay: u64) {
+        self.delay = delay;
     }
 }
 impl Drop for Enigo {
@@ -62,12 +78,12 @@ impl Drop for Enigo {
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
         unsafe {
-            xdo_move_mouse(self.xdo, x, y, 0);
+            xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
         }
     }
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
         unsafe {
-            xdo_move_mouse_relative(self.xdo, x, y);
+            xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int);
         }
     }
     fn mouse_down(&mut self, button: MouseButton) {
@@ -172,25 +188,25 @@ impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         let string = CString::new(sequence).unwrap();
         unsafe {
-            xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 12000);
+            xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
         }
     }
     fn key_down(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window_down(self.xdo, CURRENT_WINDOW, string.as_ptr(), 12000);
+            xdo_send_keysequence_window_down(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
         }
     }
     fn key_up(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window_up(self.xdo, CURRENT_WINDOW, string.as_ptr(), 12000);
+            xdo_send_keysequence_window_up(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
         }
     }
     fn key_click(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 12000);
+            xdo_send_keysequence_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
         }
     }
 }

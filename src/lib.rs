@@ -241,7 +241,9 @@ pub trait MouseControllable {
     fn mouse_scroll_y(&mut self, length: i32);
 }
 
-/// Keys to be used TODO(dustin): make real documentation
+/// A key on the keyboard.
+/// For alphabetical keys, use Key::Layout for a system independent key.
+/// If a key is missing, you can use the raw keycode with Key::Raw.
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Key {
@@ -251,6 +253,7 @@ pub enum Key {
     Backspace,
     /// caps lock key
     CapsLock,
+    #[deprecated(since="0.0.12", note="now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
     Command,
     /// control key
@@ -291,7 +294,6 @@ pub enum Key {
     Home,
     /// left arrow key
     LeftArrow,
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
     /// meta key (also known as "windows", "super", and "command")
     Meta,
     /// option key on macOS (alt key on Linux and Windows)
@@ -377,6 +379,16 @@ pub trait KeyboardControllable {
     fn key_click(&mut self, key: Key);
 }
 
-
-#[cfg(test)]
-mod tests {}
+impl Enigo {
+    /// Constructs a new `Enigo` instance.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
+    }
+}

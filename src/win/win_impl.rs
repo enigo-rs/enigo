@@ -8,21 +8,8 @@ use win::keycodes::*;
 use std::mem::*;
 
 /// The main struct for handling the event emitting
-pub struct Enigo {}
-
-impl Enigo {
-    /// Constructs a new `Enigo` instance.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut enigo = Enigo::new();
-    /// ```
-    pub fn new() -> Self {
-        Enigo {}
-    }
-}
+#[derive(Default)]
+pub struct Enigo;
 
 fn mouse_event(flags: u32, data: u32, dx: i32, dy: i32) {
     let mut input = INPUT {
@@ -217,7 +204,7 @@ impl Enigo {
             Key::Super |
             Key::Command |
             Key::Windows |
-            Key::Meta => EVK_LWIN,
+            Key::Meta => EVK_LWIN
         }
     }
 
