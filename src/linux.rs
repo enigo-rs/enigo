@@ -1,9 +1,11 @@
+extern crate libc;
+
 use {KeyboardControllable, Key, MouseControllable, MouseButton};
 
+use self::libc::{c_char, c_int, c_void, useconds_t};
 use std::{
     borrow::Cow,
     ffi::CString,
-    os::raw::*,
     ptr
 };
 
@@ -23,10 +25,10 @@ extern "C" {
     fn xdo_move_mouse(xdo: Xdo, x: c_int, y: c_int, screen: c_int) -> c_int;
     fn xdo_move_mouse_relative(xdo: Xdo, x: c_int, y: c_int) -> c_int;
 
-    fn xdo_enter_text_window(xdo: Xdo, window: Window, string: *const c_char, delay: c_ulong);
-    fn xdo_send_keysequence_window(xdo: Xdo, window: Window, string: *const c_char, delay: c_ulong);
-    fn xdo_send_keysequence_window_down(xdo: Xdo, window: Window, string: *const c_char, delay: c_ulong);
-    fn xdo_send_keysequence_window_up(xdo: Xdo, window: Window, string: *const c_char, delay: c_ulong);
+    fn xdo_enter_text_window(xdo: Xdo, window: Window, string: *const c_char, delay: useconds_t) -> c_int;
+    fn xdo_send_keysequence_window(xdo: Xdo, window: Window, string: *const c_char, delay: useconds_t) -> c_int;
+    fn xdo_send_keysequence_window_down(xdo: Xdo, window: Window, string: *const c_char, delay: useconds_t) -> c_int;
+    fn xdo_send_keysequence_window_up(xdo: Xdo, window: Window, string: *const c_char, delay: useconds_t) -> c_int;
 }
 
 fn mousebutton(button: MouseButton) -> c_int {
@@ -192,25 +194,25 @@ impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
         let string = CString::new(sequence).unwrap();
         unsafe {
-            xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
+            xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as useconds_t);
         }
     }
     fn key_down(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window_down(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
+            xdo_send_keysequence_window_down(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as useconds_t);
         }
     }
     fn key_up(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window_up(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
+            xdo_send_keysequence_window_up(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as useconds_t);
         }
     }
     fn key_click(&mut self, key: Key) {
         let string = CString::new(&*keysequence(key)).unwrap();
         unsafe {
-            xdo_send_keysequence_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as c_ulong);
+            xdo_send_keysequence_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), self.delay as useconds_t);
         }
     }
 }

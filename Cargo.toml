@@ -31,5 +31,8 @@ winapi = { version = "0.3", features = ["winuser"] }
 core-graphics = "0.13"
 objc = "0.2.2"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2.42"
+
 [build-dependencies]
 pkg-config = "0.3.8"

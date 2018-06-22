@@ -47,7 +47,10 @@ pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
 {
     for token in tokenize(input)? {
         match token {
-            Token::Sequence(buffer) => enigo.key_sequence(&buffer),
+            Token::Sequence(buffer) => for key in buffer.chars() {
+                enigo.key_click(Key::Layout(key));
+            },
+            Token::Unicode(buffer) => enigo.key_sequence(&buffer),
             Token::KeyUp(key) => enigo.key_up(key),
             Token::KeyDown(key) => enigo.key_down(key)
         }
@@ -58,24 +61,35 @@ pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
 #[derive(Debug, PartialEq, Eq)]
 enum Token {
     Sequence(String),
+    Unicode(String),
     KeyUp(Key),
     KeyDown(Key)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
+    let mut unicode = false;
+
     let mut tokens = Vec::new();
     let mut buffer = String::new();
     let mut iter = input.chars().peekable();
+
+    fn flush(tokens: &mut Vec<Token>, buffer: String, unicode: bool) {
+        if !buffer.is_empty() {
+            if unicode {
+                tokens.push(Token::Unicode(buffer));
+            } else {
+                tokens.push(Token::Sequence(buffer));
+            }
+        }
+    }
 
     while let Some(c) = iter.next() {
         if c == '{' {
             match iter.next() {
                 Some('{') => buffer.push('{'),
                 Some(mut c) => {
-                    if !buffer.is_empty() {
-                        tokens.push(Token::Sequence(buffer));
-                        buffer = String::new();
-                    }
+                    flush(&mut tokens, buffer, unicode);
+                    buffer = String::new();
 
                     let mut tag = String::new();
                     loop {
@@ -94,10 +108,12 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         }
                     }
                     match &*tag {
-                        "+SHIFT" => tokens.push(Token::KeyUp(Key::Shift)),
-                        "-SHIFT" => tokens.push(Token::KeyDown(Key::Shift)),
-                        "+CTRL" => tokens.push(Token::KeyUp(Key::Control)),
-                        "-CTRL" => tokens.push(Token::KeyDown(Key::Control)),
+                        "+UNICODE" => unicode = true,
+                        "-UNICODE" => unicode = false,
+                        "+SHIFT" => tokens.push(Token::KeyDown(Key::Shift)),
+                        "-SHIFT" => tokens.push(Token::KeyUp(Key::Shift)),
+                        "+CTRL" => tokens.push(Token::KeyDown(Key::Control)),
+                        "-CTRL" => tokens.push(Token::KeyUp(Key::Control)),
                         _ => return Err(ParseError::UnknownTag(tag)),
                     }
                 },
@@ -113,11 +129,8 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
         }
     }
 
-    if !buffer.is_empty() {
-        tokens.push(Token::Sequence(buffer));
-    }
+    flush(&mut tokens, buffer, unicode);
 
-    println!("{:?}", tokens);
     Ok(tokens)
 }
 
@@ -129,8 +142,8 @@ mod tests {
     fn success() {
         assert_eq!(
             tokenize("{{Hello World!}} {+CTRL}hi{-CTRL}"),
-            Ok(vec![Token::Sequence("{Hello World!} ".into()), Token::KeyUp(Key::Control),
-            Token::Sequence("hi".into()), Token::KeyDown(Key::Control)])
+            Ok(vec![Token::Sequence("{Hello World!} ".into()), Token::KeyDown(Key::Control),
+            Token::Sequence("hi".into()), Token::KeyUp(Key::Control)])
         );
     }
     #[test]

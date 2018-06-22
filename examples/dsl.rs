@@ -8,5 +8,5 @@ fn main() {
     let mut enigo = Enigo::new();
 
     // write text and select all
-    enigo.key_sequence_parse("{{Hello World!}} ❤️{+CTRL}a{-CTRL}");
+    enigo.key_sequence_parse("{+UNICODE}{{Hello World!}} ❤️{-UNICODE}{+CTRL}a{-CTRL}");
 }
