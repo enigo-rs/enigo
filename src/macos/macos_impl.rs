@@ -31,7 +31,7 @@ extern "C" {
     ) -> *mut MyCGEvent;
 }
 
-pub type CFDataRef = *const ::std::os::raw::c_void; // c_void;
+pub type CFDataRef = *const c_void;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -48,13 +48,13 @@ pub type TISInputSourceRef = *const __TISInputSource;
 #[derive(Debug, Copy, Clone)]
 pub struct __CFString([u8; 0]);
 pub type CFStringRef = *const __CFString;
-pub type Boolean = ::std::os::raw::c_uchar;
-pub type UInt8 = ::std::os::raw::c_uchar;
-pub type SInt32 = ::std::os::raw::c_int;
-pub type UInt16 = ::std::os::raw::c_ushort;
-pub type UInt32 = ::std::os::raw::c_uint;
+pub type Boolean = c_uchar;
+pub type UInt8 = c_uchar;
+pub type SInt32 = c_int;
+pub type UInt16 = c_ushort;
+pub type UInt32 = c_uint;
 pub type UniChar = UInt16;
-pub type UniCharCount = ::std::os::raw::c_ulong;
+pub type UniCharCount = c_ulong;
 
 pub type OptionBits = UInt32;
 pub type OSStatus = SInt32;
@@ -62,7 +62,7 @@ pub type OSStatus = SInt32;
 
 pub type CFStringEncoding = UInt32;
 
-pub const TRUE: ::std::os::raw::c_uint = 1;
+pub const TRUE: c_uint = 1;
 
 pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDisplay;
 #[repr(u32)]
@@ -144,7 +144,7 @@ extern "C" {
     pub fn TISGetInputSourceProperty(
         inputSource: TISInputSourceRef,
         propertyKey: CFStringRef,
-    ) -> *mut ::std::os::raw::c_void;
+    ) -> *mut c_void;
 
 
     pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
@@ -177,7 +177,7 @@ extern "C" {
 
     pub fn CFStringGetCString(
         theString: CFStringRef,
-        buffer: *mut ::std::os::raw::c_char,
+        buffer: *mut c_char,
         bufferSize: CFIndex,
         encoding: CFStringEncoding,
     ) -> Boolean;
@@ -494,7 +494,7 @@ impl Enigo {
         let keyboardLayout = unsafe { CFDataGetBytePtr(layoutData) };
 
         let mut keysDown: UInt32 = 0;
-        // let mut chars: *mut ::std::os::raw::c_void;//[UniChar; 4];
+        // let mut chars: *mut c_void;//[UniChar; 4];
         let mut chars: u16 = 0;
         let mut realLength: UniCharCount = 0;
         unsafe {
