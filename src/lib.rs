@@ -243,7 +243,7 @@ pub trait MouseControllable {
 
 /// Keys to be used TODO(dustin): make real documentation
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Key {
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
