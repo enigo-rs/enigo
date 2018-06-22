@@ -46,6 +46,10 @@ pub struct Enigo {
     xdo: Xdo,
     delay: u64
 }
+// This is safe, we have a unique pointer.
+// TODO: use Unique<c_char> once stable.
+unsafe impl Send for Enigo {}
+
 impl Default for Enigo {
     /// Create a new Enigo instance
     fn default() -> Self {

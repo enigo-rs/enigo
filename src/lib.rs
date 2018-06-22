@@ -389,3 +389,11 @@ impl Enigo {
         Self::default()
     }
 }
+
+use std::fmt;
+
+impl fmt::Debug for Enigo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Enigo")
+    }
+}
