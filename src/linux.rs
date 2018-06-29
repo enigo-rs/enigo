@@ -146,41 +146,7 @@ impl MouseControllable for Enigo {
 }
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
-        return Cow::Owned(match c {
-            '/' => "slash".to_string(),
-            '?' => "question".to_string(),
-            '.' => "period".to_string(),
-            '>' => "greater".to_string(),
-            ',' => "comma".to_string(),
-            '<' => "less".to_string(),
-            ':' => "colon".to_string(),
-            ';' => "semicolon".to_string(),
-            '"' => "quotedbl".to_string(),
-            '\'' => "apostrophe".to_string(),
-            '[' => "bracketleft".to_string(),
-            ']' => "bracketright".to_string(),
-            '{' => "braceleft".to_string(),
-            '}' => "braceright".to_string(),
-            '\\' => "backslash".to_string(),
-            '|' => "bar".to_string(),
-            '-' => "minus".to_string(),
-            '_' => "underscore".to_string(),
-            '+' => "plus".to_string(),
-            '=' => "equal".to_string(),
-            '`' => "grave".to_string(),
-            '~' => "asciitilde".to_string(),
-            '!' => "exclam".to_string(),
-            '@' => "at".to_string(),
-            '#' => "numbersign".to_string(),
-            '$' => "dollar".to_string(),
-            '%' => "percent".to_string(),
-            '^' => "asciicircum".to_string(),
-            '&' => "ampersand".to_string(),
-            '*' => "asterisk".to_string(),
-            '(' => "parenleft".to_string(),
-            ')' => "parenright".to_string(),
-            _ => c.to_string()
-        });
+        return Cow::Owned(format!("U{:X}", c as u32));
     }
     #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
     Cow::Borrowed(match key {
