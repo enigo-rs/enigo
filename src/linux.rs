@@ -146,12 +146,12 @@ impl MouseControllable for Enigo {
 }
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
-        return Cow::Owned(c.to_string());
+        return Cow::Owned(format!("U{:X}", c as u32));
     }
     #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
     Cow::Borrowed(match key {
         Key::Alt => "Alt",
-        Key::Backspace => "Backspace",
+        Key::Backspace => "BackSpace",
         Key::CapsLock => "CapsLock",
         Key::Control => "Control",
         Key::Delete => "Delete",
