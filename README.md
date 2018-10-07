@@ -30,3 +30,12 @@ enigo.key_sequence_parse("{+CTRL}a{-CTRL}{+SHIFT}Hello World{-SHIFT}");
 ```
 
 for more look at examples
+
+Runtime dependencies
+--------------------
+
+Linux users may have to install libxdo-dev:
+
+```Bash
+apt-get install libxdo-dev
+```
