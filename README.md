@@ -34,8 +34,8 @@ for more look at examples
 Runtime dependencies
 --------------------
 
-Linux users may have to install libxdo-dev:
+Linux users may have to install libxdo-dev. For example, on Ubuntu:
 
 ```Bash
-apt-get install libxdo-dev
+apt install libxdo-dev
 ```
