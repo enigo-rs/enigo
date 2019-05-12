@@ -39,3 +39,8 @@ Linux users may have to install libxdo-dev. For example, on Ubuntu:
 ```Bash
 apt install libxdo-dev
 ```
+On Arch: 
+
+```Bash
+pacman -S xdotool
+```
