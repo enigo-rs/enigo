@@ -6,11 +6,11 @@ use self::core_graphics::display::*;
 use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
 
-use {KeyboardControllable, Key, MouseControllable, MouseButton};
 use macos::keycodes::*;
+use objc::runtime::Class;
 use std::mem;
 use std::os::raw::*;
-use objc::runtime::Class;
+use {Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -58,7 +58,6 @@ pub type UniCharCount = c_ulong;
 
 pub type OptionBits = UInt32;
 pub type OSStatus = SInt32;
-
 
 pub type CFStringEncoding = UInt32;
 
@@ -146,7 +145,6 @@ extern "C" {
         propertyKey: CFStringRef,
     ) -> *mut c_void;
 
-
     pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
 
     pub fn UCKeyTranslate(
@@ -200,7 +198,8 @@ impl Default for Enigo {
     fn default() -> Self {
         Enigo {
             // TODO(dustin): return error rather than panic here
-            event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState).expect("Failed creating event source"),
+            event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+                .expect("Failed creating event source"),
         }
     }
 }
@@ -218,7 +217,13 @@ impl MouseControllable for Enigo {
         };
 
         let dest = CGPoint::new(x as f64, y as f64);
-        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, CGMouseButton::Left).unwrap();
+        let event = CGEvent::new_mouse_event(
+            self.event_source.clone(),
+            event_type,
+            dest,
+            CGMouseButton::Left,
+        )
+        .unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
@@ -229,8 +234,10 @@ impl MouseControllable for Enigo {
         let new_x = current_x + x;
         let new_y = current_y + y;
 
-        if new_x < 0 || new_x as usize > display_width || new_y < 0 ||
-            new_y as usize > display_height
+        if new_x < 0
+            || new_x as usize > display_width
+            || new_y < 0
+            || new_y as usize > display_height
         {
             return;
         }
@@ -247,7 +254,8 @@ impl MouseControllable for Enigo {
             _ => unimplemented!(),
         };
         let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
@@ -260,7 +268,8 @@ impl MouseControllable for Enigo {
             _ => unimplemented!(),
         };
         let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event = CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
         event.post(CGEventTapLocation::HID);
     }
 
@@ -324,7 +333,8 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true).expect("Failed creating event");
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
+            .expect("Failed creating event");
         event.set_string(sequence);
         event.post(CGEventTapLocation::HID);
     }
@@ -334,29 +344,31 @@ impl KeyboardControllable for Enigo {
 
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true).expect("Failed creating event");
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
+            .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
 
         thread::sleep(time::Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false).expect("Failed creating event");
+        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
+            .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
     }
 
     fn key_down(&mut self, key: Key) {
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
-            .expect("Failed creating event");
+        let event =
+            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
+                .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
     }
 
     fn key_up(&mut self, key: Key) {
         use std::{thread, time};
         thread::sleep(time::Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
-            .expect("Failed creating event");
+        let event =
+            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
+                .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
     }
 }
@@ -375,9 +387,10 @@ impl Enigo {
         (width, height)
     }
 
-    /// Returns the current mouse location in Cocoa coordinates which have Y inverted
-    /// from the Carbon coordinates used in the rest of the API. This function exists
-    /// so that mouse_move_relative only has to fetch the screen size once.
+    /// Returns the current mouse location in Cocoa coordinates which have Y
+    /// inverted from the Carbon coordinates used in the rest of the API.
+    /// This function exists so that mouse_move_relative only has to fetch
+    /// the screen size once.
     fn mouse_location_raw_coords() -> (i32, i32) {
         let ns_event = Class::get("NSEvent").unwrap();
         let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
@@ -386,13 +399,14 @@ impl Enigo {
 
     /// The mouse coordinates in points, only works on the main display
     pub fn mouse_location() -> (i32, i32) {
-        let (x,y_inv) = Self::mouse_location_raw_coords();
+        let (x, y_inv) = Self::mouse_location_raw_coords();
         let (_, display_height) = Self::main_display_size();
         (x, (display_height as i32) - y_inv)
     }
 
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
-        #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
+        #[allow(deprecated)]
+        // I mean duh, we still need to support deprecated keys until they're removed
         match key {
             Key::Alt => kVK_Option,
             Key::Backspace => kVK_Delete,
@@ -428,10 +442,7 @@ impl Enigo {
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
 
-            Key::Super |
-            Key::Command |
-            Key::Windows |
-            Key::Meta => kVK_Command,
+            Key::Super | Key::Command | Key::Windows | Key::Meta => kVK_Command,
         }
     }
 
@@ -440,7 +451,6 @@ impl Enigo {
 
         // loop through every keycode (0 - 127)
         for keycode in 0..128 {
-
             // no modifier
             if let Some(key_string) = self.keycode_to_string(keycode, 0x100) {
                 // println!("{:?}", string);
@@ -465,7 +475,6 @@ impl Enigo {
             // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
             //     println!("{:?}", string);
             // }
-
         }
 
         pressed_keycode
@@ -487,7 +496,6 @@ impl Enigo {
     }
 
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
-
         let currentKeyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
         let layoutData =
             unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) };
