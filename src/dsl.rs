@@ -1,6 +1,6 @@
-use {KeyboardControllable, Key};
 use std::error::Error;
 use std::fmt;
+use {Key, KeyboardControllable};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub enum ParseError {
     /// Opposite of UnmatchedOpen.
     /// Example: +SHIFT}Hello{-SHIFT}
     ///         ^
-    UnmatchedClose
+    UnmatchedClose,
 }
 impl Error for ParseError {
     fn description(&self) -> &str {
@@ -43,16 +43,19 @@ impl fmt::Display for ParseError {
 
 /// Evaluate the DSL. This tokenizes the input and presses the keys.
 pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
-    where K: KeyboardControllable
+where
+    K: KeyboardControllable,
 {
     for token in tokenize(input)? {
         match token {
-            Token::Sequence(buffer) => for key in buffer.chars() {
-                enigo.key_click(Key::Layout(key));
-            },
+            Token::Sequence(buffer) => {
+                for key in buffer.chars() {
+                    enigo.key_click(Key::Layout(key));
+                }
+            }
             Token::Unicode(buffer) => enigo.key_sequence(&buffer),
             Token::KeyUp(key) => enigo.key_up(key),
-            Token::KeyDown(key) => enigo.key_down(key)
+            Token::KeyDown(key) => enigo.key_down(key),
         }
     }
     Ok(())
@@ -63,7 +66,7 @@ enum Token {
     Sequence(String),
     Unicode(String),
     KeyUp(Key),
-    KeyDown(Key)
+    KeyDown(Key),
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
@@ -96,15 +99,21 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         tag.push(c);
                         match iter.next() {
                             Some('{') => match iter.peek() {
-                                Some(&'{') => { iter.next(); c = '{' },
-                                _ => return Err(ParseError::UnexpectedOpen)
+                                Some(&'{') => {
+                                    iter.next();
+                                    c = '{'
+                                }
+                                _ => return Err(ParseError::UnexpectedOpen),
                             },
                             Some('}') => match iter.peek() {
-                                Some(&'}') => { iter.next(); c = '}' },
-                                _ => break
+                                Some(&'}') => {
+                                    iter.next();
+                                    c = '}'
+                                }
+                                _ => break,
                             },
                             Some(new) => c = new,
-                            None => return Err(ParseError::UnmatchedOpen)
+                            None => return Err(ParseError::UnmatchedOpen),
                         }
                     }
                     match &*tag {
@@ -116,13 +125,13 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         "-CTRL" => tokens.push(Token::KeyUp(Key::Control)),
                         _ => return Err(ParseError::UnknownTag(tag)),
                     }
-                },
-                None => return Err(ParseError::UnmatchedOpen)
+                }
+                None => return Err(ParseError::UnmatchedOpen),
             }
         } else if c == '}' {
             match iter.next() {
                 Some('}') => buffer.push('}'),
-                _ => return Err(ParseError::UnmatchedClose)
+                _ => return Err(ParseError::UnmatchedClose),
             }
         } else {
             buffer.push(c);
@@ -142,8 +151,12 @@ mod tests {
     fn success() {
         assert_eq!(
             tokenize("{{Hello World!}} {+CTRL}hi{-CTRL}"),
-            Ok(vec![Token::Sequence("{Hello World!} ".into()), Token::KeyDown(Key::Control),
-            Token::Sequence("hi".into()), Token::KeyUp(Key::Control)])
+            Ok(vec![
+                Token::Sequence("{Hello World!} ".into()),
+                Token::KeyDown(Key::Control),
+                Token::Sequence("hi".into()),
+                Token::KeyUp(Key::Control)
+            ])
         );
     }
     #[test]
@@ -152,10 +165,16 @@ mod tests {
     }
     #[test]
     fn unmatched_open() {
-        assert_eq!(tokenize("{this is going to fail"), Err(ParseError::UnmatchedOpen));
+        assert_eq!(
+            tokenize("{this is going to fail"),
+            Err(ParseError::UnmatchedOpen)
+        );
     }
     #[test]
     fn unmatched_close() {
-        assert_eq!(tokenize("{+CTRL}{{this}} is going to fail}"), Err(ParseError::UnmatchedClose));
+        assert_eq!(
+            tokenize("{+CTRL}{{this}} is going to fail}"),
+            Err(ParseError::UnmatchedClose)
+        );
     }
 }

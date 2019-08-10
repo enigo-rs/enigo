@@ -1,11 +1,11 @@
 extern crate winapi;
 
-use self::winapi::um::winuser::*;
 use self::winapi::ctypes::c_int;
+use self::winapi::um::winuser::*;
 
-use {KeyboardControllable, Key, MouseControllable, MouseButton};
-use win::keycodes::*;
 use std::mem::*;
+use win::keycodes::*;
+use {Key, KeyboardControllable, MouseButton, MouseControllable};
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
@@ -138,7 +138,11 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_up(&mut self, key: Key) {
-        keybd_event(KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE, 0, self.key_to_scancode(key));
+        keybd_event(
+            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
+            0,
+            self.key_to_scancode(key),
+        );
     }
 }
 
@@ -163,7 +167,8 @@ impl Enigo {
         // wrongly typed with i32 instead of i16 use the
         // ones provided by win/keycodes.rs that are prefixed
         // with an 'E' infront of the original name
-        #[allow(deprecated)] // I mean duh, we still need to support deprecated keys until they're removed
+        #[allow(deprecated)]
+        // I mean duh, we still need to support deprecated keys until they're removed
         match key {
             Key::Alt => EVK_MENU,
             Key::Backspace => EVK_BACK,
@@ -200,20 +205,13 @@ impl Enigo {
             Key::Raw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
             //_ => 0,
-
-            Key::Super |
-            Key::Command |
-            Key::Windows |
-            Key::Meta => EVK_LWIN
+            Key::Super | Key::Command | Key::Windows | Key::Meta => EVK_LWIN,
         }
     }
 
-    fn key_to_scancode(&self, key: Key) -> u16
-    {
+    fn key_to_scancode(&self, key: Key) -> u16 {
         let keycode = self.key_to_keycode(key);
-        unsafe {
-            MapVirtualKeyW(keycode as u32, 0) as u16
-        }
+        unsafe { MapVirtualKeyW(keycode as u32, 0) as u16 }
     }
 
     fn get_layoutdependent_keycode(&self, string: String) -> u16 {

@@ -54,7 +54,8 @@
 #![deny(missing_docs)]
 
 #[cfg(target_os = "macos")]
-#[macro_use] extern crate objc;
+#[macro_use]
+extern crate objc;
 
 // TODO(dustin) use interior mutability not &mut self
 
@@ -251,7 +252,7 @@ pub enum Key {
     Backspace,
     /// caps lock key
     CapsLock,
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
     Command,
     /// control key
@@ -308,20 +309,20 @@ pub enum Key {
     Shift,
     /// space key
     Space,
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
     Super,
     /// tab key (tabulator)
     Tab,
     /// up arrow key
     UpArrow,
-    #[deprecated(since="0.0.12", note="now renamed to Meta")]
+    #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// windows key on Windows (super key on Linux, command key on macOS)
     Windows,
     /// keyboard layout dependent key
     Layout(char),
     /// raw keycode eg 0x38
-    Raw(u16)
+    Raw(u16),
 }
 
 /// Representing an interface and a set of keyboard functions every
@@ -335,7 +336,8 @@ pub trait KeyboardControllable {
     where
         Self: Sized,
     {
-        self.key_sequence_parse_try(sequence).expect("Could not parse sequence");
+        self.key_sequence_parse_try(sequence)
+            .expect("Could not parse sequence");
     }
     /// Same as key_sequence_parse except returns any errors
     fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), dsl::ParseError>

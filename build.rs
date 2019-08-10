@@ -43,8 +43,7 @@ fn main() {
         };
         config.push_str(&format!(
             "pub const {}: Option<&'static str> = {};\n",
-            lib,
-            libdir
+            lib, libdir
         ));
     }
     let config = format!("pub mod config {{ pub mod libdir {{\n{}}}\n}}", config);
