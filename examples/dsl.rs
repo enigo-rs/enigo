@@ -1,4 +1,3 @@
-
 use enigo::{Enigo, KeyboardControllable};
 use std::thread;
 use std::time::Duration;

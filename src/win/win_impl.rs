@@ -3,9 +3,9 @@ use winapi;
 use self::winapi::ctypes::c_int;
 use self::winapi::um::winuser::*;
 
-use std::mem::*;
 use crate::win::keycodes::*;
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use std::mem::*;
 
 /// The main struct for handling the event emitting
 #[derive(Default)]

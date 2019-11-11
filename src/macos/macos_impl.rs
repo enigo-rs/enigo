@@ -7,9 +7,9 @@ use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
 
 use crate::macos::keycodes::*;
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 use objc::runtime::Class;
 use std::os::raw::*;
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -517,8 +517,9 @@ impl Enigo {
 
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
         let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let layout_data =
-            unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
+        let layout_data = unsafe {
+            TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
+        };
         let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
 
         let mut keys_down: UInt32 = 0;

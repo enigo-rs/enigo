@@ -1,4 +1,3 @@
-
 use enigo::{Enigo, MouseButton, MouseControllable};
 use std::thread;
 use std::time::Duration;
