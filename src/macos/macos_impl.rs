@@ -8,7 +8,6 @@ use self::core_graphics::event_source::*;
 
 use crate::macos::keycodes::*;
 use objc::runtime::Class;
-use std::mem;
 use std::os::raw::*;
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
@@ -18,6 +17,7 @@ extern "C" {}
 
 struct MyCGEvent;
 
+#[allow(improper_ctypes)]
 #[allow(non_snake_case)]
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -138,6 +138,7 @@ pub type CFAllocatorRef = *const __CFAllocator;
 #[allow(non_upper_case_globals)]
 pub const kCFStringEncodingUTF8: u32 = 134_217_984;
 
+#[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
@@ -317,7 +318,7 @@ impl MouseControllable for Enigo {
                 );
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mem::transmute(mouse_ev));
+                CFRelease(mouse_ev as *const std::ffi::c_void);
             }
         }
     }
@@ -341,7 +342,7 @@ impl MouseControllable for Enigo {
                 );
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mem::transmute(mouse_ev));
+                CFRelease(mouse_ev as *const std::ffi::c_void);
             }
         }
     }
@@ -539,6 +540,6 @@ impl Enigo {
             );
         }
 
-        unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &mut chars, 1) }
+        unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
     }
 }
