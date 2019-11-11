@@ -1,11 +1,11 @@
-extern crate winapi;
+use winapi;
 
 use self::winapi::ctypes::c_int;
 use self::winapi::um::winuser::*;
 
+use crate::win::keycodes::*;
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 use std::mem::*;
-use win::keycodes::*;
-use {Key, KeyboardControllable, MouseButton, MouseControllable};
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
@@ -16,8 +16,8 @@ fn mouse_event(flags: u32, data: u32, dx: i32, dy: i32) {
         type_: INPUT_MOUSE,
         u: unsafe {
             transmute(MOUSEINPUT {
-                dx: dx,
-                dy: dy,
+                dx,
+                dy,
                 mouseData: data,
                 dwFlags: flags,
                 time: 0,

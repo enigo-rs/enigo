@@ -1,6 +1,6 @@
+use crate::{Key, KeyboardControllable};
 use std::error::Error;
 use std::fmt;
-use {Key, KeyboardControllable};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]
@@ -36,7 +36,7 @@ impl Error for ParseError {
     }
 }
 impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }

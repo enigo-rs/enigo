@@ -1,4 +1,4 @@
-extern crate core_graphics;
+use core_graphics;
 
 // TODO(dustin): use only the things i need
 
@@ -6,11 +6,10 @@ use self::core_graphics::display::*;
 use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
 
-use macos::keycodes::*;
+use crate::macos::keycodes::*;
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 use objc::runtime::Class;
-use std::mem;
 use std::os::raw::*;
-use {Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -18,6 +17,8 @@ extern "C" {}
 
 struct MyCGEvent;
 
+#[allow(improper_ctypes)]
+#[allow(non_snake_case)]
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn CGEventPost(tapLocation: CGEventTapLocation, event: *mut MyCGEvent);
@@ -63,7 +64,10 @@ pub type CFStringEncoding = UInt32;
 
 pub const TRUE: c_uint = 1;
 
+#[allow(non_upper_case_globals)]
 pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDisplay;
+
+#[allow(non_camel_case_types)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_702 {
@@ -73,6 +77,7 @@ pub enum _bindgen_ty_702 {
     kUCKeyActionDisplay = 3,
 }
 
+#[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct UCKeyboardTypeHeader {
@@ -85,6 +90,7 @@ pub struct UCKeyboardTypeHeader {
     pub keySequenceDataIndexOffset: UInt32,
 }
 
+#[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct UCKeyboardLayout {
@@ -95,8 +101,11 @@ pub struct UCKeyboardLayout {
     pub keyboardTypeList: [UCKeyboardTypeHeader; 1usize],
 }
 
+#[allow(non_upper_case_globals)]
 pub const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 =
     _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
+
+#[allow(non_camel_case_types)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum _bindgen_ty_703 {
@@ -126,8 +135,10 @@ pub type CFAllocatorRef = *const __CFAllocator;
 //     kCFStringEncodingUTF32LE = 469762304,
 // }
 
-pub const kCFStringEncodingUTF8: u32 = 134217984;
+#[allow(non_upper_case_globals)]
+pub const kCFStringEncodingUTF8: u32 = 134_217_984;
 
+#[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
@@ -137,16 +148,20 @@ extern "C" {
     //   TISInputSourceRef   inputSource,
     //   CFStringRef         propertyKey)
 
+    #[allow(non_upper_case_globals)]
     #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
     pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
+    #[allow(non_snake_case)]
     pub fn TISGetInputSourceProperty(
         inputSource: TISInputSourceRef,
         propertyKey: CFStringRef,
     ) -> *mut c_void;
 
+    #[allow(non_snake_case)]
     pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
 
+    #[allow(non_snake_case)]
     pub fn UCKeyTranslate(
         keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
         virtualKeyCode: UInt16,
@@ -162,17 +177,21 @@ extern "C" {
 
     pub fn LMGetKbdType() -> UInt8;
 
+    #[allow(non_snake_case)]
     pub fn CFStringCreateWithCharacters(
         alloc: CFAllocatorRef,
         chars: *const UniChar,
         numChars: CFIndex,
     ) -> CFStringRef;
 
+    #[allow(non_upper_case_globals)]
     #[link_name = "kCFAllocatorDefault"]
     pub static kCFAllocatorDefault: CFAllocatorRef;
 
+    #[allow(non_snake_case)]
     pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
 
+    #[allow(non_snake_case)]
     pub fn CFStringGetCString(
         theString: CFStringRef,
         buffer: *mut c_char,
@@ -182,6 +201,7 @@ extern "C" {
 }
 
 // not present in servo/core-graphics
+#[allow(dead_code)]
 #[derive(Debug)]
 enum ScrollUnit {
     Pixel = 0,
@@ -298,7 +318,7 @@ impl MouseControllable for Enigo {
                 );
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mem::transmute(mouse_ev));
+                CFRelease(mouse_ev as *const std::ffi::c_void);
             }
         }
     }
@@ -322,7 +342,7 @@ impl MouseControllable for Enigo {
                 );
 
                 CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mem::transmute(mouse_ev));
+                CFRelease(mouse_ev as *const std::ffi::c_void);
             }
         }
     }
@@ -381,9 +401,9 @@ impl Enigo {
 
     /// Fetches the `(width, height)` in pixels of the main display
     pub fn main_display_size() -> (usize, usize) {
-        let displayID = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(displayID) };
-        let height = unsafe { CGDisplayPixelsHigh(displayID) };
+        let display_id = unsafe { CGMainDisplayID() };
+        let width = unsafe { CGDisplayPixelsWide(display_id) };
+        let height = unsafe { CGDisplayPixelsHigh(display_id) };
         (width, height)
     }
 
@@ -482,10 +502,10 @@ impl Enigo {
 
     fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
         let cf_string = self.create_string_for_key(keycode, modifier);
-        let bufferSize = unsafe { CFStringGetLength(cf_string) + 1 };
+        let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
         let mut buffer: i8 = std::i8::MAX;
         let success = unsafe {
-            CFStringGetCString(cf_string, &mut buffer, bufferSize, kCFStringEncodingUTF8)
+            CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8)
         };
         if success == TRUE as u8 {
             let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
@@ -496,32 +516,31 @@ impl Enigo {
     }
 
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
-        let currentKeyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let layoutData =
-            unsafe { TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData) };
-        let keyboardLayout = unsafe { CFDataGetBytePtr(layoutData) };
+        let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
+        let layout_data = unsafe {
+            TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
+        };
+        let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
 
-        let mut keysDown: UInt32 = 0;
+        let mut keys_down: UInt32 = 0;
         // let mut chars: *mut c_void;//[UniChar; 4];
         let mut chars: u16 = 0;
-        let mut realLength: UniCharCount = 0;
+        let mut real_length: UniCharCount = 0;
         unsafe {
             UCKeyTranslate(
-                keyboardLayout,
+                keyboard_layout,
                 keycode,
                 kUCKeyActionDisplay as u16,
                 modifier,
                 LMGetKbdType() as u32,
                 kUCKeyTranslateNoDeadKeysBit as u32,
-                &mut keysDown,
+                &mut keys_down,
                 8, // sizeof(chars) / sizeof(chars[0]),
-                &mut realLength,
+                &mut real_length,
                 &mut chars,
             );
         }
 
-        let stringRef = unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &mut chars, 1) };
-
-        stringRef
+        unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
     }
 }
