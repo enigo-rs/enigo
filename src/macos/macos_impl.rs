@@ -1,4 +1,4 @@
-extern crate core_graphics;
+use core_graphics;
 
 // TODO(dustin): use only the things i need
 
@@ -6,11 +6,11 @@ use self::core_graphics::display::*;
 use self::core_graphics::event::*;
 use self::core_graphics::event_source::*;
 
-use macos::keycodes::*;
+use crate::macos::keycodes::*;
 use objc::runtime::Class;
 use std::mem;
 use std::os::raw::*;
-use {Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
