@@ -4,6 +4,7 @@
 /* keycodes for keys that are independent of keyboard layout */
 
 #![allow(non_upper_case_globals)]
+#![allow(dead_code)]
 
 pub const kVK_Return: u16 = 0x24;
 pub const kVK_Tab: u16 = 0x30;
