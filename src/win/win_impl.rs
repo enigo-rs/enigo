@@ -1,11 +1,11 @@
-extern crate winapi;
+use winapi;
 
 use self::winapi::ctypes::c_int;
 use self::winapi::um::winuser::*;
 
 use std::mem::*;
-use win::keycodes::*;
-use {Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::win::keycodes::*;
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
