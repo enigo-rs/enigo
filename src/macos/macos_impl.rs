@@ -483,7 +483,7 @@ impl Enigo {
     fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
         let cf_string = self.create_string_for_key(keycode, modifier);
         let bufferSize = unsafe { CFStringGetLength(cf_string) + 1 };
-        let mut buffer: i8 = 0xffff;
+        let mut buffer: i8 = std::i8::MAX;
         let success = unsafe {
             CFStringGetCString(cf_string, &mut buffer, bufferSize, kCFStringEncodingUTF8)
         };
