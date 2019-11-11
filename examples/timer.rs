@@ -1,4 +1,4 @@
-extern crate enigo;
+
 use enigo::{Enigo, Key, KeyboardControllable};
 use std::thread;
 use std::time::Duration;

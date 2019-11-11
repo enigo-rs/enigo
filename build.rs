@@ -1,4 +1,4 @@
-extern crate pkg_config;
+use pkg_config;
 
 #[cfg(target_os = "windows")]
 fn main() {}

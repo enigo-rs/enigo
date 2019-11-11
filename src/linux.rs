@@ -1,4 +1,4 @@
-extern crate libc;
+use libc;
 
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
