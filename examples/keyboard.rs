@@ -7,7 +7,7 @@ fn main() {
     let mut enigo = Enigo::new();
 
     // write text
-    enigo.key_sequence("Hello World! ❤️");
+    enigo.key_sequence("Hello World! here is a lot of text  ❤️");
 
     // select all
     enigo.key_down(Key::Control);

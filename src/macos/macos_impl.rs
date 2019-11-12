@@ -353,10 +353,17 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
-            .expect("Failed creating event");
-        event.set_string(sequence);
-        event.post(CGEventTapLocation::HID);
+        // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
+        // TODO(dustin): This could be improved by aggregating 20 bytes worth of graphemes at a time
+        // but i am unsure what would happen for grapheme clusters greater than 20 bytes ...
+        use unicode_segmentation::UnicodeSegmentation;
+        let clusters = UnicodeSegmentation::graphemes(sequence, true).collect::<Vec<&str>>();
+        for cluster in clusters {
+            let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
+                .expect("Failed creating event");
+            event.set_string(cluster);
+            event.post(CGEventTapLocation::HID);
+        }
     }
 
     fn key_click(&mut self, key: Key) {
