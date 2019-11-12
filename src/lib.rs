@@ -72,7 +72,7 @@ pub use macos::Enigo;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-pub use linux::Enigo;
+pub use crate::linux::Enigo;
 
 /// DSL parser module
 pub mod dsl;
@@ -394,7 +394,7 @@ impl Enigo {
 use std::fmt;
 
 impl fmt::Debug for Enigo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Enigo")
     }
 }
