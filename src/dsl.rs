@@ -123,6 +123,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         "-SHIFT" => tokens.push(Token::KeyUp(Key::Shift)),
                         "+CTRL" => tokens.push(Token::KeyDown(Key::Control)),
                         "-CTRL" => tokens.push(Token::KeyUp(Key::Control)),
+                        "+META" => tokens.push(Token::KeyDown(Key::Meta)),
+                        "-META" => tokens.push(Token::KeyUp(Key::Meta)),
+                        "+ALT" => tokens.push(Token::KeyDown(Key::Alt)),
+                        "-ALT" => tokens.push(Token::KeyUp(Key::Alt)),
                         _ => return Err(ParseError::UnknownTag(tag)),
                     }
                 }
