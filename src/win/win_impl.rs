@@ -50,8 +50,8 @@ impl MouseControllable for Enigo {
         mouse_event(
             MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
             0,
-            x * 65335 / unsafe { GetSystemMetrics(78) },
-            y * 65335 / unsafe { GetSystemMetrics(79) },
+            main_display_size(x),
+            main_display_size(y),
         );
     }
 
