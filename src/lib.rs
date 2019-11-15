@@ -407,8 +407,8 @@ pub trait Extension {
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Engio::new();
-    /// let mut size = enigo::main_display_size();
+    /// let mut enigo = Enigo::new();
+    /// let mut size = enigo.main_display_size();
     /// ```
     fn main_display_size(&self) -> (usize, usize);
 
