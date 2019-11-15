@@ -45,6 +45,20 @@ extern "C" {
         string: *const c_char,
         delay: useconds_t,
     ) -> c_int;
+
+    fn xdo_get_viewport_dimensions(
+        xdo: Xdo,
+        width: *mut c_int,
+        height: *mut c_int,
+        screen: c_int,
+    ) -> c_int;
+
+    fn xdo_get_mouse_location(
+        xdo: Xdo,
+        x: *mut c_int,
+        y: *mut c_int,
+        screen_num: *mut c_int,
+    ) -> c_int;
 }
 
 fn mousebutton(button: MouseButton) -> c_int {
@@ -89,6 +103,40 @@ impl Enigo {
     /// This is Linux-specific.
     pub fn set_delay(&mut self, delay: u64) {
         self.delay = delay;
+    }
+
+    /// Gets the (width, height) of the main display in screen coordinates (pixels).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Engio::new();
+    /// let mut size = enigo::main_display_size();
+    /// ```
+    pub fn main_display_size(&self) -> (usize, usize) {
+        let mut width = 0;
+        let mut height = 0;
+        const MAIN_SCREEN: i32 = 0;
+        unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
+        (width as usize, height as usize)
+    }
+
+    /// Gets the location of mouse in screen coordinates (pixels).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// let mut location = enigo.mouse_location();
+    /// ```
+    pub fn mouse_location(&self) -> (i32, i32) {
+        let mut x = 0;
+        let mut y = 0;
+        let mut unused_screen_index = 0;
+        unsafe { xdo_get_mouse_location(self.xdo, &mut x, &mut y, &mut unused_screen_index) };
+        (x, y)
     }
 }
 impl Drop for Enigo {
