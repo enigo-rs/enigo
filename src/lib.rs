@@ -398,6 +398,32 @@ pub trait KeyboardControllable {
     fn key_click(&mut self, key: Key);
 }
 
+/// Lets you do operations that are not directly specific to controlling the mouse or keyboard but
+/// are convenient  while using Enigo
+pub trait Extension {
+    /// Gets the (width, height) of the main display in screen coordinates (pixels).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Engio::new();
+    /// let mut size = enigo::main_display_size();
+    /// ```
+    fn main_display_size(&self) -> (usize, usize);
+
+    /// Gets the location of mouse in screen coordinates (pixels).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// let mut location = enigo.mouse_location();
+    /// ```
+    fn mouse_location(&self) -> (i32, i32);
+}
+
 impl Enigo {
     /// Constructs a new `Enigo` instance.
     ///
