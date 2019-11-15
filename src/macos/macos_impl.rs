@@ -259,7 +259,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let (display_width, display_height) = Self::main_display_size();
+        let (display_width, display_height) = self.main_display_size();
         let (current_x, y_inv) = Self::mouse_location_raw_coords();
         let current_y = (display_height as i32) - y_inv;
         let new_x = current_x + x;
@@ -277,7 +277,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        let (current_x, current_y) = Self::mouse_location();
+        let (current_x, current_y) = self.mouse_location();
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
@@ -291,7 +291,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        let (current_x, current_y) = Self::mouse_location();
+        let (current_x, current_y) = self.mouse_location();
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
@@ -414,15 +414,6 @@ impl Enigo {
         unsafe { msg_send![ns_event, pressedMouseButtons] }
     }
 
-    /// Fetches the `(width, height)` in pixels of the main display
-    #[must_use]
-    pub fn main_display_size() -> (usize, usize) {
-        let display_id = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(display_id) };
-        let height = unsafe { CGDisplayPixelsHigh(display_id) };
-        (width, height)
-    }
-
     /// Returns the current mouse location in Cocoa coordinates which have Y
     /// inverted from the Carbon coordinates used in the rest of the API.
     /// This function exists so that [`Enigo::mouse_move_relative`] only has to
@@ -432,14 +423,6 @@ impl Enigo {
         let ns_event = Class::get("NSEvent").unwrap();
         let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
         (pt.x as i32, pt.y as i32)
-    }
-
-    /// The mouse coordinates in points, only works on the main display
-    #[must_use]
-    pub fn mouse_location() -> (i32, i32) {
-        let (x, y_inv) = Self::mouse_location_raw_coords();
-        let (_, display_height) = Self::main_display_size();
-        (x, (display_height as i32) - y_inv)
     }
 
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
@@ -566,5 +549,20 @@ impl Enigo {
         }
 
         unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+    }
+}
+
+impl Extension for Enigo {
+    fn main_display_size(&self) -> (usize, usize) {
+        let display_id = unsafe { CGMainDisplayID() };
+        let width = unsafe { CGDisplayPixelsWide(display_id) };
+        let height = unsafe { CGDisplayPixelsHigh(display_id) };
+        (width, height)
+    }
+
+    fn mouse_location(&self) -> (i32, i32) {
+        let (x, y_inv) = Self::mouse_location_raw_coords();
+        let (_, display_height) = self.main_display_size();
+        (x, (display_height as i32) - y_inv)
     }
 }
