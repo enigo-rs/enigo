@@ -21,7 +21,7 @@ use crate::win::keycodes::{
     EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN, EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB,
     EVK_UP,
 };
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{Extension, Key, KeyboardControllable, MouseButton, MouseControllable};
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
@@ -190,41 +190,6 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Enigo {
-    /// Gets the (width, height) of the main display in screen coordinates
-    /// (pixels).
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut size = Enigo::main_display_size();
-    /// ```
-    #[must_use]
-    pub fn main_display_size() -> (usize, usize) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
-        (w, h)
-    }
-
-    /// Gets the location of mouse in screen coordinates (pixels).
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut location = Enigo::mouse_location();
-    /// ```
-    #[must_use]
-    pub fn mouse_location() -> (i32, i32) {
-        let mut point = POINT { x: 0, y: 0 };
-        let result = unsafe { GetCursorPos(&mut point) };
-        if result.as_bool() {
-            (point.x, point.y)
-        } else {
-            (0, 0)
-        }
-    }
-
     fn unicode_key_click(&self, unicode_char: u16) {
         self.unicode_key_down(unicode_char);
         thread::sleep(time::Duration::from_millis(20));
@@ -329,5 +294,23 @@ impl Enigo {
         let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
         // 0x41 as u16 //key that has the letter 'a' on it on english like keylayout
         keycode_and_shiftstate as u16
+    }
+}
+
+impl Extension for Enigo {
+    fn main_display_size(&self) -> (usize, usize) {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
+        (w, h)
+    }
+
+    fn mouse_location(&self) -> (i32, i32) {
+        let mut point = POINT { x: 0, y: 0 };
+        let result = unsafe { GetCursorPos(&mut point) };
+        if result != 0 {
+            (point.x, point.y)
+        } else {
+            (0, 0)
+        }
     }
 }

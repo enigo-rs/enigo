@@ -20,7 +20,7 @@ use crate::macos::keycodes::{
     kVK_Home, kVK_LeftArrow, kVK_Option, kVK_PageDown, kVK_PageUp, kVK_Return, kVK_RightArrow,
     kVK_Shift, kVK_Space, kVK_Tab, kVK_UpArrow,
 };
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{Extension, Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
