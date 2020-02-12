@@ -164,6 +164,9 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
         return Cow::Owned(format!("U{:X}", c as u32));
     }
+    if let Key::Raw(k) = key {
+        return Cow::Owned(format!("{}", k as u16))
+    }
     #[allow(deprecated)]
     // I mean duh, we still need to support deprecated keys until they're removed
     Cow::Borrowed(match key {
@@ -193,7 +196,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Option => "Option",
         Key::PageDown => "PageDown",
         Key::PageUp => "PageUp",
-        Key::Raw(_) => unimplemented!(),
+        Key::Raw(_) => unreachable!(),
         Key::Return => "Return",
         Key::RightArrow => "Right",
         Key::Shift => "Shift",
