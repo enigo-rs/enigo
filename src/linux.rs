@@ -201,7 +201,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Tab => "Tab",
         Key::UpArrow => "Up",
 
-        Key::Command | Key::Super | Key::Windows | Key::Meta => "Meta",
+        Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
 }
 impl KeyboardControllable for Enigo {
