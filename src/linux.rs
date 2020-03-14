@@ -194,8 +194,8 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Layout(_) => unreachable!(),
         Key::LeftArrow => "Left",
         Key::Option => "Option",
-        Key::PageDown => "PageDown",
-        Key::PageUp => "PageUp",
+        Key::PageDown => "Page_Down",
+        Key::PageUp => "Page_Up",
         Key::Raw(_) => unreachable!(),
         Key::Return => "Return",
         Key::RightArrow => "Right",
@@ -204,7 +204,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Tab => "Tab",
         Key::UpArrow => "Up",
 
-        Key::Command | Key::Super | Key::Windows | Key::Meta => "Meta",
+        Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
 }
 impl KeyboardControllable for Enigo {
