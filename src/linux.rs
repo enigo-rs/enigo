@@ -172,7 +172,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     Cow::Borrowed(match key {
         Key::Alt => "Alt",
         Key::Backspace => "BackSpace",
-        Key::CapsLock => "CapsLock",
+        Key::CapsLock => "Caps_Lock",
         Key::Control => "Control",
         Key::Delete => "Delete",
         Key::DownArrow => "Down",
