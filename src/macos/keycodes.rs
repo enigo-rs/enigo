@@ -52,4 +52,4 @@ pub const kVK_F1: u16 = 0x7A;
 pub const kVK_LeftArrow: u16 = 0x7B;
 pub const kVK_RightArrow: u16 = 0x7C;
 pub const kVK_DownArrow: u16 = 0x7D;
-pub const kVK_UpArrow: u16 = 0x7;
+pub const kVK_UpArrow: u16 = 0x7E;
