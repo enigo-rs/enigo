@@ -85,7 +85,7 @@ extern crate serde_derive;
 extern crate serde;
 
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// MouseButton represents a mouse button,
 /// and is used in for example
 /// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
