@@ -37,10 +37,22 @@ Runtime dependencies
 Linux users may have to install libxdo-dev. For example, on Ubuntu:
 
 ```Bash
-apt install libxdo-dev
+apt-get install libxdo-dev
 ```
 On Arch: 
 
 ```Bash
 pacman -S xdotool
+```
+
+On Fedora:
+
+```Bash
+dnf install libX11-devel libxdo-devel
+```
+
+On Gentoo:
+
+```Bash
+emerge -a xdotool
 ```
