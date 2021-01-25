@@ -2,9 +2,9 @@ use core_graphics;
 
 // TODO(dustin): use only the things i need
 
-use self::core_graphics::display::*;
-use self::core_graphics::event::*;
-use self::core_graphics::event_source::*;
+use core_graphics::display::*;
+use core_graphics::event::*;
+use core_graphics::event_source::*;
 
 use crate::macos::keycodes::*;
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
@@ -266,36 +266,20 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        let (current_x, current_y) = Self::mouse_location();
-        let (button, event_type) = match button {
-            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
-            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
-            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
-            _ => unimplemented!(),
-        };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
-        event.post(CGEventTapLocation::HID);
+        self.mouse_nth_down(button, 1);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        let (current_x, current_y) = Self::mouse_location();
-        let (button, event_type) = match button {
-            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
-            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
-            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
-            _ => unimplemented!(),
-        };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
-        event.post(CGEventTapLocation::HID);
+        self.mouse_nth_up(button, 1);
     }
 
     fn mouse_click(&mut self, button: MouseButton) {
-        self.mouse_down(button);
-        self.mouse_up(button);
+        self.mouse_nth_click(button, 1);
+    }
+
+    fn mouse_nth_click(&mut self, button: MouseButton, click_count: u32) {
+        self.mouse_nth_down(button, click_count);
+        self.mouse_nth_up(button, click_count);
     }
 
     fn mouse_scroll_x(&mut self, length: i32) {
@@ -549,5 +533,35 @@ impl Enigo {
         }
 
         unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+    }
+
+    fn mouse_nth_down(&mut self, button: MouseButton, click_count: u32) {
+        let (current_x, current_y) = Self::mouse_location();
+        let (button, event_type) = match button {
+            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
+            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
+            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+            _ => unimplemented!(),
+        };
+        let dest = CGPoint::new(current_x as f64, current_y as f64);
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count as i64);
+        event.post(CGEventTapLocation::HID);
+    }
+
+    fn mouse_nth_up(&mut self, button: MouseButton, click_count: u32) {
+        let (current_x, current_y) = Self::mouse_location();
+        let (button, event_type) = match button {
+            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
+            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
+            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+            _ => unimplemented!(),
+        };
+        let dest = CGPoint::new(current_x as f64, current_y as f64);
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count as i64);
+        event.post(CGEventTapLocation::HID);
     }
 }

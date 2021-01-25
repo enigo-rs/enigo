@@ -2,7 +2,7 @@ use libc;
 
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
-use self::libc::{c_char, c_int, c_void, useconds_t};
+use libc::{c_char, c_int, c_void, useconds_t};
 use std::{borrow::Cow, ffi::CString, ptr};
 
 const CURRENT_WINDOW: c_int = 0;
@@ -123,6 +123,9 @@ impl MouseControllable for Enigo {
             xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button));
         }
     }
+    fn mouse_nth_click(&mut self, button: MouseButton, _click_count: u32) {
+        self.mouse_click(button);
+    }
     fn mouse_scroll_x(&mut self, length: i32) {
         let button;
         let mut length = length;
@@ -165,7 +168,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         return Cow::Owned(format!("U{:X}", c as u32));
     }
     if let Key::Raw(k) = key {
-        return Cow::Owned(format!("{}", k as u16))
+        return Cow::Owned(format!("{}", k as u16));
     }
     #[allow(deprecated)]
     // I mean duh, we still need to support deprecated keys until they're removed

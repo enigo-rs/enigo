@@ -190,11 +190,10 @@ pub trait MouseControllable {
 
     /// Click a mouse button
     ///
-    /// it's esentially just a consecutive invokation of
+    /// It's essentially just a consecutive invokation of
     /// [mouse_down](trait.MouseControllable.html#tymethod.mouse_down) followed
     /// by a [mouse_up](trait.MouseControllable.html#tymethod.mouse_up). Just
-    /// for
-    /// convenience.
+    /// for convenience.
     ///
     /// # Example
     ///
@@ -204,6 +203,24 @@ pub trait MouseControllable {
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton);
+
+    /// Click a mouse button for the nth time
+    ///
+    /// This is similar to
+    /// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click) except
+    /// that it is appropriate for consecutive clicks. This is required for
+    /// creating double or triple clicks on macOS.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// // Generate a double left click
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// enigo.mouse_click(MouseButton::Left);
+    /// enigo.mouse_nth_click(MouseButton::Left, 2);
+    /// ```
+    fn mouse_nth_click(&mut self, button: MouseButton, click_count: u32);
 
     /// Scroll the mouse (wheel) left or right
     ///
