@@ -3,7 +3,7 @@ use libc;
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 use self::libc::{c_char, c_int, c_void, useconds_t};
-use std::{borrow::Cow, ffi::CString, ptr};
+use std::{borrow::Cow, ffi::{CString}, ptr};
 
 const CURRENT_WINDOW: c_int = 0;
 const DEFAULT_DELAY: u64 = 12000;
@@ -88,6 +88,19 @@ impl Enigo {
     /// This is Linux-specific.
     pub fn set_delay(&mut self, delay: u64) {
         self.delay = delay;
+    }
+
+    /// Create new Enigo instance on the specified X11 display
+    /// ```rust
+    /// # use crate::enigo::Enigo;
+    /// let enigo = Enigo::new_on_display(":0.0").unwrap();
+    /// ```
+    pub fn new_on_display(display: impl Into<String>) -> Result<Self, std::ffi::NulError> {
+        let string = CString::new(display.into())?;
+        Ok(Self {
+            xdo: unsafe { xdo_new(string.as_ptr()) },
+            delay: DEFAULT_DELAY,
+        })
     }
 }
 impl Drop for Enigo {
