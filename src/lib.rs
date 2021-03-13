@@ -267,12 +267,6 @@ pub enum Key {
     Escape,
     /// F1 key
     F1,
-    /// F10 key
-    F10,
-    /// F11 key
-    F11,
-    /// F12 key
-    F12,
     /// F2 key
     F2,
     /// F3 key
@@ -289,6 +283,28 @@ pub enum Key {
     F8,
     /// F9 key
     F9,
+    /// F10 key
+    F10,
+    /// F11 key
+    F11,
+    /// F12 key
+    F12,
+    /// F13 key
+    F13,
+    /// F14 key
+    F14,
+    /// F15 key
+    F15,
+    /// F16 key
+    F16,
+    /// F17 key
+    F17,
+    /// F18 key
+    F18,
+    /// F19 key
+    F19,
+    /// F20 key
+    F20,
     /// home key
     Home,
     /// left arrow key

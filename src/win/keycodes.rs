@@ -1,4 +1,5 @@
 // https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731
+#![allow(dead_code)]
 
 pub const EVK_RETURN: u16 = 0x0D;
 pub const EVK_TAB: u16 = 0x09;
@@ -31,3 +32,15 @@ pub const EVK_F9: u16 = 0x78;
 pub const EVK_F10: u16 = 0x79;
 pub const EVK_F11: u16 = 0x7a;
 pub const EVK_F12: u16 = 0x7b;
+pub const EVK_F13: u16 = 0x7c;
+pub const EVK_F14: u16 = 0x7d;
+pub const EVK_F15: u16 = 0x7e;
+pub const EVK_F16: u16 = 0x7f;
+pub const EVK_F17: u16 = 0x80;
+pub const EVK_F18: u16 = 0x81;
+pub const EVK_F19: u16 = 0x82;
+pub const EVK_F20: u16 = 0x83;
+pub const EVK_F21: u16 = 0x84;
+pub const EVK_F22: u16 = 0x85;
+pub const EVK_F23: u16 = 0x86;
+pub const EVK_F24: u16 = 0x87;

@@ -1,5 +1,4 @@
-// https://stackoverflow.
-// com/questions/3202629/where-can-i-find-a-list-of-mac-virtual-key-codes
+// https://stackoverflow.com/questions/3202629/where-can-i-find-a-list-of-mac-virtual-key-codes
 
 /* keycodes for keys that are independent of keyboard layout */
 
