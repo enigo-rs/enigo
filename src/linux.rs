@@ -165,7 +165,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         return Cow::Owned(format!("U{:X}", c as u32));
     }
     if let Key::Raw(k) = key {
-        return Cow::Owned(format!("{}", k as u16))
+        return Cow::Owned(format!("{}", k as u16));
     }
     #[allow(deprecated)]
     // I mean duh, we still need to support deprecated keys until they're removed
