@@ -1,7 +1,7 @@
 use winapi;
 
-use self::winapi::shared::windef::POINT;
 use self::winapi::ctypes::c_int;
+use self::winapi::shared::windef::POINT;
 use self::winapi::um::winuser::*;
 
 use crate::win::keycodes::*;
@@ -50,8 +50,10 @@ impl MouseControllable for Enigo {
         mouse_event(
             MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
             0,
-            (x - unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) }) * 65535 / unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) },
-            (y - unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) }) * 65535 / unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) },
+            (x - unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) }) * 65535
+                / unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) },
+            (y - unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) }) * 65535
+                / unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) },
         );
     }
 
@@ -157,9 +159,9 @@ impl Enigo {
     /// let mut size = Enigo::main_display_size();
     /// ```
     pub fn main_display_size() -> (usize, usize) {
-      let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
-      let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
-      (w, h)
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
+        (w, h)
     }
 
     /// Gets the location of mouse in screen coordinates (pixels).
@@ -174,9 +176,9 @@ impl Enigo {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
         if result != 0 {
-          (point.x, point.y)
+            (point.x, point.y)
         } else {
-          (0, 0)
+            (0, 0)
         }
     }
 
@@ -199,7 +201,7 @@ impl Enigo {
         // do not use the codes from crate winapi they're
         // wrongly typed with i32 instead of i16 use the
         // ones provided by win/keycodes.rs that are prefixed
-        // with an 'E' infront of the original name
+        // with an 'E' in front of the original name
         #[allow(deprecated)]
         // I mean duh, we still need to support deprecated keys until they're removed
         match key {
@@ -250,21 +252,21 @@ impl Enigo {
     fn get_layoutdependent_keycode(&self, string: String) -> u16 {
         let mut buffer = [0; 2];
         // get the first char from the string ignore the rest
-        // ensure its not a multybyte char
+        // ensure its not a multi byte char
         let utf16 = string
             .chars()
             .nth(0)
             .expect("no valid input") //TODO(dustin): no panic here make an error
             .encode_utf16(&mut buffer);
         if utf16.len() != 1 {
-            // TODO(dustin) don't panic here use an apropriate errors
-            panic!("this char is not allowd");
+            // TODO(dustin) don't panic here use an appropriate errors
+            panic!("this char is not allowed");
         }
         // NOTE VkKeyScanW uses the current keyboard layout
         // to specify a layout use VkKeyScanExW and GetKeyboardLayout
         // or load one with LoadKeyboardLayoutW
         let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
-        // 0x41 as u16 //key that has the letter 'a' on it on english like keylayout
+        // 0x41 as u16 //key that has the letter 'a' on it on english like key layout
         keycode_and_shiftstate as u16
     }
 }

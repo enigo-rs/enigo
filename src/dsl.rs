@@ -41,7 +41,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-/// Evaluate the DSL. This tokenizes the input and presses the keys.
+/// Evaluate the DSL. This tokenize the input and presses the keys.
 pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
 where
     K: KeyboardControllable,
