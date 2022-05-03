@@ -2,7 +2,7 @@
 name = "enigo"
 version = "0.0.14"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
-edition = "2018"
+edition = "2021"
 build = "build.rs"
 
 description = "Enigo lets you control your mouse and keyboard in an abstract way on different operating systems (currently only Linux, macOS, Win – Redox and *BSD planned)"
@@ -13,10 +13,6 @@ readme = "README.md"
 keywords = ["input", "mouse", "testing", "keyboard", "automation"]
 categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
-
-[badges]
-travis-ci = { repository = "enigo-rs/enigo" }
-appveyor = { repository = "pythoneer/enigo-85xiy" }
 
 [dependencies]
 serde = { version = "1.0.102", optional = true }

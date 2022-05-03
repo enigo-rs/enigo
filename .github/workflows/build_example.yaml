@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build DSL example
+      run: cargo build --verbose --example dsl
+    - name: Build key example
+      run: cargo build --verbose --example key
+    - name: Build keyboard example
+      run: cargo build --verbose --example keyboard
+    - name: Build mouse example
+      run: cargo build --verbose --example mouse
+    - name: Build timer example
+      run: cargo build --verbose --example timer
