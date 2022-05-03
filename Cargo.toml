@@ -15,22 +15,23 @@ categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
 
 [dependencies]
-serde = { version = "1.0.102", optional = true }
-serde_derive = { version = "1.0.102", optional = true }
+serde = { version = "1.0.137", optional = true }
+serde_derive = { version = "1.0.137", optional = true }
 
 [features]
 with_serde = ["serde", "serde_derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3.8", features = ["winuser"] }
+winapi = { version = "0.3.9", features = ["winuser"] }
 
+# TODO: outdated
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.18.0"
 objc = "0.2.7"
 unicode-segmentation = "1.6.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2.65"
+libc = "0.2.125"
 
 [build-dependencies]
-pkg-config = "0.3.17"
+pkg-config = "0.3.25"
