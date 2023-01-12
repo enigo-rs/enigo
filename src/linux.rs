@@ -124,14 +124,12 @@ impl MouseControllable for Enigo {
         }
     }
     fn mouse_scroll_x(&mut self, length: i32) {
-        let button;
         let mut length = length;
-
-        if length < 0 {
-            button = MouseButton::ScrollLeft;
+        let button = if length < 0 {
+            MouseButton::ScrollLeft
         } else {
-            button = MouseButton::ScrollRight;
-        }
+            MouseButton::ScrollRight
+        };
 
         if length < 0 {
             length = -length;
@@ -142,14 +140,12 @@ impl MouseControllable for Enigo {
         }
     }
     fn mouse_scroll_y(&mut self, length: i32) {
-        let button;
         let mut length = length;
-
-        if length < 0 {
-            button = MouseButton::ScrollUp;
+        let button = if length < 0 {
+            MouseButton::ScrollUp
         } else {
-            button = MouseButton::ScrollDown;
-        }
+            MouseButton::ScrollDown
+        };
 
         if length < 0 {
             length = -length;
