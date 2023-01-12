@@ -34,21 +34,20 @@ pub enum ParseError {
     /// Use {+UNICODE} or {-UNICODE} to enable / disable unicode
     MissingUnicodeAction,
 }
-impl Error for ParseError {
-    fn description(&self) -> &str {
-        match *self {
+
+impl Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match *self {
             Self::UnknownTag(_) => "Unknown tag",
             Self::UnexpectedOpen => "Unescaped open bracket ({) found inside tag name",
             Self::UnmatchedOpen => "Unmatched open bracket ({). No matching close (})",
             Self::UnmatchedClose => "Unmatched close bracket (}). No previous open ({)",
             Self::EmptyTag => "Empty tag",
             Self::MissingUnicodeAction => "Missing unicode action. {+UNICODE} or {-UNICODE}",
-        }
-    }
-}
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.description())
+        };
+        f.write_str(text)
     }
 }
 
@@ -148,44 +147,42 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         };
                         continue;
                     }
-                    tokens.append(&mut action.into_token(
-                        match key {
-                            "SHIFT" => Key::Shift,
-                            "CTRL" => Key::Control,
-                            "META" => Key::Meta,
-                            "ALT" => Key::Alt,
-                            "TAB" => Key::Tab,
-                            "BACKSPACE" => Key::Backspace,
-                            "CAPSLOCK" => Key::CapsLock,
-                            "CONTROL" => Key::Control,
-                            "DELETE" => Key::Delete,
-                            "DEL" => Key::Delete,
-                            "DOWNARROW" => Key::DownArrow,
-                            "END" => Key::End,
-                            "ESCAPE" => Key::Escape,
-                            "F1" => Key::F1,
-                            "F2" => Key::F2,
-                            "F3" => Key::F3,
-                            "F4" => Key::F4,
-                            "F5" => Key::F5,
-                            "F6" => Key::F6,
-                            "F7" => Key::F7,
-                            "F8" => Key::F8,
-                            "F9" => Key::F9,
-                            "F10" => Key::F10,
-                            "F11" => Key::F11,
-                            "F12" => Key::F12,
-                            "HOME" => Key::Home,
-                            "LEFTARROW" => Key::LeftArrow,
-                            "OPTION" => Key::Option,
-                            "PAGEDOWN" => Key::PageDown,
-                            "PAGEUP" => Key::PageUp,
-                            "RETURN" => Key::Return,
-                            "RIGHTARROW" => Key::RightArrow,
-                            "UPARROW" => Key::UpArrow,
-                            _ => return Err(ParseError::UnknownTag(tag)),
-                        }
-                    ));
+                    tokens.append(&mut action.into_token(match key {
+                        "SHIFT" => Key::Shift,
+                        "CTRL" => Key::Control,
+                        "META" => Key::Meta,
+                        "ALT" => Key::Alt,
+                        "TAB" => Key::Tab,
+                        "BACKSPACE" => Key::Backspace,
+                        "CAPSLOCK" => Key::CapsLock,
+                        "CONTROL" => Key::Control,
+                        "DELETE" => Key::Delete,
+                        "DEL" => Key::Delete,
+                        "DOWNARROW" => Key::DownArrow,
+                        "END" => Key::End,
+                        "ESCAPE" => Key::Escape,
+                        "F1" => Key::F1,
+                        "F2" => Key::F2,
+                        "F3" => Key::F3,
+                        "F4" => Key::F4,
+                        "F5" => Key::F5,
+                        "F6" => Key::F6,
+                        "F7" => Key::F7,
+                        "F8" => Key::F8,
+                        "F9" => Key::F9,
+                        "F10" => Key::F10,
+                        "F11" => Key::F11,
+                        "F12" => Key::F12,
+                        "HOME" => Key::Home,
+                        "LEFTARROW" => Key::LeftArrow,
+                        "OPTION" => Key::Option,
+                        "PAGEDOWN" => Key::PageDown,
+                        "PAGEUP" => Key::PageUp,
+                        "RETURN" => Key::Return,
+                        "RIGHTARROW" => Key::RightArrow,
+                        "UPARROW" => Key::UpArrow,
+                        _ => return Err(ParseError::UnknownTag(tag)),
+                    }));
                 }
                 None => return Err(ParseError::UnmatchedOpen),
             }
@@ -216,10 +213,7 @@ impl Action {
         match self {
             Self::Down => vec![Token::KeyDown(key)],
             Self::Up => vec![Token::KeyUp(key)],
-            Self::Press => vec![
-                Token::KeyDown(key),
-                Token::KeyUp(key),
-            ],
+            Self::Press => vec![Token::KeyDown(key), Token::KeyUp(key)],
         }
     }
 }
