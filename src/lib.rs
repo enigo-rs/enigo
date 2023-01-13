@@ -24,13 +24,13 @@
 //! interfaces unaccessible by a public API or scripting language.
 //!
 //! For the keyboard there are currently two modes you can use. The first mode
-//! is represented by the [key_sequence]() function
-//! its purpose is to simply write unicode characters. This is independent of
-//! the keyboardlayout. Please note that
+//! is represented by the [`key_sequence`](KeyboardControllable::key_sequence)
+//! function its purpose is to simply write unicode characters. This is
+//! independent of the keyboard layout. Please note that
 //! you're not be able to use modifier keys like Control
 //! to influence the outcome. If you want to use modifier keys to e.g.
-//! copy/paste
-//! use the Layout variant. Please note that this is indeed layout dependent.
+//! copy/paste, use the Layout variant. Please note that this is indeed layout
+//! dependent.
 
 //! # Examples
 //! ```no_run
@@ -51,7 +51,12 @@
 //! enigo.mouse_up(MouseButton::Left);
 //! enigo.key_sequence("hello world");
 //! ```
-#![deny(missing_docs)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(deprecated)]
 
 #[cfg(target_os = "macos")]
 #[macro_use]
@@ -86,9 +91,9 @@ extern crate serde;
 
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// MouseButton represents a mouse button,
+/// [`MouseButton`] represents a mouse button,
 /// and is used in for example
-/// [mouse_click](trait.MouseControllable.html#tymethod.mouse_click).
+/// [`MouseControllable::mouse_click`].
 /// WARNING: Types with the prefix Scroll
 /// IS NOT intended to be used, and may not work on
 /// all operating systems.
@@ -151,14 +156,12 @@ pub trait MouseControllable {
     /// Push down one of the mouse buttons
     ///
     /// Push down the mouse button specified by the parameter `button` of
-    /// type [MouseButton](enum.MouseButton.html)
+    /// type [`MouseButton`]
     /// and holds it until it is released by
-    /// [mouse_up](trait.MouseControllable.html#tymethod.mouse_up).
-    /// Calls to [mouse_move_to](trait.MouseControllable.html#tymethod.
-    /// mouse_move_to) or
-    /// [mouse_move_relative](trait.MouseControllable.html#tymethod.
-    /// mouse_move_relative)
-    /// will work like expected and will e.g. drag widgets or highlight text.
+    /// [`MouseControllable::mouse_up`](.
+    /// Calls to [`MouseControllable::mouse_move_to`] or
+    /// [`MouseControllable::mouse_move_relative`] will
+    /// work like expected and will e.g. drag widgets or highlight text.
     ///
     /// # Example
     ///
@@ -172,12 +175,11 @@ pub trait MouseControllable {
     /// Lift up a pushed down mouse button
     ///
     /// Lift up a previously pushed down button (by invoking
-    /// [mouse_down](trait.MouseControllable.html#tymethod.mouse_down)).
+    /// [`MouseControllable::mouse_down`]).
     /// If the button was not pushed down or consecutive calls without
-    /// invoking [mouse_down](trait.MouseControllable.html#tymethod.mouse_down)
-    /// will emit lift up events. It depends on the
-    /// operating system whats actually happening – my guess is it will just
-    /// get ignored.
+    /// invoking [`MouseControllable::mouse_down`] will emit lift up
+    /// events. It depends on the operating system whats actually happening
+    /// – my guess is it will just get ignored.
     ///
     /// # Example
     ///
@@ -191,9 +193,8 @@ pub trait MouseControllable {
     /// Click a mouse button
     ///
     /// it's essentially just a consecutive invocation of
-    /// [mouse_down](trait.MouseControllable.html#tymethod.mouse_down) followed
-    /// by a [mouse_up](trait.MouseControllable.html#tymethod.mouse_up). Just
-    /// for
+    /// [`MouseControllable::mouse_down`]
+    /// followed by a [`MouseControllable::mouse_up`]. Just for
     /// convenience.
     ///
     /// # Example
@@ -241,8 +242,8 @@ pub trait MouseControllable {
 }
 
 /// A key on the keyboard.
-/// For alphabetical keys, use Key::Layout for a system independent key.
-/// If a key is missing, you can use the raw keycode with Key::Raw.
+/// For alphabetical keys, use [`Key::Layout`] for a system independent key.
+/// If a key is missing, you can use the raw keycode with [`Key::Raw`].
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
@@ -355,7 +356,12 @@ pub trait KeyboardControllable {
         self.key_sequence_parse_try(sequence)
             .expect("Could not parse sequence");
     }
-    /// Same as key_sequence_parse except returns any errors
+
+    /// Same as [`KeyboardControllable::key_sequence_parse`] except returns any
+    /// errors
+    ///  # Errors
+    ///
+    /// Returns a [`dsl::ParseError`] if the sequence cannot be parsed
     fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), dsl::ParseError>
     where
         Self: Sized,
@@ -383,13 +389,12 @@ pub trait KeyboardControllable {
     fn key_down(&mut self, key: Key);
 
     /// release a given key formally pressed down by
-    /// [key_down](trait.KeyboardControllable.html#tymethod.key_down)
+    /// [`KeyboardControllable::key_down`]
     fn key_up(&mut self, key: Key);
 
-    /// Much like the
-    /// [key_down](trait.KeyboardControllable.html#tymethod.key_down) and
-    /// [key_up](trait.KeyboardControllable.html#tymethod.key_up)
-    /// function they're just invoked consecutively
+    /// Much like the [`KeyboardControllable::key_down`] and
+    /// [`KeyboardControllable::key_up`] function they're just invoked
+    /// consecutively
     fn key_click(&mut self, key: Key);
 }
 
@@ -402,6 +407,7 @@ impl Enigo {
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

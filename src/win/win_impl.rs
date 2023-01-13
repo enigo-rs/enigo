@@ -1,3 +1,5 @@
+use std::{mem::size_of, thread, time};
+
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
@@ -12,9 +14,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
 };
 
-use crate::win::keycodes::*;
+use crate::win::keycodes::{
+    EVK_BACK, EVK_CAPITAL, EVK_DELETE, EVK_DOWN, EVK_END, EVK_ESCAPE, EVK_F1, EVK_F10, EVK_F11,
+    EVK_F12, EVK_F13, EVK_F14, EVK_F15, EVK_F16, EVK_F17, EVK_F18, EVK_F19, EVK_F2, EVK_F20,
+    EVK_F3, EVK_F4, EVK_F5, EVK_F6, EVK_F7, EVK_F8, EVK_F9, EVK_HOME, EVK_LCONTROL, EVK_LEFT,
+    EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN, EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB,
+    EVK_UP,
+};
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
-use std::mem::*;
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
@@ -193,6 +200,7 @@ impl Enigo {
     /// use enigo::*;
     /// let mut size = Enigo::main_display_size();
     /// ```
+    #[must_use]
     pub fn main_display_size() -> (usize, usize) {
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
         let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
@@ -207,6 +215,7 @@ impl Enigo {
     /// use enigo::*;
     /// let mut location = Enigo::mouse_location();
     /// ```
+    #[must_use]
     pub fn mouse_location() -> (i32, i32) {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
@@ -218,12 +227,12 @@ impl Enigo {
     }
 
     fn unicode_key_click(&self, unicode_char: u16) {
-        use std::{thread, time};
         self.unicode_key_down(unicode_char);
         thread::sleep(time::Duration::from_millis(20));
         self.unicode_key_up(unicode_char);
     }
 
+    #[allow(clippy::unused_self)]
     fn unicode_key_down(&self, unicode_char: u16) {
         keybd_event(
             KEYEVENTF_UNICODE,
@@ -232,6 +241,7 @@ impl Enigo {
         );
     }
 
+    #[allow(clippy::unused_self)]
     fn unicode_key_up(&self, unicode_char: u16) {
         keybd_event(
             KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
@@ -245,10 +255,10 @@ impl Enigo {
         // wrongly typed with i32 instead of i16 use the
         // ones provided by win/keycodes.rs that are prefixed
         // with an 'E' infront of the original name
-        #[allow(deprecated)]
+
         // I mean duh, we still need to support deprecated keys until they're removed
         match key {
-            Key::Alt => EVK_MENU,
+            Key::Alt | Key::Option => EVK_MENU,
             Key::Backspace => EVK_BACK,
             Key::CapsLock => EVK_CAPITAL,
             Key::Control => EVK_LCONTROL,
@@ -278,7 +288,6 @@ impl Enigo {
             Key::F20 => EVK_F20,
             Key::Home => EVK_HOME,
             Key::LeftArrow => EVK_LEFT,
-            Key::Option => EVK_MENU,
             Key::PageDown => EVK_NEXT,
             Key::PageUp => EVK_PRIOR,
             Key::Return => EVK_RETURN,
@@ -287,10 +296,8 @@ impl Enigo {
             Key::Space => EVK_SPACE,
             Key::Tab => EVK_TAB,
             Key::UpArrow => EVK_UP,
-
             Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(c) => self.get_layoutdependent_keycode(c.to_string()),
-            //_ => 0,
+            Key::Layout(c) => self.get_layoutdependent_keycode(&c.to_string()),
             Key::Super | Key::Command | Key::Windows | Key::Meta => EVK_LWIN,
         }
     }
@@ -305,7 +312,8 @@ impl Enigo {
         }
     }
 
-    fn get_layoutdependent_keycode(&self, string: String) -> u16 {
+    #[allow(clippy::unused_self)]
+    fn get_layoutdependent_keycode(&self, string: &str) -> u16 {
         let mut buffer = [0; 2];
         // get the first char from the string ignore the rest
         // ensure its not a multybyte char

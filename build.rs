@@ -34,7 +34,7 @@ fn main() {
     ];
 
     let mut config = String::new();
-    for lib in libraries.iter() {
+    for lib in &libraries {
         let libdir = match pkg_config::get_variable(lib, "libdir") {
             Ok(libdir) => format!("Some(\"{libdir}\")"),
             Err(_) => "None".to_string(),
