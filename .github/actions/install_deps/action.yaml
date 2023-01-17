@@ -1,0 +1,20 @@
+name: "Install_deps"
+description: "Installs the dependencies and updates the system"
+
+runs:
+  using: "composite"
+  steps:
+    - name:  Install dependencies
+      run:   |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt-get update -q -y && sudo apt-get upgrade -y && sudo apt-get install -y libxdo-dev 
+          echo "$RUNNER_OS"
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          echo "$RUNNER_OS"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          echo "$RUNNER_OS"
+        else
+          echo "$RUNNER_OS not supported"
+          exit 1
+        fi
+      shell: bash
