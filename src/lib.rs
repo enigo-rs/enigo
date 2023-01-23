@@ -62,12 +62,12 @@ extern crate objc;
 #[cfg(target_os = "windows")]
 mod win;
 #[cfg(target_os = "windows")]
-pub use win::Enigo;
+pub use crate::win::Enigo;
 
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::Enigo;
+pub use crate::macos::Enigo;
 
 #[cfg(target_os = "linux")]
 mod linux;
