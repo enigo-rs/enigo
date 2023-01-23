@@ -2,7 +2,7 @@
 name = "enigo"
 version = "0.0.14"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
-edition = "2018"
+edition = "2021"
 build = "build.rs"
 rust-version = "1.58"
 
