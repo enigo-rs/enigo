@@ -322,10 +322,8 @@ impl Enigo {
             .next()
             .expect("no valid input") //TODO(dustin): no panic here make an error
             .encode_utf16(&mut buffer);
-        if utf16.len() != 1 {
-            // TODO(dustin) don't panic here use an apropriate errors
-            panic!("this char is not allowd");
-        }
+        // TODO(dustin) don't panic here use an apropriate errors
+        assert!(!(utf16.len() != 1), "this char is not allowd");
         // NOTE VkKeyScanW uses the current keyboard layout
         // to specify a layout use VkKeyScanExW and GetKeyboardLayout
         // or load one with LoadKeyboardLayoutW
