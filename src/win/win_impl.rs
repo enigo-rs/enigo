@@ -1,8 +1,16 @@
-use winapi;
-
-use self::winapi::shared::windef::POINT;
-use self::winapi::ctypes::c_int;
-use self::winapi::um::winuser::*;
+use windows::Win32::Foundation::POINT;
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
+    KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
+    MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
+    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL, MOUSEINPUT, MOUSE_EVENT_FLAGS,
+    VIRTUAL_KEY,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CXVIRTUALSCREEN, SM_CYSCREEN,
+    SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+};
 
 use crate::win::keycodes::*;
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
@@ -12,39 +20,51 @@ use std::mem::*;
 #[derive(Default)]
 pub struct Enigo;
 
-fn mouse_event(flags: u32, data: u32, dx: i32, dy: i32) {
-    let mut input = INPUT {
-        type_: INPUT_MOUSE,
-        u: unsafe {
-            transmute(MOUSEINPUT {
+fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) {
+    let input = INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
                 dx,
                 dy,
                 mouseData: data,
                 dwFlags: flags,
                 time: 0,
                 dwExtraInfo: 0,
-            })
+            },
         },
     };
-    unsafe { SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int) };
+    unsafe {
+        SendInput(
+            &[input as INPUT],
+            size_of::<INPUT>()
+                .try_into()
+                .expect("Could not convert the size of INPUT to i32"),
+        )
+    };
 }
 
-fn keybd_event(flags: u32, vk: u16, scan: u16) {
-    let mut input = INPUT {
-        type_: INPUT_KEYBOARD,
-        u: unsafe {
-            let mut input_u: INPUT_u = std::mem::zeroed();
-            *input_u.ki_mut() = KEYBDINPUT {
+fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: u16) {
+    let input = INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
                 wVk: vk,
                 wScan: scan,
                 dwFlags: flags,
                 time: 0,
                 dwExtraInfo: 0,
-            };
-            input_u
+            },
         },
     };
-    unsafe { SendInput(1, &mut input as LPINPUT, size_of::<INPUT>() as c_int) };
+    unsafe {
+        SendInput(
+            &[input as INPUT],
+            size_of::<INPUT>()
+                .try_into()
+                .expect("Could not convert the size of INPUT to i32"),
+        )
+    };
 }
 
 impl MouseControllable for Enigo {
@@ -52,8 +72,10 @@ impl MouseControllable for Enigo {
         mouse_event(
             MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
             0,
-            (x - unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) }) * 65535 / unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) },
-            (y - unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) }) * 65535 / unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) },
+            (x - unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) }) * 65535
+                / unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) },
+            (y - unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) }) * 65535
+                / unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) },
         );
     }
 
@@ -95,11 +117,11 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_scroll_x(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_HWHEEL, unsafe { transmute(length * 120) }, 0, 0);
+        mouse_event(MOUSEEVENTF_HWHEEL, length * 120, 0, 0);
     }
 
     fn mouse_scroll_y(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_WHEEL, unsafe { transmute(length * 120) }, 0, 0);
+        mouse_event(MOUSEEVENTF_WHEEL, length * 120, 0, 0);
     }
 }
 
@@ -120,7 +142,7 @@ impl KeyboardControllable for Enigo {
                 self.unicode_key_click(result[0]);
             } else {
                 for utf16_surrogate in result {
-                    self.unicode_key_down(utf16_surrogate.clone());
+                    self.unicode_key_down(*utf16_surrogate);
                 }
                 // do i need to produce a keyup?
                 // self.unicode_key_up(0);
@@ -131,19 +153,31 @@ impl KeyboardControllable for Enigo {
     fn key_click(&mut self, key: Key) {
         let scancode = self.key_to_scancode(key);
         use std::{thread, time};
-        keybd_event(KEYEVENTF_SCANCODE, 0, scancode);
+        keybd_event(
+            KEYEVENTF_SCANCODE,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            scancode,
+        );
         thread::sleep(time::Duration::from_millis(20));
-        keybd_event(KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE, 0, scancode);
+        keybd_event(
+            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            scancode,
+        );
     }
 
     fn key_down(&mut self, key: Key) {
-        keybd_event(KEYEVENTF_SCANCODE, 0, self.key_to_scancode(key));
+        keybd_event(
+            KEYEVENTF_SCANCODE,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            self.key_to_scancode(key),
+        );
     }
 
     fn key_up(&mut self, key: Key) {
         keybd_event(
             KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
-            0,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             self.key_to_scancode(key),
         );
     }
@@ -159,9 +193,9 @@ impl Enigo {
     /// let mut size = Enigo::main_display_size();
     /// ```
     pub fn main_display_size() -> (usize, usize) {
-      let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
-      let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
-      (w, h)
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
+        (w, h)
     }
 
     /// Gets the location of mouse in screen coordinates (pixels).
@@ -175,10 +209,10 @@ impl Enigo {
     pub fn mouse_location() -> (i32, i32) {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
-        if result != 0 {
-          (point.x, point.y)
+        if result.as_bool() {
+            (point.x, point.y)
         } else {
-          (0, 0)
+            (0, 0)
         }
     }
 
@@ -190,11 +224,19 @@ impl Enigo {
     }
 
     fn unicode_key_down(&self, unicode_char: u16) {
-        keybd_event(KEYEVENTF_UNICODE, 0, unicode_char);
+        keybd_event(
+            KEYEVENTF_UNICODE,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            unicode_char,
+        );
     }
 
     fn unicode_key_up(&self, unicode_char: u16) {
-        keybd_event(KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0, unicode_char);
+        keybd_event(
+            KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            unicode_char,
+        );
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
@@ -254,7 +296,12 @@ impl Enigo {
 
     fn key_to_scancode(&self, key: Key) -> u16 {
         let keycode = self.key_to_keycode(key);
-        unsafe { MapVirtualKeyW(keycode as u32, 0) as u16 }
+        unsafe {
+            MapVirtualKeyW(
+                keycode as u32,
+                windows::Win32::UI::Input::KeyboardAndMouse::MAP_VIRTUAL_KEY_TYPE(0),
+            ) as u16
+        }
     }
 
     fn get_layoutdependent_keycode(&self, string: String) -> u16 {
@@ -263,7 +310,7 @@ impl Enigo {
         // ensure its not a multybyte char
         let utf16 = string
             .chars()
-            .nth(0)
+            .next()
             .expect("no valid input") //TODO(dustin): no panic here make an error
             .encode_utf16(&mut buffer);
         if utf16.len() != 1 {
