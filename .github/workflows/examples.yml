@@ -12,6 +12,7 @@ env:
 jobs:
   examples:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
@@ -33,6 +34,7 @@ jobs:
 
   examples_all_features:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable

@@ -12,6 +12,7 @@ env:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
@@ -33,6 +34,7 @@ jobs:
 
   test_all_features:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
