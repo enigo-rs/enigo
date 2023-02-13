@@ -24,14 +24,25 @@ pub enum ParseError {
     /// Example: +SHIFT}Hello{-SHIFT}
     ///         ^
     UnmatchedClose,
+
+    /// When {} is encountered with no tag
+    /// Example: {+SHIFT}Hello{}
+    ///                       ^^
+    EmptyTag,
+
+    /// When {UNICODE} is encountered without an action
+    /// Use {+UNICODE} or {-UNICODE} to enable / disable unicode
+    MissingUnicodeAction,
 }
 impl Error for ParseError {
     fn description(&self) -> &str {
         match *self {
-            ParseError::UnknownTag(_) => "Unknown tag",
-            ParseError::UnexpectedOpen => "Unescaped open bracket ({) found inside tag name",
-            ParseError::UnmatchedOpen => "Unmatched open bracket ({). No matching close (})",
-            ParseError::UnmatchedClose => "Unmatched close bracket (}). No previous open ({)",
+            Self::UnknownTag(_) => "Unknown tag",
+            Self::UnexpectedOpen => "Unescaped open bracket ({) found inside tag name",
+            Self::UnmatchedOpen => "Unmatched open bracket ({). No matching close (})",
+            Self::UnmatchedClose => "Unmatched close bracket (}). No previous open ({)",
+            Self::EmptyTag => "Empty tag",
+            Self::MissingUnicodeAction => "Missing unicode action. {+UNICODE} or {-UNICODE}",
         }
     }
 }
@@ -116,19 +127,65 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                             None => return Err(ParseError::UnmatchedOpen),
                         }
                     }
-                    match &*tag {
-                        "+UNICODE" => unicode = true,
-                        "-UNICODE" => unicode = false,
-                        "+SHIFT" => tokens.push(Token::KeyDown(Key::Shift)),
-                        "-SHIFT" => tokens.push(Token::KeyUp(Key::Shift)),
-                        "+CTRL" => tokens.push(Token::KeyDown(Key::Control)),
-                        "-CTRL" => tokens.push(Token::KeyUp(Key::Control)),
-                        "+META" => tokens.push(Token::KeyDown(Key::Meta)),
-                        "-META" => tokens.push(Token::KeyUp(Key::Meta)),
-                        "+ALT" => tokens.push(Token::KeyDown(Key::Alt)),
-                        "-ALT" => tokens.push(Token::KeyUp(Key::Alt)),
-                        _ => return Err(ParseError::UnknownTag(tag)),
+                    let action = match tag.chars().next() {
+                        Some(first) => match first {
+                            '+' => Action::Down,
+                            '-' => Action::Up,
+                            _ => Action::Press,
+                        },
+                        None => return Err(ParseError::EmptyTag),
+                    };
+                    let key = if action != Action::Press {
+                        &tag[1..]
+                    } else {
+                        &tag
+                    };
+                    if tag == "UNICODE" {
+                        unicode = match action {
+                            Action::Down => true,
+                            Action::Up => false,
+                            Action::Press => return Err(ParseError::MissingUnicodeAction),
+                        };
+                        continue;
                     }
+                    tokens.append(&mut action.into_token(
+                        match key {
+                            "SHIFT" => Key::Shift,
+                            "CTRL" => Key::Control,
+                            "META" => Key::Meta,
+                            "ALT" => Key::Alt,
+                            "TAB" => Key::Tab,
+                            "BACKSPACE" => Key::Backspace,
+                            "CAPSLOCK" => Key::CapsLock,
+                            "CONTROL" => Key::Control,
+                            "DELETE" => Key::Delete,
+                            "DEL" => Key::Delete,
+                            "DOWNARROW" => Key::DownArrow,
+                            "END" => Key::End,
+                            "ESCAPE" => Key::Escape,
+                            "F1" => Key::F1,
+                            "F2" => Key::F2,
+                            "F3" => Key::F3,
+                            "F4" => Key::F4,
+                            "F5" => Key::F5,
+                            "F6" => Key::F6,
+                            "F7" => Key::F7,
+                            "F8" => Key::F8,
+                            "F9" => Key::F9,
+                            "F10" => Key::F10,
+                            "F11" => Key::F11,
+                            "F12" => Key::F12,
+                            "HOME" => Key::Home,
+                            "LEFTARROW" => Key::LeftArrow,
+                            "OPTION" => Key::Option,
+                            "PAGEDOWN" => Key::PageDown,
+                            "PAGEUP" => Key::PageUp,
+                            "RETURN" => Key::Return,
+                            "RIGHTARROW" => Key::RightArrow,
+                            "UPARROW" => Key::UpArrow,
+                            _ => return Err(ParseError::UnknownTag(tag)),
+                        }
+                    ));
                 }
                 None => return Err(ParseError::UnmatchedOpen),
             }
@@ -147,6 +204,26 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
     Ok(tokens)
 }
 
+#[derive(Debug, PartialEq)]
+enum Action {
+    Down,
+    Up,
+    Press,
+}
+
+impl Action {
+    pub fn into_token(&self, key: Key) -> Vec<Token> {
+        match self {
+            Self::Down => vec![Token::KeyDown(key)],
+            Self::Up => vec![Token::KeyUp(key)],
+            Self::Press => vec![
+                Token::KeyDown(key),
+                Token::KeyUp(key),
+            ],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,14 +236,27 @@ mod tests {
                 Token::Sequence("{Hello World!} ".into()),
                 Token::KeyDown(Key::Control),
                 Token::Sequence("hi".into()),
-                Token::KeyUp(Key::Control)
+                Token::KeyUp(Key::Control),
+            ])
+        );
+        assert_eq!(
+            tokenize("{+CTRL}f{-CTRL}hi{RETURN}"),
+            Ok(vec![
+                Token::KeyDown(Key::Control),
+                Token::Sequence("f".into()),
+                Token::KeyUp(Key::Control),
+                Token::Sequence("hi".into()),
+                Token::KeyDown(Key::Return),
+                Token::KeyUp(Key::Return),
             ])
         );
     }
+
     #[test]
     fn unexpected_open() {
         assert_eq!(tokenize("{hello{}world}"), Err(ParseError::UnexpectedOpen));
     }
+
     #[test]
     fn unmatched_open() {
         assert_eq!(
@@ -174,6 +264,7 @@ mod tests {
             Err(ParseError::UnmatchedOpen)
         );
     }
+
     #[test]
     fn unmatched_close() {
         assert_eq!(
