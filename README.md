@@ -58,6 +58,6 @@ On Gentoo:
 emerge -a xdotool
 ```
 
-# Migrating from a previous version
+## Migrating from a previous version
 
 Please have a look at our [changelog](CHANGES.md) to find out what you have to do, if you used a previous version.
