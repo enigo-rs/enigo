@@ -8,8 +8,8 @@
 [![Discord chat](https://img.shields.io/discord/315925376486342657.svg)](https://discord.gg/Eb8CsnN)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/enigo-rs/Lobby)
 
-
 # enigo
+
 Cross platform input simulation in Rust!
 
 - [x] Linux (X11) mouse
@@ -22,7 +22,6 @@ Cross platform input simulation in Rust!
 - [x] Win text
 - [x] Custom Parser
 
-
 ```Rust
 let mut enigo = Enigo::new();
 
@@ -31,17 +30,17 @@ enigo.mouse_click(MouseButton::Left);
 enigo.key_sequence_parse("{+CTRL}a{-CTRL}{+SHIFT}Hello World{-SHIFT}");
 ```
 
-for more look at examples
+For more look at examples
 
-Runtime dependencies
---------------------
+## Runtime dependencies
 
-Linux users may have to install libxdo-dev. For example, on Debian-based distros:
+Linux users may have to install `libxdo-dev`. For example, on Debian-based distros:
 
 ```Bash
 apt-get install libxdo-dev
 ```
-On Arch: 
+
+On Arch:
 
 ```Bash
 pacman -S xdotool
