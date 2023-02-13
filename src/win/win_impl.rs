@@ -121,7 +121,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_scroll_y(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_WHEEL, length * 120, 0, 0);
+        mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0);
     }
 }
 
@@ -184,7 +184,8 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Enigo {
-    /// Gets the (width, height) of the main display in screen coordinates (pixels).
+    /// Gets the (width, height) of the main display in screen coordinates
+    /// (pixels).
     ///
     /// # Example
     ///
