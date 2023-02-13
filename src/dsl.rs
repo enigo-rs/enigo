@@ -34,25 +34,27 @@ pub enum ParseError {
     /// Use {+UNICODE} or {-UNICODE} to enable / disable unicode
     MissingUnicodeAction,
 }
-impl Error for ParseError {
-    fn description(&self) -> &str {
-        match *self {
+
+impl Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match *self {
             Self::UnknownTag(_) => "Unknown tag",
             Self::UnexpectedOpen => "Unescaped open bracket ({) found inside tag name",
             Self::UnmatchedOpen => "Unmatched open bracket ({). No matching close (})",
             Self::UnmatchedClose => "Unmatched close bracket (}). No previous open ({)",
             Self::EmptyTag => "Empty tag",
             Self::MissingUnicodeAction => "Missing unicode action. {+UNICODE} or {-UNICODE}",
-        }
-    }
-}
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.description())
+        };
+        f.write_str(text)
     }
 }
 
 /// Evaluate the DSL. This tokenizes the input and presses the keys.
+/// # Errors
+///
+/// Will return [`ParseError`] if the input cannot be parsed
 pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
 where
     K: KeyboardControllable,
@@ -80,13 +82,8 @@ enum Token {
     KeyDown(Key),
 }
 
+#[allow(clippy::too_many_lines)]
 fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
-    let mut unicode = false;
-
-    let mut tokens = Vec::new();
-    let mut buffer = String::new();
-    let mut iter = input.chars().peekable();
-
     fn flush(tokens: &mut Vec<Token>, buffer: String, unicode: bool) {
         if !buffer.is_empty() {
             if unicode {
@@ -96,6 +93,12 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
             }
         }
     }
+
+    let mut unicode = false;
+
+    let mut tokens = Vec::new();
+    let mut buffer = String::new();
+    let mut iter = input.chars().peekable();
 
     while let Some(c) = iter.next() {
         if c == '{' {
@@ -112,14 +115,14 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                             Some('{') => match iter.peek() {
                                 Some(&'{') => {
                                     iter.next();
-                                    c = '{'
+                                    c = '{';
                                 }
                                 _ => return Err(ParseError::UnexpectedOpen),
                             },
                             Some('}') => match iter.peek() {
                                 Some(&'}') => {
                                     iter.next();
-                                    c = '}'
+                                    c = '}';
                                 }
                                 _ => break,
                             },
@@ -135,10 +138,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         },
                         None => return Err(ParseError::EmptyTag),
                     };
-                    let key = if action != Action::Press {
-                        &tag[1..]
-                    } else {
+                    let key = if action == Action::Press {
                         &tag
+                    } else {
+                        &tag[1..]
                     };
                     if tag == "UNICODE" {
                         unicode = match action {
@@ -148,44 +151,48 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         };
                         continue;
                     }
-                    tokens.append(&mut action.into_token(
-                        match key {
-                            "SHIFT" => Key::Shift,
-                            "CTRL" => Key::Control,
-                            "META" => Key::Meta,
-                            "ALT" => Key::Alt,
-                            "TAB" => Key::Tab,
-                            "BACKSPACE" => Key::Backspace,
-                            "CAPSLOCK" => Key::CapsLock,
-                            "CONTROL" => Key::Control,
-                            "DELETE" => Key::Delete,
-                            "DEL" => Key::Delete,
-                            "DOWNARROW" => Key::DownArrow,
-                            "END" => Key::End,
-                            "ESCAPE" => Key::Escape,
-                            "F1" => Key::F1,
-                            "F2" => Key::F2,
-                            "F3" => Key::F3,
-                            "F4" => Key::F4,
-                            "F5" => Key::F5,
-                            "F6" => Key::F6,
-                            "F7" => Key::F7,
-                            "F8" => Key::F8,
-                            "F9" => Key::F9,
-                            "F10" => Key::F10,
-                            "F11" => Key::F11,
-                            "F12" => Key::F12,
-                            "HOME" => Key::Home,
-                            "LEFTARROW" => Key::LeftArrow,
-                            "OPTION" => Key::Option,
-                            "PAGEDOWN" => Key::PageDown,
-                            "PAGEUP" => Key::PageUp,
-                            "RETURN" => Key::Return,
-                            "RIGHTARROW" => Key::RightArrow,
-                            "UPARROW" => Key::UpArrow,
-                            _ => return Err(ParseError::UnknownTag(tag)),
-                        }
-                    ));
+                    tokens.append(&mut action.into_token(match key {
+                        "ALT" => Key::Alt,
+                        "BACKSPACE" => Key::Backspace,
+                        "CAPSLOCK" => Key::CapsLock,
+                        "CTRL" | "CONTROL" => Key::Control,
+                        "DELETE" | "DEL" => Key::Delete,
+                        "DOWNARROW" => Key::DownArrow,
+                        "END" => Key::End,
+                        "ESCAPE" => Key::Escape,
+                        "F1" => Key::F1,
+                        "F2" => Key::F2,
+                        "F3" => Key::F3,
+                        "F4" => Key::F4,
+                        "F5" => Key::F5,
+                        "F6" => Key::F6,
+                        "F7" => Key::F7,
+                        "F8" => Key::F8,
+                        "F9" => Key::F9,
+                        "F10" => Key::F10,
+                        "F11" => Key::F11,
+                        "F12" => Key::F12,
+                        "F13" => Key::F13,
+                        "F14" => Key::F14,
+                        "F15" => Key::F15,
+                        "F16" => Key::F16,
+                        "F17" => Key::F17,
+                        "F18" => Key::F18,
+                        "F19" => Key::F19,
+                        "F20" => Key::F20,
+                        "HOME" => Key::Home,
+                        "LEFTARROW" => Key::LeftArrow,
+                        "META" => Key::Meta,
+                        "OPTION" => Key::Option,
+                        "PAGEDOWN" => Key::PageDown,
+                        "PAGEUP" => Key::PageUp,
+                        "RETURN" => Key::Return,
+                        "RIGHTARROW" => Key::RightArrow,
+                        "SHIFT" => Key::Shift,
+                        "TAB" => Key::Tab,
+                        "UPARROW" => Key::UpArrow,
+                        _ => return Err(ParseError::UnknownTag(tag)),
+                    }));
                 }
                 None => return Err(ParseError::UnmatchedOpen),
             }
@@ -212,14 +219,12 @@ enum Action {
 }
 
 impl Action {
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_token(&self, key: Key) -> Vec<Token> {
         match self {
             Self::Down => vec![Token::KeyDown(key)],
             Self::Up => vec![Token::KeyUp(key)],
-            Self::Press => vec![
-                Token::KeyDown(key),
-                Token::KeyUp(key),
-            ],
+            Self::Press => vec![Token::KeyDown(key), Token::KeyUp(key)],
         }
     }
 }

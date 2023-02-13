@@ -13,7 +13,7 @@ fn main() {
     enigo.key_sequence("Hello World! ❤️");
 
     let time = now.elapsed();
-    println!("{:?}", time);
+    println!("{time:?}");
 
     // select all
     enigo.key_down(Key::Control);

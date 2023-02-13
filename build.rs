@@ -5,8 +5,6 @@ fn main() {}
 fn main() {}
 
 #[cfg(target_os = "linux")]
-use pkg_config;
-#[cfg(target_os = "linux")]
 use std::env;
 #[cfg(target_os = "linux")]
 use std::fs::File;
@@ -36,20 +34,19 @@ fn main() {
     ];
 
     let mut config = String::new();
-    for lib in libraries.iter() {
+    for lib in &libraries {
         let libdir = match pkg_config::get_variable(lib, "libdir") {
-            Ok(libdir) => format!("Some(\"{}\")", libdir),
+            Ok(libdir) => format!("Some(\"{libdir}\")"),
             Err(_) => "None".to_string(),
         };
         config.push_str(&format!(
-            "pub const {}: Option<&'static str> = {};\n",
-            lib, libdir
+            "pub const {lib}: Option<&'static str> = {libdir};\n"
         ));
     }
-    let config = format!("pub mod config {{ pub mod libdir {{\n{}}}\n}}", config);
+    let config = format!("pub mod config {{ pub mod libdir {{\n{config}}}\n}}");
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("config.rs");
-    let mut f = File::create(&dest_path).unwrap();
+    let mut f = File::create(dest_path).unwrap();
     f.write_all(&config.into_bytes()).unwrap();
 
     let target = env::var("TARGET").unwrap();

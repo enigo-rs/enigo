@@ -12,6 +12,7 @@ env:
 jobs:
   formatting:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
@@ -33,6 +34,7 @@ jobs:
 
   lint:
     strategy:
+      fail-fast: false
       matrix:
         rust:
           - stable
