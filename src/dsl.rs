@@ -82,6 +82,7 @@ enum Token {
     KeyDown(Key),
 }
 
+#[allow(clippy::too_many_lines)]
 fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
     fn flush(tokens: &mut Vec<Token>, buffer: String, unicode: bool) {
         if !buffer.is_empty() {
@@ -137,10 +138,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         },
                         None => return Err(ParseError::EmptyTag),
                     };
-                    let key = if action != Action::Press {
-                        &tag[1..]
-                    } else {
+                    let key = if action == Action::Press {
                         &tag
+                    } else {
+                        &tag[1..]
                     };
                     if tag == "UNICODE" {
                         unicode = match action {
@@ -151,16 +152,11 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         continue;
                     }
                     tokens.append(&mut action.into_token(match key {
-                        "SHIFT" => Key::Shift,
-                        "CTRL" => Key::Control,
-                        "META" => Key::Meta,
                         "ALT" => Key::Alt,
-                        "TAB" => Key::Tab,
                         "BACKSPACE" => Key::Backspace,
                         "CAPSLOCK" => Key::CapsLock,
-                        "CONTROL" => Key::Control,
-                        "DELETE" => Key::Delete,
-                        "DEL" => Key::Delete,
+                        "CTRL" | "CONTROL" => Key::Control,
+                        "DELETE" | "DEL" => Key::Delete,
                         "DOWNARROW" => Key::DownArrow,
                         "END" => Key::End,
                         "ESCAPE" => Key::Escape,
@@ -176,13 +172,24 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         "F10" => Key::F10,
                         "F11" => Key::F11,
                         "F12" => Key::F12,
+                        "F13" => Key::F13,
+                        "F14" => Key::F14,
+                        "F15" => Key::F15,
+                        "F16" => Key::F16,
+                        "F17" => Key::F17,
+                        "F18" => Key::F18,
+                        "F19" => Key::F19,
+                        "F20" => Key::F20,
                         "HOME" => Key::Home,
                         "LEFTARROW" => Key::LeftArrow,
+                        "META" => Key::Meta,
                         "OPTION" => Key::Option,
                         "PAGEDOWN" => Key::PageDown,
                         "PAGEUP" => Key::PageUp,
                         "RETURN" => Key::Return,
                         "RIGHTARROW" => Key::RightArrow,
+                        "SHIFT" => Key::Shift,
+                        "TAB" => Key::Tab,
                         "UPARROW" => Key::UpArrow,
                         _ => return Err(ParseError::UnknownTag(tag)),
                     }));
@@ -212,6 +219,7 @@ enum Action {
 }
 
 impl Action {
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_token(&self, key: Key) -> Vec<Token> {
         match self {
             Self::Down => vec![Token::KeyDown(key)],

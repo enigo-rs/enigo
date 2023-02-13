@@ -159,7 +159,6 @@ impl KeyboardControllable for Enigo {
 
     fn key_click(&mut self, key: Key) {
         let scancode = self.key_to_scancode(key);
-        use std::{thread, time};
         keybd_event(
             KEYEVENTF_SCANCODE,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
@@ -323,7 +322,7 @@ impl Enigo {
             .expect("no valid input") //TODO(dustin): no panic here make an error
             .encode_utf16(&mut buffer);
         // TODO(dustin) don't panic here use an apropriate errors
-        assert!(!(utf16.len() != 1), "this char is not allowd");
+        assert!(utf16.len() == 1, "this char is not allowed");
         // NOTE VkKeyScanW uses the current keyboard layout
         // to specify a layout use VkKeyScanExW and GetKeyboardLayout
         // or load one with LoadKeyboardLayoutW
