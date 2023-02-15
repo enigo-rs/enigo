@@ -21,7 +21,7 @@ use crate::win::keycodes::{
     EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN, EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB,
     EVK_UP,
 };
-use crate::{Extension, Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
@@ -129,6 +129,22 @@ impl MouseControllable for Enigo {
 
     fn mouse_scroll_y(&mut self, length: i32) {
         mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0);
+    }
+
+    fn main_display_size(&self) -> (i32, i32) {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        (w, h)
+    }
+
+    fn mouse_location(&self) -> (i32, i32) {
+        let mut point = POINT { x: 0, y: 0 };
+        let result = unsafe { GetCursorPos(&mut point) };
+        if result.as_bool() {
+            (point.x, point.y)
+        } else {
+            (0, 0)
+        }
     }
 }
 
@@ -294,23 +310,5 @@ impl Enigo {
         let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
         // 0x41 as u16 //key that has the letter 'a' on it on english like keylayout
         keycode_and_shiftstate as u16
-    }
-}
-
-impl Extension for Enigo {
-    fn main_display_size(&self) -> (i32, i32) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-        (w, h)
-    }
-
-    fn mouse_location(&self) -> (i32, i32) {
-        let mut point = POINT { x: 0, y: 0 };
-        let result = unsafe { GetCursorPos(&mut point) };
-        if result.as_bool() {
-            (point.x, point.y)
-        } else {
-            (0, 0)
-        }
     }
 }

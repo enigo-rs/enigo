@@ -16,7 +16,7 @@ use crate::macos::keycodes::{
     kVK_Home, kVK_LeftArrow, kVK_Option, kVK_PageDown, kVK_PageUp, kVK_Return, kVK_RightArrow,
     kVK_Shift, kVK_Space, kVK_Tab, kVK_UpArrow,
 };
-use crate::{Extension, Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -353,6 +353,19 @@ impl MouseControllable for Enigo {
             }
         }
     }
+
+    fn main_display_size(&self) -> (i32, i32) {
+        let display_id = unsafe { CGMainDisplayID() };
+        let width = unsafe { CGDisplayPixelsWide(display_id) } as u64;
+        let height = unsafe { CGDisplayPixelsHigh(display_id) } as u64;
+        (width as i32, height as i32)
+    }
+
+    fn mouse_location(&self) -> (i32, i32) {
+        let (x, y_inv) = Self::mouse_location_raw_coords();
+        let (_, display_height) = self.main_display_size();
+        (x, (display_height as i32) - y_inv)
+    }
 }
 
 // https://stackoverflow.
@@ -545,20 +558,5 @@ impl Enigo {
         }
 
         unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
-    }
-}
-
-impl Extension for Enigo {
-    fn main_display_size(&self) -> (i32, i32) {
-        let display_id = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(display_id) } as u64;
-        let height = unsafe { CGDisplayPixelsHigh(display_id) } as u64;
-        (width as i32, height as i32)
-    }
-
-    fn mouse_location(&self) -> (i32, i32) {
-        let (x, y_inv) = Self::mouse_location_raw_coords();
-        let (_, display_height) = self.main_display_size();
-        (x, (display_height as i32) - y_inv)
     }
 }
