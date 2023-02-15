@@ -52,4 +52,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
-      - run: cargo clippy --all-targets --all-features -- -D clippy::pedantic
+      - run:   |
+          cargo clippy --all-targets --all-features -- -D clippy::pedantic
+          cargo clippy --all-targets --all-features --examples -- -D clippy::pedantic
