@@ -409,10 +409,10 @@ pub trait Extension {
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// let mut size = enigo.main_display_size();
+    /// let (width, height) = enigo.main_display_size();
     /// ```
     #[must_use]
-    fn main_display_size(&self) -> (usize, usize);
+    fn main_display_size(&self) -> (i32, i32);
 
     /// Gets the location of mouse in screen coordinates (pixels).
     ///
@@ -421,7 +421,7 @@ pub trait Extension {
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new();
-    /// let mut location = enigo.mouse_location();
+    /// let (x, y) = enigo.mouse_location();
     /// ```
     #[must_use]
     fn mouse_location(&self) -> (i32, i32);

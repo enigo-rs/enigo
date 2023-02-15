@@ -298,9 +298,9 @@ impl Enigo {
 }
 
 impl Extension for Enigo {
-    fn main_display_size(&self) -> (usize, usize) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
+    fn main_display_size(&self) -> (i32, i32) {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         (w, h)
     }
 

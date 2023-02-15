@@ -271,12 +271,12 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Extension for Enigo {
-    fn main_display_size(&self) -> (usize, usize) {
+    fn main_display_size(&self) -> (i32, i32) {
         const MAIN_SCREEN: i32 = 0;
         let mut width = 0;
         let mut height = 0;
         unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
-        (width as usize, height as usize)
+        (width, height)
     }
 
     fn mouse_location(&self) -> (i32, i32) {

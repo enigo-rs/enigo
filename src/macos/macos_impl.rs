@@ -1,17 +1,13 @@
 use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 use std::{thread, time};
 
-use core_graphics;
-
 use objc::runtime::Class;
 
-use self::core_graphics::display::{
+use core_graphics::display::{
     CFIndex, CFRelease, CGDisplayPixelsHigh, CGDisplayPixelsWide, CGMainDisplayID, CGPoint,
 };
-use self::core_graphics::event::{
-    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton,
-};
-use self::core_graphics::event_source::{CGEventSource, CGEventSourceRef, CGEventSourceStateID};
+use core_graphics::event::{CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton};
+use core_graphics::event_source::{CGEventSource, CGEventSourceRef, CGEventSourceStateID};
 
 use crate::macos::keycodes::{
     kVK_CapsLock, kVK_Command, kVK_Control, kVK_Delete, kVK_DownArrow, kVK_End, kVK_Escape, kVK_F1,
@@ -553,11 +549,11 @@ impl Enigo {
 }
 
 impl Extension for Enigo {
-    fn main_display_size(&self) -> (usize, usize) {
+    fn main_display_size(&self) -> (i32, i32) {
         let display_id = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(display_id) };
-        let height = unsafe { CGDisplayPixelsHigh(display_id) };
-        (width, height)
+        let width = unsafe { CGDisplayPixelsWide(display_id) } as u64;
+        let height = unsafe { CGDisplayPixelsHigh(display_id) } as u64;
+        (width as i32, height as i32)
     }
 
     fn mouse_location(&self) -> (i32, i32) {
