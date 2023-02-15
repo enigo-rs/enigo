@@ -97,7 +97,10 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
                 MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-                _ => unimplemented!(),
+                MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
+                MouseButton::ScrollDown => return self.mouse_scroll_x(1),
+                MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
+                MouseButton::ScrollRight => return self.mouse_scroll_y(1),
             },
             0,
             0,
@@ -111,7 +114,13 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTUP,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
                 MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-                _ => unimplemented!(),
+                MouseButton::ScrollUp
+                | MouseButton::ScrollDown
+                | MouseButton::ScrollLeft
+                | MouseButton::ScrollRight => {
+                    println!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
+                    return;
+                }
             },
             0,
             0,
