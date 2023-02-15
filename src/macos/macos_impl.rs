@@ -255,20 +255,21 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let (display_width, display_height) = self.main_display_size();
+        let (_, display_height) = self.main_display_size();
         let (current_x, y_inv) = Self::mouse_location_raw_coords();
         let current_y = (display_height as i32) - y_inv;
         let new_x = current_x + x;
         let new_y = current_y + y;
 
-        if new_x < 0
-            || new_x as usize > display_width
-            || new_y < 0
-            || new_y as usize > display_height
-        {
-            return;
-        }
-
+        /*
+                if new_x < 0
+                    || new_x as usize > display_width
+                    || new_y < 0
+                    || new_y as usize > display_height
+                {
+                    return;
+                }
+        */
         self.mouse_move_to(new_x, new_y);
     }
 
