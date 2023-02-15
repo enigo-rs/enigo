@@ -45,6 +45,21 @@ extern "C" {
         string: *const c_char,
         delay: useconds_t,
     ) -> c_int;
+
+    fn xdo_get_viewport_dimensions(
+        xdo: Xdo,
+        width: *mut c_int,
+        height: *mut c_int,
+        screen: c_int,
+    ) -> c_int;
+
+    fn xdo_get_mouse_location2(
+        xdo: Xdo,
+        x: *mut c_int,
+        y: *mut c_int,
+        screen: *mut c_int,
+        window: *mut Window,
+    ) -> c_int;
 }
 
 fn mousebutton(button: MouseButton) -> c_int {
@@ -156,7 +171,31 @@ impl MouseControllable for Enigo {
             self.mouse_click(button);
         }
     }
+    fn main_display_size(&self) -> (i32, i32) {
+        const MAIN_SCREEN: i32 = 0;
+        let mut width = 0;
+        let mut height = 0;
+        unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
+        (width, height)
+    }
+    fn mouse_location(&self) -> (i32, i32) {
+        let mut x = 0;
+        let mut y = 0;
+        let mut unused_screen_index = 0;
+        let mut unused_window_index = CURRENT_WINDOW;
+        unsafe {
+            xdo_get_mouse_location2(
+                self.xdo,
+                &mut x,
+                &mut y,
+                &mut unused_screen_index,
+                &mut unused_window_index,
+            )
+        };
+        (x, y)
+    }
 }
+
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
         return Cow::Owned(format!("U{:X}", c as u32));

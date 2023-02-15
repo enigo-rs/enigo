@@ -130,6 +130,22 @@ impl MouseControllable for Enigo {
     fn mouse_scroll_y(&mut self, length: i32) {
         mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0);
     }
+
+    fn main_display_size(&self) -> (i32, i32) {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        (w, h)
+    }
+
+    fn mouse_location(&self) -> (i32, i32) {
+        let mut point = POINT { x: 0, y: 0 };
+        let result = unsafe { GetCursorPos(&mut point) };
+        if result.as_bool() {
+            (point.x, point.y)
+        } else {
+            (0, 0)
+        }
+    }
 }
 
 impl KeyboardControllable for Enigo {
@@ -190,41 +206,6 @@ impl KeyboardControllable for Enigo {
 }
 
 impl Enigo {
-    /// Gets the (width, height) of the main display in screen coordinates
-    /// (pixels).
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut size = Enigo::main_display_size();
-    /// ```
-    #[must_use]
-    pub fn main_display_size() -> (usize, usize) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) as usize };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) as usize };
-        (w, h)
-    }
-
-    /// Gets the location of mouse in screen coordinates (pixels).
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut location = Enigo::mouse_location();
-    /// ```
-    #[must_use]
-    pub fn mouse_location() -> (i32, i32) {
-        let mut point = POINT { x: 0, y: 0 };
-        let result = unsafe { GetCursorPos(&mut point) };
-        if result.as_bool() {
-            (point.x, point.y)
-        } else {
-            (0, 0)
-        }
-    }
-
     fn unicode_key_click(&self, unicode_char: u16) {
         self.unicode_key_down(unicode_char);
         thread::sleep(time::Duration::from_millis(20));

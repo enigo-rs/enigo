@@ -239,6 +239,31 @@ pub trait MouseControllable {
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32);
+
+    /// Gets the (width, height) of the main display in screen coordinates
+    /// (pixels). This currently only works on the main display
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// let (width, height) = enigo.main_display_size();
+    /// ```
+    #[must_use]
+    fn main_display_size(&self) -> (i32, i32);
+
+    /// Gets the location of the mouse in screen coordinates (pixels).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new();
+    /// let (x, y) = enigo.mouse_location();
+    /// ```
+    #[must_use]
+    fn mouse_location(&self) -> (i32, i32);
 }
 
 /// A key on the keyboard.
