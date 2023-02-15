@@ -307,7 +307,7 @@ impl Extension for Enigo {
     fn mouse_location(&self) -> (i32, i32) {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
-        if result != 0 {
+        if result.as_bool() {
             (point.x, point.y)
         } else {
             (0, 0)

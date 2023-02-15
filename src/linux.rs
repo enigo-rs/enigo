@@ -1,6 +1,6 @@
 use libc;
 
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable, Extension};
+use crate::{Extension, Key, KeyboardControllable, MouseButton, MouseControllable};
 
 use self::libc::{c_char, c_int, c_void, useconds_t};
 use std::{borrow::Cow, ffi::CString, ptr};
@@ -272,9 +272,9 @@ impl KeyboardControllable for Enigo {
 
 impl Extension for Enigo {
     fn main_display_size(&self) -> (usize, usize) {
+        const MAIN_SCREEN: i32 = 0;
         let mut width = 0;
         let mut height = 0;
-        const MAIN_SCREEN: i32 = 0;
         unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
         (width as usize, height as usize)
     }
