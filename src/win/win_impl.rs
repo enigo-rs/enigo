@@ -87,7 +87,8 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        mouse_event(MOUSEEVENTF_MOVE, 0, x, y);
+        let (current_x, current_y) = self.mouse_location();
+        self.mouse_move_to(current_x + x, current_y + y);
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
