@@ -279,7 +279,10 @@ impl MouseControllable for Enigo {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
             MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
-            _ => unimplemented!(),
+            MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
+            MouseButton::ScrollDown => return self.mouse_scroll_x(1),
+            MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
+            MouseButton::ScrollRight => return self.mouse_scroll_y(1),
         };
         let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event =
@@ -293,7 +296,13 @@ impl MouseControllable for Enigo {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
             MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
-            _ => unimplemented!(),
+            MouseButton::ScrollUp
+            | MouseButton::ScrollDown
+            | MouseButton::ScrollLeft
+            | MouseButton::ScrollRight => {
+                println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
+                return;
+            }
         };
         let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event =
