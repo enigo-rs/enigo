@@ -1,6 +1,6 @@
-// https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731
-#![allow(dead_code)]
-
+/// Virtual keycodes taken from:
+/// <https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes>
+#[allow(dead_code)]
 pub const EVK_RETURN: u16 = 0x0D;
 pub const EVK_TAB: u16 = 0x09;
 pub const EVK_SPACE: u16 = 0x20;

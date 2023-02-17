@@ -13,4 +13,9 @@ fn main() {
     enigo.key_click(enigo::Key::DownArrow);
     enigo.key_click(enigo::Key::LeftArrow);
     enigo.key_click(enigo::Key::RightArrow);
+    enigo.key_sequence("𝕊");
+
+    // Special chars
+    // Need two u16s to be encoded
+    // 𝕊
 }

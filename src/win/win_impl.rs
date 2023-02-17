@@ -23,6 +23,9 @@ use crate::win::keycodes::{
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
+type KeyCode = u16;
+type ScanCode = u16;
+
 /// The main struct for handling the event emitting
 #[derive(Default)]
 pub struct Enigo;
@@ -51,7 +54,7 @@ fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) {
     };
 }
 
-fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: u16) {
+fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) {
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
@@ -184,33 +187,38 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_click(&mut self, key: Key) {
-        let scancode = self.key_to_scancode(key);
+        let keycode = self.key_to_keycode(key);
+        let scan = self.keycode_to_scancode(keycode);
         keybd_event(
             KEYEVENTF_SCANCODE,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scancode,
+            scan,
         );
         thread::sleep(time::Duration::from_millis(20));
         keybd_event(
             KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scancode,
+            scan,
         );
     }
 
     fn key_down(&mut self, key: Key) {
+        let keycode = self.key_to_keycode(key);
+        let scan = self.keycode_to_scancode(keycode);
         keybd_event(
             KEYEVENTF_SCANCODE,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            self.key_to_scancode(key),
+            scan,
         );
     }
 
     fn key_up(&mut self, key: Key) {
+        let keycode = self.key_to_keycode(key);
+        let scan = self.keycode_to_scancode(keycode);
         keybd_event(
             KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            self.key_to_scancode(key),
+            scan,
         );
     }
 }
@@ -240,7 +248,7 @@ impl Enigo {
         );
     }
 
-    fn key_to_keycode(&self, key: Key) -> u16 {
+    fn key_to_keycode(&self, key: Key) -> KeyCode {
         // do not use the codes from crate winapi they're
         // wrongly typed with i32 instead of i16 use the
         // ones provided by win/keycodes.rs that are prefixed
@@ -287,38 +295,36 @@ impl Enigo {
             Key::Tab => EVK_TAB,
             Key::UpArrow => EVK_UP,
             Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(c) => self.get_layoutdependent_keycode(&c.to_string()),
+            Key::Layout(c) => self.get_layoutdependent_keycode(c),
             Key::Super | Key::Command | Key::Windows | Key::Meta => EVK_LWIN,
         }
     }
 
-    fn key_to_scancode(&self, key: Key) -> u16 {
-        let keycode = self.key_to_keycode(key);
+    fn keycode_to_scancode(&self, keycode: KeyCode) -> ScanCode {
         unsafe {
             MapVirtualKeyW(
                 keycode as u32,
                 windows::Win32::UI::Input::KeyboardAndMouse::MAP_VIRTUAL_KEY_TYPE(0),
-            ) as u16
+            ) as ScanCode
         }
     }
 
     #[allow(clippy::unused_self)]
-    fn get_layoutdependent_keycode(&self, string: &str) -> u16 {
-        let mut buffer = [0; 2];
-        // get the first char from the string ignore the rest
-        // ensure its not a multybyte char
-        let utf16 = string
-            .chars()
-            .next()
-            .expect("no valid input") //TODO(dustin): no panic here make an error
-            .encode_utf16(&mut buffer);
-        // TODO(dustin) don't panic here use an apropriate errors
-        assert!(utf16.len() == 1, "this char is not allowed");
-        // NOTE VkKeyScanW uses the current keyboard layout
-        // to specify a layout use VkKeyScanExW and GetKeyboardLayout
-        // or load one with LoadKeyboardLayoutW
+    fn get_layoutdependent_keycode(&self, c: char) -> KeyCode {
+        let utf16 = utf16(c);
+        assert!(utf16.len() == 2, "This char is not allowed"); // TODO: Allow entering utf16 chars that have a length of two (such as
+                                                               // \U0001d54a)
+                                                               // NOTE VkKeyScanW uses the current keyboard layout
+                                                               // to specify a layout use VkKeyScanExW and GetKeyboardLayout
+                                                               // or load one with LoadKeyboardLayoutW
         let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
-        // 0x41 as u16 //key that has the letter 'a' on it on english like keylayout
-        keycode_and_shiftstate as u16
+        // 0x41 as KeyCode //key that has the letter 'a' on it on english like keylayout
+        keycode_and_shiftstate as KeyCode
     }
+}
+
+fn utf16(c: char) -> Vec<u16> {
+    let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
+    let utf16: Vec<u16> = c.encode_utf16(&mut buffer).into();
+    utf16
 }
