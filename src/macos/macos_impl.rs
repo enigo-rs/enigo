@@ -149,6 +149,7 @@ pub const kCFStringEncodingUTF8: u32 = 134_217_984;
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
+    fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
 
     //     extern void *
     // TISGetInputSourceProperty(
@@ -542,10 +543,20 @@ impl Enigo {
 
     #[allow(clippy::unused_self)]
     fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
-        let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let layout_data = unsafe {
+        let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
+        let mut layout_data = unsafe {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
+        if layout_data.is_null() {
+            // TISGetInputSourceProperty returns null with some keyboard layout.
+            // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
+            // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
+            current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
+            layout_data = unsafe {
+                TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
+            };
+            debug_assert_eq!(layout_data.is_null(), false);
+        }
         let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
 
         let mut keys_down: UInt32 = 0;
