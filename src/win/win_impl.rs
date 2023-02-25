@@ -4,10 +4,10 @@ use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
-    MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
-    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL, MOUSEINPUT, MOUSE_EVENT_FLAGS,
-    VIRTUAL_KEY,
+    MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE,
+    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL,
+    MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CXVIRTUALSCREEN, SM_CYSCREEN,
@@ -187,39 +187,51 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_click(&mut self, key: Key) {
-        let keycode = self.key_to_keycode(key);
-        let scan = self.keycode_to_scancode(keycode);
-        keybd_event(
-            KEYEVENTF_SCANCODE,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scan,
-        );
-        thread::sleep(time::Duration::from_millis(20));
-        keybd_event(
-            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scan,
-        );
+        if let Key::Layout(c) = key {
+            let scancodes = self.get_scancode(c);
+            for scan in &scancodes {
+                keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+            }
+            thread::sleep(time::Duration::from_millis(20));
+            for scan in &scancodes {
+                keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+            }
+        } else {
+            keybd_event(KEYBD_EVENT_FLAGS::default(), key_to_keycode(key), 0u16);
+            thread::sleep(time::Duration::from_millis(20));
+            keybd_event(
+                KEYBD_EVENT_FLAGS::default() | KEYEVENTF_KEYUP,
+                key_to_keycode(key),
+                0u16,
+            );
+        };
     }
 
     fn key_down(&mut self, key: Key) {
-        let keycode = self.key_to_keycode(key);
-        let scan = self.keycode_to_scancode(keycode);
-        keybd_event(
-            KEYEVENTF_SCANCODE,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scan,
-        );
+        if let Key::Layout(c) = key {
+            let scancodes = self.get_scancode(c);
+            for scan in &scancodes {
+                keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+            }
+        } else {
+            keybd_event(KEYBD_EVENT_FLAGS::default(), key_to_keycode(key), 0u16);
+        };
     }
 
     fn key_up(&mut self, key: Key) {
-        let keycode = self.key_to_keycode(key);
-        let scan = self.keycode_to_scancode(keycode);
-        keybd_event(
-            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            scan,
-        );
+        if let Key::Layout(c) = key {
+            let scancodes = self.get_scancode(c);
+
+            for scan in &scancodes {
+                keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+            }
+        } else {
+            keybd_event(
+                KEYBD_EVENT_FLAGS::default() | KEYEVENTF_KEYUP,
+                key_to_keycode(key),
+                0u16,
+            );
+        };
     }
 }
 
@@ -232,99 +244,85 @@ impl Enigo {
 
     #[allow(clippy::unused_self)]
     fn unicode_key_down(&self, unicode_char: u16) {
-        keybd_event(
-            KEYEVENTF_UNICODE,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
-            unicode_char,
-        );
+        keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), unicode_char);
     }
 
     #[allow(clippy::unused_self)]
     fn unicode_key_up(&self, unicode_char: u16) {
         keybd_event(
             KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-            windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+            VIRTUAL_KEY(0),
             unicode_char,
         );
     }
 
-    fn key_to_keycode(&self, key: Key) -> KeyCode {
-        // do not use the codes from crate winapi they're
-        // wrongly typed with i32 instead of i16 use the
-        // ones provided by win/keycodes.rs that are prefixed
-        // with an 'E' infront of the original name
-
-        // I mean duh, we still need to support deprecated keys until they're removed
-        match key {
-            Key::Alt | Key::Option => EVK_MENU,
-            Key::Backspace => EVK_BACK,
-            Key::CapsLock => EVK_CAPITAL,
-            Key::Control => EVK_LCONTROL,
-            Key::Delete => EVK_DELETE,
-            Key::DownArrow => EVK_DOWN,
-            Key::End => EVK_END,
-            Key::Escape => EVK_ESCAPE,
-            Key::F1 => EVK_F1,
-            Key::F2 => EVK_F2,
-            Key::F3 => EVK_F3,
-            Key::F4 => EVK_F4,
-            Key::F5 => EVK_F5,
-            Key::F6 => EVK_F6,
-            Key::F7 => EVK_F7,
-            Key::F8 => EVK_F8,
-            Key::F9 => EVK_F9,
-            Key::F10 => EVK_F10,
-            Key::F11 => EVK_F11,
-            Key::F12 => EVK_F12,
-            Key::F13 => EVK_F13,
-            Key::F14 => EVK_F14,
-            Key::F15 => EVK_F15,
-            Key::F16 => EVK_F16,
-            Key::F17 => EVK_F17,
-            Key::F18 => EVK_F18,
-            Key::F19 => EVK_F19,
-            Key::F20 => EVK_F20,
-            Key::Home => EVK_HOME,
-            Key::LeftArrow => EVK_LEFT,
-            Key::PageDown => EVK_NEXT,
-            Key::PageUp => EVK_PRIOR,
-            Key::Return => EVK_RETURN,
-            Key::RightArrow => EVK_RIGHT,
-            Key::Shift => EVK_SHIFT,
-            Key::Space => EVK_SPACE,
-            Key::Tab => EVK_TAB,
-            Key::UpArrow => EVK_UP,
-            Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(c) => self.get_layoutdependent_keycode(c),
-            Key::Super | Key::Command | Key::Windows | Key::Meta => EVK_LWIN,
-        }
-    }
-
-    fn keycode_to_scancode(&self, keycode: KeyCode) -> ScanCode {
-        unsafe {
-            MapVirtualKeyW(
-                keycode as u32,
-                windows::Win32::UI::Input::KeyboardAndMouse::MAP_VIRTUAL_KEY_TYPE(0),
-            ) as ScanCode
-        }
-    }
-
     #[allow(clippy::unused_self)]
-    fn get_layoutdependent_keycode(&self, c: char) -> KeyCode {
-        let utf16 = utf16(c);
-        assert!(utf16.len() == 2, "This char is not allowed"); // TODO: Allow entering utf16 chars that have a length of two (such as
-                                                               // \U0001d54a)
-                                                               // NOTE VkKeyScanW uses the current keyboard layout
-                                                               // to specify a layout use VkKeyScanExW and GetKeyboardLayout
-                                                               // or load one with LoadKeyboardLayoutW
-        let keycode_and_shiftstate = unsafe { VkKeyScanW(utf16[0]) };
-        // 0x41 as KeyCode //key that has the letter 'a' on it on english like keylayout
-        keycode_and_shiftstate as KeyCode
+    fn get_scancode(&self, c: char) -> Vec<ScanCode> {
+        let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
+        let utf16: Vec<u16> = c.encode_utf16(&mut buffer).into();
+        let keycode_and_shiftstate: Vec<ScanCode> = utf16
+            .iter()
+            .map(|&x| unsafe { VkKeyScanW(x) as KeyCode })
+            .map(|x| unsafe { MapVirtualKeyW(x as u32, MAP_VIRTUAL_KEY_TYPE(0)) as ScanCode })
+            .collect();
+        //assert!(utf16.len() == 2, "This char is not allowed");
+        // TODO: Allow
+        // entering utf16 chars that have a length of two (such as \U0001d54a)
+        // NOTE VkKeyScanW uses the current keyboard layout
+        // to specify a layout use VkKeyScanExW and GetKeyboardLayout
+        // or load one with LoadKeyboardLayoutW
+        keycode_and_shiftstate
     }
 }
 
-fn utf16(c: char) -> Vec<u16> {
-    let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
-    let utf16: Vec<u16> = c.encode_utf16(&mut buffer).into();
-    utf16
+fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
+    // do not use the codes from crate winapi they're
+    // wrongly typed with i32 instead of i16 use the
+    // ones provided by win/keycodes.rs that are prefixed
+    // with an 'E' infront of the original name
+
+    // I mean duh, we still need to support deprecated keys until they're removed
+    match key {
+        Key::Alt | Key::Option => VIRTUAL_KEY(EVK_MENU),
+        Key::Backspace => VIRTUAL_KEY(EVK_BACK),
+        Key::CapsLock => VIRTUAL_KEY(EVK_CAPITAL),
+        Key::Control => VIRTUAL_KEY(EVK_LCONTROL),
+        Key::Delete => VIRTUAL_KEY(EVK_DELETE),
+        Key::DownArrow => VIRTUAL_KEY(EVK_DOWN),
+        Key::End => VIRTUAL_KEY(EVK_END),
+        Key::Escape => VIRTUAL_KEY(EVK_ESCAPE),
+        Key::F1 => VIRTUAL_KEY(EVK_F1),
+        Key::F2 => VIRTUAL_KEY(EVK_F2),
+        Key::F3 => VIRTUAL_KEY(EVK_F3),
+        Key::F4 => VIRTUAL_KEY(EVK_F4),
+        Key::F5 => VIRTUAL_KEY(EVK_F5),
+        Key::F6 => VIRTUAL_KEY(EVK_F6),
+        Key::F7 => VIRTUAL_KEY(EVK_F7),
+        Key::F8 => VIRTUAL_KEY(EVK_F8),
+        Key::F9 => VIRTUAL_KEY(EVK_F9),
+        Key::F10 => VIRTUAL_KEY(EVK_F10),
+        Key::F11 => VIRTUAL_KEY(EVK_F11),
+        Key::F12 => VIRTUAL_KEY(EVK_F12),
+        Key::F13 => VIRTUAL_KEY(EVK_F13),
+        Key::F14 => VIRTUAL_KEY(EVK_F14),
+        Key::F15 => VIRTUAL_KEY(EVK_F15),
+        Key::F16 => VIRTUAL_KEY(EVK_F16),
+        Key::F17 => VIRTUAL_KEY(EVK_F17),
+        Key::F18 => VIRTUAL_KEY(EVK_F18),
+        Key::F19 => VIRTUAL_KEY(EVK_F19),
+        Key::F20 => VIRTUAL_KEY(EVK_F20),
+        Key::Home => VIRTUAL_KEY(EVK_HOME),
+        Key::LeftArrow => VIRTUAL_KEY(EVK_LEFT),
+        Key::PageDown => VIRTUAL_KEY(EVK_NEXT),
+        Key::PageUp => VIRTUAL_KEY(EVK_PRIOR),
+        Key::Return => VIRTUAL_KEY(EVK_RETURN),
+        Key::RightArrow => VIRTUAL_KEY(EVK_RIGHT),
+        Key::Shift => VIRTUAL_KEY(EVK_SHIFT),
+        Key::Space => VIRTUAL_KEY(EVK_SPACE),
+        Key::Tab => VIRTUAL_KEY(EVK_TAB),
+        Key::UpArrow => VIRTUAL_KEY(EVK_UP),
+        Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
+        Key::Layout(_) => panic!(), // TODO: Don't panic here
+        Key::Super | Key::Command | Key::Windows | Key::Meta => VIRTUAL_KEY(EVK_LWIN),
+    }
 }

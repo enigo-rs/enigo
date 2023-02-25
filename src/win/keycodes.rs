@@ -1,6 +1,5 @@
 /// Virtual keycodes taken from:
 /// <https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes>
-#[allow(dead_code)]
 pub const EVK_RETURN: u16 = 0x0D;
 pub const EVK_TAB: u16 = 0x09;
 pub const EVK_SPACE: u16 = 0x20;
@@ -40,7 +39,11 @@ pub const EVK_F17: u16 = 0x80;
 pub const EVK_F18: u16 = 0x81;
 pub const EVK_F19: u16 = 0x82;
 pub const EVK_F20: u16 = 0x83;
+#[allow(dead_code)]
 pub const EVK_F21: u16 = 0x84;
+#[allow(dead_code)]
 pub const EVK_F22: u16 = 0x85;
+#[allow(dead_code)]
 pub const EVK_F23: u16 = 0x86;
+#[allow(dead_code)]
 pub const EVK_F24: u16 = 0x87;
