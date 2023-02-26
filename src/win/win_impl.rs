@@ -255,6 +255,8 @@ impl Enigo {
 
     fn is_extended_keycode(&self, key: Key) -> bool {
         match key {
+            Key::PageUp => true,
+            Key::PageDown => true,
             Key::ExtendRaw(_) => true,
             Key::Super | Key::Command | Key::Windows | Key::Meta => true,
             _ => false,
