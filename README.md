@@ -1,9 +1,8 @@
-[![Build status](https://travis-ci.org/enigo-rs/enigo.svg?branch=master)](https://travis-ci.org/enigo-rs/enigo)
-[![Build status](https://ci.appveyor.com/api/projects/status/6cd00pajx4tvvl3e?svg=true)](https://ci.appveyor.com/project/pythoneer/enigo-85xiy)
-![Rust version](https://img.shields.io/badge/rust--version-1.64-brightgreen.svg)
+[![Build status](https://img.shields.io/github/actions/workflow/status/enigo-rs/enigo/build.yml?branch=master)](https://github.com/enigo-rs/enigo/actions/workflows/build.yml)
+[![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Dependency status](https://deps.rs/repo/github/enigo-rs/enigo/status.svg)](https://deps.rs/repo/github/enigo-rs/enigo)
 
-[![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
+![Rust version](https://img.shields.io/badge/rust--version-1.64+-brightgreen.svg)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
 [![Discord chat](https://img.shields.io/discord/315925376486342657.svg)](https://discord.gg/Eb8CsnN)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/enigo-rs/Lobby)
