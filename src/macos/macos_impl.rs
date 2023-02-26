@@ -1,12 +1,17 @@
 use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ulong, c_ushort, c_void};
-use std::{thread, time};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use objc::runtime::Class;
 
 use core_graphics::display::{
     CFIndex, CFRelease, CGDisplayPixelsHigh, CGDisplayPixelsWide, CGMainDisplayID, CGPoint,
 };
-use core_graphics::event::{CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton};
+use core_graphics::event::{
+    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
+};
 use core_graphics::event_source::{CGEventSource, CGEventSourceRef, CGEventSourceStateID};
 
 use crate::macos::keycodes::{
@@ -17,6 +22,11 @@ use crate::macos::keycodes::{
     kVK_Shift, kVK_Space, kVK_Tab, kVK_UpArrow,
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+
+// If two clicks of the same button are recognized withing this duration, it is
+// considered a double click. The value of 500ms is the default on Windows.
+// https://learn.microsoft.com/en-us/windows/win32/controls/ttm-setdelaytime
+const DOUBLE_CLICK_DELAY: Duration = Duration::from_millis(500);
 
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -220,6 +230,14 @@ enum ScrollUnit {
 /// The main struct for handling the event emitting
 pub struct Enigo {
     event_source: CGEventSource,
+    // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
+    last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
+                                            * store the last time the button was clicked and
+                                            * the nth click that was
+                                            * This information is needed to
+                                            * determine double clicks and handle cases where
+                                            * another button is clicked while the other one has
+                                            * not yet been released */
 }
 
 impl Default for Enigo {
@@ -228,6 +246,8 @@ impl Default for Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
                 .expect("Failed creating event source"),
+
+            last_mouse_click: [(0, Instant::now()); 7],
         }
     }
 }
@@ -276,6 +296,7 @@ impl MouseControllable for Enigo {
 
     fn mouse_down(&mut self, button: MouseButton) {
         let (current_x, current_y) = self.mouse_location();
+        let click_count = self.nth_button_press(button, true);
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
@@ -288,11 +309,14 @@ impl MouseControllable for Enigo {
         let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event =
             CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+
+        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
         event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
         let (current_x, current_y) = self.mouse_location();
+        let click_count = self.nth_button_press(button, false);
         let (button, event_type) = match button {
             MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
             MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
@@ -308,6 +332,8 @@ impl MouseControllable for Enigo {
         let dest = CGPoint::new(current_x as f64, current_y as f64);
         let event =
             CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
+
+        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
         event.post(CGEventTapLocation::HID);
     }
 
@@ -400,19 +426,19 @@ impl KeyboardControllable for Enigo {
 
     fn key_click(&mut self, key: Key) {
         let keycode = self.key_to_keycode(key);
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
         let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
             .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
 
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
         let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
             .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
     }
 
     fn key_down(&mut self, key: Key) {
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
         let event =
             CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
                 .expect("Failed creating event");
@@ -420,7 +446,7 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_up(&mut self, key: Key) {
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
         let event =
             CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
                 .expect("Failed creating event");
@@ -432,6 +458,25 @@ impl Enigo {
     fn pressed_buttons() -> usize {
         let ns_event = Class::get("NSEvent").unwrap();
         unsafe { msg_send![ns_event, pressedMouseButtons] }
+    }
+
+    // On macOS, we have to determine ourselves if it was a double click of a mouse
+    // button. The Enigo struct stores the information needed to do so. This
+    // function checks if the button was pressed down again fast enough to issue a
+    // double (or nth) click and returns the nth click it was. It also takes care of
+    // updating the information the Enigo struct stores.
+    fn nth_button_press(&mut self, button: MouseButton, press: bool) -> i64 {
+        if press {
+            let last_time = self.last_mouse_click[button as usize].1;
+            self.last_mouse_click[button as usize].1 = Instant::now();
+
+            if last_time.elapsed() < DOUBLE_CLICK_DELAY {
+                self.last_mouse_click[button as usize].0 += 1;
+            } else {
+                self.last_mouse_click[button as usize].0 = 1;
+            }
+        }
+        self.last_mouse_click[button as usize].0
     }
 
     /// Returns the current mouse location in Cocoa coordinates which have Y
