@@ -365,6 +365,8 @@ pub enum Key {
     Layout(char),
     /// raw keycode eg 0x38
     Raw(u16),
+    /// raw keycode eg 0xB3 @see https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput#members
+    ExtendRaw(u16),
 }
 
 /// Representing an interface and a set of keyboard functions every

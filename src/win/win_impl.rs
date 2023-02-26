@@ -3,11 +3,11 @@ use std::{mem::size_of, thread, time};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
-    MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
-    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL, MOUSEINPUT, MOUSE_EVENT_FLAGS,
-    VIRTUAL_KEY,
+    KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
+    KEYEVENTF_UNICODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE,
+    MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL,
+    MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CXVIRTUALSCREEN, SM_CYSCREEN,
@@ -185,30 +185,36 @@ impl KeyboardControllable for Enigo {
 
     fn key_click(&mut self, key: Key) {
         let scancode = self.key_to_scancode(key);
+        let extend_flag = self.get_extended_flag(key);
+
         keybd_event(
-            KEYEVENTF_SCANCODE,
+            KEYEVENTF_SCANCODE | extend_flag,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             scancode,
         );
         thread::sleep(time::Duration::from_millis(20));
         keybd_event(
-            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
+            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE | extend_flag,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             scancode,
         );
     }
 
     fn key_down(&mut self, key: Key) {
+        let extend_flag = self.get_extended_flag(key);
+
         keybd_event(
-            KEYEVENTF_SCANCODE,
+            KEYEVENTF_SCANCODE | extend_flag,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             self.key_to_scancode(key),
         );
     }
 
     fn key_up(&mut self, key: Key) {
+        let extend_flag = self.get_extended_flag(key);
+
         keybd_event(
-            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE,
+            KEYEVENTF_KEYUP | KEYEVENTF_SCANCODE | extend_flag,
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             self.key_to_scancode(key),
         );
@@ -238,6 +244,21 @@ impl Enigo {
             windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
             unicode_char,
         );
+    }
+
+    fn get_extended_flag(&self, key: Key) -> KEYBD_EVENT_FLAGS {
+        match self.is_extended_keycode(key) {
+            true => KEYEVENTF_EXTENDEDKEY,
+            false => KEYBD_EVENT_FLAGS(0),
+        }
+    }
+
+    fn is_extended_keycode(&self, key: Key) -> bool {
+        match key {
+            Key::ExtendRaw(_) => true,
+            Key::Super | Key::Command | Key::Windows | Key::Meta => true,
+            _ => false,
+        }
     }
 
     fn key_to_keycode(&self, key: Key) -> u16 {
@@ -287,6 +308,7 @@ impl Enigo {
             Key::Tab => EVK_TAB,
             Key::UpArrow => EVK_UP,
             Key::Raw(raw_keycode) => raw_keycode,
+            Key::ExtendRaw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(&c.to_string()),
             Key::Super | Key::Command | Key::Windows | Key::Meta => EVK_LWIN,
         }

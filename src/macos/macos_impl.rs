@@ -487,6 +487,7 @@ impl Enigo {
             Key::Tab => kVK_Tab,
             Key::UpArrow => kVK_UpArrow,
             Key::Raw(raw_keycode) => raw_keycode,
+            Key::ExtendRaw(raw_keycode) => raw_keycode,
             Key::Layout(c) => self.get_layoutdependent_keycode(&c.to_string()),
             Key::Super | Key::Command | Key::Windows | Key::Meta => kVK_Command,
         }
