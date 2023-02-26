@@ -11,13 +11,13 @@
 //!
 //! In order to use the library, you only have to know about three
 //! things:
-//! - [KeyboardControllable] (trait): used to simulate a key click, enter text
+//! - [`KeyboardControllable`] (trait): used to simulate a key click, enter text
 //!   or something similar
-//! - [MouseControllable] (trait): do something with the mouse or you find out
+//! - [`MouseControllable`] (trait): do something with the mouse or you find out
 //!   the display
 //! size
-//! - [Enigo] (struct): implements the two traits [KeyboardControllable] and
-//!   [MouseControllable]
+//! - [`Enigo`] (struct): implements the two traits [`KeyboardControllable`] and
+//!   [`MouseControllable`]
 //!
 //! A simple [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
 //! is available. It is documented in the [`dsl`] module.
@@ -396,7 +396,7 @@ pub trait KeyboardControllable {
     /// Enter the text. You can use unicode here like: ❤️. This works
     /// regardless of the current keyboardlayout. You cannot use this function
     /// for entering shortcuts or something similar. For shortcuts, use the
-    /// key_click method instead.
+    /// [`KeyboardControllable::key_click`] method instead.
     ///
     /// # Example
     ///
