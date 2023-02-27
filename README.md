@@ -1,4 +1,4 @@
-[![Build status](https://img.shields.io/github/actions/workflow/status/enigo-rs/enigo/build.yml?branch=master)](https://github.com/enigo-rs/enigo/actions/workflows/build.yml)
+[![Build status](https://img.shields.io/github/actions/workflow/status/enigo-rs/enigo/CI.yml?branch=master)](https://github.com/enigo-rs/enigo/actions/workflows/CI.yml)
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Dependency status](https://deps.rs/repo/github/enigo-rs/enigo/status.svg)](https://deps.rs/repo/github/enigo-rs/enigo)
 
