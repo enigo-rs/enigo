@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enigo Universal Test</title>
+</head>
+
+<body>
+    <h1>Conducted tests</h1>
+    <form action="/action_page.php">
+        <input type="checkbox" id="keydown" name="keydown">
+        <label for="keydown"> keydown</label><br>
+        <input type="checkbox" id="keyup" name="keyup">
+        <label for="keyup"> keyup</label><br>
+        <input type="checkbox" id="mousedown" name="mousedown">
+        <label for="mousedown"> mousedown</label><br>
+        <input type="checkbox" id="mouseup" name="mouseup">
+        <label for="mouseup"> mouseup</label><br>
+        <input type="checkbox" id="mousemove" name="mousemove">
+        <label for="mousemove"> mousemove</label><br>
+        <input type="checkbox" id="wheel" name="wheel">
+        <label for="wheel"> wheel</label><br>
+    </form>
+
+    <p id="output1">Test did not start. Do you have JavaScript enabled?</p>
+    <script>
+        const ws = new WebSocket('ws://localhost:26541');
+        ws.addEventListener('open', (event) => {
+            console.log('connected');
+            ws.send('open:');
+            document.getElementById('output1').innerHTML = 'Test was started. Do not close the page.';
+        });
+        ws.addEventListener('close', (event) => {
+            console.log('disconnected');
+            ws.send('close:');
+            document.getElementById('output1').innerHTML = 'Test concluded. Close this page.';
+        });
+        document.addEventListener('keydown', (event) => {
+            console.log('keydown', event.key);
+            document.getElementById('keydown').checked = true;
+            ws.send('keydown:' + event.key);
+        });
+        document.addEventListener('keyup', (event) => {
+            console.log('keyup', event.key);
+            document.getElementById("keyup").checked = true;
+            ws.send('keyup:' + event.key);
+        });
+        document.addEventListener('mousedown', (event) => {
+            console.log('mousedown', event.button);
+            document.getElementById("mousedown").checked = true;
+            ws.send('mousedown:' + event.button);
+        });
+        document.addEventListener('mouseup', (event) => {
+            console.log('mouseup', event.button);
+            document.getElementById("mouseup").checked = true;
+            ws.send('mouseup:' + event.button);
+        });
+        document.addEventListener('mousemove', (event) => {
+            console.log('mousemoveX', event.movementX, event.screenX);
+            console.log('mousemoveY', event.movementY, event.screenY);
+            document.getElementById("mousemove").checked = true;
+            ws.send('mousemove:' + event.movementX + ',' + event.movementY + '|' + event.screenX + ',' + event.screenY);
+        });
+        document.addEventListener('wheel', (event) => {
+            console.log('wheelY', event.deltaY);
+            console.log('wheelX', event.deltaX);
+            document.getElementById("wheel").checked = true;
+            ws.send('mousewheel:' + event.deltaX + ',' + event.deltaY);
+        });
+    </script>
+</body>
+
+</html>
