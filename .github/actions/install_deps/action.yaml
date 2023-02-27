@@ -7,6 +7,7 @@ runs:
     - name:  Install dependencies
       run:   |
         if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt-mark hold grub-efi-amd64-signed # TODO: Remove temporary fix
           sudo apt-get update -q -y && sudo apt-get upgrade -y && sudo apt-get install -y libxdo-dev 
           echo "$RUNNER_OS"
         elif [ "$RUNNER_OS" == "Windows" ]; then
