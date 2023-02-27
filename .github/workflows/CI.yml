@@ -1,0 +1,62 @@
+name: CI
+
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - nightly
+          - "1.64.0"
+        platform:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install_deps
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Check the code format
+        run: cargo fmt -- --check
+
+      - name: Check clippy lints
+        run: cargo clippy --all-targets --all-features -- -D clippy::pedantic
+      - name: Check clippy lints for the examples
+        run: cargo clippy --all-targets --all-features --examples -- -D clippy::pedantic
+
+      - name: Build the code
+        run: cargo build
+      - name: Build the code with all features enabled
+        run: cargo build --all-features
+
+      - name: Build the docs
+        run: cargo doc
+      - name: Build the docs with all features enabled
+        run: cargo doc --all-features
+
+      - name: Build the examples
+        run: cargo check --examples
+      - name: Build the examples with all features enabled
+        run: cargo check --examples --all-features
+
+      - name: Test the code
+        run: cargo test
+      - name: Test the code with all features enabled
+        run: cargo test --all-features
