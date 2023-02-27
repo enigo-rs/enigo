@@ -60,3 +60,9 @@ jobs:
         run: cargo test
       - name: Test the code with all features enabled
         run: cargo test --all-features
+
+      - name: Setup headless display for integration tests
+        uses: ./.github/actions/headless_display
+      - name: Run integration tests
+        if: runner.os == 'Linux'
+        run: cargo test --all-features -- --include-ignored --nocapture

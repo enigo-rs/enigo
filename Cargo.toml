@@ -23,6 +23,11 @@ appveyor = { repository = "pythoneer/enigo-85xiy" }
 serde = { version = "1.0.102", optional = true }
 serde_derive = { version = "1.0.102", optional = true }
 
+[dev-dependencies]
+tungstenite = "0.18.0"
+url = "2.3.1"
+webbrowser = "0.8.6"
+
 [features]
 with_serde = ["serde", "serde_derive"]
 
