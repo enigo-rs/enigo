@@ -23,11 +23,6 @@ use crate::macos::keycodes::{
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
-// If two clicks of the same button are recognized withing this duration, it is
-// considered a double click. The value of 500ms is the default on Windows.
-// https://learn.microsoft.com/en-us/windows/win32/controls/ttm-setdelaytime
-const DOUBLE_CLICK_DELAY: Duration = Duration::from_millis(500);
-
 // required for pressedMouseButtons on NSEvent
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
@@ -230,6 +225,7 @@ enum ScrollUnit {
 /// The main struct for handling the event emitting
 pub struct Enigo {
     event_source: CGEventSource,
+    double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
                                             * store the last time the button was clicked and
@@ -242,11 +238,16 @@ pub struct Enigo {
 
 impl Default for Enigo {
     fn default() -> Self {
+        let double_click_delay = Duration::from_secs(1);
+        let double_click_delay_setting: f64 =
+            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
+        let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
+
         Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
                 .expect("Failed creating event source"),
-
+            double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
         }
     }
@@ -470,7 +471,7 @@ impl Enigo {
             let last_time = self.last_mouse_click[button as usize].1;
             self.last_mouse_click[button as usize].1 = Instant::now();
 
-            if last_time.elapsed() < DOUBLE_CLICK_DELAY {
+            if last_time.elapsed() < self.double_click_delay {
                 self.last_mouse_click[button as usize].0 += 1;
             } else {
                 self.last_mouse_click[button as usize].0 = 1;
