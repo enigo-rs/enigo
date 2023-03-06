@@ -313,8 +313,8 @@ fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
         Key::Space => VIRTUAL_KEY(EVK_SPACE),
         Key::Tab => VIRTUAL_KEY(EVK_TAB),
         Key::UpArrow => VIRTUAL_KEY(EVK_UP),
-	    Key::VolumeUp =>  VIRTUAL_KEY(EVK_VOL_UP),
-	    Key::VolumeDown => VIRTUAL_KEY(EVK_VOL_DOWN),
+        Key::VolumeUp =>  VIRTUAL_KEY(EVK_VOL_UP),
+        Key::VolumeDown => VIRTUAL_KEY(EVK_VOL_DOWN),
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
         Key::Layout(_) => panic!(), // TODO: Don't panic here
         Key::Super | Key::Command | Key::Windows | Key::Meta => VIRTUAL_KEY(EVK_LWIN),
