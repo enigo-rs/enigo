@@ -17,7 +17,7 @@ use crate::win::keycodes::{
     EVK_F12, EVK_F13, EVK_F14, EVK_F15, EVK_F16, EVK_F17, EVK_F18, EVK_F19, EVK_F2, EVK_F20,
     EVK_F3, EVK_F4, EVK_F5, EVK_F6, EVK_F7, EVK_F8, EVK_F9, EVK_HOME, EVK_LCONTROL, EVK_LEFT,
     EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN, EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB,
-    EVK_UP,
+    EVK_UP, EVK_VOL_UP, EVK_VOL_DOWN
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
@@ -313,6 +313,8 @@ fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
         Key::Space => VIRTUAL_KEY(EVK_SPACE),
         Key::Tab => VIRTUAL_KEY(EVK_TAB),
         Key::UpArrow => VIRTUAL_KEY(EVK_UP),
+	    Key::VolumeUp =>  VIRTUAL_KEY(EVK_VOL_UP),
+	    Key::VolumeDown => VIRTUAL_KEY(EVK_VOL_DOWN),
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
         Key::Layout(_) => panic!(), // TODO: Don't panic here
         Key::Super | Key::Command | Key::Windows | Key::Meta => VIRTUAL_KEY(EVK_LWIN),

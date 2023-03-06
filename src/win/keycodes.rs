@@ -47,3 +47,5 @@ pub const EVK_F22: u16 = 0x85;
 pub const EVK_F23: u16 = 0x86;
 #[allow(dead_code)]
 pub const EVK_F24: u16 = 0x87;
+pub const EVK_VOL_UP: u16 = 0xaf;
+pub const EVK_VOL_DOWN: u16 = 0xae;

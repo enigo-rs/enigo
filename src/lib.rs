@@ -360,6 +360,10 @@ pub enum Key {
     Layout(char),
     /// raw keycode eg 0x38
     Raw(u16),
+    /// volume up key
+    VolumeUp,
+    // volume down key
+    VolumeDown
 }
 
 /// Contains functions to simulate key presses and to input text.

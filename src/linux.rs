@@ -244,6 +244,8 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Space => "space",
         Key::Tab => "Tab",
         Key::UpArrow => "Up",
+        Key::VolumeUp =>  "123",
+        Key::VolumeDown => "122",
         Key::Layout(_) | Key::Raw(_) => unreachable!(),
         Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
