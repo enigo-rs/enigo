@@ -6,13 +6,11 @@ use std::{
 
 use objc::runtime::Class;
 
-use core_graphics::display::{
-    CFIndex, CFRelease, CGDisplayPixelsHigh, CGDisplayPixelsWide, CGMainDisplayID, CGPoint,
-};
+use core_graphics::display::{CFIndex, CGDisplay, CGPoint};
 use core_graphics::event::{
-    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
+    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField, ScrollEventUnit,
 };
-use core_graphics::event_source::{CGEventSource, CGEventSourceRef, CGEventSourceStateID};
+use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
 use crate::macos::keycodes::{
     kVK_CapsLock, kVK_Command, kVK_Control, kVK_Delete, kVK_DownArrow, kVK_End, kVK_Escape, kVK_F1,
@@ -23,26 +21,9 @@ use crate::macos::keycodes::{
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
-// required for pressedMouseButtons on NSEvent
+// required for NSEvent
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
-
-struct MyCGEvent;
-
-#[allow(improper_ctypes)]
-#[allow(non_snake_case)]
-#[link(name = "ApplicationServices", kind = "framework")]
-extern "C" {
-    fn CGEventPost(tapLocation: CGEventTapLocation, event: *mut MyCGEvent);
-    // not present in servo/core-graphics
-    fn CGEventCreateScrollWheelEvent(
-        source: &CGEventSourceRef,
-        units: ScrollUnit,
-        wheelCount: u32,
-        wheel1: i32,
-        ...
-    ) -> *mut MyCGEvent;
-}
 
 pub type CFDataRef = *const c_void;
 
@@ -75,19 +56,6 @@ pub type OSStatus = SInt32;
 pub type CFStringEncoding = UInt32;
 
 pub const TRUE: c_uint = 1;
-
-#[allow(non_upper_case_globals)]
-pub const kUCKeyActionDisplay: _bindgen_ty_702 = _bindgen_ty_702::kUCKeyActionDisplay;
-
-#[allow(non_camel_case_types)]
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _bindgen_ty_702 {
-    // kUCKeyActionDown = 0,
-    // kUCKeyActionUp = 1,
-    // kUCKeyActionAutoKey = 2,
-    kUCKeyActionDisplay = 3,
-}
 
 #[allow(non_snake_case)]
 #[repr(C)]
@@ -213,18 +181,10 @@ extern "C" {
     ) -> Boolean;
 }
 
-// not present in servo/core-graphics
-#[allow(dead_code)]
-#[derive(Debug)]
-enum ScrollUnit {
-    Pixel = 0,
-    Line = 1,
-}
-// hack
-
 /// The main struct for handling the event emitting
 pub struct Enigo {
     event_source: CGEventSource,
+    display: CGDisplay,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
@@ -247,6 +207,7 @@ impl Default for Enigo {
             // TODO(dustin): return error rather than panic here
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
                 .expect("Failed creating event source"),
+            display: CGDisplay::main(),
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
         }
@@ -277,9 +238,7 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let (_, display_height) = self.main_display_size();
-        let (current_x, y_inv) = Self::mouse_location_raw_coords();
-        let current_y = display_height - y_inv;
+        let (current_x, current_y) = self.mouse_location();
         let new_x = current_x + x;
         let new_y = current_y + y;
 
@@ -344,65 +303,43 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_scroll_x(&mut self, length: i32) {
-        let mut scroll_direction = -1; // 1 left -1 right;
-        let mut length = length;
-
-        if length < 0 {
-            length *= -1;
-            scroll_direction *= -1;
-        }
-
-        for _ in 0..length {
-            unsafe {
-                let mouse_ev = CGEventCreateScrollWheelEvent(
-                    &self.event_source,
-                    ScrollUnit::Line,
-                    2, // CGWheelCount 1 = y 2 = xy 3 = xyz
-                    0,
-                    scroll_direction,
-                );
-
-                CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mouse_ev as *const std::ffi::c_void);
-            }
-        }
+        let event = CGEvent::new_scroll_event(
+            self.event_source.clone(),
+            ScrollEventUnit::LINE,
+            2,
+            0,
+            -length,
+            0,
+        )
+        .expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
     }
 
     fn mouse_scroll_y(&mut self, length: i32) {
-        let mut scroll_direction = -1; // 1 left -1 right;
-        let mut length = length;
-
-        if length < 0 {
-            length *= -1;
-            scroll_direction *= -1;
-        }
-
-        for _ in 0..length {
-            unsafe {
-                let mouse_ev = CGEventCreateScrollWheelEvent(
-                    &self.event_source,
-                    ScrollUnit::Line,
-                    1, // CGWheelCount 1 = y 2 = xy 3 = xyz
-                    scroll_direction,
-                );
-
-                CGEventPost(CGEventTapLocation::HID, mouse_ev);
-                CFRelease(mouse_ev as *const std::ffi::c_void);
-            }
-        }
+        let event = CGEvent::new_scroll_event(
+            self.event_source.clone(),
+            ScrollEventUnit::LINE,
+            1,
+            -length,
+            0,
+            0,
+        )
+        .expect("Failed creating event");
+        event.post(CGEventTapLocation::HID);
     }
 
     fn main_display_size(&self) -> (i32, i32) {
-        let display_id = unsafe { CGMainDisplayID() };
-        let width = unsafe { CGDisplayPixelsWide(display_id) } as u64;
-        let height = unsafe { CGDisplayPixelsHigh(display_id) } as u64;
-        (width as i32, height as i32)
+        (
+            self.display.pixels_wide() as i32,
+            self.display.pixels_high() as i32,
+        )
     }
 
     fn mouse_location(&self) -> (i32, i32) {
-        let (x, y_inv) = Self::mouse_location_raw_coords();
-        let (_, display_height) = self.main_display_size();
-        (x, display_height - y_inv)
+        let ns_event = Class::get("NSEvent").unwrap();
+        let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
+        let (x, y_inv) = (pt.x as i32, pt.y as i32);
+        (x, self.display.pixels_high() as i32 - y_inv)
     }
 }
 
@@ -479,18 +416,6 @@ impl Enigo {
         }
         self.last_mouse_click[button as usize].0
     }
-
-    /// Returns the current mouse location in Cocoa coordinates which have Y
-    /// inverted from the Carbon coordinates used in the rest of the API.
-    /// This function exists so that [`Enigo::mouse_move_relative`] only has to
-    /// fetch the screen size once.
-    #[must_use]
-    fn mouse_location_raw_coords() -> (i32, i32) {
-        let ns_event = Class::get("NSEvent").unwrap();
-        let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
-        (pt.x as i32, pt.y as i32)
-    }
-
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         // I mean duh, we still need to support deprecated keys until they're removed
         match key {
@@ -613,7 +538,7 @@ impl Enigo {
             UCKeyTranslate(
                 keyboard_layout,
                 keycode,
-                kUCKeyActionDisplay as u16,
+                3, // kUCKeyActionDisplay = 3
                 modifier,
                 LMGetKbdType() as u32,
                 kUCKeyTranslateNoDeadKeysBit as u32,
