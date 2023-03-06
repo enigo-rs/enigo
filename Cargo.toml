@@ -39,7 +39,7 @@ windows = { version = "0.44.0", features = [
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-graphics = "0.18.0"
+core-graphics = "0.22.3"
 objc = "0.2.7"
 unicode-segmentation = "1.6.0"
 
