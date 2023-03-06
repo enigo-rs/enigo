@@ -87,6 +87,10 @@ extern crate serde;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// [`MouseButton`] represents a mouse button and is used in e.g
 /// [`MouseControllable::mouse_click`].
+
+// Warning! If there are ANY CHANGES to this enum, we
+// need to change the size of the array in the macOS implementation of the Enigo
+// struct that stores the nth click for each MouseButton
 pub enum MouseButton {
     /// Left mouse button
     Left,
