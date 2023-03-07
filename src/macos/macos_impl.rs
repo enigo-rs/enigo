@@ -1,4 +1,4 @@
-use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ulong, c_ushort, c_void};
+use std::os::raw::{c_uint, c_void};
 use std::{
     thread,
     time::{Duration, Instant},
@@ -6,7 +6,10 @@ use std::{
 
 use objc::runtime::Class;
 
-use core_graphics::display::{CFIndex, CGDisplay, CGPoint};
+use core_foundation::base::{CFRelease, OSStatus};
+use core_foundation::string::{CFStringRef, UniChar};
+use core_foundation_sys::data::{CFDataGetBytePtr, CFDataRef};
+use core_graphics::display::{CGDisplay, CGPoint};
 use core_graphics::event::{
     CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField, ScrollEventUnit,
 };
@@ -21,11 +24,13 @@ use crate::macos::keycodes::{
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
+#[allow(non_upper_case_globals)]
+static kUCKeyTranslateDeadKeysBit: c_uint = 1 << 31;
+const BUF_LEN: usize = 0;
+
 // required for NSEvent
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
-
-pub type CFDataRef = *const c_void;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -34,151 +39,39 @@ struct NSPoint {
     y: f64,
 }
 
-#[repr(C)]
-pub struct __TISInputSource;
-pub type TISInputSourceRef = *const __TISInputSource;
+pub type TISInputSourceRef = *mut c_void;
+pub type UniCharCount = usize;
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __CFString([u8; 0]);
-pub type CFStringRef = *const __CFString;
-pub type Boolean = c_uchar;
-pub type UInt8 = c_uchar;
-pub type SInt32 = c_int;
-pub type UInt16 = c_ushort;
-pub type UInt32 = c_uint;
-pub type UniChar = UInt16;
-pub type UniCharCount = c_ulong;
-
-pub type OptionBits = UInt32;
-pub type OSStatus = SInt32;
-
-pub type CFStringEncoding = UInt32;
-
-pub const TRUE: c_uint = 1;
-
-#[allow(non_snake_case)]
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct UCKeyboardTypeHeader {
-    pub keyboardTypeFirst: UInt32,
-    pub keyboardTypeLast: UInt32,
-    pub keyModifiersToTableNumOffset: UInt32,
-    pub keyToCharTableIndexOffset: UInt32,
-    pub keyStateRecordsIndexOffset: UInt32,
-    pub keyStateTerminatorsOffset: UInt32,
-    pub keySequenceDataIndexOffset: UInt32,
-}
-
-#[allow(non_snake_case)]
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct UCKeyboardLayout {
-    pub keyLayoutHeaderFormat: UInt16,
-    pub keyLayoutDataVersion: UInt16,
-    pub keyLayoutFeatureInfoOffset: UInt32,
-    pub keyboardTypeCount: UInt32,
-    pub keyboardTypeList: [UCKeyboardTypeHeader; 1usize],
-}
-
-#[allow(non_upper_case_globals)]
-pub const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 =
-    _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
-
-#[allow(non_camel_case_types)]
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _bindgen_ty_703 {
-    kUCKeyTranslateNoDeadKeysBit = 0,
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct __CFAllocator([u8; 0]);
-pub type CFAllocatorRef = *const __CFAllocator;
-
-// #[repr(u32)]
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-// pub enum _bindgen_ty_15 {
-//     kCFStringEncodingMacRoman = 0,
-//     kCFStringEncodingWindowsLatin1 = 1280,
-//     kCFStringEncodingISOLatin1 = 513,
-//     kCFStringEncodingNextStepLatin = 2817,
-//     kCFStringEncodingASCII = 1536,
-//     kCFStringEncodingUnicode = 256,
-//     kCFStringEncodingUTF8 = 134217984,
-//     kCFStringEncodingNonLossyASCII = 3071,
-//     kCFStringEncodingUTF16BE = 268435712,
-//     kCFStringEncodingUTF16LE = 335544576,
-//     kCFStringEncodingUTF32 = 201326848,
-//     kCFStringEncodingUTF32BE = 402653440,
-//     kCFStringEncodingUTF32LE = 469762304,
-// }
-
-#[allow(non_upper_case_globals)]
-pub const kCFStringEncodingUTF8: u32 = 134_217_984;
-
-#[allow(improper_ctypes)]
+#[link(name = "Cocoa", kind = "framework")]
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
 
-    //     extern void *
-    // TISGetInputSourceProperty(
-    //   TISInputSourceRef   inputSource,
-    //   CFStringRef         propertyKey)
+    #[allow(non_snake_case)]
+    fn UCKeyTranslate(
+        layout: *const u8,
+        code: u16,
+        key_action: u16,
+        modifier_state: u32,
+        keyboard_type: u32,
+        key_translate_options: c_uint,
+        dead_key_state: *mut u32,
+        max_length: UniCharCount,
+        actual_length: *mut UniCharCount,
+        unicode_string: *mut [UniChar; BUF_LEN],
+    ) -> OSStatus;
 
     #[allow(non_upper_case_globals)]
-    #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
     pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
     #[allow(non_snake_case)]
     pub fn TISGetInputSourceProperty(
         inputSource: TISInputSourceRef,
         propertyKey: CFStringRef,
-    ) -> *mut c_void;
+    ) -> CFDataRef;
 
-    #[allow(non_snake_case)]
-    pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
-
-    #[allow(non_snake_case)]
-    pub fn UCKeyTranslate(
-        keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
-        virtualKeyCode: UInt16,
-        keyAction: UInt16,
-        modifierKeyState: UInt32,
-        keyboardType: UInt32,
-        keyTranslateOptions: OptionBits,
-        deadKeyState: *mut UInt32,
-        maxStringLength: UniCharCount,
-        actualStringLength: *mut UniCharCount,
-        unicodeString: *mut UniChar,
-    ) -> OSStatus;
-
-    pub fn LMGetKbdType() -> UInt8;
-
-    #[allow(non_snake_case)]
-    pub fn CFStringCreateWithCharacters(
-        alloc: CFAllocatorRef,
-        chars: *const UniChar,
-        numChars: CFIndex,
-    ) -> CFStringRef;
-
-    #[allow(non_upper_case_globals)]
-    #[link_name = "kCFAllocatorDefault"]
-    pub static kCFAllocatorDefault: CFAllocatorRef;
-
-    #[allow(non_snake_case)]
-    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
-
-    #[allow(non_snake_case)]
-    pub fn CFStringGetCString(
-        theString: CFStringRef,
-        buffer: *mut c_char,
-        bufferSize: CFIndex,
-        encoding: CFStringEncoding,
-    ) -> Boolean;
+    pub fn LMGetKbdType() -> u32;
 }
 
 /// The main struct for handling the event emitting
@@ -469,7 +362,7 @@ impl Enigo {
         // loop through every keycode (0 - 127)
         for keycode in 0..128 {
             // no modifier
-            if let Some(key_string) = self.keycode_to_string(keycode, 0x100) {
+            if let Ok(key_string) = self.create_string_for_key(keycode, 0x100) {
                 // println!("{:?}", string);
                 if string == key_string {
                     pressed_keycode = keycode;
@@ -477,7 +370,7 @@ impl Enigo {
             }
 
             // shift modifier
-            if let Some(key_string) = self.keycode_to_string(keycode, 0x20102) {
+            if let Ok(key_string) = self.create_string_for_key(keycode, 0x20102) {
                 // println!("{:?}", string);
                 if string == key_string {
                     pressed_keycode = keycode;
@@ -485,35 +378,24 @@ impl Enigo {
             }
 
             // alt modifier
-            // if let Some(string) = self.keycode_to_string(keycode, 0x80120) {
-            //     println!("{:?}", string);
+            // if let Ok(string) = self.create_string_for_key(keycode,
+            // 0x80120) {     println!("{:?}", string);
             // }
             // alt + shift modifier
-            // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
-            //     println!("{:?}", string);
+            // if let Ok(string) = self.create_string_for_key(keycode,
+            // 0xa0122) {     println!("{:?}", string);
             // }
         }
 
         pressed_keycode
     }
 
-    fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
-        let cf_string = self.create_string_for_key(keycode, modifier);
-        let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
-        let mut buffer: i8 = std::i8::MAX;
-        let success = unsafe {
-            CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8)
-        };
-        if success == TRUE as u8 {
-            let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-            return Some(rust_string);
-        }
-
-        None
-    }
-
     #[allow(clippy::unused_self)]
-    fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
+    fn create_string_for_key(
+        &self,
+        keycode: u16,
+        modifier: u32,
+    ) -> Result<String, std::string::FromUtf16Error> {
         let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
         let mut layout_data = unsafe {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
@@ -530,9 +412,9 @@ impl Enigo {
         }
         let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
 
-        let mut keys_down: UInt32 = 0;
+        let mut keys_down: u32 = 0;
         // let mut chars: *mut c_void;//[UniChar; 4];
-        let mut chars: u16 = 0;
+        let mut chars: [u16; 0] = [0; 0];
         let mut real_length: UniCharCount = 0;
         unsafe {
             UCKeyTranslate(
@@ -540,15 +422,16 @@ impl Enigo {
                 keycode,
                 3, // kUCKeyActionDisplay = 3
                 modifier,
-                LMGetKbdType() as u32,
-                kUCKeyTranslateNoDeadKeysBit as u32,
+                LMGetKbdType(),
+                kUCKeyTranslateDeadKeysBit,
                 &mut keys_down,
                 8, // sizeof(chars) / sizeof(chars[0]),
                 &mut real_length,
                 &mut chars,
             );
         }
+        unsafe { CFRelease(current_keyboard) };
 
-        unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+        String::from_utf16(&chars)
     }
 }
