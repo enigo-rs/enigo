@@ -39,7 +39,6 @@ core-foundation-sys = "0.8"
 core-foundation = "0.9"
 core-graphics = { version = "0.22", features = ["highsierra"] }
 objc = "0.2"
-unicode-segmentation = "1.6"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
