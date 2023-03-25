@@ -98,6 +98,13 @@ pub enum MouseButton {
     Middle,
     /// Right mouse button
     Right,
+    #[cfg(target_os = "windows")]
+    /// 4th mouse button. Typically performs the same function as Browser_Back
+    XButton1,
+    #[cfg(target_os = "windows")]
+    /// 5th mouse button. Typically performs the same function as
+    /// Browser_Forward
+    XButton2,
 
     /// Scroll up button. It is better to use the
     /// [MouseControllable::mouse_scroll_y] method to scroll.
@@ -263,7 +270,9 @@ pub trait MouseControllable {
 
 /// A key on the keyboard.
 /// For alphabetical keys, use [`Key::Layout`] for a system independent key.
-/// If a key is missing, you can use the raw keycode with [`Key::Raw`].
+/// If a key is missing, you can use the raw keycode with [`Key::Raw`]. Some of
+/// the keys are only available on a specific platform. Use conditional
+/// compilation to use them.
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
@@ -326,6 +335,18 @@ pub enum Key {
     F19,
     /// F20 key
     F20,
+    #[cfg(target_os = "windows")]
+    /// F21 key
+    F21,
+    #[cfg(target_os = "windows")]
+    /// F22 key
+    F22,
+    #[cfg(target_os = "windows")]
+    /// F23 key
+    F23,
+    #[cfg(target_os = "windows")]
+    /// F24 key
+    F24,
     /// home key
     Home,
     /// left arrow key

@@ -180,6 +180,14 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         "F18" => Key::F18,
                         "F19" => Key::F19,
                         "F20" => Key::F20,
+                        #[cfg(target_os = "windows")]
+                        "F21" => Key::F21,
+                        #[cfg(target_os = "windows")]
+                        "F22" => Key::F22,
+                        #[cfg(target_os = "windows")]
+                        "F23" => Key::F23,
+                        #[cfg(target_os = "windows")]
+                        "F24" => Key::F24,
                         "HOME" => Key::Home,
                         "LEFTARROW" => Key::LeftArrow,
                         "META" => Key::Meta,

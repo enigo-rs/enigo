@@ -6,7 +6,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
     MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
     MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP,
-    MOUSEEVENTF_WHEEL, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+    MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS,
+    VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
@@ -15,9 +16,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::win::keycodes::{
     EVK_BACK, EVK_CAPITAL, EVK_DELETE, EVK_DOWN, EVK_END, EVK_ESCAPE, EVK_F1, EVK_F10, EVK_F11,
     EVK_F12, EVK_F13, EVK_F14, EVK_F15, EVK_F16, EVK_F17, EVK_F18, EVK_F19, EVK_F2, EVK_F20,
-    EVK_F3, EVK_F4, EVK_F5, EVK_F6, EVK_F7, EVK_F8, EVK_F9, EVK_HOME, EVK_LCONTROL, EVK_LEFT,
-    EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN, EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB,
-    EVK_UP,
+    EVK_F21, EVK_F22, EVK_F23, EVK_F24, EVK_F3, EVK_F4, EVK_F5, EVK_F6, EVK_F7, EVK_F8, EVK_F9,
+    EVK_HOME, EVK_LCONTROL, EVK_LEFT, EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN,
+    EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB, EVK_UP,
 };
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
@@ -92,12 +93,17 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
                 MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+                MouseButton::XButton1 | MouseButton::XButton2 => MOUSEEVENTF_XDOWN,
                 MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
                 MouseButton::ScrollDown => return self.mouse_scroll_x(1),
                 MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
                 MouseButton::ScrollRight => return self.mouse_scroll_y(1),
             },
-            0,
+            match button {
+                MouseButton::XButton1 => 1,
+                MouseButton::XButton2 => 2,
+                _ => 0,
+            },
             0,
             0,
         );
@@ -109,6 +115,7 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTUP,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
                 MouseButton::Right => MOUSEEVENTF_RIGHTUP,
+                MouseButton::XButton1 | MouseButton::XButton2 => MOUSEEVENTF_XUP,
                 MouseButton::ScrollUp
                 | MouseButton::ScrollDown
                 | MouseButton::ScrollLeft
@@ -117,7 +124,11 @@ impl MouseControllable for Enigo {
                     return;
                 }
             },
-            0,
+            match button {
+                MouseButton::XButton1 => 1,
+                MouseButton::XButton2 => 2,
+                _ => 0,
+            },
             0,
             0,
         );
@@ -303,6 +314,10 @@ fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
         Key::F18 => VIRTUAL_KEY(EVK_F18),
         Key::F19 => VIRTUAL_KEY(EVK_F19),
         Key::F20 => VIRTUAL_KEY(EVK_F20),
+        Key::F21 => VIRTUAL_KEY(EVK_F21),
+        Key::F22 => VIRTUAL_KEY(EVK_F22),
+        Key::F23 => VIRTUAL_KEY(EVK_F23),
+        Key::F24 => VIRTUAL_KEY(EVK_F24),
         Key::Home => VIRTUAL_KEY(EVK_HOME),
         Key::LeftArrow => VIRTUAL_KEY(EVK_LEFT),
         Key::PageDown => VIRTUAL_KEY(EVK_NEXT),
