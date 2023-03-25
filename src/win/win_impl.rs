@@ -9,17 +9,17 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS,
     VIRTUAL_KEY,
 };
+
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    VK_BACK, VK_CAPITAL, VK_DELETE, VK_DOWN, VK_END, VK_ESCAPE, VK_F1, VK_F10, VK_F11, VK_F12,
+    VK_F13, VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19, VK_F2, VK_F20, VK_F21, VK_F22, VK_F23,
+    VK_F24, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_HOME, VK_LCONTROL, VK_LEFT,
+    VK_LWIN, VK_MENU, VK_NEXT, VK_PRIOR, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_TAB, VK_UP,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
 };
 
-use crate::win::keycodes::{
-    EVK_BACK, EVK_CAPITAL, EVK_DELETE, EVK_DOWN, EVK_END, EVK_ESCAPE, EVK_F1, EVK_F10, EVK_F11,
-    EVK_F12, EVK_F13, EVK_F14, EVK_F15, EVK_F16, EVK_F17, EVK_F18, EVK_F19, EVK_F2, EVK_F20,
-    EVK_F21, EVK_F22, EVK_F23, EVK_F24, EVK_F3, EVK_F4, EVK_F5, EVK_F6, EVK_F7, EVK_F8, EVK_F9,
-    EVK_HOME, EVK_LCONTROL, EVK_LEFT, EVK_LWIN, EVK_MENU, EVK_NEXT, EVK_PRIOR, EVK_RETURN,
-    EVK_RIGHT, EVK_SHIFT, EVK_SPACE, EVK_TAB, EVK_UP,
-};
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 type KeyCode = u16;
@@ -279,57 +279,52 @@ impl Enigo {
 }
 
 fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
-    // do not use the codes from crate winapi they're
-    // wrongly typed with i32 instead of i16 use the
-    // ones provided by win/keycodes.rs that are prefixed
-    // with an 'E' infront of the original name
-
     // I mean duh, we still need to support deprecated keys until they're removed
     match key {
-        Key::Alt | Key::Option => VIRTUAL_KEY(EVK_MENU),
-        Key::Backspace => VIRTUAL_KEY(EVK_BACK),
-        Key::CapsLock => VIRTUAL_KEY(EVK_CAPITAL),
-        Key::Control => VIRTUAL_KEY(EVK_LCONTROL),
-        Key::Delete => VIRTUAL_KEY(EVK_DELETE),
-        Key::DownArrow => VIRTUAL_KEY(EVK_DOWN),
-        Key::End => VIRTUAL_KEY(EVK_END),
-        Key::Escape => VIRTUAL_KEY(EVK_ESCAPE),
-        Key::F1 => VIRTUAL_KEY(EVK_F1),
-        Key::F2 => VIRTUAL_KEY(EVK_F2),
-        Key::F3 => VIRTUAL_KEY(EVK_F3),
-        Key::F4 => VIRTUAL_KEY(EVK_F4),
-        Key::F5 => VIRTUAL_KEY(EVK_F5),
-        Key::F6 => VIRTUAL_KEY(EVK_F6),
-        Key::F7 => VIRTUAL_KEY(EVK_F7),
-        Key::F8 => VIRTUAL_KEY(EVK_F8),
-        Key::F9 => VIRTUAL_KEY(EVK_F9),
-        Key::F10 => VIRTUAL_KEY(EVK_F10),
-        Key::F11 => VIRTUAL_KEY(EVK_F11),
-        Key::F12 => VIRTUAL_KEY(EVK_F12),
-        Key::F13 => VIRTUAL_KEY(EVK_F13),
-        Key::F14 => VIRTUAL_KEY(EVK_F14),
-        Key::F15 => VIRTUAL_KEY(EVK_F15),
-        Key::F16 => VIRTUAL_KEY(EVK_F16),
-        Key::F17 => VIRTUAL_KEY(EVK_F17),
-        Key::F18 => VIRTUAL_KEY(EVK_F18),
-        Key::F19 => VIRTUAL_KEY(EVK_F19),
-        Key::F20 => VIRTUAL_KEY(EVK_F20),
-        Key::F21 => VIRTUAL_KEY(EVK_F21),
-        Key::F22 => VIRTUAL_KEY(EVK_F22),
-        Key::F23 => VIRTUAL_KEY(EVK_F23),
-        Key::F24 => VIRTUAL_KEY(EVK_F24),
-        Key::Home => VIRTUAL_KEY(EVK_HOME),
-        Key::LeftArrow => VIRTUAL_KEY(EVK_LEFT),
-        Key::PageDown => VIRTUAL_KEY(EVK_NEXT),
-        Key::PageUp => VIRTUAL_KEY(EVK_PRIOR),
-        Key::Return => VIRTUAL_KEY(EVK_RETURN),
-        Key::RightArrow => VIRTUAL_KEY(EVK_RIGHT),
-        Key::Shift => VIRTUAL_KEY(EVK_SHIFT),
-        Key::Space => VIRTUAL_KEY(EVK_SPACE),
-        Key::Tab => VIRTUAL_KEY(EVK_TAB),
-        Key::UpArrow => VIRTUAL_KEY(EVK_UP),
+        Key::Alt | Key::Option => VK_MENU,
+        Key::Backspace => VK_BACK,
+        Key::CapsLock => VK_CAPITAL,
+        Key::Control => VK_LCONTROL,
+        Key::Delete => VK_DELETE,
+        Key::DownArrow => VK_DOWN,
+        Key::End => VK_END,
+        Key::Escape => VK_ESCAPE,
+        Key::F1 => VK_F1,
+        Key::F2 => VK_F2,
+        Key::F3 => VK_F3,
+        Key::F4 => VK_F4,
+        Key::F5 => VK_F5,
+        Key::F6 => VK_F6,
+        Key::F7 => VK_F7,
+        Key::F8 => VK_F8,
+        Key::F9 => VK_F9,
+        Key::F10 => VK_F10,
+        Key::F11 => VK_F11,
+        Key::F12 => VK_F12,
+        Key::F13 => VK_F13,
+        Key::F14 => VK_F14,
+        Key::F15 => VK_F15,
+        Key::F16 => VK_F16,
+        Key::F17 => VK_F17,
+        Key::F18 => VK_F18,
+        Key::F19 => VK_F19,
+        Key::F20 => VK_F20,
+        Key::F21 => VK_F21,
+        Key::F22 => VK_F22,
+        Key::F23 => VK_F23,
+        Key::F24 => VK_F24,
+        Key::Home => VK_HOME,
+        Key::LeftArrow => VK_LEFT,
+        Key::PageDown => VK_NEXT,
+        Key::PageUp => VK_PRIOR,
+        Key::Return => VK_RETURN,
+        Key::RightArrow => VK_RIGHT,
+        Key::Shift => VK_SHIFT,
+        Key::Space => VK_SPACE,
+        Key::Tab => VK_TAB,
+        Key::UpArrow => VK_UP,
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
         Key::Layout(_) => panic!(), // TODO: Don't panic here
-        Key::Super | Key::Command | Key::Windows | Key::Meta => VIRTUAL_KEY(EVK_LWIN),
+        Key::Super | Key::Command | Key::Windows | Key::Meta => VK_LWIN,
     }
 }
