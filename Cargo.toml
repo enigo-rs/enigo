@@ -1,6 +1,6 @@
 [package]
 name = "enigo"
-version = "0.0.14"
+version = "0.0.15"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 edition = "2021"
 build = "build.rs"

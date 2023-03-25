@@ -1,5 +1,7 @@
 # Unreleased
 
+# 0.0.15
+
 ## Changed
 - Windows: `mouse_scroll_y` with a positive number scrolls down just like on the other platforms
 - Windows: replaced `winapi` with the official `windows` crate
@@ -22,3 +24,4 @@
 - Windows, macOS: Stop panicking when `mouse_down` or `mouse_up` is called with either of `MouseButton::ScrollUp`, `MouseButton::ScrollDown`, `MouseButton::ScrollLeft`, `MouseButton::ScrollRight` and instead scroll
 - Windows: Always use key codes to be layout independent. Only use scan codes for `Key::Layout` (Fixes https://github.com/enigo-rs/enigo/issues/99, https://github.com/enigo-rs/enigo/issues/84)
 - macOS: `key_click` no longer triggers a segmentation fault when called with `Key::Layout` argument (Fixes https://github.com/enigo-rs/enigo/issues/124)
+- macOS: Double clicks now work (https://github.com/enigo-rs/enigo/issues/82)
