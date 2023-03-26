@@ -221,6 +221,8 @@ pub enum Key {
     #[cfg(target_os = "windows")]
     /// F24 key
     F24,
+    #[cfg(target_os = "macos")]
+    Function,
     #[cfg(target_os = "windows")]
     Final,
     #[cfg(target_os = "windows")]
@@ -277,7 +279,7 @@ pub enum Key {
     Hangul,
     #[cfg(target_os = "windows")]
     Hanja,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     Help,
     /// home key
     Home,
@@ -307,15 +309,18 @@ pub enum Key {
     LaunchMail,
     #[cfg(target_os = "windows")]
     LaunchMediaSelect,
+    #[cfg(target_os = "macos")]
+    /// Opens launchpad
+    Launchpad,
     #[cfg(target_os = "windows")]
     LButton,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     LControl,
     /// left arrow key
     LeftArrow,
     #[cfg(target_os = "windows")]
     LMenu,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     LShift,
     #[cfg(target_os = "windows")]
     LWin,
@@ -331,6 +336,9 @@ pub enum Key {
     MediaStop,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
+    #[cfg(target_os = "macos")]
+    /// Opens mission control
+    MissionControl,
     #[cfg(target_os = "windows")]
     ModeChange,
     #[cfg(target_os = "windows")]
@@ -467,7 +475,9 @@ pub enum Key {
     Processkey,
     #[cfg(target_os = "windows")]
     RButton,
-    #[cfg(target_os = "windows")]
+    #[cfg(target_os = "macos")]
+    RCommand,
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     RControl,
     /// return key
     Return,
@@ -475,7 +485,9 @@ pub enum Key {
     RightArrow,
     #[cfg(target_os = "windows")]
     RMenu,
-    #[cfg(target_os = "windows")]
+    #[cfg(target_os = "macos")]
+    ROption,
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     RShift,
     #[cfg(target_os = "windows")]
     RWin,
@@ -502,11 +514,11 @@ pub enum Key {
     Tab,
     /// up arrow key
     UpArrow,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeDown,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeMute,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeUp,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// windows key on Windows (super key on Linux, command key on macOS)
