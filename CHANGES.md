@@ -1,5 +1,8 @@
 # Unreleased
 
+# 0.1.0
+We should have bumped the minor version with the last release. Sorry about that. Have a look at the changes of 0.0.15 if you come from an earlier version.
+
 # 0.0.15
 
 ## Changed
