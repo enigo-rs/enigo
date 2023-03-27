@@ -94,6 +94,10 @@ pub enum Key {
     Attn,
     /// backspace key
     Backspace,
+    #[cfg(target_os = "linux")]
+    Begin,
+    #[cfg(target_os = "linux")]
+    Break,
     #[cfg(target_os = "windows")]
     BrowserBack,
     #[cfg(target_os = "windows")]
@@ -108,11 +112,11 @@ pub enum Key {
     BrowserSearch,
     #[cfg(target_os = "windows")]
     BrowserStop,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Cancel,
     /// caps lock key
     CapsLock,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Clear,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
@@ -165,7 +169,7 @@ pub enum Key {
     Ereof,
     /// escape key (esc)
     Escape,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Execute,
     #[cfg(target_os = "windows")]
     Exsel,
@@ -209,22 +213,46 @@ pub enum Key {
     F19,
     /// F20 key
     F20,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// F21 key
     F21,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// F22 key
     F22,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// F23 key
     F23,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// F24 key
     F24,
+    #[cfg(target_os = "linux")]
+    F25,
+    #[cfg(target_os = "linux")]
+    F26,
+    #[cfg(target_os = "linux")]
+    F27,
+    #[cfg(target_os = "linux")]
+    F28,
+    #[cfg(target_os = "linux")]
+    F29,
+    #[cfg(target_os = "linux")]
+    F30,
+    #[cfg(target_os = "linux")]
+    F31,
+    #[cfg(target_os = "linux")]
+    F32,
+    #[cfg(target_os = "linux")]
+    F33,
+    #[cfg(target_os = "linux")]
+    F34,
+    #[cfg(target_os = "linux")]
+    F35,
     #[cfg(target_os = "macos")]
     Function,
     #[cfg(target_os = "windows")]
     Final,
+    #[cfg(target_os = "linux")]
+    Find,
     #[cfg(target_os = "windows")]
     GamepadA,
     #[cfg(target_os = "windows")]
@@ -275,11 +303,10 @@ pub enum Key {
     GamepadY,
     #[cfg(target_os = "windows")]
     Hangeul,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Hangul,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Hanja,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     Help,
     /// home key
     Home,
@@ -293,13 +320,13 @@ pub enum Key {
     IMEOff,
     #[cfg(target_os = "windows")]
     IMEOn,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Insert,
     #[cfg(target_os = "windows")]
     Junja,
     #[cfg(target_os = "windows")]
     Kana,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Kanji,
     #[cfg(target_os = "windows")]
     LaunchApp1,
@@ -314,13 +341,13 @@ pub enum Key {
     Launchpad,
     #[cfg(target_os = "windows")]
     LButton,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     LControl,
     /// left arrow key
     LeftArrow,
-    #[cfg(target_os = "windows")]
+    #[cfg(target_os = "linux")]
+    Linefeed,
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     LMenu,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     LShift,
     #[cfg(target_os = "windows")]
     LWin,
@@ -339,7 +366,7 @@ pub enum Key {
     #[cfg(target_os = "macos")]
     /// Opens mission control
     MissionControl,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     ModeChange,
     #[cfg(target_os = "windows")]
     Multiply,
@@ -365,7 +392,7 @@ pub enum Key {
     NonConvert,
     #[cfg(target_os = "windows")]
     None,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Numlock,
     #[cfg(target_os = "windows")]
     Numpad0,
@@ -465,11 +492,11 @@ pub enum Key {
     PageDown,
     /// page up key
     PageUp,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Pause,
     #[cfg(target_os = "windows")]
     Play,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Print,
     #[cfg(target_os = "windows")]
     Processkey,
@@ -477,8 +504,9 @@ pub enum Key {
     RButton,
     #[cfg(target_os = "macos")]
     RCommand,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     RControl,
+    #[cfg(target_os = "linux")]
+    Redo,
     /// return key
     Return,
     /// right arrow key
@@ -487,18 +515,24 @@ pub enum Key {
     RMenu,
     #[cfg(target_os = "macos")]
     ROption,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     RShift,
     #[cfg(target_os = "windows")]
     RWin,
     #[cfg(target_os = "windows")]
     Scroll,
-    #[cfg(target_os = "windows")]
+    #[cfg(target_os = "linux")]
+    ScrollLock,
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     Select,
+    #[cfg(target_os = "linux")]
+    ScriptSwitch,
     #[cfg(target_os = "windows")]
     Separator,
     /// shift key
     Shift,
+    #[cfg(target_os = "linux")]
+    /// Lock shift key
+    ShiftLock,
     #[cfg(target_os = "windows")]
     Sleep,
     #[cfg(target_os = "windows")]
@@ -510,8 +544,12 @@ pub enum Key {
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
     Super,
+    #[cfg(target_os = "linux")]
+    SysReq,
     /// tab key (tabulator)
     Tab,
+    #[cfg(target_os = "linux")]
+    Undo,
     /// up arrow key
     UpArrow,
     #[cfg(any(target_os = "windows", target_os = "macos"))]
