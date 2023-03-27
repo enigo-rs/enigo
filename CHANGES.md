@@ -1,5 +1,14 @@
 # Unreleased
 
+## Changed
+- Windows: `Key::Control` presses `Control` and no longer the left `Control`.
+
+## Added
+- all: Added a ton of keys (e.g F21-F24 keys and the XBUTTON1 & XBUTTON2 mouse buttons are now available on Windows). Some of them are OS specific. Use conditional compilation (e.g `#[cfg(target_os = "windows")]`) to use them to not break the build on other OSs.
+- examples: New example `platform_specific.rs` to demonstrate how to use keys/buttons that are platform specific
+
+## Fixed
+
 # 0.1.0
 We should have bumped the minor version with the last release. Sorry about that. Have a look at the changes of 0.0.15 if you come from an earlier version.
 
