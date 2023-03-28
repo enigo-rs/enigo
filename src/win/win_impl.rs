@@ -127,15 +127,15 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
                 MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-                MouseButton::XButton1 | MouseButton::XButton2 => MOUSEEVENTF_XDOWN,
+                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XDOWN,
                 MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
                 MouseButton::ScrollDown => return self.mouse_scroll_x(1),
                 MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
                 MouseButton::ScrollRight => return self.mouse_scroll_y(1),
             },
             match button {
-                MouseButton::XButton1 => 1,
-                MouseButton::XButton2 => 2,
+                MouseButton::Back => 1,
+                MouseButton::Forward => 2,
                 _ => 0,
             },
             0,
@@ -149,7 +149,7 @@ impl MouseControllable for Enigo {
                 MouseButton::Left => MOUSEEVENTF_LEFTUP,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
                 MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-                MouseButton::XButton1 | MouseButton::XButton2 => MOUSEEVENTF_XUP,
+                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XUP,
                 MouseButton::ScrollUp
                 | MouseButton::ScrollDown
                 | MouseButton::ScrollLeft
@@ -159,8 +159,8 @@ impl MouseControllable for Enigo {
                 }
             },
             match button {
-                MouseButton::XButton1 => 1,
-                MouseButton::XButton2 => 2,
+                MouseButton::Back => 1,
+                MouseButton::Forward => 2,
                 _ => 0,
             },
             0,

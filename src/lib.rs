@@ -102,13 +102,13 @@ pub enum MouseButton {
     Middle,
     /// Right mouse button
     Right,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// 4th mouse button. Typically performs the same function as Browser_Back
-    XButton1,
-    #[cfg(target_os = "windows")]
+    Back,
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// 5th mouse button. Typically performs the same function as
     /// Browser_Forward
-    XButton2,
+    Forward,
 
     /// Scroll up button. It is better to use the
     /// [MouseControllable::mouse_scroll_y] method to scroll.
