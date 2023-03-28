@@ -1,3 +1,3 @@
 mod macos_impl;
 
-pub use self::macos_impl::Enigo;
+pub use crate::macos::macos_impl::Enigo;
