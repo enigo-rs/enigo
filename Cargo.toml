@@ -28,7 +28,7 @@ webbrowser = "0.8"
 with_serde = ["serde", "serde_derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.47", features = [
+windows = { version = "0.48", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
