@@ -6,6 +6,11 @@
 
 ## Fixed
 
+# 0.1.2
+
+## Changed
+- Windows: Bumped `windows` dependency to `0.48` because `0.47` was yanked.
+
 # 0.1.1
 
 ## Changed
