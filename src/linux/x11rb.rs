@@ -67,9 +67,10 @@ impl EnigoX11 {
         let charmap = HashMap::new();
         let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode);
         // Check if a mapping is possible
-        if unused_keycodes.len() == 0 {
-            panic!("There was no space to map any keycodes");
-        }
+        assert!(
+            !(unused_keycodes.is_empty()),
+            "There was no space to map any keycodes"
+        );
         let held = Vec::new();
         let last_keys = vec![];
         let last_event_before_delays = std::time::Instant::now();
@@ -155,14 +156,14 @@ impl EnigoX11 {
                 // Raw keycodes cannot be converted to keysyms
                 panic!("Attempted to convert raw keycode {k} to keysym");
             }
-            Key::Alt => keysyms::KEY_Alt_L,
+            Key::Alt | Key::Option => keysyms::KEY_Alt_L,
             Key::Backspace => keysyms::KEY_BackSpace,
             Key::Begin => keysyms::KEY_Begin,
             Key::Break => keysyms::KEY_Break,
             Key::Cancel => keysyms::KEY_Cancel,
             Key::CapsLock => keysyms::KEY_Caps_Lock,
             Key::Clear => keysyms::KEY_Clear,
-            Key::Control => keysyms::KEY_Control_L,
+            Key::Control | Key::LControl => keysyms::KEY_Control_L,
             Key::Delete => keysyms::KEY_Delete,
             Key::DownArrow => keysyms::KEY_Down,
             Key::End => keysyms::KEY_End,
@@ -210,14 +211,11 @@ impl EnigoX11 {
             Key::Home => keysyms::KEY_Home,
             Key::Insert => keysyms::KEY_Insert,
             Key::Kanji => keysyms::KEY_Kanji,
-            Key::LControl => keysyms::KEY_Control_L,
             Key::LeftArrow => keysyms::KEY_Left,
             Key::Linefeed => keysyms::KEY_Linefeed,
             Key::LMenu => keysyms::KEY_Menu,
-            Key::LShift => keysyms::KEY_Shift_L,
             Key::ModeChange => keysyms::KEY_Mode_switch,
             Key::Numlock => keysyms::KEY_Num_Lock,
-            Key::Option => keysyms::KEY_Alt_L,
             Key::PageDown => keysyms::KEY_Page_Down,
             Key::PageUp => keysyms::KEY_Page_Up,
             Key::Pause => keysyms::KEY_Pause,
@@ -230,7 +228,7 @@ impl EnigoX11 {
             Key::ScrollLock => keysyms::KEY_Scroll_Lock,
             Key::Select => keysyms::KEY_Select,
             Key::ScriptSwitch => keysyms::KEY_script_switch,
-            Key::Shift => keysyms::KEY_Shift_L,
+            Key::Shift | Key::LShift => keysyms::KEY_Shift_L,
             Key::ShiftLock => keysyms::KEY_Shift_Lock,
             Key::Space => keysyms::KEY_space,
             Key::SysReq => keysyms::KEY_Sys_Req,
@@ -353,7 +351,7 @@ impl EnigoX11 {
 
         // Unmap all keys, if all keycodes are already being used
         // TODO: Don't unmap the keycodes if they will be needed next
-        if self.unused_keycodes.len() == 0 {
+        if self.unused_keycodes.is_empty() {
             let mapped_keys = self.charmap.clone();
             for &sym in mapped_keys.keys() {
                 self.unmap_sym(sym);
@@ -377,7 +375,7 @@ impl EnigoX11 {
             Some(true) => {
                 self.update_delays(keycode);
                 self.send_key_event(keycode, true);
-                self.held.push(key)
+                self.held.push(key);
             }
             Some(false) => {
                 // self.update_delays(keycode); TODO: Check if releases really don't need a
@@ -423,11 +421,9 @@ impl EnigoX11 {
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn move_mouse(&self, x: i32, y: i32, relative: bool) {
         let type_ = x11rb::protocol::xproto::MOTION_NOTIFY_EVENT;
-        let detail = if relative {
-            1 // TRUE -> relative coordinates
-        } else {
-            0 // FALSE -> absolute coordinates
-        };
+        // TRUE -> relative coordinates
+        // FALSE -> absolute coordinates
+        let detail = u8::from(relative);
         let time = x11rb::CURRENT_TIME;
         let root = x11rb::NONE; //  the root window of the screen the pointer is currently on
         let root_x = x.try_into().unwrap();
@@ -466,21 +462,21 @@ impl Drop for EnigoX11 {
 impl KeyboardControllable for EnigoX11 {
     fn key_sequence(&mut self, string: &str) {
         for c in string.chars() {
-            self.press_key(Key::Layout(c), None)
+            self.press_key(Key::Layout(c), None);
         }
     }
 
     fn key_down(&mut self, key: crate::Key) {
-        self.press_key(key, Some(true))
+        self.press_key(key, Some(true));
     }
 
     fn key_up(&mut self, key: crate::Key) {
-        self.press_key(key, Some(false))
+        self.press_key(key, Some(false));
     }
 
     fn key_click(&mut self, key: crate::Key) {
         self.press_key(key, Some(true));
-        self.press_key(key, Some(false))
+        self.press_key(key, Some(false));
     }
 }
 
@@ -494,11 +490,11 @@ impl MouseControllable for EnigoX11 {
     }
 
     fn mouse_down(&mut self, button: MouseButton) {
-        self.press_mouse(button, true, 1)
+        self.press_mouse(button, true, 1);
     }
 
     fn mouse_up(&mut self, button: MouseButton) {
-        self.press_mouse(button, false, 1)
+        self.press_mouse(button, false, 1);
     }
 
     fn mouse_click(&mut self, button: MouseButton) {

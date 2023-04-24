@@ -25,7 +25,7 @@ impl Enigo {
 }
 
 impl Default for Enigo {
-    /// Create a new EnigoX11 instance
+    /// Create a new `EnigoX11` instance
     fn default() -> Self {
         let x11 = Some(EnigoX11::default());
         Self { x11 }
@@ -34,25 +34,25 @@ impl Default for Enigo {
 
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        self.x11.as_mut().unwrap().mouse_move_to(x, y)
+        self.x11.as_mut().unwrap().mouse_move_to(x, y);
     }
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        self.x11.as_mut().unwrap().mouse_move_relative(x, y)
+        self.x11.as_mut().unwrap().mouse_move_relative(x, y);
     }
     fn mouse_down(&mut self, button: MouseButton) {
-        self.x11.as_mut().unwrap().mouse_down(button)
+        self.x11.as_mut().unwrap().mouse_down(button);
     }
     fn mouse_up(&mut self, button: MouseButton) {
-        self.x11.as_mut().unwrap().mouse_up(button)
+        self.x11.as_mut().unwrap().mouse_up(button);
     }
     fn mouse_click(&mut self, button: MouseButton) {
-        self.x11.as_mut().unwrap().mouse_click(button)
+        self.x11.as_mut().unwrap().mouse_click(button);
     }
     fn mouse_scroll_x(&mut self, length: i32) {
-        self.x11.as_mut().unwrap().mouse_scroll_x(length)
+        self.x11.as_mut().unwrap().mouse_scroll_x(length);
     }
     fn mouse_scroll_y(&mut self, length: i32) {
-        self.x11.as_mut().unwrap().mouse_scroll_y(length)
+        self.x11.as_mut().unwrap().mouse_scroll_y(length);
     }
     fn main_display_size(&self) -> (i32, i32) {
         self.x11.as_ref().unwrap().main_display_size()
@@ -64,15 +64,15 @@ impl MouseControllable for Enigo {
 
 impl KeyboardControllable for Enigo {
     fn key_sequence(&mut self, sequence: &str) {
-        self.x11.as_mut().unwrap().key_sequence(sequence)
+        self.x11.as_mut().unwrap().key_sequence(sequence);
     }
     fn key_down(&mut self, key: Key) {
-        self.x11.as_mut().unwrap().key_down(key)
+        self.x11.as_mut().unwrap().key_down(key);
     }
     fn key_up(&mut self, key: Key) {
-        self.x11.as_mut().unwrap().key_up(key)
+        self.x11.as_mut().unwrap().key_up(key);
     }
     fn key_click(&mut self, key: Key) {
-        self.x11.as_mut().unwrap().key_click(key)
+        self.x11.as_mut().unwrap().key_click(key);
     }
 }
