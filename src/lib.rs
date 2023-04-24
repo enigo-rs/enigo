@@ -66,7 +66,7 @@ mod macos;
 pub use crate::macos::Enigo;
 
 #[cfg(target_os = "linux")]
-mod linux;
+pub mod linux;
 #[cfg(target_os = "linux")]
 pub use crate::linux::Enigo;
 

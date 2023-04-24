@@ -6,7 +6,7 @@ use libc::{c_char, c_int, c_void, useconds_t};
 use std::{borrow::Cow, ffi::CString, ptr};
 
 const CURRENT_WINDOW: c_int = 0;
-const DEFAULT_DELAY: u64 = 12000;
+const DEFAULT_DELAY: u32 = 12;
 type Window = c_int;
 type Xdo = *const c_void;
 
@@ -77,15 +77,15 @@ fn mousebutton(button: MouseButton) -> c_int {
 }
 
 /// The main struct for handling the event emitting
-pub struct Enigo {
+pub struct EnigoX11 {
     xdo: Xdo,
-    delay: u64,
+    delay: u32,
 }
 // This is safe, we have a unique pointer.
 // TODO: use Unique<c_char> once stable.
-unsafe impl Send for Enigo {}
+unsafe impl Send for EnigoX11 {}
 
-impl Default for Enigo {
+impl Default for EnigoX11 {
     /// Create a new Enigo instance
     fn default() -> Self {
         Self {
@@ -94,28 +94,28 @@ impl Default for Enigo {
         }
     }
 }
-impl Enigo {
+impl EnigoX11 {
     /// Get the delay per keypress.
-    /// Default value is 12000.
+    /// Default value is 12.
     /// This is Linux-specific.
     #[must_use]
-    pub fn delay(&self) -> u64 {
-        self.delay
+    pub fn delay(&self) -> u32 {
+        self.delay * 1000
     }
     /// Set the delay per keypress.
     /// This is Linux-specific.
-    pub fn set_delay(&mut self, delay: u64) {
-        self.delay = delay;
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay * 1000;
     }
 }
-impl Drop for Enigo {
+impl Drop for EnigoX11 {
     fn drop(&mut self) {
         unsafe {
             xdo_free(self.xdo);
         }
     }
 }
-impl MouseControllable for Enigo {
+impl MouseControllable for EnigoX11 {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
         unsafe {
             xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
@@ -293,7 +293,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
 }
-impl KeyboardControllable for Enigo {
+impl KeyboardControllable for EnigoX11 {
     fn key_sequence(&mut self, sequence: &str) {
         let string = CString::new(sequence).unwrap();
         unsafe {
