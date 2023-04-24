@@ -55,9 +55,4 @@ fn main() {
     } else if target.contains("freebsd") || target.contains("dragonfly") {
         println!("cargo:rustc-link-lib=c");
     }
-    // Link libraries
-    if let "linux" = std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
-        println!("cargo:rustc-link-lib=X11");
-        println!("cargo:rustc-link-lib=Xtst");
-    };
 }
