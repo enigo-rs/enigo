@@ -140,7 +140,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         None => return Err(ParseError::EmptyTag),
                     };
                     let key = if action == Action::Press {
-                        &tag
+                        tag.as_str()
                     } else {
                         &tag[1..]
                     };
