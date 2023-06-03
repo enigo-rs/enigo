@@ -1,6 +1,7 @@
-use crate::{Key, KeyboardControllable};
 use std::error::Error;
 use std::fmt;
+
+use crate::{Key, KeyboardControllable};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]

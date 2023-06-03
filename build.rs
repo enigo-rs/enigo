@@ -1,9 +1,3 @@
-#[cfg(target_os = "windows")]
-fn main() {}
-
-#[cfg(target_os = "macos")]
-fn main() {}
-
 #[cfg(target_os = "linux")]
 use std::env;
 #[cfg(target_os = "linux")]
@@ -12,6 +6,12 @@ use std::fs::File;
 use std::io::Write;
 #[cfg(target_os = "linux")]
 use std::path::Path;
+
+#[cfg(target_os = "windows")]
+fn main() {}
+
+#[cfg(target_os = "macos")]
+fn main() {}
 
 #[cfg(target_os = "linux")]
 fn main() {

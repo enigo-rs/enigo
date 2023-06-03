@@ -1,8 +1,9 @@
-use enigo::{Key, KeyboardControllable};
 use std::sync::mpsc::channel;
 
-mod common;
 use common::BrowserEvent;
+use enigo::{Key, KeyboardControllable};
+
+mod common;
 
 #[test]
 #[ignore]

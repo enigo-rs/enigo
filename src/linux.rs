@@ -1,7 +1,8 @@
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use std::{borrow::Cow, ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
-use std::{borrow::Cow, ffi::CString, ptr};
+
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u64 = 12000;
