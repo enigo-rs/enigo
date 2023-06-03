@@ -564,5 +564,6 @@ fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
         Key::Layout(_) => panic!(), // TODO: Don't panic here
         Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
+        _ => panic!("Unsupported Key: {key:?}"),
     }
 }
