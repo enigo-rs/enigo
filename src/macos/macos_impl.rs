@@ -4,14 +4,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use objc::runtime::Class;
-
 use core_graphics::display::{CFIndex, CGDisplay, CGPoint};
 use core_graphics::event::{
     CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField, KeyCode,
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+use objc::runtime::Class;
 
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 

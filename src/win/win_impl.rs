@@ -9,7 +9,6 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS,
     VIRTUAL_KEY,
 };
-
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A, VK_ABNT_C1,
     VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK, VK_BROWSER_BACK,

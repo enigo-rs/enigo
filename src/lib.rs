@@ -52,40 +52,39 @@
 #[cfg(target_os = "macos")]
 #[macro_use]
 extern crate objc;
+#[cfg(feature = "with_serde")]
+extern crate serde;
+#[cfg(feature = "with_serde")]
+#[macro_use]
+extern crate serde_derive;
 
 // TODO(dustin) use interior mutability not &mut self
 
-#[cfg(target_os = "windows")]
-mod win;
-#[cfg(target_os = "windows")]
-pub use crate::win::Enigo;
+use std::fmt;
 
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "macos")]
-pub use crate::macos::Enigo;
+pub use keycodes::Key;
 
-#[cfg(target_os = "linux")]
-mod linux;
 #[cfg(target_os = "linux")]
 pub use crate::linux::Enigo;
+#[cfg(target_os = "macos")]
+pub use crate::macos::Enigo;
+#[cfg(target_os = "windows")]
+pub use crate::win::Enigo;
 
 /// DSL parser module
 ///
 /// The current status is that you can just print [unicode](http://unicode.org/) characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
 /// [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) or any other "special" key on the Linux, macOS and Windows operating system.
 pub mod dsl;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "windows")]
+mod win;
 
 /// Contains the available keycodes
 pub mod keycodes;
-pub use keycodes::Key;
-
-#[cfg(feature = "with_serde")]
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(feature = "with_serde")]
-extern crate serde;
 
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -347,8 +346,6 @@ impl Enigo {
         Self::default()
     }
 }
-
-use std::fmt;
 
 impl fmt::Debug for Enigo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
