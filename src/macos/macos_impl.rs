@@ -412,6 +412,8 @@ impl Enigo {
     }
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         // I mean duh, we still need to support deprecated keys until they're removed
+        // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
+        // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
         match key {
             Key::Alt | Key::Option => KeyCode::OPTION,
             Key::Backspace => KeyCode::DELETE,

@@ -353,13 +353,13 @@ pub enum Key {
     LWin,
     #[cfg(target_os = "windows")]
     MButton,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaNextTrack,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaPlayPause,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaPrevTrack,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaStop,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
@@ -552,11 +552,8 @@ pub enum Key {
     Undo,
     /// up arrow key
     UpArrow,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeDown,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeMute,
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     VolumeUp,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// windows key on Windows (super key on Linux, command key on macOS)
