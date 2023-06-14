@@ -3,11 +3,11 @@ use std::{mem::size_of, thread, time};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
-    MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP,
-    MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS,
-    VIRTUAL_KEY,
+    KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
+    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN,
+    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
+    MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
 };
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -234,13 +234,11 @@ impl KeyboardControllable for Enigo {
                 keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
             }
         } else {
-            keybd_event(KEYBD_EVENT_FLAGS::default(), key_to_keycode(key), 0u16);
+            let keycode = key_to_keycode(key);
+            let keyflags = get_key_flags(keycode);
+            keybd_event(keyflags, keycode, 0u16);
             thread::sleep(time::Duration::from_millis(20));
-            keybd_event(
-                KEYBD_EVENT_FLAGS::default() | KEYEVENTF_KEYUP,
-                key_to_keycode(key),
-                0u16,
-            );
+            keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
         };
     }
 
@@ -251,7 +249,9 @@ impl KeyboardControllable for Enigo {
                 keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
             }
         } else {
-            keybd_event(KEYBD_EVENT_FLAGS::default(), key_to_keycode(key), 0u16);
+            let keycode = key_to_keycode(key);
+            let keyflags = get_key_flags(keycode);
+            keybd_event(keyflags, keycode, 0u16);
         };
     }
 
@@ -263,11 +263,9 @@ impl KeyboardControllable for Enigo {
                 keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
             }
         } else {
-            keybd_event(
-                KEYBD_EVENT_FLAGS::default() | KEYEVENTF_KEYUP,
-                key_to_keycode(key),
-                0u16,
-            );
+            let keycode = key_to_keycode(key);
+            let keyflags = get_key_flags(keycode);
+            keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
         };
     }
 }
@@ -309,6 +307,22 @@ impl Enigo {
         // to specify a layout use VkKeyScanExW and GetKeyboardLayout
         // or load one with LoadKeyboardLayoutW
         keycode_and_shiftstate
+    }
+}
+
+fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
+    match vk {
+        // Navigation keys should be injected with the extended flag to distinguish
+        // them from the Numpad navigation keys. Otherwise, input Shift+<Navigation key>
+        // may not have the expected result and depends on whether NUMLOCK is enabled/disabled.
+        // A list of the extended keys can be found here:
+        // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag
+        // TODO: The keys "BREAK (CTRL+PAUSE) key" and "ENTER key in the numeric keypad" are missing
+        VK_RMENU | VK_RCONTROL | VK_UP | VK_DOWN | VK_LEFT | VK_RIGHT | VK_INSERT | VK_DELETE
+        | VK_HOME | VK_END | VK_PRIOR | VK_NEXT | VK_NUMLOCK | VK_SNAPSHOT | VK_DIVIDE => {
+            KEYBD_EVENT_FLAGS::default() | KEYEVENTF_EXTENDEDKEY
+        }
+        _ => KEYBD_EVENT_FLAGS::default(),
     }
 }
 
