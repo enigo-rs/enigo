@@ -8,8 +8,8 @@ use objc::runtime::Class;
 
 use core_graphics::display::{CFIndex, CGDisplay, CGPoint};
 use core_graphics::event::{
-    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField, KeyCode,
-    ScrollEventUnit,
+    CGEvent, CGEventFlags, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
+    KeyCode, ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
@@ -358,32 +358,120 @@ impl KeyboardControllable for Enigo {
     }
 
     fn key_click(&mut self, key: Key) {
-        let keycode = self.key_to_keycode(key);
-        thread::sleep(Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
-            .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
-
-        thread::sleep(Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
-            .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
+        self.key_down(key);
+        self.key_up(key);
     }
 
+    // existed a [bug](https://github.com/enigo-rs/enigo/issues/106), so to
+    // resolve this, we will parse a `Key::Layout`, determine if is uppercase
+    // or punctuation char and handle accordingly.
     fn key_down(&mut self, key: Key) {
+        let keycode = self.key_to_keycode(key);
+
         thread::sleep(Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
-                .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
+        let cg_event = if let Key::Layout(key_char) = key {
+            // if key is upper then `event.set_flags(CGEventFlags::CGEventFlagShift);`
+            match key_char {
+                _ if key_char.is_uppercase() => {
+                    let event =
+                        CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true);
+                    match event {
+                        Ok(e) => {
+                            e.set_flags(CGEventFlags::CGEventFlagShift);
+                            Some(e)
+                        }
+                        Err(_e) => None,
+                    }
+                }
+                _ if key_char.is_ascii_punctuation() => {
+                    let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true);
+                    match event {
+                        Ok(e) => {
+                            let string = key_char.to_string();
+                            e.set_string(&string);
+                            Some(e)
+                        }
+                        Err(_e) => None,
+                    }
+                }
+                _ => {
+                    let event =
+                        CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true);
+                    match event {
+                        Ok(e) => Some(e),
+                        Err(_e) => None,
+                    }
+                }
+            }
+        } else {
+            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true);
+            match event {
+                Ok(e) => Some(e),
+                Err(_e) => None,
+            }
+        };
+        match cg_event {
+            Some(event) => {
+                event.post(CGEventTapLocation::HID);
+            }
+            None => {
+                panic!("Failed creating event");
+            }
+        }
     }
 
+    // existed a [bug](https://github.com/enigo-rs/enigo/issues/106), so to
+    // resolve this, we will parse a `Key::Layout`, determine if is uppercase
+    // or punctuation char and handle accordingly.
     fn key_up(&mut self, key: Key) {
+        let keycode = self.key_to_keycode(key);
+
         thread::sleep(Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
-                .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
+        let cg_event = if let Key::Layout(key_char) = key {
+            // if key is upper then `event.set_flags(CGEventFlags::CGEventFlagShift);`
+            match key_char {
+                _ if key_char.is_uppercase() => {
+                    let event =
+                        CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false);
+                    match event {
+                        Ok(e) => {
+                            e.set_flags(CGEventFlags::empty());
+                            Some(e)
+                        }
+                        Err(_e) => None,
+                    }
+                }
+                _ if key_char.is_ascii_punctuation() => {
+                    let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, false);
+                    match event {
+                        Ok(e) => Some(e),
+                        Err(_e) => None,
+                    }
+                }
+                _ => {
+                    let event =
+                        CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false);
+                    match event {
+                        Ok(e) => Some(e),
+                        Err(_e) => None,
+                    }
+                }
+            }
+        } else {
+            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false);
+            match event {
+                Ok(e) => Some(e),
+                Err(_e) => None,
+            }
+        };
+        match cg_event {
+            Some(event) => {
+                event.post(CGEventTapLocation::HID);
+            }
+            None => {
+                panic!("Failed creating event");
+            }
+        }
     }
 }
 
