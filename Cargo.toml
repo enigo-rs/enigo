@@ -15,6 +15,16 @@ keywords = ["input", "mouse", "testing", "keyboard", "automation"]
 categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
 
+exclude = [
+    ".github",
+    ".vscode",
+    "examples",
+    ".gitignore",
+    "CHANGES.md",
+    "rustfmt.toml",
+    "tests",
+]
+
 [dependencies]
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
