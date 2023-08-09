@@ -22,7 +22,6 @@ exclude = [
     ".gitignore",
     "CHANGES.md",
     "rustfmt.toml",
-    "tests",
 ]
 
 [dependencies]
