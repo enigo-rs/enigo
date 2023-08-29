@@ -53,13 +53,7 @@ extern "C" {
         screen: c_int,
     ) -> c_int;
 
-    fn xdo_get_mouse_location2(
-        xdo: Xdo,
-        x: *mut c_int,
-        y: *mut c_int,
-        screen: *mut c_int,
-        window: *mut Window,
-    ) -> c_int;
+    fn xdo_get_mouse_location(xdo: Xdo, x: *mut c_int, y: *mut c_int, screen: *mut c_int) -> c_int;
 }
 
 fn mousebutton(button: MouseButton) -> c_int {
@@ -184,16 +178,8 @@ impl MouseControllable for Enigo {
         let mut x = 0;
         let mut y = 0;
         let mut unused_screen_index = 0;
-        let mut unused_window_index = CURRENT_WINDOW;
-        unsafe {
-            xdo_get_mouse_location2(
-                self.xdo,
-                &mut x,
-                &mut y,
-                &mut unused_screen_index,
-                &mut unused_window_index,
-            )
-        };
+
+        unsafe { xdo_get_mouse_location(self.xdo, &mut x, &mut y, &mut unused_screen_index) };
         (x, y)
     }
 }
