@@ -24,7 +24,7 @@ fn handle_connection(stream: TcpStream, tx: &Sender<BrowserEvent>) {
 
     println!("Start waiting for messages");
     loop {
-        let message = websocket.read_message().unwrap();
+        let message = websocket.read().unwrap();
         println!("Start processing message");
 
         match message {
