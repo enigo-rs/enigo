@@ -113,7 +113,7 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) {
 impl MouseControllable for Enigo {
     fn mouse_move_to(&mut self, x: i32, y: i32) {
         let result = unsafe { SetCursorPos(x, y) };
-        assert!(result.as_bool(), "Unable to move mouse");
+        assert!(result.is_ok(), "Unable to move mouse");
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
@@ -190,7 +190,7 @@ impl MouseControllable for Enigo {
     fn mouse_location(&self) -> (i32, i32) {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
-        if result.as_bool() {
+        if result.is_ok() {
             (point.x, point.y)
         } else {
             (0, 0)
