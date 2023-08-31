@@ -56,10 +56,20 @@ jobs:
       - name: Build the examples with all features enabled
         run: cargo check --examples --all-features
 
+      - name: Build the examples in release mode
+        run: cargo check --examples
+      - name: Build the examples in release mode with all features enabled
+        run: cargo check --examples --all-features
+
       - name: Test the code
         run: cargo test
       - name: Test the code with all features enabled
         run: cargo test --all-features
+
+      - name: Test the code in release mode
+        run: cargo test --release
+      - name: Test the code with all features enabled
+        run: cargo test --all-features --release
 
       - name: Setup headless display for integration tests
         if: runner.os == 'Linux' # The integration tests only work on Linux right now
