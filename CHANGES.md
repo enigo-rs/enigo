@@ -5,6 +5,7 @@
 ## Added
 
 ## Fixed
+- Linux: Fixed a Segfault when running in release mode
 
 # 0.1.2
 
