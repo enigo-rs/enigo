@@ -1,5 +1,3 @@
-use libc;
-
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
