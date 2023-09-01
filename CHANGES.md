@@ -3,6 +3,14 @@
 ## Changed
 
 ## Added
+
+## Fixed
+
+# 0.1.3
+
+## Changed
+
+## Added
 - Linux: Add Media and Volume keys
 
 ## Fixed
