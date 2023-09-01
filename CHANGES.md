@@ -3,6 +3,7 @@
 ## Changed
 
 ## Added
+- Linux: Add Media and Volume keys
 
 ## Fixed
 - Linux: Fixed a Segfault when running in release mode

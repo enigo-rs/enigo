@@ -1,6 +1,7 @@
-use crate::{Key, KeyboardControllable};
 use std::error::Error;
 use std::fmt;
+
+use crate::{Key, KeyboardControllable};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]
@@ -139,7 +140,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         None => return Err(ParseError::EmptyTag),
                     };
                     let key = if action == Action::Press {
-                        &tag
+                        tag.as_str()
                     } else {
                         &tag[1..]
                     };

@@ -1,7 +1,8 @@
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use std::{borrow::Cow, ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
-use std::{borrow::Cow, ffi::CString, ptr};
+
+use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
 const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u64 = 12000;
@@ -203,7 +204,9 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Raw(k) = key {
         return Cow::Owned(format!("{k}"));
     }
-    // The full list of names is available at https://cgit.freedesktop.org/xorg/proto/x11proto/plain/keysymdef.h
+    // The full list of names is available at:
+    // https://cgit.freedesktop.org/xorg/proto/x11proto/plain/keysymdef.h
+    // https://cgit.freedesktop.org/xorg/proto/x11proto/plain/XF86keysym.h
     Cow::Borrowed(match key {
         Key::Alt => "Alt",
         Key::Backspace => "BackSpace",
@@ -266,6 +269,10 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::LMenu => "Menu",
         Key::LShift => "Shift_L",
         Key::ModeChange => "Mode_switch",
+        Key::MediaNextTrack => "XF86AudioNext",
+        Key::MediaPlayPause => "XF86AudioPlay",
+        Key::MediaPrevTrack => "XF86AudioPrev",
+        Key::MediaStop => "XF86AudioStop",
         Key::Numlock => "Num_Lock",
         Key::Option => "Option",
         Key::PageDown => "Page_Down",
@@ -287,6 +294,9 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Tab => "Tab",
         Key::Undo => "Undo",
         Key::UpArrow => "Up",
+        Key::VolumeDown => "XF86AudioLowerVolume",
+        Key::VolumeUp => "XF86AudioRaiseVolume",
+        Key::VolumeMute => "XF86AudioMute",
         Key::Layout(_) | Key::Raw(_) => unreachable!(),
         Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
