@@ -26,7 +26,7 @@ jobs:
           - macos-latest
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/install_deps
       - uses: dtolnay/rust-toolchain@master
         with:
