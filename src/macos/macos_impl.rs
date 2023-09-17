@@ -12,7 +12,9 @@ use core_graphics::event::{
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc::runtime::Class;
 
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{
+    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+};
 
 // required for NSEvent
 #[link(name = "AppKit", kind = "framework")]
@@ -207,8 +209,64 @@ impl Default for Enigo {
     }
 }
 
-impl MouseControllable for Enigo {
-    fn mouse_move_to(&mut self, x: i32, y: i32) {
+impl MouseControllableNext for Enigo {
+    // Sends a button event to the X11 server via `XTest` extension
+    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
+        let (current_x, current_y) = self.mouse_loc();
+
+        if direction == Direction::Click || direction == Direction::Press {
+            let click_count = self.nth_button_press(button, Direction::Press);
+            let (button, event_type) = match button {
+                MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
+                MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
+                MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
+                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
+                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
+                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
+            };
+            let dest = CGPoint::new(current_x as f64, current_y as f64);
+            let event =
+                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
+                    .unwrap();
+
+            event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
+            event.post(CGEventTapLocation::HID);
+        }
+        if direction == Direction::Click || direction == Direction::Release {
+            let click_count = self.nth_button_press(button, Direction::Press);
+            let (button, event_type) = match button {
+                MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
+                MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
+                MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+                MouseButton::ScrollUp
+                | MouseButton::ScrollDown
+                | MouseButton::ScrollLeft
+                | MouseButton::ScrollRight => {
+                    println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
+                    return;
+                }
+            };
+            let dest = CGPoint::new(current_x as f64, current_y as f64);
+            let event =
+                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
+                    .unwrap();
+
+            event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
+            event.post(CGEventTapLocation::HID);
+        }
+    }
+
+    // Sends a motion notify event to the X11 server via `XTest` extension
+    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
+    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
+            let (current_x, current_y) = self.mouse_loc();
+            (current_x + x, current_y + y)
+        } else {
+            (x, y)
+        };
+
         let pressed = Self::pressed_buttons();
 
         let event_type = if pressed & 1 > 0 {
@@ -230,105 +288,33 @@ impl MouseControllable for Enigo {
         event.post(CGEventTapLocation::HID);
     }
 
-    fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let (current_x, current_y) = self.mouse_location();
-        let new_x = current_x + x;
-        let new_y = current_y + y;
-
-        /*
-                if new_x < 0
-                    || new_x as usize > display_width
-                    || new_y < 0
-                    || new_y as usize > display_height
-                {
-                    return;
-                }
-        */
-        self.mouse_move_to(new_x, new_y);
-    }
-
-    fn mouse_down(&mut self, button: MouseButton) {
-        let (current_x, current_y) = self.mouse_location();
-        let click_count = self.nth_button_press(button, true);
-        let (button, event_type) = match button {
-            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
-            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
-            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
-            MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
-            MouseButton::ScrollDown => return self.mouse_scroll_x(1),
-            MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
-            MouseButton::ScrollRight => return self.mouse_scroll_y(1),
+    // Sends a scroll event to the X11 server via `XTest` extension
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+        let (ax, len_x, len_y) = match axis {
+            Axis::Horizontal => (2, 0, -length),
+            Axis::Vertical => (1, -length, 0),
         };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
 
-        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-        event.post(CGEventTapLocation::HID);
-    }
-
-    fn mouse_up(&mut self, button: MouseButton) {
-        let (current_x, current_y) = self.mouse_location();
-        let click_count = self.nth_button_press(button, false);
-        let (button, event_type) = match button {
-            MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
-            MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
-            MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
-            MouseButton::ScrollUp
-            | MouseButton::ScrollDown
-            | MouseButton::ScrollLeft
-            | MouseButton::ScrollRight => {
-                println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
-                return;
-            }
-        };
-        let dest = CGPoint::new(current_x as f64, current_y as f64);
-        let event =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button).unwrap();
-
-        event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-        event.post(CGEventTapLocation::HID);
-    }
-
-    fn mouse_click(&mut self, button: MouseButton) {
-        self.mouse_down(button);
-        self.mouse_up(button);
-    }
-
-    fn mouse_scroll_x(&mut self, length: i32) {
         let event = CGEvent::new_scroll_event(
             self.event_source.clone(),
             ScrollEventUnit::LINE,
-            2,
-            0,
-            -length,
+            ax,
+            len_x,
+            len_y,
             0,
         )
         .expect("Failed creating event");
         event.post(CGEventTapLocation::HID);
     }
 
-    fn mouse_scroll_y(&mut self, length: i32) {
-        let event = CGEvent::new_scroll_event(
-            self.event_source.clone(),
-            ScrollEventUnit::LINE,
-            1,
-            -length,
-            0,
-            0,
-        )
-        .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
-    }
-
-    fn main_display_size(&self) -> (i32, i32) {
+    fn main_display(&self) -> (i32, i32) {
         (
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
         )
     }
 
-    fn mouse_location(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> (i32, i32) {
         let ns_event = Class::get("NSEvent").unwrap();
         let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
@@ -336,15 +322,15 @@ impl MouseControllable for Enigo {
     }
 }
 
-// https://stackoverflow.
-// com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
-
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&mut self, sequence: &str) {
+// https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
+impl KeyboardControllableNext for Enigo {
+    /// Enter the text
+    /// Use a fast method to enter the text, if it is available
+    fn enter_text(&mut self, text: &str) {
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(cluster)) truncates strings down to 20 characters
-        let chars: Vec<char> = sequence.chars().collect();
+        let chars: Vec<char> = text.chars().collect();
         let mut string: String;
         for chunk in chars.chunks(20) {
             let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
@@ -356,33 +342,23 @@ impl KeyboardControllable for Enigo {
         thread::sleep(Duration::from_millis(2));
     }
 
-    fn key_click(&mut self, key: Key) {
+    /// Sends a key event to the X11 server via `XTest` extension
+    fn enter_key(&mut self, key: Key, direction: Direction) {
         let keycode = self.key_to_keycode(key);
-        thread::sleep(Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
-            .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
 
-        thread::sleep(Duration::from_millis(20));
-        let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
-            .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
-    }
-
-    fn key_down(&mut self, key: Key) {
-        thread::sleep(Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), true)
+        if direction == Direction::Click || direction == Direction::Press {
+            thread::sleep(Duration::from_millis(20));
+            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
                 .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
-    }
+            event.post(CGEventTapLocation::HID);
+        }
 
-    fn key_up(&mut self, key: Key) {
-        thread::sleep(Duration::from_millis(20));
-        let event =
-            CGEvent::new_keyboard_event(self.event_source.clone(), self.key_to_keycode(key), false)
+        if direction == Direction::Click || direction == Direction::Release {
+            thread::sleep(Duration::from_millis(20));
+            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
                 .expect("Failed creating event");
-        event.post(CGEventTapLocation::HID);
+            event.post(CGEventTapLocation::HID);
+        }
     }
 }
 
@@ -397,8 +373,8 @@ impl Enigo {
     // function checks if the button was pressed down again fast enough to issue a
     // double (or nth) click and returns the nth click it was. It also takes care of
     // updating the information the Enigo struct stores.
-    fn nth_button_press(&mut self, button: MouseButton, press: bool) -> i64 {
-        if press {
+    fn nth_button_press(&mut self, button: MouseButton, direction: Direction) -> i64 {
+        if direction == Direction::Press {
             let last_time = self.last_mouse_click[button as usize].1;
             self.last_mouse_click[button as usize].1 = Instant::now();
 
