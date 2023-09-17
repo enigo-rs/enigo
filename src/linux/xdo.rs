@@ -2,12 +2,15 @@ use std::{borrow::Cow, ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{
+    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+};
 
 const CURRENT_WINDOW: c_ulong = 0;
-const DEFAULT_DELAY: u64 = 12000;
+const DEFAULT_DELAY: u32 = 12; // milliseconds
 type Window = c_ulong;
 type Xdo = *const c_void;
+pub type Keycode = Key;
 
 #[link(name = "xdo")]
 extern "C" {
@@ -75,125 +78,44 @@ fn mousebutton(button: MouseButton) -> c_int {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 /// The main struct for handling the event emitting
-pub struct Enigo {
+pub struct Con {
     xdo: Xdo,
-    delay: u64,
+    delay: u32, // microseconds
 }
 // This is safe, we have a unique pointer.
 // TODO: use Unique<c_char> once stable.
-unsafe impl Send for Enigo {}
+unsafe impl Send for Con {}
 
-impl Default for Enigo {
+impl Default for Con {
     /// Create a new Enigo instance
     fn default() -> Self {
         Self {
             xdo: unsafe { xdo_new(ptr::null()) },
-            delay: DEFAULT_DELAY,
+            delay: DEFAULT_DELAY * 1000,
         }
     }
 }
-impl Enigo {
-    /// Get the delay per keypress.
-    /// Default value is 12000.
+impl Con {
+    /// Get the delay per keypress in milliseconds.
+    /// Default value is 12.
     /// This is Linux-specific.
     #[must_use]
-    pub fn delay(&self) -> u64 {
-        self.delay
+    pub fn delay(&self) -> u32 {
+        self.delay / 1000
     }
-    /// Set the delay per keypress.
+    /// Set the delay per keypress in milliseconds.
     /// This is Linux-specific.
-    pub fn set_delay(&mut self, delay: u64) {
-        self.delay = delay;
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay * 1000;
     }
 }
-impl Drop for Enigo {
+impl Drop for Con {
     fn drop(&mut self) {
         unsafe {
             xdo_free(self.xdo);
         }
-    }
-}
-impl MouseControllable for Enigo {
-    fn mouse_move_to(&mut self, x: i32, y: i32) {
-        unsafe {
-            xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
-        }
-    }
-    fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        unsafe {
-            xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int);
-        }
-    }
-    fn mouse_down(&mut self, button: MouseButton) {
-        unsafe {
-            xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button));
-        }
-    }
-    fn mouse_up(&mut self, button: MouseButton) {
-        unsafe {
-            xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button));
-        }
-    }
-    fn mouse_click(&mut self, button: MouseButton) {
-        unsafe {
-            xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button));
-        }
-    }
-    fn mouse_scroll_x(&mut self, length: i32) {
-        let mut length = length;
-        let button = if length < 0 {
-            MouseButton::ScrollLeft
-        } else {
-            MouseButton::ScrollRight
-        };
-
-        if length < 0 {
-            length = -length;
-        }
-
-        for _ in 0..length {
-            self.mouse_click(button);
-        }
-    }
-    fn mouse_scroll_y(&mut self, length: i32) {
-        let mut length = length;
-        let button = if length < 0 {
-            MouseButton::ScrollUp
-        } else {
-            MouseButton::ScrollDown
-        };
-
-        if length < 0 {
-            length = -length;
-        }
-
-        for _ in 0..length {
-            self.mouse_click(button);
-        }
-    }
-    fn main_display_size(&self) -> (i32, i32) {
-        const MAIN_SCREEN: i32 = 0;
-        let mut width = 0;
-        let mut height = 0;
-        unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
-        (width, height)
-    }
-    fn mouse_location(&self) -> (i32, i32) {
-        let mut x = 0;
-        let mut y = 0;
-        let mut unused_screen_index = 0;
-        let mut unused_window_index = CURRENT_WINDOW;
-        unsafe {
-            xdo_get_mouse_location2(
-                self.xdo,
-                &mut x,
-                &mut y,
-                &mut unused_screen_index,
-                &mut unused_window_index,
-            )
-        };
-        (x, y)
     }
 }
 
@@ -301,9 +223,10 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
     })
 }
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&mut self, sequence: &str) {
-        let string = CString::new(sequence).unwrap();
+
+impl KeyboardControllableNext for Con {
+    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+        let string = CString::new(text).unwrap();
         unsafe {
             xdo_enter_text_window(
                 self.xdo,
@@ -312,38 +235,111 @@ impl KeyboardControllable for Enigo {
                 self.delay as useconds_t,
             );
         }
+        Some(())
     }
-    fn key_down(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
-        unsafe {
-            xdo_send_keysequence_window_down(
-                self.xdo,
-                CURRENT_WINDOW,
-                string.as_ptr(),
-                self.delay as useconds_t,
-            );
+    /// Sends a key event to the X11 server via `XTest` extension
+    fn enter_key(&mut self, keycode: Keycode, direction: Direction) {
+        let string = CString::new(&*keysequence(keycode)).unwrap();
+        match direction {
+            Direction::Press => unsafe {
+                xdo_send_keysequence_window_down(
+                    self.xdo,
+                    CURRENT_WINDOW,
+                    string.as_ptr(),
+                    self.delay as useconds_t,
+                );
+            },
+            Direction::Release => unsafe {
+                xdo_send_keysequence_window_up(
+                    self.xdo,
+                    CURRENT_WINDOW,
+                    string.as_ptr(),
+                    self.delay as useconds_t,
+                );
+            },
+            Direction::Click => unsafe {
+                xdo_send_keysequence_window(
+                    self.xdo,
+                    CURRENT_WINDOW,
+                    string.as_ptr(),
+                    self.delay as useconds_t,
+                );
+            },
+        };
+    }
+}
+
+impl MouseControllableNext for Con {
+    // Sends a button event to the X11 server via `XTest` extension
+    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _: u32) {
+        match direction {
+            Direction::Press => unsafe {
+                xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button));
+            },
+            Direction::Release => unsafe {
+                xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button));
+            },
+            Direction::Click => unsafe {
+                xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button));
+            },
+        };
+    }
+
+    // Sends a motion notify event to the X11 server via `XTest` extension
+    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
+    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+        match coordinate {
+            Coordinate::Relative => unsafe {
+                xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int);
+            },
+            Coordinate::Absolute => unsafe {
+                xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
+            },
         }
     }
-    fn key_up(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
-        unsafe {
-            xdo_send_keysequence_window_up(
-                self.xdo,
-                CURRENT_WINDOW,
-                string.as_ptr(),
-                self.delay as useconds_t,
-            );
+
+    // Sends a scroll event to the X11 server via `XTest` extension
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+        let mut length = length;
+        let button = if length < 0 {
+            length = -length;
+            match axis {
+                Axis::Horizontal => MouseButton::ScrollLeft,
+                Axis::Vertical => MouseButton::ScrollUp,
+            }
+        } else {
+            match axis {
+                Axis::Horizontal => MouseButton::ScrollRight,
+                Axis::Vertical => MouseButton::ScrollDown,
+            }
+        };
+        for _ in 0..length {
+            self.send_mouse_button_event(button, Direction::Click, 0);
         }
     }
-    fn key_click(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
+
+    fn main_display(&self) -> (i32, i32) {
+        const MAIN_SCREEN: i32 = 0;
+        let mut width = 0;
+        let mut height = 0;
+        unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
+        (width, height)
+    }
+
+    fn mouse_loc(&self) -> (i32, i32) {
+        let mut x = 0;
+        let mut y = 0;
+        let mut unused_screen_index = 0;
+        let mut unused_window_index = CURRENT_WINDOW;
         unsafe {
-            xdo_send_keysequence_window(
+            xdo_get_mouse_location2(
                 self.xdo,
-                CURRENT_WINDOW,
-                string.as_ptr(),
-                self.delay as useconds_t,
-            );
-        }
+                &mut x,
+                &mut y,
+                &mut unused_screen_index,
+                &mut unused_window_index,
+            )
+        };
+        (x, y)
     }
 }
