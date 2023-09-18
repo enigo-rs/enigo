@@ -312,8 +312,6 @@ fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
     }
 }
 
-// TODO: Keep track of the held keys on Windows and Mac too and release them
-// when Enigo is dropped
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
