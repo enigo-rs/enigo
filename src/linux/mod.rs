@@ -12,6 +12,14 @@ use crate::{
 #[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
 mod x11;
 
+#[cfg(feature = "wayland")]
+pub mod wayland;
+
+#[cfg(feature = "wayland")]
+pub mod constants;
+#[cfg(feature = "wayland")]
+use constants::{KEYMAP_BEGINNING, KEYMAP_END};
+
 mod keymap;
 
 pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
@@ -53,6 +61,8 @@ impl From<std::io::Error> for ConnectionError {
 
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
+    #[cfg(feature = "wayland")]
+    wayland: Option<wayland::Con>,
     x11: Option<x11::Con>,
 }
 
@@ -79,13 +89,24 @@ impl Default for Enigo {
     /// Create a new `Enigo` instance
     fn default() -> Self {
         let held = Vec::new();
+        #[cfg(feature = "wayland")]
+        let wayland = wayland::Con::new().ok();
         let x11 = Some(x11::Con::default());
-        Self { held, x11 }
+        Self {
+            held,
+            #[cfg(feature = "wayland")]
+            wayland,
+            x11,
+        }
     }
 }
 
 impl MouseControllableNext for Enigo {
     fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_mut() {
+            wayland.send_mouse_button_event(button, direction, delay);
+        }
         self.x11
             .as_mut()
             .unwrap()
@@ -95,6 +116,10 @@ impl MouseControllableNext for Enigo {
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_mut() {
+            wayland.send_motion_notify_event(x, y, coordinate);
+        }
         self.x11
             .as_mut()
             .unwrap()
@@ -103,14 +128,26 @@ impl MouseControllableNext for Enigo {
 
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_mut() {
+            wayland.mouse_scroll_event(length, axis);
+        }
         self.x11.as_mut().unwrap().mouse_scroll_event(length, axis);
     }
 
     fn main_display(&self) -> (i32, i32) {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_ref() {
+            return wayland.main_display();
+        }
         self.x11.as_ref().unwrap().main_display()
     }
 
     fn mouse_loc(&self) -> (i32, i32) {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_ref() {
+            return wayland.mouse_loc();
+        }
         self.x11.as_ref().unwrap().mouse_loc()
     }
 }
@@ -128,6 +165,10 @@ impl KeyboardControllableNext for Enigo {
             Direction::Click => (),
         }
 
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_mut() {
+            wayland.enter_key(key, direction);
+        }
         self.x11.as_mut().unwrap().enter_key(key, direction);
     }
 }
