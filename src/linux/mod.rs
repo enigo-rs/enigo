@@ -1,12 +1,18 @@
+use xkbcommon::xkb::Keysym;
 /// The "empty" keyboard symbol.
 // TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
 // there
+pub const NO_SYMBOL: Keysym = Keysym::new(0);
+
 use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
 };
-use xkbcommon::xkb::Keysym;
 
-mod xdo;
+#[cfg_attr(feature = "x11rb", path = "x11rb.rs")]
+#[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
+mod x11;
+
+mod keymap;
 
 pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
@@ -47,7 +53,7 @@ impl From<std::io::Error> for ConnectionError {
 
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
-    x11: Option<xdo::Con>,
+    x11: Option<x11::Con>,
 }
 
 impl Enigo {
@@ -73,7 +79,7 @@ impl Default for Enigo {
     /// Create a new `Enigo` instance
     fn default() -> Self {
         let held = Vec::new();
-        let x11 = Some(xdo::Con::default());
+        let x11 = Some(x11::Con::default());
         Self { held, x11 }
     }
 }
