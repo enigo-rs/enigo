@@ -28,6 +28,13 @@ webbrowser = "0.8"
 
 [features]
 with_serde = ["serde", "serde_derive"]
+wayland = [
+    "dep:wayland-client",
+    "dep:wayland-protocols-misc",
+    "dep:wayland-protocols-wlr",
+    "dep:wayland-protocols-plasma",
+    "dep:tempfile",
+]
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.51", features = [
@@ -42,12 +49,23 @@ objc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+wayland-protocols-misc = { version = "0.2", features = [
+    "client",
+], optional = true }
+wayland-protocols-wlr = { version = "0.2", features = [
+    "client",
+], optional = true }
+wayland-protocols-plasma = { version = "0.2", features = [
+    "client",
+], optional = true }
+wayland-client = { version = "0.31", optional = true }
 x11rb = { version = "0.12", features = [
     "randr",
     "xinput",
     "xtest",
 ], optional = true }
 xkbcommon = "0.6"
+tempfile = { version = "3.5", optional = true }
 
 [build-dependencies]
 pkg-config = "0.3"

@@ -1,10 +1,16 @@
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
+use std::io::{Seek, SeekFrom, Write};
 
-use xkbcommon::xkb::{keysym_from_name, KEYSYM_NO_FLAGS};
+#[cfg(feature = "wayland")]
+use tempfile::tempfile;
+
+use xkbcommon::xkb::{keysym_from_name, keysym_get_name, KEYSYM_NO_FLAGS};
 
 use super::{ConnectionError, Keysym, NO_SYMBOL};
+#[cfg(feature = "wayland")]
+use super::{KEYMAP_BEGINNING, KEYMAP_END};
 use crate::{Direction, Key};
 
 const DEFAULT_DELAY: u32 = 12;
@@ -224,6 +230,7 @@ where
     pub fn unmap<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) {
         if let Some(&keycode) = self.keymap.get(&keysym) {
             c.bind_key(keycode, NO_SYMBOL);
+            self.needs_regeneration = true;
             self.unused_keycodes.push_back(keycode);
             self.keymap.remove(&keysym);
         }
@@ -274,6 +281,79 @@ where
             return true;
         }
         false
+    }
+
+    /// Regenerate the keymap if there were any changes
+    /// and write the new keymap to a temporary file
+    ///
+    /// If there was the need to regenerate the keymap, the size of the keymap
+    /// is returned
+    #[cfg(feature = "wayland")]
+    pub fn regenerate(&mut self) -> Option<u32> {
+        // Don't do anything if there were no changes
+        if !self.needs_regeneration {
+            return None;
+        }
+
+        // Create a file to store the layout
+        if self.file.is_none() {
+            let mut temp_file = tempfile().expect("Unable to create tempfile");
+            temp_file.write_all(KEYMAP_BEGINNING).unwrap();
+            self.file = Some(temp_file);
+        }
+
+        let keymap_file = self
+            .file
+            .as_mut()
+            .expect("There was no file to write to. This should not be possible!");
+        // Move the virtual cursor of the file to the end of the part of the keymap that
+        // is always the same so we only overwrite the parts that can change.
+        keymap_file
+            .seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))
+            .unwrap();
+        for (&keysym, &keycode) in &self.keymap {
+            write!(
+                keymap_file,
+                "
+            key <I{}> {{ [ {} ] }}; // \\n",
+                keycode,
+                keysym_get_name(keysym)
+            )
+            .unwrap();
+        }
+        keymap_file.write_all(KEYMAP_END).unwrap();
+        // Truncate the file at the current cursor position in order to cut off any old
+        // data in case the keymap was smaller than the old one
+        let keymap_len = keymap_file
+            .stream_position()
+            .expect("Unable to find the position of the cursor in the file");
+        keymap_file
+            .set_len(keymap_len)
+            .expect("Unable to trim the file");
+        self.needs_regeneration = false;
+
+        Some(keymap_len.try_into().unwrap())
+    }
+
+    /// Tells the keymap that a modifier was pressed
+    /// Updates the internal state of the modifiers and returns the new bitflag
+    /// representing the state of the modifiers
+    pub fn enter_modifier(
+        &mut self,
+        modifier: ModifierBitflag,
+        direction: Direction,
+    ) -> ModifierBitflag {
+        match direction {
+            Direction::Press => {
+                self.modifiers |= modifier;
+                self.modifiers
+            }
+            Direction::Release => {
+                self.modifiers &= !modifier;
+                self.modifiers
+            }
+            Direction::Click => self.modifiers,
+        }
     }
 }
 
