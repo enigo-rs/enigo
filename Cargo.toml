@@ -18,12 +18,12 @@ license = "MIT"
 exclude = [".github", ".vscode", "examples", ".gitignore", "rustfmt.toml"]
 
 [dependencies]
-serde = { version = "1.0", optional = true }
-serde_derive = { version = "1.0", optional = true }
+serde = { version = "1", optional = true }
+serde_derive = { version = "1", optional = true }
 
 [dev-dependencies]
 tungstenite = "0.20"
-url = "2.3"
+url = "2"
 webbrowser = "0.8"
 
 [features]
@@ -65,7 +65,7 @@ x11rb = { version = "0.12", features = [
     "xtest",
 ], optional = true }
 xkbcommon = "0.6"
-tempfile = { version = "3.5", optional = true }
+tempfile = { version = "3", optional = true }
 
 [build-dependencies]
 pkg-config = "0.3"
