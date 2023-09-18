@@ -76,6 +76,7 @@ where
     /// Converts a Key to a Keysym
     #[allow(clippy::too_many_lines)]
     pub fn key_to_keysym(key: Key) -> Keysym {
+        #[allow(clippy::match_same_arms)]
         match key {
             Key::Layout(c) => match c {
                 '\n' => Keysym::Return,

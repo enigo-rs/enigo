@@ -10,7 +10,6 @@ const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u32 = 12; // milliseconds
 type Window = c_ulong;
 type Xdo = *const c_void;
-pub type Keycode = Key;
 
 #[link(name = "xdo")]
 extern "C" {
@@ -119,8 +118,17 @@ impl Drop for Con {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
+        #[allow(clippy::match_same_arms)]
+        match c {
+            '\n' => return Cow::Borrowed("Return"),
+            '\r' => {} // TODO: What is the correct key to type here?
+            '\t' => return Cow::Borrowed("Tab"),
+            '\0' => (),
+            _ => (),
+        }
         return Cow::Owned(format!("U{:X}", c as u32));
     }
     if let Key::Raw(k) = key {
@@ -238,8 +246,8 @@ impl KeyboardControllableNext for Con {
         Some(())
     }
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, keycode: Keycode, direction: Direction) {
-        let string = CString::new(&*keysequence(keycode)).unwrap();
+    fn enter_key(&mut self, key: Key, direction: Direction) {
+        let string = CString::new(&*keysequence(key)).unwrap();
         match direction {
             Direction::Press => unsafe {
                 xdo_send_keysequence_window_down(
