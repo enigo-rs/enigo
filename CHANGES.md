@@ -3,7 +3,7 @@
 ## Changed
 
 ## Added
-
+- Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
 ## Fixed
 
 # 0.1.3
