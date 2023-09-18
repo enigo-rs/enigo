@@ -324,6 +324,9 @@ impl MouseControllableNext for Enigo {
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl KeyboardControllableNext for Enigo {
+    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
+        None
+    }
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
     fn enter_text(&mut self, text: &str) {

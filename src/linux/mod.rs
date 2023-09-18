@@ -153,6 +153,15 @@ impl MouseControllableNext for Enigo {
 }
 
 impl KeyboardControllableNext for Enigo {
+    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+        #[cfg(feature = "wayland")]
+        if let Some(wayland) = self.wayland.as_mut() {
+            wayland.enter_text(text);
+        }
+        self.x11.as_mut().unwrap().enter_text(text);
+        Some(())
+    }
+
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) {
         // Nothing to do

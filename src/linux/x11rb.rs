@@ -140,6 +140,11 @@ impl Bind<Keycode> for CompositorConnection {
 }
 
 impl KeyboardControllableNext for Con {
+    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
+        // TODO: Add fast method
+        // xdotools can do it, so it is possible
+        None
+    }
     /// Try to enter the key
     fn enter_key(&mut self, key: Key, direction: Direction) {
         self.keymap.make_room(&());
