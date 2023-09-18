@@ -205,6 +205,15 @@ impl KeyboardControllableNext for Enigo {
         let mut buffer = [0; 2];
 
         for c in text.chars() {
+            // Handle special characters seperately
+            match c {
+                '\n' => return self.enter_key(Key::Return, Direction::Click),
+                '\r' => { // TODO: What is the correct key to type here?
+                }
+                '\t' => return self.enter_key(Key::Tab, Direction::Click),
+                '\0' => return,
+                _ => (),
+            }
             // Windows uses uft-16 encoding. We need to check
             // for variable length characters. As such some
             // characters can be 32 bit long and those are
@@ -233,10 +242,6 @@ impl KeyboardControllableNext for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) {
-        // Nothing to do
-        if key == Key::Layout('\0') {
-            return;
-        }
         match direction {
             Direction::Press => self.held.push(key),
             Direction::Release => self.held.retain(|&k| k != key),
@@ -244,6 +249,15 @@ impl KeyboardControllableNext for Enigo {
         }
 
         if let Key::Layout(c) = key {
+            // Handle special characters seperately
+            match c {
+                '\n' => return self.enter_key(Key::Return, direction),
+                '\r' => { // TODO: What is the correct key to type here?
+                }
+                '\t' => return self.enter_key(Key::Tab, direction),
+                '\0' => return,
+                _ => (),
+            }
             let scancodes = self.get_scancode(c);
             if direction == Direction::Click || direction == Direction::Press {
                 for scan in &scancodes {
