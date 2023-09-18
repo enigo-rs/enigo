@@ -62,7 +62,9 @@ type ScanCode = u16;
 
 /// The main struct for handling the event emitting
 #[derive(Default)]
-pub struct Enigo;
+pub struct Enigo {
+    held: Vec<Key>, // Currently held keys
+}
 
 fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) {
     let input = INPUT {
@@ -228,6 +230,16 @@ impl KeyboardControllableNext for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) {
+        // Nothing to do
+        if key == Key::Layout('\0') {
+            return;
+        }
+        match direction {
+            Direction::Press => self.held.push(key),
+            Direction::Release => self.held.retain(|&k| k != key),
+            Direction::Click => (),
+        }
+
         if let Key::Layout(c) = key {
             let scancodes = self.get_scancode(c);
             if direction == Direction::Click || direction == Direction::Press {
@@ -277,6 +289,11 @@ impl Enigo {
         // or load one with LoadKeyboardLayoutW
         keycode_and_shiftstate
     }
+
+    /// Returns a list of all currently pressed keys
+    pub fn held(&mut self) -> Vec<Key> {
+        self.held.clone()
+    }
 }
 
 fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
@@ -292,6 +309,15 @@ fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
             KEYBD_EVENT_FLAGS::default() | KEYEVENTF_EXTENDEDKEY
         }
         _ => KEYBD_EVENT_FLAGS::default(),
+    }
+}
+
+impl Drop for Enigo {
+    // Release the held keys before the connection is dropped
+    fn drop(&mut self) {
+        for &k in &self.held() {
+            self.enter_key(k, Direction::Release);
+        }
     }
 }
 

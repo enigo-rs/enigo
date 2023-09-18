@@ -180,6 +180,7 @@ extern "C" {
 pub struct Enigo {
     event_source: CGEventSource,
     display: CGDisplay,
+    held: Vec<Key>, // Currently held keys
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
@@ -193,6 +194,8 @@ pub struct Enigo {
 
 impl Default for Enigo {
     fn default() -> Self {
+        let held = Vec::new();
+
         let double_click_delay = Duration::from_secs(1);
         let double_click_delay_setting: f64 =
             unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
@@ -203,6 +206,7 @@ impl Default for Enigo {
             event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
                 .expect("Failed creating event source"),
             display: CGDisplay::main(),
+            held,
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
         }
@@ -347,6 +351,16 @@ impl KeyboardControllableNext for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) {
+        // Nothing to do
+        if key == Key::Layout('\0') {
+            return;
+        }
+        match direction {
+            Direction::Press => self.held.push(key),
+            Direction::Release => self.held.retain(|&k| k != key),
+            Direction::Click => (),
+        }
+
         let keycode = self.key_to_keycode(key);
 
         if direction == Direction::Click || direction == Direction::Press {
@@ -366,6 +380,11 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
+    /// Returns a list of all currently pressed keys
+    pub fn held(&mut self) -> Vec<Key> {
+        self.held.clone()
+    }
+
     fn pressed_buttons() -> usize {
         let ns_event = Class::get("NSEvent").unwrap();
         unsafe { msg_send![ns_event, pressedMouseButtons] }
@@ -536,5 +555,14 @@ impl Enigo {
         }
 
         unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+    }
+}
+
+impl Drop for Enigo {
+    // Release the held keys before the connection is dropped
+    fn drop(&mut self) {
+        for &k in &self.held() {
+            self.enter_key(k, Direction::Release);
+        }
     }
 }
