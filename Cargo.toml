@@ -4,7 +4,7 @@ version = "0.1.3"
 authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 edition = "2021"
 build = "build.rs"
-rust-version = "1.64"
+rust-version = "1.65"
 
 description = "Enigo lets you control your mouse and keyboard in an abstract way on different operating systems (currently only Linux, macOS, Win – Redox and *BSD planned)"
 documentation = "https://docs.rs/enigo/"

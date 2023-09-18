@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
-use std::os::fd::AsFd;
+use std::os::unix::io::AsFd;
 use std::time::Instant;
 
 // use wayland_client::protocol::wl_output;
