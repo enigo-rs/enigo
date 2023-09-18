@@ -414,9 +414,7 @@ pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
-        None
-    }
+    fn fast_text_entry(&mut self, _text: &str) -> Option<()>;
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
     fn enter_text(&mut self, text: &str) {

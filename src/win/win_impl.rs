@@ -189,6 +189,10 @@ impl MouseControllableNext for Enigo {
 }
 
 impl KeyboardControllableNext for Enigo {
+    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
+        None
+    }
+
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
