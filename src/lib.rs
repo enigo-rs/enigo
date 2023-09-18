@@ -47,11 +47,13 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_sign_loss)]
+#![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
 #[cfg(target_os = "macos")]
 #[macro_use]
 extern crate objc;
+
 #[cfg(feature = "with_serde")]
 extern crate serde;
 #[cfg(feature = "with_serde")]
@@ -76,6 +78,7 @@ pub use crate::win::Enigo;
 /// The current status is that you can just print [unicode](http://unicode.org/) characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
 /// [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) or any other "special" key on the Linux, macOS and Windows operating system.
 pub mod dsl;
+
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
@@ -129,7 +132,10 @@ pub enum MouseButton {
 /// screen, with positive values extending along the axes down and to the
 /// right of the origin point and it is measured in pixels. The same coordinate
 /// system is used on all operating systems.
-pub trait MouseControllable {
+pub trait MouseControllable
+where
+    Self: MouseControllableNext,
+{
     /// Move the mouse cursor to the specified x and y coordinates.
     ///
     /// The topleft corner of your monitor screen is x=0 y=0. Move
@@ -143,7 +149,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_move_to(500, 200);
     /// ```
-    fn mouse_move_to(&mut self, x: i32, y: i32);
+    fn mouse_move_to(&mut self, x: i32, y: i32) {
+        self.send_motion_notify_event(x, y, Coordinate::Absolute);
+    }
 
     /// Move the mouse cursor the specified amount in the x and y
     /// direction. A positive x value moves the mouse cursor `x` pixels to the
@@ -158,7 +166,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_move_relative(100, 100);
     /// ```
-    fn mouse_move_relative(&mut self, x: i32, y: i32);
+    fn mouse_move_relative(&mut self, x: i32, y: i32) {
+        self.send_motion_notify_event(x, y, Coordinate::Relative);
+    }
 
     /// Push down the mouse button specified by the parameter
     /// `button` of type [`MouseButton`] and hold it until it is released by
@@ -174,7 +184,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
-    fn mouse_down(&mut self, button: MouseButton);
+    fn mouse_down(&mut self, button: MouseButton) {
+        self.send_mouse_button_event(button, Direction::Press, 0);
+    }
 
     /// Release a pushed down mouse button
     ///
@@ -193,7 +205,9 @@ pub trait MouseControllable {
     /// enigo.mouse_down(MouseButton::Right);
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
-    fn mouse_up(&mut self, button: MouseButton);
+    fn mouse_up(&mut self, button: MouseButton) {
+        self.send_mouse_button_event(button, Direction::Release, 0);
+    }
 
     /// Click a mouse button
     ///
@@ -209,7 +223,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
-    fn mouse_click(&mut self, button: MouseButton);
+    fn mouse_click(&mut self, button: MouseButton) {
+        self.send_mouse_button_event(button, Direction::Click, 0);
+    }
 
     /// Scroll the mouse (wheel) left or right
     ///
@@ -226,7 +242,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_scroll_x(2);
     /// ```
-    fn mouse_scroll_x(&mut self, length: i32);
+    fn mouse_scroll_x(&mut self, length: i32) {
+        self.mouse_scroll_event(length, Axis::Horizontal);
+    }
 
     /// Scroll the mouse (wheel) up or down
     ///
@@ -243,7 +261,9 @@ pub trait MouseControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.mouse_scroll_y(2);
     /// ```
-    fn mouse_scroll_y(&mut self, length: i32);
+    fn mouse_scroll_y(&mut self, length: i32) {
+        self.mouse_scroll_event(length, Axis::Vertical);
+    }
 
     /// Get the (width, height) of the main display in screen coordinates
     /// (pixels). This currently only works on the main display
@@ -256,7 +276,9 @@ pub trait MouseControllable {
     /// let (width, height) = enigo.main_display_size();
     /// ```
     #[must_use]
-    fn main_display_size(&self) -> (i32, i32);
+    fn main_display_size(&self) -> (i32, i32) {
+        self.main_display()
+    }
 
     /// Get the location of the mouse in screen coordinates (pixels).
     ///
@@ -268,7 +290,9 @@ pub trait MouseControllable {
     /// let (x, y) = enigo.mouse_location();
     /// ```
     #[must_use]
-    fn mouse_location(&self) -> (i32, i32);
+    fn mouse_location(&self) -> (i32, i32) {
+        self.mouse_loc()
+    }
 }
 
 /// Contains functions to simulate key presses and to input text.
@@ -281,7 +305,10 @@ pub trait MouseControllable {
 /// to influence the outcome. If you want to use modifier keys to e.g.
 /// copy/paste, use the Layout variant. Please note that this is indeed layout
 /// dependent.
-pub trait KeyboardControllable {
+pub trait KeyboardControllable
+where
+    Self: KeyboardControllableNext,
+{
     /// Type the string parsed with DSL.
     ///
     /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
@@ -318,18 +345,26 @@ pub trait KeyboardControllable {
     /// let mut enigo = Enigo::new();
     /// enigo.key_sequence("hello world ❤️");
     /// ```
-    fn key_sequence(&mut self, sequence: &str);
+    fn key_sequence(&mut self, sequence: &str) {
+        self.enter_text(sequence);
+    }
 
     /// Press down the given key
-    fn key_down(&mut self, key: Key);
+    fn key_down(&mut self, key: Key) {
+        self.enter_key(key, Direction::Press);
+    }
 
     /// Release a pressed down key
-    fn key_up(&mut self, key: Key);
+    fn key_up(&mut self, key: Key) {
+        self.enter_key(key, Direction::Release);
+    }
 
     /// Press and release the key. It is the same as calling the
     /// [`KeyboardControllable::key_down`] and
     /// [`KeyboardControllable::key_up`] functions consecutively
-    fn key_click(&mut self, key: Key);
+    fn key_click(&mut self, key: Key) {
+        self.enter_key(key, Direction::Click);
+    }
 }
 
 impl Enigo {
@@ -347,8 +382,68 @@ impl Enigo {
     }
 }
 
+impl KeyboardControllable for Enigo {}
+impl MouseControllable for Enigo {}
+
 impl fmt::Debug for Enigo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Enigo")
     }
+}
+
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum Direction {
+    Press,
+    Release,
+    Click,
+}
+
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum Axis {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum Coordinate {
+    Relative,
+    Absolute,
+}
+
+pub trait KeyboardControllableNext {
+    /// Enter the whole text string instead of entering individual keys
+    /// This is much faster if you type longer text at the cost of keyboard
+    /// shortcuts not getting recognized
+    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
+        None
+    }
+    /// Enter the text
+    /// Use a fast method to enter the text, if it is available
+    fn enter_text(&mut self, text: &str) {
+        // Fall back to entering single keys if no fast text entry is available
+        if self.fast_text_entry(text).is_none() {
+            for c in text.chars() {
+                self.enter_key(Key::Layout(c), Direction::Click);
+            }
+        }
+    }
+
+    /// Sends a key event to the X11 server via `XTest` extension
+    fn enter_key(&mut self, key: Key, direction: Direction);
+}
+
+pub trait MouseControllableNext {
+    // Sends a button event to the X11 server via `XTest` extension
+    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32);
+
+    // Sends a motion notify event to the X11 server via `XTest` extension
+    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
+    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate);
+
+    // Sends a scroll event to the X11 server via `XTest` extension
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis);
+
+    fn main_display(&self) -> (i32, i32);
+
+    fn mouse_loc(&self) -> (i32, i32);
 }

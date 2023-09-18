@@ -53,7 +53,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
 };
 
-use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
+use crate::{
+    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+};
 
 type KeyCode = u16;
 type ScanCode = u16;
@@ -109,42 +111,29 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) {
     };
 }
 
-impl MouseControllable for Enigo {
-    fn mouse_move_to(&mut self, x: i32, y: i32) {
-        let result = unsafe { SetCursorPos(x, y) };
-        assert!(result.is_ok(), "Unable to move mouse");
-    }
-
-    fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        let (current_x, current_y) = self.mouse_location();
-        self.mouse_move_to(current_x + x, current_y + y);
-    }
-
-    fn mouse_down(&mut self, button: MouseButton) {
-        mouse_event(
-            match button {
+impl MouseControllableNext for Enigo {
+    // Sends a button event to the X11 server via `XTest` extension
+    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _delay: u32) {
+        let button_no = match button {
+            MouseButton::Back => 1,
+            MouseButton::Forward => 2,
+            _ => 0,
+        };
+        if direction == Direction::Click || direction == Direction::Press {
+            let mouse_event_flag = match button {
                 MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
                 MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
                 MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XDOWN,
-                MouseButton::ScrollUp => return self.mouse_scroll_x(-1),
-                MouseButton::ScrollDown => return self.mouse_scroll_x(1),
-                MouseButton::ScrollLeft => return self.mouse_scroll_y(-1),
-                MouseButton::ScrollRight => return self.mouse_scroll_y(1),
-            },
-            match button {
-                MouseButton::Back => 1,
-                MouseButton::Forward => 2,
-                _ => 0,
-            },
-            0,
-            0,
-        );
-    }
-
-    fn mouse_up(&mut self, button: MouseButton) {
-        mouse_event(
-            match button {
+                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
+                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
+                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
+                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
+            };
+            mouse_event(mouse_event_flag, button_no, 0, 0);
+        }
+        if direction == Direction::Click || direction == Direction::Release {
+            let mouse_event_flag = match button {
                 MouseButton::Left => MOUSEEVENTF_LEFTUP,
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
                 MouseButton::Right => MOUSEEVENTF_RIGHTUP,
@@ -156,37 +145,39 @@ impl MouseControllable for Enigo {
                     println!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
                     return;
                 }
-            },
-            match button {
-                MouseButton::Back => 1,
-                MouseButton::Forward => 2,
-                _ => 0,
-            },
-            0,
-            0,
-        );
+            };
+            mouse_event(mouse_event_flag, button_no, 0, 0);
+        }
     }
 
-    fn mouse_click(&mut self, button: MouseButton) {
-        self.mouse_down(button);
-        self.mouse_up(button);
+    // Sends a motion notify event to the X11 server via `XTest` extension
+    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
+    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
+            let (current_x, current_y) = self.mouse_loc();
+            (current_x + x, current_y + y)
+        } else {
+            (x, y)
+        };
+
+        let result = unsafe { SetCursorPos(x_absolute, y_absolute) };
+        assert!(result.is_ok(), "Unable to move mouse");
     }
 
-    fn mouse_scroll_x(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_HWHEEL, length * 120, 0, 0);
+    // Sends a scroll event to the X11 server via `XTest` extension
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+        match axis {
+            Axis::Horizontal => mouse_event(MOUSEEVENTF_HWHEEL, length * 120, 0, 0),
+            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0),
+        }
     }
-
-    fn mouse_scroll_y(&mut self, length: i32) {
-        mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0);
-    }
-
-    fn main_display_size(&self) -> (i32, i32) {
+    fn main_display(&self) -> (i32, i32) {
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
         let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         (w, h)
     }
 
-    fn mouse_location(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> (i32, i32) {
         let mut point = POINT { x: 0, y: 0 };
         let result = unsafe { GetCursorPos(&mut point) };
         if result.is_ok() {
@@ -197,11 +188,14 @@ impl MouseControllable for Enigo {
     }
 }
 
-impl KeyboardControllable for Enigo {
-    fn key_sequence(&mut self, sequence: &str) {
+impl KeyboardControllableNext for Enigo {
+    /// Enter the whole text string instead of entering individual keys
+    /// This is much faster if you type longer text at the cost of keyboard
+    /// shortcuts not getting recognized
+    fn enter_text(&mut self, text: &str) {
         let mut buffer = [0; 2];
 
-        for c in sequence.chars() {
+        for c in text.chars() {
             // Windows uses uft-16 encoding. We need to check
             // for variable length characters. As such some
             // characters can be 32 bit long and those are
@@ -211,10 +205,16 @@ impl KeyboardControllable for Enigo {
             // being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             if result.len() == 1 {
-                self.unicode_key_click(result[0]);
+                keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), result[0]);
+                thread::sleep(time::Duration::from_millis(20));
+                keybd_event(
+                    KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                    VIRTUAL_KEY(0),
+                    result[0],
+                );
             } else {
                 for utf16_surrogate in result {
-                    self.unicode_key_down(*utf16_surrogate);
+                    keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), *utf16_surrogate);
                 }
                 // do i need to produce a keyup?
                 // self.unicode_key_up(0);
@@ -222,74 +222,40 @@ impl KeyboardControllable for Enigo {
         }
     }
 
-    fn key_click(&mut self, key: Key) {
+    /// Sends a key event to the X11 server via `XTest` extension
+    fn enter_key(&mut self, key: Key, direction: Direction) {
         if let Key::Layout(c) = key {
             let scancodes = self.get_scancode(c);
-            for scan in &scancodes {
-                keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+            if direction == Direction::Click || direction == Direction::Press {
+                for scan in &scancodes {
+                    keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+                }
             }
-            thread::sleep(time::Duration::from_millis(20));
-            for scan in &scancodes {
-                keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+            if direction == Direction::Click {
+                thread::sleep(time::Duration::from_millis(20));
+            }
+            if direction == Direction::Click || direction == Direction::Release {
+                for scan in &scancodes {
+                    keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+                }
             }
         } else {
             let keycode = key_to_keycode(key);
             let keyflags = get_key_flags(keycode);
-            keybd_event(keyflags, keycode, 0u16);
-            thread::sleep(time::Duration::from_millis(20));
-            keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
-        };
-    }
-
-    fn key_down(&mut self, key: Key) {
-        if let Key::Layout(c) = key {
-            let scancodes = self.get_scancode(c);
-            for scan in &scancodes {
-                keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+            if direction == Direction::Click || direction == Direction::Press {
+                keybd_event(keyflags, keycode, 0u16);
             }
-        } else {
-            let keycode = key_to_keycode(key);
-            let keyflags = get_key_flags(keycode);
-            keybd_event(keyflags, keycode, 0u16);
-        };
-    }
-
-    fn key_up(&mut self, key: Key) {
-        if let Key::Layout(c) = key {
-            let scancodes = self.get_scancode(c);
-
-            for scan in &scancodes {
-                keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+            if direction == Direction::Click {
+                thread::sleep(time::Duration::from_millis(20));
             }
-        } else {
-            let keycode = key_to_keycode(key);
-            let keyflags = get_key_flags(keycode);
-            keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
+            if direction == Direction::Click || direction == Direction::Release {
+                keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
+            }
         };
     }
 }
 
 impl Enigo {
-    fn unicode_key_click(&self, unicode_char: u16) {
-        self.unicode_key_down(unicode_char);
-        thread::sleep(time::Duration::from_millis(20));
-        self.unicode_key_up(unicode_char);
-    }
-
-    #[allow(clippy::unused_self)]
-    fn unicode_key_down(&self, unicode_char: u16) {
-        keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), unicode_char);
-    }
-
-    #[allow(clippy::unused_self)]
-    fn unicode_key_up(&self, unicode_char: u16) {
-        keybd_event(
-            KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-            VIRTUAL_KEY(0),
-            unicode_char,
-        );
-    }
-
     #[allow(clippy::unused_self)]
     fn get_scancode(&self, c: char) -> Vec<ScanCode> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
