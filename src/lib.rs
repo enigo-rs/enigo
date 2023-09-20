@@ -380,6 +380,33 @@ impl Enigo {
     pub fn new() -> Self {
         Self::default()
     }
+
+    /// Type the string parsed with DSL.
+    ///
+    /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
+    /// Please have a look at the [dsl] module for more information.
+    pub fn mouse_and_key_sequence_parse(&mut self, sequence: &str)
+    where
+        Self: Sized,
+    {
+        self.mouse_and_key_sequence_parse_try(sequence)
+            .expect("Could not parse sequence");
+    }
+
+    /// Same as [`Enigo::key_sequence_parse`] except returns any
+    /// errors
+    ///  # Errors
+    ///
+    /// Returns a [`dsl::ParseError`] if the sequence cannot be parsed
+    pub fn mouse_and_key_sequence_parse_try(
+        &mut self,
+        sequence: &str,
+    ) -> Result<(), dsl::ParseError>
+    where
+        Self: Sized,
+    {
+        dsl::eval_mouse(self, sequence)
+    }
 }
 
 impl KeyboardControllable for Enigo {}

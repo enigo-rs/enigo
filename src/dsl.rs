@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::{Key, KeyboardControllable};
+use crate::{Key, KeyboardControllable, MouseControllable};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +34,12 @@ pub enum ParseError {
     /// When {UNICODE} is encountered without an action
     /// Use {+UNICODE} or {-UNICODE} to enable / disable unicode
     MissingUnicodeAction,
+
+    MissingMouseMoveAction,
+
+    MouseMoveSyntaxError,
+
+    MouseMovementNotEnabled,
 }
 
 impl Error for ParseError {}
@@ -47,6 +53,9 @@ impl fmt::Display for ParseError {
             Self::UnmatchedClose => "Unmatched close bracket (}). No previous open ({)",
             Self::EmptyTag => "Empty tag",
             Self::MissingUnicodeAction => "Missing unicode action. {+UNICODE} or {-UNICODE}",
+            Self::MissingMouseMoveAction => "Missing an action for a {MOUSE} tag. Add '+' or '-",
+            Self::MouseMoveSyntaxError => "The syntax inside the {+MOUSE}{-MOUSE} tags is wrong.",
+            Self::MouseMovementNotEnabled => "Mouse movement is not enabled.",
         };
         f.write_str(text)
     }
@@ -70,6 +79,28 @@ where
             Token::Unicode(buffer) => enigo.key_sequence(&buffer),
             Token::KeyUp(key) => enigo.key_up(key),
             Token::KeyDown(key) => enigo.key_down(key),
+            Token::MouseMove(_x, _y) => return Err(ParseError::MouseMovementNotEnabled),
+        }
+    }
+    Ok(())
+}
+
+pub fn eval_mouse<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
+where
+    K: KeyboardControllable,
+    K: MouseControllable,
+{
+    for token in tokenize(input)? {
+        match token {
+            Token::Sequence(buffer) => {
+                for key in buffer.chars() {
+                    enigo.key_click(Key::Layout(key));
+                }
+            }
+            Token::Unicode(buffer) => enigo.key_sequence(&buffer),
+            Token::KeyUp(key) => enigo.key_up(key),
+            Token::KeyDown(key) => enigo.key_down(key),
+            Token::MouseMove(x, y) => enigo.mouse_move_to(x, y),
         }
     }
     Ok(())
@@ -81,21 +112,46 @@ enum Token {
     Unicode(String),
     KeyUp(Key),
     KeyDown(Key),
+    MouseMove(i32, i32),
 }
 
 #[allow(clippy::too_many_lines)]
 fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
-    fn flush(tokens: &mut Vec<Token>, buffer: String, unicode: bool) {
+    fn flush(
+        tokens: &mut Vec<Token>,
+        buffer: String,
+        unicode: bool,
+        mouse: bool,
+    ) -> Result<(), ParseError> {
         if !buffer.is_empty() {
             if unicode {
                 tokens.push(Token::Unicode(buffer));
+            } else if mouse {
+                let coords: Vec<&str> = buffer.split(":").collect();
+                if coords.len() != 2 {
+                    return Err(ParseError::MouseMoveSyntaxError);
+                }
+
+                let x = match coords.get(0).unwrap().parse::<i32>() {
+                    Ok(e) => e,
+                    Err(_) => return Err(ParseError::MouseMoveSyntaxError),
+                };
+                let y = match coords.get(1).unwrap().parse::<i32>() {
+                    Ok(e) => e,
+                    Err(_) => return Err(ParseError::MouseMoveSyntaxError),
+                };
+
+                tokens.push(Token::MouseMove(x, y))
             } else {
                 tokens.push(Token::Sequence(buffer));
             }
         }
+
+        Ok(())
     }
 
     let mut unicode = false;
+    let mut mouse = false;
 
     let mut tokens = Vec::new();
     let mut buffer = String::new();
@@ -106,7 +162,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
             match iter.next() {
                 Some('{') => buffer.push('{'),
                 Some(mut c) => {
-                    flush(&mut tokens, buffer, unicode);
+                    flush(&mut tokens, buffer, unicode, mouse)?;
                     buffer = String::new();
 
                     let mut tag = String::new();
@@ -144,11 +200,20 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                     } else {
                         &tag[1..]
                     };
-                    if tag == "UNICODE" {
+                    println!("Tag: {}", &tag);
+
+                    if key == "UNICODE" {
                         unicode = match action {
                             Action::Down => true,
                             Action::Up => false,
                             Action::Press => return Err(ParseError::MissingUnicodeAction),
+                        };
+                        continue;
+                    } else if key == "MOUSE" {
+                        mouse = match action {
+                            Action::Down => true,
+                            Action::Up => false,
+                            Action::Press => return Err(ParseError::MissingMouseMoveAction),
                         };
                         continue;
                     }
@@ -215,7 +280,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
         }
     }
 
-    flush(&mut tokens, buffer, unicode);
+    flush(&mut tokens, buffer, unicode, mouse)?;
 
     Ok(tokens)
 }
@@ -245,12 +310,13 @@ mod tests {
     #[test]
     fn success() {
         assert_eq!(
-            tokenize("{{Hello World!}} {+CTRL}hi{-CTRL}"),
+            tokenize("{{Hello World!}} {+CTRL}hi{-CTRL}{+MOUSE}100:100{-MOUSE}"),
             Ok(vec![
                 Token::Sequence("{Hello World!} ".into()),
                 Token::KeyDown(Key::Control),
                 Token::Sequence("hi".into()),
                 Token::KeyUp(Key::Control),
+                Token::MouseMove(100, 100)
             ])
         );
         assert_eq!(
