@@ -190,9 +190,9 @@ where
             kcz.try_into().unwrap()
         } else {
             let sym = KeyMap::<Keycode>::key_to_keysym(key);
-            if let Some(keycode) = self.keymap.get(&sym) {
+            if let Some(&keycode) = self.keymap.get(&sym) {
                 // The keysym is already mapped and cached in the keymap
-                Ok(*keycode)
+                Ok(keycode)
             } else {
                 // The keysym needs to get mapped to an unused keycode.
                 // Always map the keycode if it has not yet been mapped, so it is layer agnostic
@@ -228,13 +228,11 @@ where
     /// Remove the Keysym from the keymap
     ///
     /// This does not apply the changes
-    pub fn unmap<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) {
-        if let Some(&keycode) = self.keymap.get(&keysym) {
-            c.bind_key(keycode, NO_SYMBOL);
-            self.needs_regeneration = true;
-            self.unused_keycodes.push_back(keycode);
-            self.keymap.remove(&keysym);
-        }
+    pub fn unmap<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym, keycode: Keycode) {
+        c.bind_key(keycode, NO_SYMBOL);
+        self.needs_regeneration = true;
+        self.unused_keycodes.push_back(keycode);
+        self.keymap.remove(&keysym);
     }
 
     // Update the delay
@@ -276,8 +274,8 @@ where
         // TODO: Don't unmap held keys!
         if self.unused_keycodes.is_empty() {
             let mapped_keys = self.keymap.clone();
-            for &sym in mapped_keys.keys() {
-                self.unmap(c, sym);
+            for (sym, keycode) in mapped_keys {
+                self.unmap(c, sym, keycode);
             }
             return true;
         }
