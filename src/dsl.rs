@@ -200,7 +200,6 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                     } else {
                         &tag[1..]
                     };
-                    println!("Tag: {}", &tag);
 
                     if key == "UNICODE" {
                         unicode = match action {
