@@ -264,14 +264,14 @@ impl MouseControllableNext for Enigo {
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            let (current_x, current_y) = self.mouse_loc();
-            (current_x + x, current_y + y)
-        } else {
-            (x, y)
-        };
-
         let pressed = Self::pressed_buttons();
+        let (current_x, current_y) = self.mouse_loc();
+
+        let (absolute, relative) = match coordinate {
+            // TODO: Check the bounds
+            Coordinate::Absolute => ((x, y), (current_x - x, current_y - y)),
+            Coordinate::Relative => ((current_x + x, current_y + y), (x, y)),
+        };
 
         let event_type = if pressed & 1 > 0 {
             CGEventType::LeftMouseDragged
@@ -281,14 +281,21 @@ impl MouseControllableNext for Enigo {
             CGEventType::MouseMoved
         };
 
-        let dest = CGPoint::new(x as f64, y as f64);
-        let event = CGEvent::new_mouse_event(
-            self.event_source.clone(),
-            event_type,
-            dest,
-            CGMouseButton::Left,
-        )
-        .unwrap();
+        let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, mouse_button)
+                .unwrap();
+
+        // Add information by how much the mouse was moved
+        event.set_integer_value_field(
+            core_graphics::event::EventField::MOUSE_EVENT_DELTA_X,
+            relative.0.into(),
+        );
+        event.set_integer_value_field(
+            core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
+            relative.1.into(),
+        );
+
         event.post(CGEventTapLocation::HID);
     }
 
