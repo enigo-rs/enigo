@@ -9,6 +9,7 @@
 - Linux: Partial support for Wayland was added. Use the experimental feature `wayland` to test it. Only the virtual_keyboard and input_method protocol can be used. This is not going to work on GNOME, but should work for example with phosh
 ## Fixed
 - macOS: Add info how much a mouse was moved relative to the last position
+- macOS: A mouse drag with the right key is now possible too
 
 # 0.1.3
 

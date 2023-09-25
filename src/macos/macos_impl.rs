@@ -273,13 +273,14 @@ impl MouseControllableNext for Enigo {
             Coordinate::Relative => ((current_x + x, current_y + y), (x, y)),
         };
 
-        let event_type = if pressed & 1 > 0 {
-            CGEventType::LeftMouseDragged
-        } else if pressed & 2 > 0 {
-            CGEventType::RightMouseDragged
-        } else {
-            CGEventType::MouseMoved
-        };
+        let (event_type, mouse_button) =
+            if pressed & 1 > 0 {
+                (CGEventType::LeftMouseDragged, CGMouseButton::Left)
+            } else if pressed & 2 > 0 {
+                (CGEventType::RightMouseDragged, CGMouseButton::Right)
+            } else {
+                (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button here is ignored so it can be anything
+            };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
         let event =
