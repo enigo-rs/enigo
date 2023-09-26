@@ -34,6 +34,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Check the code format
+        if: matrix.rust == 'nightly' # Avoid differences between the versions
         run: cargo fmt -- --check
 
       - name: Check clippy lints
@@ -79,12 +80,12 @@ jobs:
         run: cargo test --all-features -- --include-ignored --nocapture
 
       - name: Install Miri
-        if: ${{ matrix.rust }} == 'nightly' # Miri only works on Nightly
+        if: matrix.rust == 'nightly' # Miri only works on Nightly
         run: |
           rustup toolchain install nightly --component miri
           rustup override set nightly
           cargo clean
           cargo miri setup
       - name: Run Miri to check unsafe code
-        if: ${{ matrix.rust }} == 'nightly' # Miri only works on Nightly
+        if: matrix.rust == 'nightly' # Miri only works on Nightly
         run: cargo miri test --verbose --all-features 
