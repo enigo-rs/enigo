@@ -418,6 +418,9 @@ pub trait KeyboardControllableNext {
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
     fn enter_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return; // Nothing to simulate.
+        }
         // Fall back to entering single keys if no fast text entry is available
         if self.fast_text_entry(text).is_none() {
             for c in text.chars() {

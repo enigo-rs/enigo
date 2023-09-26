@@ -342,6 +342,9 @@ impl KeyboardControllableNext for Enigo {
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
     fn enter_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return; // Nothing to simulate.
+        }
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(cluster)) truncates strings down to 20 characters
