@@ -34,6 +34,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Check the code format
+        if: ${{ matrix.rust }} == 'nightly' # Ignore all format differences if they are not on nightly
         run: cargo fmt -- --check
 
       - name: Check clippy lints
