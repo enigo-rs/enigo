@@ -264,31 +264,39 @@ impl MouseControllableNext for Enigo {
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            let (current_x, current_y) = self.mouse_loc();
-            (current_x + x, current_y + y)
-        } else {
-            (x, y)
-        };
-
         let pressed = Self::pressed_buttons();
+        let (current_x, current_y) = self.mouse_loc();
 
-        let event_type = if pressed & 1 > 0 {
-            CGEventType::LeftMouseDragged
-        } else if pressed & 2 > 0 {
-            CGEventType::RightMouseDragged
-        } else {
-            CGEventType::MouseMoved
+        let (absolute, relative) = match coordinate {
+            // TODO: Check the bounds
+            Coordinate::Absolute => ((x, y), (current_x - x, current_y - y)),
+            Coordinate::Relative => ((current_x + x, current_y + y), (x, y)),
         };
 
-        let dest = CGPoint::new(x as f64, y as f64);
-        let event = CGEvent::new_mouse_event(
-            self.event_source.clone(),
-            event_type,
-            dest,
-            CGMouseButton::Left,
-        )
-        .unwrap();
+        let (event_type, mouse_button) =
+            if pressed & 1 > 0 {
+                (CGEventType::LeftMouseDragged, CGMouseButton::Left)
+            } else if pressed & 2 > 0 {
+                (CGEventType::RightMouseDragged, CGMouseButton::Right)
+            } else {
+                (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button here is ignored so it can be anything
+            };
+
+        let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
+        let event =
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, mouse_button)
+                .unwrap();
+
+        // Add information by how much the mouse was moved
+        event.set_integer_value_field(
+            core_graphics::event::EventField::MOUSE_EVENT_DELTA_X,
+            relative.0.into(),
+        );
+        event.set_integer_value_field(
+            core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
+            relative.1.into(),
+        );
+
         event.post(CGEventTapLocation::HID);
     }
 
@@ -334,6 +342,9 @@ impl KeyboardControllableNext for Enigo {
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
     fn enter_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return; // Nothing to simulate.
+        }
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(cluster)) truncates strings down to 20 characters

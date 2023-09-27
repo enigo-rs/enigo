@@ -199,6 +199,9 @@ impl KeyboardControllableNext for Enigo {
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
     fn enter_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return; // Nothing to simulate.
+        }
         let mut buffer = [0; 2];
 
         for c in text.chars() {
