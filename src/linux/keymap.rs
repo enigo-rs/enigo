@@ -80,7 +80,9 @@ where
         match key {
             Key::Layout(c) => match c {
                 '\n' => Keysym::Return,
+                '\r' => NO_SYMBOL, // TODO: What is the correct key to type here?
                 '\t' => Keysym::Tab,
+                '\0' => NO_SYMBOL,
                 _ => {
                     // TODO: Replace with Keysym.from_char(ch: char)
                     let hex: u32 = c.into();
