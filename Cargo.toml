@@ -64,7 +64,7 @@ x11rb = { version = "0.12", features = [
     "xinput",
     "xtest",
 ], optional = true }
-xkbcommon = "0.6"
+xkbcommon = "0.7"
 tempfile = { version = "3", optional = true }
 
 [build-dependencies]
