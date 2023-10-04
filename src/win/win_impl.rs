@@ -4,10 +4,10 @@ use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
-    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
-    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN,
-    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
-    MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
+    MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
+    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A, VK_ABNT_C1,
@@ -50,7 +50,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z, VK_ZOOM,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
+    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
 };
 
 use crate::{
@@ -66,8 +66,23 @@ pub struct Enigo {
     held: Vec<Key>, // Currently held keys
 }
 
-fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) {
-    let input = INPUT {
+fn send_input(input: INPUT) -> Result<(), &'static str> {
+    let Ok(input_size): Result<i32, _> = size_of::<INPUT>().try_into() else {
+        return Err("Could not convert the size of INPUT to i32");
+    };
+    let successfully_sent = unsafe { SendInput(&[input], input_size) };
+
+    if usize::try_from(successfully_sent)
+        .map(|successfully_sent| successfully_sent != 1)
+        .unwrap_or(true)
+    {
+        return Err("Not all input events were sent");
+    }
+    Ok(())
+}
+
+fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) -> INPUT {
+    INPUT {
         r#type: INPUT_MOUSE,
         Anonymous: INPUT_0 {
             mi: MOUSEINPUT {
@@ -75,42 +90,26 @@ fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) {
                 dy,
                 mouseData: data,
                 dwFlags: flags,
-                time: 0,
+                time: 0, /* Always set it to 0 (see https://web.archive.org/web/20231004113147/https://devblogs.microsoft.com/oldnewthing/20121101-00/?p=6193) */
                 dwExtraInfo: 0,
             },
         },
-    };
-    unsafe {
-        SendInput(
-            &[input as INPUT],
-            size_of::<INPUT>()
-                .try_into()
-                .expect("Could not convert the size of INPUT to i32"),
-        )
-    };
+    }
 }
 
-fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) {
-    let input = INPUT {
+fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INPUT {
+    INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
                 wVk: vk,
                 wScan: scan,
                 dwFlags: flags,
-                time: 0,
+                time: 0, /* Always set it to 0 (see https://web.archive.org/web/20231004113147/https://devblogs.microsoft.com/oldnewthing/20121101-00/?p=6193) */
                 dwExtraInfo: 0,
             },
         },
-    };
-    unsafe {
-        SendInput(
-            &[input as INPUT],
-            size_of::<INPUT>()
-                .try_into()
-                .expect("Could not convert the size of INPUT to i32"),
-        )
-    };
+    }
 }
 
 impl MouseControllableNext for Enigo {
@@ -132,7 +131,8 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
-            mouse_event(mouse_event_flag, button_no, 0, 0);
+            let input = mouse_event(mouse_event_flag, button_no, 0, 0);
+            send_input(input);
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
@@ -148,7 +148,8 @@ impl MouseControllableNext for Enigo {
                     return;
                 }
             };
-            mouse_event(mouse_event_flag, button_no, 0, 0);
+            let input = mouse_event(mouse_event_flag, button_no, 0, 0);
+            send_input(input);
         }
     }
 
@@ -162,16 +163,27 @@ impl MouseControllableNext for Enigo {
             (x, y)
         };
 
-        let result = unsafe { SetCursorPos(x_absolute, y_absolute) };
-        assert!(result.is_ok(), "Unable to move mouse");
+        let input = mouse_event(
+            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+            0,
+            x_absolute,
+            y_absolute,
+        );
+        send_input(input);
+
+        unsafe { SetCursorPos(x_absolute, y_absolute) };
+        //assert!(result.is_ok(), "Unable to move mouse");
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
-        match axis {
-            Axis::Horizontal => mouse_event(MOUSEEVENTF_HWHEEL, length * 120, 0, 0),
-            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0),
-        }
+        let input = match axis {
+            Axis::Horizontal => {
+                mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
+            }
+            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
+        };
+        send_input(input);
     }
     fn main_display(&self) -> (i32, i32) {
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
@@ -223,16 +235,19 @@ impl KeyboardControllableNext for Enigo {
             // being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             if result.len() == 1 {
-                keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), result[0]);
+                let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), result[0]);
+                send_input(input);
                 thread::sleep(time::Duration::from_millis(20));
-                keybd_event(
+                let input = keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
                     result[0],
                 );
+                send_input(input);
             } else {
                 for utf16_surrogate in result {
-                    keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), *utf16_surrogate);
+                    let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), *utf16_surrogate);
+                    send_input(input);
                 }
                 // do i need to produce a keyup?
                 // self.unicode_key_up(0);
@@ -261,7 +276,8 @@ impl KeyboardControllableNext for Enigo {
             let scancodes = self.get_scancode(c);
             if direction == Direction::Click || direction == Direction::Press {
                 for scan in &scancodes {
-                    keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+                    let input = keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
+                    send_input(input);
                 }
             }
             if direction == Direction::Click {
@@ -269,20 +285,24 @@ impl KeyboardControllableNext for Enigo {
             }
             if direction == Direction::Click || direction == Direction::Release {
                 for scan in &scancodes {
-                    keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+                    let input =
+                        keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
+                    send_input(input);
                 }
             }
         } else {
             let keycode = key_to_keycode(key);
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
-                keybd_event(keyflags, keycode, 0u16);
+                let input = keybd_event(keyflags, keycode, 0u16);
+                send_input(input);
             }
             if direction == Direction::Click {
                 thread::sleep(time::Duration::from_millis(20));
             }
             if direction == Direction::Click || direction == Direction::Release {
-                keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
+                let input = keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
+                send_input(input);
             }
         };
     }
