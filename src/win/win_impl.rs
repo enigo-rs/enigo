@@ -157,7 +157,17 @@ impl MouseControllableNext for Enigo {
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            let (current_x, current_y) = self.mouse_loc();
+            // TODO: Duplicate code from the mouse_loc fn. Replace it once that function
+            // becomes fallible.
+            let mut point = POINT { x: 0, y: 0 };
+            let result = unsafe { GetCursorPos(&mut point) };
+
+            // Don't move the mouse if it wasn't possible to get the current position
+            if result.is_err() {
+                return;
+            }
+
+            let (current_x, current_y) = (point.x, point.y);
             (current_x + x, current_y + y)
         } else {
             (x, y)
