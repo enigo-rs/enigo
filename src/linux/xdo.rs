@@ -214,7 +214,7 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::Return => "Return",
         Key::RightArrow => "Right",
         Key::RShift => "Shift_R",
-        Key::ScrollLock => "Scroll_Lock ",
+        Key::ScrollLock => "Scroll_Lock",
         Key::Select => "Select",
         Key::ScriptSwitch => "script_switch",
         Key::Shift => "Shift",

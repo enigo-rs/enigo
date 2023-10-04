@@ -197,6 +197,8 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                         "PAGEUP" => Key::PageUp,
                         "RETURN" => Key::Return,
                         "RIGHTARROW" => Key::RightArrow,
+                        #[cfg(target_os = "linux")]
+                        "SCROLLLOCK" => Key::ScrollLock,
                         "SHIFT" => Key::Shift,
                         "TAB" => Key::Tab,
                         "UPARROW" => Key::UpArrow,
