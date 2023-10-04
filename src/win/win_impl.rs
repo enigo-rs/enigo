@@ -50,7 +50,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z, VK_ZOOM,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
+    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
 };
 
 use crate::{
@@ -178,8 +178,10 @@ impl MouseControllableNext for Enigo {
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
         let input = match axis {
-            Axis::Horizontal => mouse_event(MOUSEEVENTF_HWHEEL, length * 120, 0, 0),
-            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, length * -120, 0, 0),
+            Axis::Horizontal => {
+                mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
+            }
+            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
         send_input(input);
     }
