@@ -64,14 +64,8 @@ extern crate serde_derive;
 
 use std::fmt;
 
+pub use crate::platform::Enigo;
 pub use keycodes::Key;
-
-#[cfg(target_os = "linux")]
-pub use crate::linux::Enigo;
-#[cfg(target_os = "macos")]
-pub use crate::macos::Enigo;
-#[cfg(target_os = "windows")]
-pub use crate::win::Enigo;
 
 /// DSL parser module
 ///
@@ -79,12 +73,10 @@ pub use crate::win::Enigo;
 /// [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) or any other "special" key on the Linux, macOS and Windows operating system.
 pub mod dsl;
 
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "windows")]
-mod win;
+#[cfg_attr(target_os = "linux", path = "linux/mod.rs")]
+#[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
+#[cfg_attr(target_os = "windows", path = "win/mod.rs")]
+mod platform;
 
 /// Contains the available keycodes
 pub mod keycodes;

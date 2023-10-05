@@ -1,3 +1,2 @@
-pub use crate::win::win_impl::Enigo;
-
 mod win_impl;
+pub use win_impl::Enigo;
