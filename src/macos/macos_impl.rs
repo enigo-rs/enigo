@@ -339,16 +339,15 @@ impl KeyboardControllableNext for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> Option<()> {
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
-        // event.set_string(cluster)) truncates strings down to 20 characters
-        let chars: Vec<char> = text.chars().collect();
-        let mut string: String;
-        for chunk in chars.chunks(20) {
+        // event.set_string(string)) truncates strings down to 20 characters
+        text.as_bytes().chunks(20).for_each(|chunk| {
+            // This is safe because we use utf-8 str as input
+            let string = unsafe { std::str::from_utf8_unchecked(chunk) };
             let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
                 .expect("Failed creating event");
-            string = chunk.iter().collect();
-            event.set_string(&string);
+            event.set_string(string);
             event.post(CGEventTapLocation::HID);
-        }
+        });
         thread::sleep(Duration::from_millis(2));
         Some(())
     }
