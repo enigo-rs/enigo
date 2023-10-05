@@ -1,12 +1,3 @@
-#[cfg(target_os = "linux")]
-use std::env;
-#[cfg(target_os = "linux")]
-use std::fs::File;
-#[cfg(target_os = "linux")]
-use std::io::Write;
-#[cfg(target_os = "linux")]
-use std::path::Path;
-
 #[cfg(target_os = "windows")]
 fn main() {}
 
@@ -15,6 +6,11 @@ fn main() {}
 
 #[cfg(target_os = "linux")]
 fn main() {
+    use std::env;
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::Path;
+
     let libraries = [
         "xext",
         "gl",
