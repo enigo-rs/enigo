@@ -10,7 +10,7 @@ use core_graphics::event::{
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use objc::runtime::Class;
+use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,

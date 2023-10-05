@@ -50,10 +50,6 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
-#[cfg(target_os = "macos")]
-#[macro_use]
-extern crate objc;
-
 #[cfg(feature = "with_serde")]
 extern crate serde;
 #[cfg(feature = "with_serde")]
