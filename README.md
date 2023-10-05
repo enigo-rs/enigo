@@ -33,7 +33,7 @@ For more look at examples
 
 ## Runtime dependencies
 
-Linux users may have to install `libxdo-dev`. For example, on Debian-based distros:
+Linux users may have to install `libxdo-dev` if they are using `X11`. For example, on Debian-based distros:
 
 ```Bash
 apt-get install libxdo-dev
@@ -60,3 +60,7 @@ emerge -a xdotool
 ## Migrating from a previous version
 
 Please have a look at our [changelog](CHANGES.md) to find out what you have to do, if you used a previous version.
+
+## Permissions
+
+Some platforms have security measures in place to prevent programs from entering keys or controlling the mouse. Have a look at the [permissions](Permissions.md) documentation to see what you need to do to allow it.
