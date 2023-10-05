@@ -336,15 +336,7 @@ impl MouseControllableNext for Enigo {
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl KeyboardControllableNext for Enigo {
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
-        None
-    }
-    /// Enter the text
-    /// Use a fast method to enter the text, if it is available
-    fn enter_text(&mut self, text: &str) {
-        if text.is_empty() {
-            return; // Nothing to simulate.
-        }
+    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(cluster)) truncates strings down to 20 characters
@@ -358,6 +350,7 @@ impl KeyboardControllableNext for Enigo {
             event.post(CGEventTapLocation::HID);
         }
         thread::sleep(Duration::from_millis(2));
+        Some(())
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
