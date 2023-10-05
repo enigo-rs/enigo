@@ -54,9 +54,6 @@
 
 use std::fmt;
 
-pub use crate::platform::Enigo;
-pub use keycodes::Key;
-
 /// DSL parser module
 ///
 /// The current status is that you can just print [unicode](http://unicode.org/) characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
@@ -67,9 +64,11 @@ pub mod dsl;
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
 #[cfg_attr(target_os = "windows", path = "win/mod.rs")]
 mod platform;
+pub use platform::Enigo;
 
 /// Contains the available keycodes
 pub mod keycodes;
+pub use keycodes::Key;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
