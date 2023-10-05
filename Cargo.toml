@@ -5,7 +5,7 @@ authors = ["Dustin Bensing <dustin.bensing@googlemail.com>"]
 edition = "2021"
 rust-version = "1.65"
 
-description = "Enigo lets you control your mouse and keyboard in an abstract way on different operating systems (currently only Linux, macOS, Win – Redox and *BSD planned)"
+description = "Cross-platform (Linux, Windows & macOS) library to simulate keyboard and/or mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
 repository = "https://github.com/enigo-rs/enigo"
@@ -13,20 +13,9 @@ readme = "README.md"
 keywords = ["input", "mouse", "testing", "keyboard", "automation"]
 categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
-
-exclude = [".github", ".vscode", "examples", ".gitignore", "rustfmt.toml"]
-
-[dependencies]
-serde = { version = "1", optional = true }
-serde_derive = { version = "1", optional = true }
-
-[dev-dependencies]
-tungstenite = "0.20"
-url = "2"
-webbrowser = "0.8"
+exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
 [features]
-with_serde = ["serde", "serde_derive"]
 wayland = [
     "dep:wayland-client",
     "dep:wayland-protocols-misc",
@@ -34,6 +23,9 @@ wayland = [
     "dep:wayland-protocols-plasma",
     "dep:tempfile",
 ]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.51", features = [
@@ -65,3 +57,8 @@ x11rb = { version = "0.12", features = [
 ], optional = true }
 xkbcommon = "0.7"
 tempfile = { version = "3", optional = true }
+
+[dev-dependencies]
+tungstenite = "0.20"
+url = "2"
+webbrowser = "0.8"

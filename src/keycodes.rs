@@ -1,9 +1,9 @@
-/// A key on the keyboard.
+// A key on the keyboard.
 /// For alphabetical keys, use [`Key::Layout`] for a system independent key.
 /// If a key is missing, you can use the raw keycode with [`Key::Raw`]. Some of
 /// the keys are only available on a specific platform. Use conditional
 /// compilation to use them.
-#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
     #[cfg(target_os = "windows")]

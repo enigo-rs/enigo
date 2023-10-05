@@ -50,22 +50,9 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
-#[cfg(target_os = "macos")]
-#[macro_use]
-extern crate objc;
-
-#[cfg(feature = "with_serde")]
-extern crate serde;
-#[cfg(feature = "with_serde")]
-#[macro_use]
-extern crate serde_derive;
-
 // TODO(dustin) use interior mutability not &mut self
 
 use std::fmt;
-
-pub use crate::platform::Enigo;
-pub use keycodes::Key;
 
 /// DSL parser module
 ///
@@ -77,11 +64,13 @@ pub mod dsl;
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
 #[cfg_attr(target_os = "windows", path = "win/mod.rs")]
 mod platform;
+pub use platform::Enigo;
 
 /// Contains the available keycodes
 pub mod keycodes;
+pub use keycodes::Key;
 
-#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// [`MouseButton`] represents a mouse button and is used in e.g
 /// [`MouseControllable::mouse_click`].
