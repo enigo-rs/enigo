@@ -50,12 +50,6 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
-#[cfg(feature = "with_serde")]
-extern crate serde;
-#[cfg(feature = "with_serde")]
-#[macro_use]
-extern crate serde_derive;
-
 // TODO(dustin) use interior mutability not &mut self
 
 use std::fmt;
@@ -77,7 +71,7 @@ mod platform;
 /// Contains the available keycodes
 pub mod keycodes;
 
-#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// [`MouseButton`] represents a mouse button and is used in e.g
 /// [`MouseControllable::mouse_click`].

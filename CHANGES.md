@@ -5,6 +5,7 @@
 - All held keys are released when Enigo is dropped
 - win: Don't panic if it was not possible to move the mouse
 - win: Don't move the mouse to a relative position if it was not possible to get the current position
+- All: The feature `with_serde` was renamed to `serde`
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it

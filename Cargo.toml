@@ -17,8 +17,7 @@ license = "MIT"
 exclude = [".github", ".vscode", "examples", ".gitignore", "rustfmt.toml"]
 
 [dependencies]
-serde = { version = "1", optional = true }
-serde_derive = { version = "1", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 tungstenite = "0.20"
@@ -26,7 +25,6 @@ url = "2"
 webbrowser = "0.8"
 
 [features]
-with_serde = ["serde", "serde_derive"]
 wayland = [
     "dep:wayland-client",
     "dep:wayland-protocols-misc",
