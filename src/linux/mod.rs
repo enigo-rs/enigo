@@ -10,7 +10,8 @@ use xkbcommon::xkb::Keysym;
 pub const NO_SYMBOL: Keysym = Keysym::new(0);
 
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
+    MouseControllableNext,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -204,7 +205,7 @@ impl MouseControllableNext for Enigo {
 }
 
 impl KeyboardControllableNext for Enigo {
-    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             con.enter_text(text);
@@ -213,14 +214,14 @@ impl KeyboardControllableNext for Enigo {
         if let Some(con) = self.x11.as_mut() {
             con.enter_text(text);
         }
-        Some(())
+        Ok(Some(()))
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Nothing to do
         if key == Key::Layout('\0') {
-            return;
+            return Ok(());
         }
         match direction {
             Direction::Press => self.held.push(key),
@@ -230,12 +231,13 @@ impl KeyboardControllableNext for Enigo {
 
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.enter_key(key, direction);
+            con.enter_key(key, direction)?
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.enter_key(key, direction);
+            con.enter_key(key, direction)?
         }
+        Ok(())
     }
 }
 

@@ -52,7 +52,10 @@
 
 // TODO(dustin) use interior mutability not &mut self
 
-use std::fmt;
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+};
 
 /// DSL parser module
 ///
@@ -395,23 +398,33 @@ pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()>;
+    fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>>;
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
-    fn enter_text(&mut self, text: &str) {
+    fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
-            return; // Nothing to simulate.
+            return Ok(()); // Nothing to simulate.
         }
         // Fall back to entering single keys if no fast text entry is available
-        if self.fast_text_entry(text).is_none() {
-            for c in text.chars() {
-                self.enter_key(Key::Layout(c), Direction::Click);
+
+        let fast_text_res = self.fast_text_entry(text);
+        match fast_text_res {
+            Ok(o) => {
+                if o.is_none() {
+                    for c in text.chars() {
+                        self.enter_key(Key::Layout(c), Direction::Click)?
+                    }
+                    return Ok(());
+                } else {
+                    return Ok(());
+                }
             }
-        }
+            Err(e) => return Err(e),
+        };
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction);
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 }
 
 pub trait MouseControllableNext {
@@ -429,3 +442,20 @@ pub trait MouseControllableNext {
 
     fn mouse_loc(&self) -> (i32, i32);
 }
+
+pub type InputResult<T> = Result<T, InputError>;
+
+#[derive(Debug)]
+pub enum InputError {
+    Protocol,
+    MappingFailed,
+    NoEmptyKeycodes, // There was no space to map any keycodes
+}
+
+impl Display for InputError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for InputError {}

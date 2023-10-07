@@ -20,7 +20,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 use super::keymap::{Bind, KeyMap};
 use super::ConnectionError;
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
+    MouseControllableNext,
 };
 
 pub type Keycode = u32;
@@ -494,18 +495,18 @@ impl Drop for WaylandState {
 }
 
 impl KeyboardControllableNext for Con {
-    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = &mut self.input_method {
             im.commit_string(text.to_string());
             im.commit(*serial);
             *serial = serial.wrapping_add(1);
             self.event_queue.flush().unwrap();
-            return Some(());
+            return Ok(Some(()));
         }
-        None
+        Ok(None)
     }
     /// Try to enter the key
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         if self.keymap.make_room(&()) {
             self.apply_keymap();
         }
@@ -530,6 +531,7 @@ impl KeyboardControllableNext for Con {
         } else {
             self.send_key_event(keycode, direction);
         }
+        Ok(())
     }
 }
 impl MouseControllableNext for Con {

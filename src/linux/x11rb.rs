@@ -20,7 +20,8 @@ use super::{
     Keysym, NewConError, NO_SYMBOL,
 };
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -158,13 +159,13 @@ impl Bind<Keycode> for CompositorConnection {
 }
 
 impl KeyboardControllableNext for Con {
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
+    fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
         // TODO: Add fast method
         // xdotools can do it, so it is possible
-        None
+        Ok(None)
     }
     /// Try to enter the key
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         self.keymap.make_room(&());
         let keycode = self.keymap.key_to_keycode(&self.connection, key).unwrap();
         self.keymap.update_delays(keycode);
@@ -217,6 +218,7 @@ impl KeyboardControllableNext for Con {
         }
         self.connection.sync().unwrap();
         self.keymap.last_event_before_delays = std::time::Instant::now();
+        Ok(())
     }
 }
 
