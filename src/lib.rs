@@ -398,9 +398,15 @@ pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
+    ///
+    /// # Errors
+    /// TODO
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>>;
     /// Enter the text
     /// Use a fast method to enter the text, if it is available
+    ///
+    /// # Errors
+    /// TODO
     fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
@@ -412,18 +418,19 @@ pub trait KeyboardControllableNext {
             Ok(o) => {
                 if o.is_none() {
                     for c in text.chars() {
-                        self.enter_key(Key::Layout(c), Direction::Click)?
+                        self.enter_key(Key::Layout(c), Direction::Click)?;
                     }
-                    return Ok(());
-                } else {
-                    return Ok(());
                 }
+                Ok(())
             }
-            Err(e) => return Err(e),
-        };
+            Err(e) => Err(e),
+        }
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
+    ///
+    /// # Errors
+    /// TODO
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 }
 

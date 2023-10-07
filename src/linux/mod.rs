@@ -231,11 +231,11 @@ impl KeyboardControllableNext for Enigo {
 
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.enter_key(key, direction)?
+            con.enter_key(key, direction)?;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.enter_key(key, direction)?
+            con.enter_key(key, direction)?;
         }
         Ok(())
     }
