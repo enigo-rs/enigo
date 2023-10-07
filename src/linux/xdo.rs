@@ -4,13 +4,14 @@ use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
 use super::NewConError;
 use crate::{
-    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
-    MouseControllableNext,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext,
 };
 use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u32 = 12; // milliseconds
+const XDO_SUCCESS: c_int = 0;
 type Window = c_ulong;
 type Xdo = *const c_void;
 
@@ -147,13 +148,16 @@ impl Drop for Con {
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         let string = CString::new(text.replace("\0", "")).unwrap();
-        unsafe {
+        let res = unsafe {
             xdo_enter_text_window(
                 self.xdo,
                 CURRENT_WINDOW,
                 string.as_ptr(),
                 self.delay as useconds_t,
-            );
+            )
+        };
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate);
         }
         Ok(Some(()))
     }
@@ -167,14 +171,22 @@ impl KeyboardControllableNext for Con {
                 .replace("XK_", ""), // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
         )
         .unwrap();
-        match direction {
+        let res = match direction {
+            Direction::Click => unsafe {
+                xdo_send_keysequence_window(
+                    self.xdo,
+                    CURRENT_WINDOW,
+                    string.as_ptr(),
+                    self.delay as useconds_t,
+                )
+            },
             Direction::Press => unsafe {
                 xdo_send_keysequence_window_down(
                     self.xdo,
                     CURRENT_WINDOW,
                     string.as_ptr(),
                     self.delay as useconds_t,
-                );
+                )
             },
             Direction::Release => unsafe {
                 xdo_send_keysequence_window_up(
@@ -182,17 +194,12 @@ impl KeyboardControllableNext for Con {
                     CURRENT_WINDOW,
                     string.as_ptr(),
                     self.delay as useconds_t,
-                );
-            },
-            Direction::Click => unsafe {
-                xdo_send_keysequence_window(
-                    self.xdo,
-                    CURRENT_WINDOW,
-                    string.as_ptr(),
-                    self.delay as useconds_t,
-                );
+                )
             },
         };
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate);
+        }
         Ok(())
     }
 }

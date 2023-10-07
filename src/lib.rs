@@ -454,9 +454,9 @@ pub type InputResult<T> = Result<T, InputError>;
 
 #[derive(Debug)]
 pub enum InputError {
-    Protocol,
     MappingFailed,
     NoEmptyKeycodes, // There was no space to map any keycodes
+    Simulate,
 }
 
 impl Display for InputError {
