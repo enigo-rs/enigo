@@ -3,14 +3,9 @@ use std::convert::TryInto;
 use std::fmt::Display;
 use std::io::{Seek, SeekFrom, Write};
 
-#[cfg(feature = "wayland")]
-use tempfile::tempfile;
-
 use xkbcommon::xkb::keysym_get_name;
 
 use super::{ConnectionError, Keysym, NO_SYMBOL};
-#[cfg(feature = "wayland")]
-use super::{KEYMAP_BEGINNING, KEYMAP_END};
 use crate::{Direction, Key};
 
 const DEFAULT_DELAY: u32 = 12;
@@ -180,6 +175,8 @@ where
     /// is returned
     #[cfg(feature = "wayland")]
     pub fn regenerate(&mut self) -> Option<u32> {
+        use super::{KEYMAP_BEGINNING, KEYMAP_END};
+
         // Don't do anything if there were no changes
         if !self.needs_regeneration {
             return None;
@@ -187,7 +184,7 @@ where
 
         // Create a file to store the layout
         if self.file.is_none() {
-            let mut temp_file = tempfile().expect("Unable to create tempfile");
+            let mut temp_file = tempfile::tempfile().expect("Unable to create tempfile");
             temp_file.write_all(KEYMAP_BEGINNING).unwrap();
             self.file = Some(temp_file);
         }
