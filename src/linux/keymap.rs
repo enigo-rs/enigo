@@ -6,7 +6,7 @@ use std::io::{Seek, SeekFrom, Write};
 #[cfg(feature = "wayland")]
 use tempfile::tempfile;
 
-use xkbcommon::xkb::{keysym_from_name, keysym_get_name, KEYSYM_NO_FLAGS};
+use xkbcommon::xkb::keysym_get_name;
 
 use super::{ConnectionError, Keysym, NO_SYMBOL};
 #[cfg(feature = "wayland")]
@@ -73,106 +73,6 @@ where
         }
     }
 
-    /// Converts a Key to a Keysym
-    #[allow(clippy::too_many_lines)]
-    pub fn key_to_keysym(key: Key) -> Keysym {
-        #[allow(clippy::match_same_arms)]
-        match key {
-            Key::Layout(c) => xkeysym::Keysym::from_char(c),
-            Key::Raw(k) => {
-                // Raw keycodes cannot be converted to keysyms
-                panic!("Attempted to convert raw keycode {k} to keysym");
-            }
-            Key::Alt | Key::Option => Keysym::Alt_L,
-            Key::Backspace => Keysym::BackSpace,
-            Key::Begin => Keysym::Begin,
-            Key::Break => Keysym::Break,
-            Key::Cancel => Keysym::Cancel,
-            Key::CapsLock => Keysym::Caps_Lock,
-            Key::Clear => Keysym::Clear,
-            Key::Control | Key::LControl => Keysym::Control_L,
-            Key::Delete => Keysym::Delete,
-            Key::DownArrow => Keysym::Down,
-            Key::End => Keysym::End,
-            Key::Escape => Keysym::Escape,
-            Key::Execute => Keysym::Execute,
-            Key::F1 => Keysym::F1,
-            Key::F2 => Keysym::F2,
-            Key::F3 => Keysym::F3,
-            Key::F4 => Keysym::F4,
-            Key::F5 => Keysym::F5,
-            Key::F6 => Keysym::F6,
-            Key::F7 => Keysym::F7,
-            Key::F8 => Keysym::F8,
-            Key::F9 => Keysym::F9,
-            Key::F10 => Keysym::F10,
-            Key::F11 => Keysym::F11,
-            Key::F12 => Keysym::F12,
-            Key::F13 => Keysym::F13,
-            Key::F14 => Keysym::F14,
-            Key::F15 => Keysym::F15,
-            Key::F16 => Keysym::F16,
-            Key::F17 => Keysym::F17,
-            Key::F18 => Keysym::F18,
-            Key::F19 => Keysym::F19,
-            Key::F20 => Keysym::F20,
-            Key::F21 => Keysym::F21,
-            Key::F22 => Keysym::F22,
-            Key::F23 => Keysym::F23,
-            Key::F24 => Keysym::F24,
-            Key::F25 => Keysym::F25,
-            Key::F26 => Keysym::F26,
-            Key::F27 => Keysym::F27,
-            Key::F28 => Keysym::F28,
-            Key::F29 => Keysym::F29,
-            Key::F30 => Keysym::F30,
-            Key::F31 => Keysym::F31,
-            Key::F32 => Keysym::F32,
-            Key::F33 => Keysym::F33,
-            Key::F34 => Keysym::F34,
-            Key::F35 => Keysym::F35,
-            Key::Find => Keysym::Find,
-            Key::Hangul => Keysym::Hangul,
-            Key::Hanja => Keysym::Hangul_Hanja,
-            Key::Help => Keysym::Help,
-            Key::Home => Keysym::Home,
-            Key::Insert => Keysym::Insert,
-            Key::Kanji => Keysym::Kanji,
-            Key::LeftArrow => Keysym::Left,
-            Key::Linefeed => Keysym::Linefeed,
-            Key::LMenu => Keysym::Menu,
-            Key::ModeChange => Keysym::Mode_switch,
-            Key::MediaNextTrack => Keysym::XF86_AudioNext,
-            Key::MediaPlayPause => Keysym::XF86_AudioPlay,
-            Key::MediaPrevTrack => Keysym::XF86_AudioPrev,
-            Key::MediaStop => Keysym::XF86_AudioStop,
-            Key::Numlock => Keysym::Num_Lock,
-            Key::PageDown => Keysym::Page_Down,
-            Key::PageUp => Keysym::Page_Up,
-            Key::Pause => Keysym::Pause,
-            Key::Print => Keysym::Print,
-            Key::RControl => Keysym::Control_R,
-            Key::Redo => Keysym::Redo,
-            Key::Return => Keysym::Return,
-            Key::RightArrow => Keysym::Right,
-            Key::RShift => Keysym::Shift_R,
-            Key::ScrollLock => Keysym::Scroll_Lock,
-            Key::Select => Keysym::Select,
-            Key::ScriptSwitch => Keysym::script_switch,
-            Key::Shift | Key::LShift => Keysym::Shift_L,
-            Key::ShiftLock => Keysym::Shift_Lock,
-            Key::Space => Keysym::space,
-            Key::SysReq => Keysym::Sys_Req,
-            Key::Tab => Keysym::Tab,
-            Key::Undo => Keysym::Undo,
-            Key::UpArrow => Keysym::Up,
-            Key::VolumeDown => Keysym::XF86_AudioLowerVolume,
-            Key::VolumeUp => Keysym::XF86_AudioRaiseVolume,
-            Key::VolumeMute => Keysym::XF86_AudioMute,
-            Key::Command | Key::Super | Key::Windows | Key::Meta => Keysym::Super_L,
-        }
-    }
-
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
     pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> Option<Keycode> {
@@ -180,7 +80,7 @@ where
             let kcz: usize = kc.try_into().unwrap();
             kcz.try_into().unwrap()
         } else {
-            let sym = KeyMap::<Keycode>::key_to_keysym(key);
+            let sym = crate::keycodes::key_to_keysym(key);
             if let Some(&keycode) = self.keymap.get(&sym) {
                 // The keysym is already mapped and cached in the keymap
                 Ok(keycode)
