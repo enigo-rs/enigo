@@ -8,12 +8,18 @@ use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
 };
 
-#[cfg_attr(feature = "x11rb", path = "x11rb.rs")]
-#[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
-mod x11;
+// If none of these features is enabled, there is no way to simulate input
+#[cfg(not(any(feature = "wayland", feature = "x11rb", feature = "xdo")))]
+compile_error!(
+    "either feature `wayland`, `x11rb` or `xdo` must be enabled for this crate when using linux"
+);
 
 #[cfg(feature = "wayland")]
 pub mod wayland;
+#[cfg(any(feature = "x11rb", feature = "xdo"))]
+#[cfg_attr(feature = "x11rb", path = "x11rb.rs")]
+#[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
+mod x11;
 
 #[cfg(feature = "wayland")]
 pub mod constants;
@@ -63,6 +69,7 @@ pub struct Enigo {
     held: Vec<Key>, // Currently held keys
     #[cfg(feature = "wayland")]
     wayland: Option<wayland::Con>,
+    #[cfg(any(feature = "x11rb", feature = "xdo"))]
     x11: Option<x11::Con>,
 }
 
@@ -72,12 +79,23 @@ impl Enigo {
     /// This is Linux-specific.
     #[must_use]
     pub fn delay(&self) -> u32 {
-        self.x11.as_ref().unwrap().delay()
+        // On Wayland there is no delay
+
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_ref() {
+            return con.delay();
+        }
+        0 // TODO: Make this an Option
     }
     /// Set the delay per keypress.
     /// This is Linux-specific.
     pub fn set_delay(&mut self, delay: u32) {
-        self.x11.as_mut().unwrap().set_delay(delay);
+        // On Wayland there is no delay
+
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.set_delay(delay);
+        }
     }
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> Vec<Key> {
@@ -91,11 +109,13 @@ impl Default for Enigo {
         let held = Vec::new();
         #[cfg(feature = "wayland")]
         let wayland = wayland::Con::new().ok();
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
         let x11 = Some(x11::Con::default());
         Self {
             held,
             #[cfg(feature = "wayland")]
             wayland,
+            #[cfg(any(feature = "x11rb", feature = "xdo"))]
             x11,
         }
     }
@@ -104,61 +124,75 @@ impl Default for Enigo {
 impl MouseControllableNext for Enigo {
     fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_mut() {
-            wayland.send_mouse_button_event(button, direction, delay);
+        if let Some(con) = self.wayland.as_mut() {
+            con.send_mouse_button_event(button, direction, delay);
         }
-        self.x11
-            .as_mut()
-            .unwrap()
-            .send_mouse_button_event(button, direction, delay);
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.send_mouse_button_event(button, direction, delay);
+        }
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_mut() {
-            wayland.send_motion_notify_event(x, y, coordinate);
+        if let Some(con) = self.wayland.as_mut() {
+            con.send_motion_notify_event(x, y, coordinate);
         }
-        self.x11
-            .as_mut()
-            .unwrap()
-            .send_motion_notify_event(x, y, coordinate);
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.send_motion_notify_event(x, y, coordinate);
+        }
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_mut() {
-            wayland.mouse_scroll_event(length, axis);
+        if let Some(con) = self.wayland.as_mut() {
+            con.mouse_scroll_event(length, axis);
         }
-        self.x11.as_mut().unwrap().mouse_scroll_event(length, axis);
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.mouse_scroll_event(length, axis);
+        }
     }
 
     fn main_display(&self) -> (i32, i32) {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_ref() {
-            return wayland.main_display();
+        if let Some(con) = self.wayland.as_ref() {
+            return con.main_display();
         }
-        self.x11.as_ref().unwrap().main_display()
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_ref() {
+            return con.main_display();
+        }
+        (0, 0) // TODO: Make this an err
     }
 
     fn mouse_loc(&self) -> (i32, i32) {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_ref() {
-            return wayland.mouse_loc();
+        if let Some(con) = self.wayland.as_ref() {
+            return con.mouse_loc();
         }
-        self.x11.as_ref().unwrap().mouse_loc()
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_ref() {
+            return con.mouse_loc();
+        }
+        (0, 0) // TODO: Make this an err
     }
 }
 
 impl KeyboardControllableNext for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> Option<()> {
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_mut() {
-            wayland.enter_text(text);
+        if let Some(con) = self.wayland.as_mut() {
+            con.enter_text(text);
         }
-        self.x11.as_mut().unwrap().enter_text(text);
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.enter_text(text);
+        }
         Some(())
     }
 
@@ -175,10 +209,13 @@ impl KeyboardControllableNext for Enigo {
         }
 
         #[cfg(feature = "wayland")]
-        if let Some(wayland) = self.wayland.as_mut() {
-            wayland.enter_key(key, direction);
+        if let Some(con) = self.wayland.as_mut() {
+            con.enter_key(key, direction);
         }
-        self.x11.as_mut().unwrap().enter_key(key, direction);
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            con.enter_key(key, direction);
+        }
     }
 }
 
