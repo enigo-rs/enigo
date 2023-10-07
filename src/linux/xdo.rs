@@ -2,6 +2,7 @@ use std::{borrow::Cow, ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
+use super::NewConError;
 use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
 };
@@ -87,16 +88,23 @@ pub struct Con {
 // TODO: use Unique<c_char> once stable.
 unsafe impl Send for Con {}
 
-impl Default for Con {
-    /// Create a new Enigo instance
-    fn default() -> Self {
-        Self {
-            xdo: unsafe { xdo_new(ptr::null()) },
-            delay: DEFAULT_DELAY * 1000,
-        }
-    }
-}
 impl Con {
+    /// Create a new Enigo instance
+    fn new(dyp_name: *const i8, delay: u32) -> Result<Self, NewConError> {
+        Ok(Self {
+            xdo: unsafe { xdo_new(dyp_name) },
+            delay: delay * 1000,
+        })
+    }
+    /// Tries to establish a new X11 connection using default parameters
+    ///
+    /// # Errors
+    /// TODO
+    pub fn try_default() -> Result<Self, NewConError> {
+        let dyp_name = ptr::null();
+        let delay = DEFAULT_DELAY;
+        Self::new(dyp_name, delay)
+    }
     /// Get the delay per keypress in milliseconds.
     /// Default value is 12.
     /// This is Linux-specific.

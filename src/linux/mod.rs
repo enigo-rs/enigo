@@ -1,3 +1,8 @@
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+};
+
 use xkbcommon::xkb::Keysym;
 /// The "empty" keyboard symbol.
 // TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
@@ -29,6 +34,29 @@ use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 mod keymap;
 
 pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
+
+#[derive(Debug)]
+pub enum NewConError {
+    EstablishCon,
+    Reply,
+    NoEmptyKeycodes, // "There was no space to map any keycodes"
+}
+
+impl Display for NewConError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for NewConError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self {
+            NewConError::EstablishCon => None,
+            NewConError::Reply => None,
+            NewConError::NoEmptyKeycodes => None,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ConnectionError {

@@ -17,7 +17,7 @@ use x11rb::{
 
 use super::{
     keymap::{Bind, KeyMap},
-    Keysym, NO_SYMBOL,
+    Keysym, NewConError, NO_SYMBOL,
 };
 use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
@@ -39,40 +39,18 @@ pub struct Con {
     delay: u32, // milliseconds
 }
 
-#[derive(Debug)]
-pub enum NewConError {
-    EstablishCon(ConnectError),
-    Reply(ReplyError),
-    NoEmptyKeycodes, // "There was no space to map any keycodes"
-}
-
-impl Display for NewConError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "error establishing X11 connection with x11rb")
-    }
-}
-
-impl Error for NewConError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match &self {
-            NewConError::EstablishCon(e) => Some(e),
-            NewConError::Reply(e) => Some(e),
-            NewConError::NoEmptyKeycodes => None,
-        }
-    }
-}
-
 impl From<ConnectError> for NewConError {
     fn from(error: ConnectError) -> Self {
-        Self::EstablishCon(error)
+        println!("{error:?}");
+        Self::EstablishCon
     }
 }
 impl From<ReplyError> for NewConError {
     fn from(error: ReplyError) -> Self {
-        Self::Reply(error)
+        println!("{error:?}");
+        Self::Reply
     }
 }
-
 impl Con {
     /// Tries to establish a new X11 connection using the specified parameters
     ///
