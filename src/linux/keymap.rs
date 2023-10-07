@@ -80,7 +80,7 @@ where
             let kcz: usize = kc.try_into().unwrap();
             kcz.try_into().unwrap()
         } else {
-            let sym = crate::keycodes::key_to_keysym(key);
+            let sym = Keysym::try_from(key).unwrap();
             if let Some(&keycode) = self.keymap.get(&sym) {
                 // The keysym is already mapped and cached in the keymap
                 Ok(keycode)
