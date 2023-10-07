@@ -57,6 +57,7 @@ x11rb = { version = "0.12", features = [
     "xtest",
 ], optional = true }
 xkbcommon = "0.7"
+xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]

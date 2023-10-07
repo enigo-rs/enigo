@@ -78,18 +78,7 @@ where
     pub fn key_to_keysym(key: Key) -> Keysym {
         #[allow(clippy::match_same_arms)]
         match key {
-            Key::Layout(c) => match c {
-                '\n' => Keysym::Return,
-                '\r' => NO_SYMBOL, // TODO: What is the correct key to type here?
-                '\t' => Keysym::Tab,
-                '\0' => NO_SYMBOL,
-                _ => {
-                    // TODO: Replace with Keysym.from_char(ch: char)
-                    let hex: u32 = c.into();
-                    let name = format!("U{hex:x}");
-                    keysym_from_name(&name, KEYSYM_NO_FLAGS)
-                }
-            },
+            Key::Layout(c) => xkeysym::Keysym::from_char(c),
             Key::Raw(k) => {
                 // Raw keycodes cannot be converted to keysyms
                 panic!("Attempted to convert raw keycode {k} to keysym");
@@ -372,3 +361,17 @@ impl<Keycode> Bind<Keycode> for () {
         // No need to do anything
     }
 }
+
+/*
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn success() {
+        let keysyma: xkbcommon::xkb::Keysym = KeyMap::<u32>::key_to_keysym(Key::Layout('\n'));
+        let keysymb: xkeysym::Keysym = xkeysym::Keysym::from_char('\n');
+        assert_eq!(keysyma, keysymb);
+    }
+}
+*/
