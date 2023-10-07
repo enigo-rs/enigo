@@ -141,7 +141,7 @@ where
                 .elapsed()
                 .as_millis()
                 .try_into()
-                .unwrap();
+                .unwrap_or(u32::MAX);
             self.pending_delays = self.delay.saturating_sub(elapsed_ms);
             self.last_keys.clear();
         } else {
@@ -174,18 +174,18 @@ where
     /// If there was the need to regenerate the keymap, the size of the keymap
     /// is returned
     #[cfg(feature = "wayland")]
-    pub fn regenerate(&mut self) -> Option<u32> {
+    pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
         use super::{KEYMAP_BEGINNING, KEYMAP_END};
 
         // Don't do anything if there were no changes
         if !self.needs_regeneration {
-            return None;
+            return Ok(None);
         }
 
         // Create a file to store the layout
         if self.file.is_none() {
-            let mut temp_file = tempfile::tempfile().expect("Unable to create tempfile");
-            temp_file.write_all(KEYMAP_BEGINNING).unwrap();
+            let mut temp_file = tempfile::tempfile()?;
+            temp_file.write_all(KEYMAP_BEGINNING)?;
             self.file = Some(temp_file);
         }
 
@@ -195,9 +195,7 @@ where
             .expect("There was no file to write to. This should not be possible!");
         // Move the virtual cursor of the file to the end of the part of the keymap that
         // is always the same so we only overwrite the parts that can change.
-        keymap_file
-            .seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))
-            .unwrap();
+        keymap_file.seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))?;
         for (&keysym, &keycode) in &self.keymap {
             write!(
                 keymap_file,
@@ -205,21 +203,21 @@ where
             key <I{}> {{ [ {} ] }}; // \\n",
                 keycode,
                 keysym_get_name(keysym)
-            )
-            .unwrap();
+            )?;
         }
-        keymap_file.write_all(KEYMAP_END).unwrap();
+        keymap_file.write_all(KEYMAP_END)?;
         // Truncate the file at the current cursor position in order to cut off any old
         // data in case the keymap was smaller than the old one
-        let keymap_len = keymap_file
-            .stream_position()
-            .expect("Unable to find the position of the cursor in the file");
-        keymap_file
-            .set_len(keymap_len)
-            .expect("Unable to trim the file");
+        let keymap_len = keymap_file.stream_position()?;
+        keymap_file.set_len(keymap_len)?;
         self.needs_regeneration = false;
-
-        Some(keymap_len.try_into().unwrap())
+        match keymap_len.try_into() {
+            Ok(v) => Ok(Some(v)),
+            Err(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "the length of the new keymap exceeds the u32::MAX",
+            )),
+        }
     }
 
     /// Tells the keymap that a modifier was pressed
@@ -258,17 +256,3 @@ impl<Keycode> Bind<Keycode> for () {
         // No need to do anything
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn success() {
-        let keysyma: xkbcommon::xkb::Keysym = KeyMap::<u32>::key_to_keysym(Key::Layout('\n'));
-        let keysymb: xkeysym::Keysym = xkeysym::Keysym::from_char('\n');
-        assert_eq!(keysyma, keysymb);
-    }
-}
-*/

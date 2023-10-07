@@ -198,7 +198,7 @@ impl Con {
     fn apply_keymap(&mut self) {
         if let Some(vk) = &self.virtual_keyboard {
             // Only send an updated keymap if we had to regenerate it
-            if let Some(keymap_size) = self.keymap.regenerate() {
+            if let Some(keymap_size) = self.keymap.regenerate().unwrap() {
                 vk.keymap(1, self.keymap.file.as_ref().unwrap().as_fd(), keymap_size);
             }
             self.event_queue.flush().unwrap();
