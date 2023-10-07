@@ -1,6 +1,3 @@
-#[cfg(target_os = "linux")]
-use xkbcommon::xkb::Keysym;
-
 // A key on the keyboard.
 /// For alphabetical keys, use [`Key::Layout`] for a system independent key.
 /// If a key is missing, you can use the raw keycode with [`Key::Raw`]. Some of
@@ -576,7 +573,9 @@ pub enum Key {
 #[cfg(target_os = "linux")]
 /// Converts a Key to a Keysym
 #[allow(clippy::too_many_lines)]
-pub fn key_to_keysym(key: Key) -> Keysym {
+pub fn key_to_keysym(key: Key) -> xkbcommon::xkb::Keysym {
+    use xkbcommon::xkb::Keysym;
+
     #[allow(clippy::match_same_arms)]
     match key {
         Key::Layout(c) => xkeysym::Keysym::from_char(c),
