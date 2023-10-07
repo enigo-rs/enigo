@@ -4,7 +4,8 @@ use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
 use super::NewConError;
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
+    MouseControllableNext,
 };
 use xkeysym::Keysym;
 
@@ -91,10 +92,25 @@ unsafe impl Send for Con {}
 
 impl Con {
     /// Create a new Enigo instance
+    /// If no dyp_name is provided, the $DISPLAY environment variable is read
+    /// and used instead
     #[allow(clippy::unnecessary_wraps)]
-    fn new(dyp_name: *const i8, delay: u32) -> Result<Self, NewConError> {
+    fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
+        let xdo = match dyp_name {
+            Some(name) => {
+                let Ok(string) = CString::new(name) else {
+                    return Err(NewConError::EstablishCon);
+                };
+                unsafe { xdo_new(string.as_ptr()) }
+            }
+            None => unsafe { xdo_new(ptr::null()) },
+        };
+        // If it was not possible to establish a connection, a NULL pointer is returned
+        if xdo.is_null() {
+            return Err(NewConError::EstablishCon);
+        }
         Ok(Self {
-            xdo: unsafe { xdo_new(dyp_name) },
+            xdo,
             delay: delay * 1000,
         })
     }
@@ -103,7 +119,7 @@ impl Con {
     /// # Errors
     /// TODO
     pub fn try_default() -> Result<Self, NewConError> {
-        let dyp_name = ptr::null();
+        let dyp_name = None;
         let delay = DEFAULT_DELAY;
         Self::new(dyp_name, delay)
     }
@@ -129,8 +145,8 @@ impl Drop for Con {
 }
 
 impl KeyboardControllableNext for Con {
-    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
-        let string = CString::new(text).unwrap();
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+        let string = CString::new(text.replace("\0", "")).unwrap();
         unsafe {
             xdo_enter_text_window(
                 self.xdo,
@@ -139,10 +155,10 @@ impl KeyboardControllableNext for Con {
                 self.delay as useconds_t,
             );
         }
-        Some(())
+        Ok(Some(()))
     }
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let string = CString::new(
             Keysym::try_from(key)
                 .unwrap()
@@ -177,6 +193,7 @@ impl KeyboardControllableNext for Con {
                 );
             },
         };
+        Ok(())
     }
 }
 
