@@ -6,6 +6,7 @@ use super::NewConError;
 use crate::{
     Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
 };
+use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u32 = 12; // milliseconds
@@ -90,6 +91,7 @@ unsafe impl Send for Con {}
 
 impl Con {
     /// Create a new Enigo instance
+    #[allow(clippy::unnecessary_wraps)]
     fn new(dyp_name: *const i8, delay: u32) -> Result<Self, NewConError> {
         Ok(Self {
             xdo: unsafe { xdo_new(dyp_name) },
@@ -126,120 +128,6 @@ impl Drop for Con {
     }
 }
 
-#[allow(clippy::too_many_lines)]
-fn keysequence<'a>(key: Key) -> Cow<'a, str> {
-    if let Key::Layout(c) = key {
-        #[allow(clippy::match_same_arms)]
-        match c {
-            '\n' => return Cow::Borrowed("Return"),
-            '\r' => {} // TODO: What is the correct key to type here?
-            '\t' => return Cow::Borrowed("Tab"),
-            '\0' => (),
-            _ => (),
-        }
-        return Cow::Owned(format!("U{:X}", c as u32));
-    }
-    if let Key::Raw(k) = key {
-        return Cow::Owned(format!("{k}"));
-    }
-    // The full list of names is available at:
-    // https://cgit.freedesktop.org/xorg/proto/x11proto/plain/keysymdef.h
-    // https://cgit.freedesktop.org/xorg/proto/x11proto/plain/XF86keysym.h
-    Cow::Borrowed(match key {
-        Key::Alt => "Alt",
-        Key::Backspace => "BackSpace",
-        Key::Begin => "Begin",
-        Key::Break => "Break",
-        Key::Cancel => "Cancel",
-        Key::CapsLock => "Caps_Lock",
-        Key::Clear => "Clear",
-        Key::Control => "Control",
-        Key::Delete => "Delete",
-        Key::DownArrow => "Down",
-        Key::End => "End",
-        Key::Escape => "Escape",
-        Key::Execute => "Execute",
-        Key::F1 => "F1",
-        Key::F2 => "F2",
-        Key::F3 => "F3",
-        Key::F4 => "F4",
-        Key::F5 => "F5",
-        Key::F6 => "F6",
-        Key::F7 => "F7",
-        Key::F8 => "F8",
-        Key::F9 => "F9",
-        Key::F10 => "F10",
-        Key::F11 => "F11",
-        Key::F12 => "F12",
-        Key::F13 => "F13",
-        Key::F14 => "F14",
-        Key::F15 => "F15",
-        Key::F16 => "F16",
-        Key::F17 => "F17",
-        Key::F18 => "F18",
-        Key::F19 => "F19",
-        Key::F20 => "F20",
-        Key::F21 => "F21",
-        Key::F22 => "F22",
-        Key::F23 => "F23",
-        Key::F24 => "F24",
-        Key::F25 => "F25",
-        Key::F26 => "F26",
-        Key::F27 => "F27",
-        Key::F28 => "F28",
-        Key::F29 => "F29",
-        Key::F30 => "F30",
-        Key::F31 => "F31",
-        Key::F32 => "F32",
-        Key::F33 => "F33",
-        Key::F34 => "F34",
-        Key::F35 => "F35",
-        Key::Find => "Find",
-        Key::Hangul => "Hangul",
-        Key::Hanja => "Hangul_Hanja",
-        Key::Help => "Help",
-        Key::Home => "Home",
-        Key::Insert => "Insert",
-        Key::Kanji => "Kanji",
-        Key::LControl => "Control_L",
-        Key::LeftArrow => "Left",
-        Key::Linefeed => "Linefeed",
-        Key::LMenu => "Menu",
-        Key::LShift => "Shift_L",
-        Key::ModeChange => "Mode_switch",
-        Key::MediaNextTrack => "XF86AudioNext",
-        Key::MediaPlayPause => "XF86AudioPlay",
-        Key::MediaPrevTrack => "XF86AudioPrev",
-        Key::MediaStop => "XF86AudioStop",
-        Key::Numlock => "Num_Lock",
-        Key::Option => "Option",
-        Key::PageDown => "Page_Down",
-        Key::PageUp => "Page_Up",
-        Key::Pause => "Pause",
-        Key::Print => "Print",
-        Key::RControl => "Control_R",
-        Key::Redo => "Redo",
-        Key::Return => "Return",
-        Key::RightArrow => "Right",
-        Key::RShift => "Shift_R",
-        Key::ScrollLock => "Scroll_Lock",
-        Key::Select => "Select",
-        Key::ScriptSwitch => "script_switch",
-        Key::Shift => "Shift",
-        Key::ShiftLock => "Shift_Lock",
-        Key::Space => "space",
-        Key::SysReq => "Sys_Req",
-        Key::Tab => "Tab",
-        Key::Undo => "Undo",
-        Key::UpArrow => "Up",
-        Key::VolumeDown => "XF86AudioLowerVolume",
-        Key::VolumeUp => "XF86AudioRaiseVolume",
-        Key::VolumeMute => "XF86AudioMute",
-        Key::Layout(_) | Key::Raw(_) => unreachable!(),
-        Key::Command | Key::Super | Key::Windows | Key::Meta => "Super",
-    })
-}
-
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> Option<()> {
         let string = CString::new(text).unwrap();
@@ -255,7 +143,14 @@ impl KeyboardControllableNext for Con {
     }
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) {
-        let string = CString::new(&*keysequence(key)).unwrap();
+        let string = CString::new(
+            Keysym::try_from(key)
+                .unwrap()
+                .name()
+                .unwrap()
+                .replace("XK_", ""), // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
+        )
+        .unwrap();
         match direction {
             Direction::Press => unsafe {
                 xdo_send_keysequence_window_down(

@@ -48,15 +48,7 @@ impl Display for NewConError {
     }
 }
 
-impl Error for NewConError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match &self {
-            NewConError::EstablishCon => None,
-            NewConError::Reply => None,
-            NewConError::NoEmptyKeycodes => None,
-        }
-    }
-}
+impl Error for NewConError {}
 
 #[derive(Debug)]
 pub enum ConnectionError {

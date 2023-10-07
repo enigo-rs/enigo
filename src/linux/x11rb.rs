@@ -54,10 +54,11 @@ impl From<ReplyError> for NewConError {
 impl Con {
     /// Tries to establish a new X11 connection using the specified parameters
     ///
-    /// delay: Minimum delay in milliseconds between keypresses in order to
+    /// `delay`: Minimum delay in milliseconds between keypresses in order to
     /// properly enter all chars
     ///
-    /// dpy_name: If no dpy_name is provided, the value from $DISPLAY is used.
+    /// `dpy_name`: If no `dpy_name` is provided, the value from $DISPLAY is
+    /// used.
     ///
     /// # Errors
     /// TODO
