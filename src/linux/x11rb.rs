@@ -1,5 +1,7 @@
-use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::error::Error;
+use std::fmt::{self, Formatter};
+use std::{collections::VecDeque, fmt::Display};
 
 use x11rb::{
     connection::Connection,
@@ -9,7 +11,7 @@ use x11rb::{
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{DefaultStream, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
     wrapper::ConnectionExt as _,
 };
 
@@ -37,40 +39,79 @@ pub struct Con {
     delay: u32, // milliseconds
 }
 
-impl Default for Con {
-    fn default() -> Self {
-        Self::new(DEFAULT_DELAY)
+#[derive(Debug)]
+pub enum NewConError {
+    EstablishCon(ConnectError),
+    Reply(ReplyError),
+    NoEmptyKeycodes, // "There was no space to map any keycodes"
+}
+
+impl Display for NewConError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for NewConError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self {
+            NewConError::EstablishCon(e) => Some(e),
+            NewConError::Reply(e) => Some(e),
+            NewConError::NoEmptyKeycodes => None,
+        }
+    }
+}
+
+impl From<ConnectError> for NewConError {
+    fn from(error: ConnectError) -> Self {
+        Self::EstablishCon(error)
+    }
+}
+impl From<ReplyError> for NewConError {
+    fn from(error: ReplyError) -> Self {
+        Self::Reply(error)
     }
 }
 
 impl Con {
-    /// Tries to establish a new X11 connection
+    /// Tries to establish a new X11 connection using the specified parameters
     ///
     /// delay: Minimum delay in milliseconds between keypresses in order to
     /// properly enter all chars
     ///
+    /// dpy_name: If no dpy_name is provided, the value from $DISPLAY is used.
+    ///
     /// # Errors
     /// TODO
-    pub fn new(delay: u32) -> Con {
-        let (connection, screen_idx) = x11rb::connect(None).unwrap();
+    pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
+        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
-        let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode);
+        let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+
+        if unused_keycodes.is_empty() {
+            return Err(NewConError::NoEmptyKeycodes);
+        }
         let keymap = KeyMap::new(min_keycode, max_keycode, unused_keycodes);
-        let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode);
-        // Check if a mapping is possible
-        assert!(
-            !(unused_keycodes.is_empty()),
-            "There was no space to map any keycodes"
-        );
-        Con {
+
+        Ok(Con {
             connection,
             screen,
             keymap,
             delay,
-        }
+        })
+    }
+
+    /// Tries to establish a new X11 connection using default parameters
+    ///
+    /// # Errors
+    /// TODO
+    pub fn try_default() -> Result<Self, NewConError> {
+        let dyp_name = None;
+        let delay = DEFAULT_DELAY;
+        Self::new(dyp_name, delay)
     }
 
     /// Get the delay per keypress in milliseconds.
@@ -90,7 +131,7 @@ impl Con {
         connection: &CompositorConnection,
         keycode_min: Keycode,
         keycode_max: Keycode,
-    ) -> VecDeque<Keycode> {
+    ) -> Result<VecDeque<Keycode>, ReplyError> {
         let mut unused_keycodes: VecDeque<Keycode> =
             VecDeque::with_capacity((keycode_max - keycode_min) as usize);
 
@@ -99,10 +140,8 @@ impl Con {
             keysyms,
             ..
         } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min)
-            .unwrap()
-            .reply()
-            .unwrap();
+            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min)?
+            .reply()?;
 
         // Split the mapping into the chunks of keysyms that are mapped to each keycode
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
@@ -112,7 +151,7 @@ impl Con {
                 unused_keycodes.push_back(kc);
             }
         }
-        unused_keycodes
+        Ok(unused_keycodes)
     }
 }
 

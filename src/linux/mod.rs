@@ -110,7 +110,7 @@ impl Default for Enigo {
         #[cfg(feature = "wayland")]
         let wayland = wayland::Con::new().ok();
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        let x11 = Some(x11::Con::default());
+        let x11 = Some(x11::Con::try_default().unwrap());
         Self {
             held,
             #[cfg(feature = "wayland")]
