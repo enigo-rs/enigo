@@ -1,7 +1,5 @@
+use std::collections::VecDeque;
 use std::convert::TryInto;
-use std::error::Error;
-use std::fmt::{self, Formatter};
-use std::{collections::VecDeque, fmt::Display};
 
 use x11rb::{
     connection::Connection,
@@ -11,17 +9,14 @@ use x11rb::{
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, DefaultStream, ReplyError, RustConnection},
     wrapper::ConnectionExt as _,
 };
 
-use super::{
-    keymap::{Bind, KeyMap},
-    Keysym, NO_SYMBOL,
-};
+use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
+    MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -141,7 +136,9 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         for &keycode in self.keymap.keymap.values() {
-            self.connection.bind_key(keycode, NO_SYMBOL);
+            if self.connection.bind_key(keycode, NO_SYMBOL).is_err() {
+                println!("unable to unmap keycode {keycode:?}");
+            };
         }
     }
 }
@@ -154,8 +151,8 @@ impl Bind<Keycode> for CompositorConnection {
         // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
         // https://stackoverflow.com/a/44334103
         self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
-            .map_err(|e| ())?;
-        self.sync().map_err(|e| ())
+            .map_err(|e| println!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
+        self.sync().map_err(|e| println!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
     }
 }
 

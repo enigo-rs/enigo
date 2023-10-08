@@ -1,14 +1,3 @@
-use std::{
-    error::Error,
-    fmt::{self, Display, Formatter},
-};
-
-use xkbcommon::xkb::Keysym;
-/// The "empty" keyboard symbol.
-// TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
-// there
-pub const NO_SYMBOL: Keysym = Keysym::new(0);
-
 use crate::{
     Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
     MouseControllableNext,
@@ -34,8 +23,6 @@ use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
-
-pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
 /*
 #[derive(Debug)]
@@ -95,8 +82,10 @@ impl Enigo {
         }
         0 // TODO: Make this an Option
     }
+
     /// Set the delay per keypress.
     /// This is Linux-specific.
+    #[allow(unused_variables)]
     pub fn set_delay(&mut self, delay: u32) {
         // On Wayland there is no delay
 
@@ -105,6 +94,7 @@ impl Enigo {
             con.set_delay(delay);
         }
     }
+
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> Vec<Key> {
         self.held.clone()
@@ -232,7 +222,9 @@ impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         for &k in &self.held() {
-            self.enter_key(k, Direction::Release);
+            if self.enter_key(k, Direction::Release).is_err() {
+                println!("unable to release {k:?}");
+            };
         }
     }
 }

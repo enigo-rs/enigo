@@ -17,14 +17,13 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1, zwlr_virtual_pointer_v1,
 };
 
-use super::keymap::{Bind, KeyMap};
+use super::keymap::{Bind, KeyMap, ModifierBitflag};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
+    MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
-pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
 pub struct Con {
     keymap: KeyMap<Keycode>,
@@ -46,18 +45,19 @@ impl Con {
         let connection = match Connection::connect_to_env() {
             Ok(connection) => connection,
             Err(e) => {
+                println!("{e:?}");
                 return Err(NewConError::EstablishCon(
-                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0'",
+                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0: {e}'",
                 ));
             }
         };
 
         // Check to see if there was an error trying to connect
-        if let Some(err) = connection.protocol_error() {
-            //  error!(
-            //     "Unknown Wayland initialization failure: {} {} {} {}",
-            //      err.code, err.object_id, err.object_interface, err.message
-            // );
+        if let Some(e) = connection.protocol_error() {
+            println!(
+                "Unknown Wayland initialization failure: {} {} {} {}",
+                e.code, e.object_id, e.object_interface, e.message
+            );
             return Err(NewConError::EstablishCon(
                 "failed to connect to Wayland. there was a protocol error",
             ));

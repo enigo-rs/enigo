@@ -582,7 +582,10 @@ impl TryFrom<Key> for xkbcommon::xkb::Keysym {
         #[allow(clippy::match_same_arms)]
         Ok(match key {
             Key::Layout(c) => xkeysym::Keysym::from_char(c),
-            Key::Raw(k) => return Err("Attempted to convert raw keycode {k} to keysym"),
+            Key::Raw(k) => {
+                println!("raw keycode: {k:?}");
+                return Err("attempted to convert raw keycode to keysym");
+            }
             Key::Alt | Key::Option => Keysym::Alt_L,
             Key::Backspace => Keysym::BackSpace,
             Key::Begin => Keysym::Begin,

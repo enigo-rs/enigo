@@ -2,23 +2,36 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
 
-use super::{Keysym, NO_SYMBOL};
-use crate::{Direction, InputError, InputResult, Key};
+pub(super) use xkbcommon::xkb::Keysym;
 
+use crate::{InputError, InputResult, Key};
+
+#[cfg(feature = "wayland")]
+pub(super) type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
+
+/// The "empty" keyboard symbol.
+// TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
+// there
+pub const NO_SYMBOL: Keysym = Keysym::new(0);
+#[cfg(feature = "x11rb")]
 const DEFAULT_DELAY: u32 = 12;
-
-pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
 #[derive(Debug)]
 pub struct KeyMap<Keycode> {
     pub(super) keymap: HashMap<Keysym, Keycode>,
     unused_keycodes: VecDeque<Keycode>,
     needs_regeneration: bool,
+    #[cfg(feature = "wayland")]
     pub(super) file: Option<std::fs::File>, // Temporary file that contains the keymap
-    modifiers: ModifierBitflag,             // State of the modifiers
-    last_keys: Vec<Keycode>,                // Last pressed keycodes
-    delay: u32,                             // milliseconds
+    #[cfg(feature = "wayland")]
+    modifiers: ModifierBitflag, // State of the modifiers
+    #[cfg(feature = "x11rb")]
+    last_keys: Vec<Keycode>, // Last pressed keycodes
+    #[cfg(feature = "x11rb")]
+    delay: u32, // milliseconds
+    #[cfg(feature = "x11rb")]
     pub(super) last_event_before_delays: std::time::Instant, // Time of the last event
+    #[cfg(feature = "x11rb")]
     pub(super) pending_delays: u32,
 }
 
@@ -44,23 +57,35 @@ where
     ) -> Self {
         let capacity: usize = keycode_max.try_into().unwrap() - keycode_min.try_into().unwrap();
         let capacity = capacity + 1;
-        let delay = DEFAULT_DELAY;
         let keymap = HashMap::with_capacity(capacity);
-        let file = None;
         let needs_regeneration = true;
+        #[cfg(feature = "wayland")]
+        let file = None;
+        #[cfg(feature = "wayland")]
         let modifiers = 0;
+        #[cfg(feature = "x11rb")]
         let last_keys = vec![];
+        #[cfg(feature = "x11rb")]
+        let delay = DEFAULT_DELAY;
+        #[cfg(feature = "x11rb")]
         let last_event_before_delays = std::time::Instant::now();
+        #[cfg(feature = "x11rb")]
         let pending_delays = 0;
         Self {
             keymap,
             unused_keycodes,
             needs_regeneration,
+            #[cfg(feature = "wayland")]
             file,
+            #[cfg(feature = "wayland")]
             modifiers,
+            #[cfg(feature = "x11rb")]
             last_keys,
+            #[cfg(feature = "x11rb")]
             delay,
+            #[cfg(feature = "x11rb")]
             last_event_before_delays,
+            #[cfg(feature = "x11rb")]
             pending_delays,
         }
     }
@@ -74,7 +99,7 @@ where
                 let kcz: usize = kc.try_into().unwrap();
                 kcz.try_into().unwrap()
             }
-            key @ _ => {
+            key => {
                 // Unwrapping here is okay, because the fn only returns an error if it was a
                 // Key::Raw and we test that before
                 let sym = Keysym::try_from(key).unwrap();
@@ -133,6 +158,7 @@ where
     // TODO: A delay of 1 ms in all cases seems to work on my machine. Maybe
     // this is not needed?
     // TODO: Only needed for x11rb
+    #[cfg(feature = "x11rb")]
     pub fn update_delays(&mut self, keycode: Keycode) {
         // Check if a delay is needed
         // A delay is required, if one of the keycodes was recently entered and there
@@ -233,21 +259,22 @@ where
     /// Tells the keymap that a modifier was pressed
     /// Updates the internal state of the modifiers and returns the new bitflag
     /// representing the state of the modifiers
+    #[cfg(feature = "wayland")]
     pub fn enter_modifier(
         &mut self,
         modifier: ModifierBitflag,
-        direction: Direction,
+        direction: crate::Direction,
     ) -> ModifierBitflag {
         match direction {
-            Direction::Press => {
+            crate::Direction::Press => {
                 self.modifiers |= modifier;
                 self.modifiers
             }
-            Direction::Release => {
+            crate::Direction::Release => {
                 self.modifiers &= !modifier;
                 self.modifiers
             }
-            Direction::Click => self.modifiers,
+            crate::Direction::Click => self.modifiers,
         }
     }
 }

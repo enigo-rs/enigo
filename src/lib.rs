@@ -330,24 +330,24 @@ where
     /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str) {
-        self.enter_text(sequence);
+        self.enter_text(sequence).unwrap();
     }
 
     /// Press down the given key
     fn key_down(&mut self, key: Key) {
-        self.enter_key(key, Direction::Press);
+        self.enter_key(key, Direction::Press).unwrap();
     }
 
     /// Release a pressed down key
     fn key_up(&mut self, key: Key) {
-        self.enter_key(key, Direction::Release);
+        self.enter_key(key, Direction::Release).unwrap();
     }
 
     /// Press and release the key. It is the same as calling the
     /// [`KeyboardControllable::key_down`] and
     /// [`KeyboardControllable::key_up`] functions consecutively
     fn key_click(&mut self, key: Key) {
-        self.enter_key(key, Direction::Click);
+        self.enter_key(key, Direction::Click).unwrap();
     }
 }
 
