@@ -164,7 +164,7 @@ impl KeyboardControllableNext for Con {
             )
         };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate);
+            return Err(InputError::Simulate("unable to enter text"));
         }
         Ok(Some(()))
     }
@@ -215,7 +215,7 @@ impl KeyboardControllableNext for Con {
             },
         };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate);
+            return Err(InputError::Simulate("unable to enter key"));
         }
         Ok(())
     }

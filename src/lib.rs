@@ -458,7 +458,7 @@ pub enum InputError {
     Mapping(String),
     Unmapping(String),
     NoEmptyKeycodes, // There was no space to map any keycodes
-    Simulate,
+    Simulate(&'static str),
     InvalidInput(&'static str),
 }
 

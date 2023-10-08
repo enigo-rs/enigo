@@ -565,7 +565,9 @@ impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         for &k in &self.held() {
-            self.enter_key(k, Direction::Release);
+            if self.enter_key(k, Direction::Release).is_err() {
+                println!("unable to release {k:?}");
+            };
         }
     }
 }
