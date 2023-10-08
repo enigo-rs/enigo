@@ -162,18 +162,18 @@ where
     /// make some room by freeing the already mapped keycodes.
     /// Returns true, if keys were unmapped and the keymap needs to be
     /// regenerated
-    pub fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> bool {
+    pub fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<bool> {
         // Unmap all keys, if all keycodes are already being used
         // TODO: Don't unmap the keycodes if they will be needed next
         // TODO: Don't unmap held keys!
         if self.unused_keycodes.is_empty() {
             let mapped_keys = self.keymap.clone();
             for (sym, keycode) in mapped_keys {
-                self.unmap(c, sym, keycode);
+                self.unmap(c, sym, keycode)?;
             }
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     /// Regenerate the keymap if there were any changes

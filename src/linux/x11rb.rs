@@ -167,7 +167,7 @@ impl KeyboardControllableNext for Con {
     }
     /// Try to enter the key
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        self.keymap.make_room(&());
+        self.keymap.make_room(&())?;
         let keycode = self.keymap.key_to_keycode(&self.connection, key).unwrap();
         self.keymap.update_delays(keycode);
         // Send the events to the compositor

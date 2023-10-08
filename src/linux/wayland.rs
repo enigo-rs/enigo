@@ -502,7 +502,7 @@ impl KeyboardControllableNext for Con {
     }
     /// Try to enter the key
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        if self.keymap.make_room(&()) {
+        if self.keymap.make_room(&())? {
             self.apply_keymap();
         }
         let keycode = self.keymap.key_to_keycode(&(), key).unwrap();
