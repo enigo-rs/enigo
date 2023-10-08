@@ -2,8 +2,8 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
 
-use super::{ConnectionError, Keysym, NO_SYMBOL};
-use crate::{Direction, Key};
+use super::{Keysym, NO_SYMBOL};
+use crate::{Direction, InputError, InputResult, Key};
 
 const DEFAULT_DELAY: u32 = 12;
 
@@ -67,55 +67,66 @@ where
 
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
-    pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> Option<Keycode> {
-        let keycode = if let Key::Raw(kc) = key {
-            let kcz: usize = kc.try_into().unwrap();
-            kcz.try_into().unwrap()
-        } else {
-            let sym = Keysym::try_from(key).unwrap();
-            if let Some(&keycode) = self.keymap.get(&sym) {
-                // The keysym is already mapped and cached in the keymap
-                Ok(keycode)
-            } else {
-                // The keysym needs to get mapped to an unused keycode.
-                // Always map the keycode if it has not yet been mapped, so it is layer agnostic
-                self.map(c, sym)
+    pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
+        let keycode = match key {
+            Key::Raw(kc) => {
+                // TODO: Get rid of there weird try_intos and unwraps
+                let kcz: usize = kc.try_into().unwrap();
+                kcz.try_into().unwrap()
             }
-            .unwrap()
+            key @ _ => {
+                // Unwrapping here is okay, because the fn only returns an error if it was a
+                // Key::Raw and we test that before
+                let sym = Keysym::try_from(key).unwrap();
+                if let Some(&keycode) = self.keymap.get(&sym) {
+                    // The keysym is already mapped and cached in the keymap
+                    keycode
+                } else {
+                    // The keysym needs to get mapped to an unused keycode.
+                    // Always map the keycode if it has not yet been mapped, so it is layer agnostic
+                    self.map(c, sym)?
+                }
+            }
         };
 
-        Some(keycode)
+        Ok(keycode)
     }
 
     /// Add the Keysym to the keymap
     ///
     /// This does not apply the changes
-    pub fn map<C: Bind<Keycode>>(
-        &mut self,
-        c: &C,
-        keysym: Keysym,
-    ) -> Result<Keycode, ConnectionError> {
+    pub fn map<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) -> InputResult<Keycode> {
         match self.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
-                c.bind_key(unused_keycode, keysym);
+                if c.bind_key(unused_keycode, keysym).is_err() {
+                    return Err(InputError::Mapping(format!("{keysym:?}")));
+                };
                 self.needs_regeneration = true;
                 self.keymap.insert(keysym, unused_keycode);
                 Ok(unused_keycode)
             }
             // All keycodes are being used. A mapping is not possible
-            None => Err(ConnectionError::MappingFailed(keysym)),
+            None => Err(InputError::Mapping(format!("{keysym:?}"))),
         }
     }
 
     /// Remove the Keysym from the keymap
     ///
     /// This does not apply the changes
-    pub fn unmap<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym, keycode: Keycode) {
-        c.bind_key(keycode, NO_SYMBOL);
+    pub fn unmap<C: Bind<Keycode>>(
+        &mut self,
+        c: &C,
+        keysym: Keysym,
+        keycode: Keycode,
+    ) -> InputResult<()> {
+        if c.bind_key(keycode, NO_SYMBOL).is_err() {
+            return Err(InputError::Unmapping(format!("{keysym:?}")));
+        };
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.keymap.remove(&keysym);
+        Ok(())
     }
 
     // Update the delay
@@ -247,11 +258,9 @@ pub trait Bind<Keycode> {
     // overwritten
     // If the keycode is mapped to the NoSymbol keysym, the key is unbinded and can
     // get used again later
-    fn bind_key(&self, keycode: Keycode, keysym: Keysym);
-}
-
-impl<Keycode> Bind<Keycode> for () {
-    fn bind_key(&self, _: Keycode, _: Keysym) {
-        // No need to do anything
+    fn bind_key(&self, _: Keycode, _: Keysym) -> Result<(), ()> {
+        Ok(()) // No need to do anything
     }
 }
+
+impl<Keycode> Bind<Keycode> for () {}

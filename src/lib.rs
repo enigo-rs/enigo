@@ -455,7 +455,8 @@ pub type InputResult<T> = Result<T, InputError>;
 
 #[derive(Debug)]
 pub enum InputError {
-    MappingFailed,
+    Mapping(String),
+    Unmapping(String),
     NoEmptyKeycodes, // There was no space to map any keycodes
     Simulate,
     InvalidInput(&'static str),
@@ -468,3 +469,18 @@ impl Display for InputError {
 }
 
 impl Error for InputError {}
+
+#[derive(Debug)]
+pub enum NewConError {
+    EstablishCon(&'static str),
+    Reply,
+    NoEmptyKeycodes, // "There was no space to map any keycodes"
+}
+
+impl Display for NewConError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for NewConError {}

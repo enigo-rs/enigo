@@ -18,10 +18,9 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 };
 
 use super::keymap::{Bind, KeyMap};
-use super::ConnectionError;
 use crate::{
-    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
-    MouseControllableNext,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -42,16 +41,14 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new() -> Result<Self, ConnectionError> {
+    pub fn new() -> Result<Self, NewConError> {
         // Setup Wayland Connection
-        let connection = Connection::connect_to_env();
-        let connection = match connection {
+        let connection = match Connection::connect_to_env() {
             Ok(connection) => connection,
             Err(e) => {
-                println!(
-                    "Failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0'"
-                );
-                return Err(ConnectionError::Connection(e.to_string()));
+                return Err(NewConError::EstablishCon(
+                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0'",
+                ));
             }
         };
 
@@ -61,7 +58,9 @@ impl Con {
             //     "Unknown Wayland initialization failure: {} {} {} {}",
             //      err.code, err.object_id, err.object_interface, err.message
             // );
-            return Err(ConnectionError::General(err.to_string()));
+            return Err(NewConError::EstablishCon(
+                "failed to connect to Wayland. there was a protocol error",
+            ));
         }
 
         // Create the event queue
@@ -76,9 +75,7 @@ impl Con {
         // Setup WaylandState and dispatch events
         let mut state = WaylandState::new();
         if event_queue.roundtrip(&mut state).is_err() {
-            return Err(ConnectionError::General(
-                "Roundtrip not possible".to_string(),
-            ));
+            return Err(NewConError::EstablishCon("wayland roundtrip not possible"));
         };
 
         // Setup virtual keyboard
@@ -208,10 +205,8 @@ impl Con {
 }
 
 impl Bind<Keycode> for Con {
-    fn bind_key(&self, _keycode: Keycode, _keysym: xkbcommon::xkb::Keysym) {
-        // Nothing to do
-        // On Wayland only the whole keymap can be applied
-    }
+    // Nothing to do
+    // On Wayland only the whole keymap can be applied
 }
 
 pub enum Modifier {

@@ -2,10 +2,9 @@ use std::{ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
-use super::NewConError;
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 use xkeysym::Keysym;
 

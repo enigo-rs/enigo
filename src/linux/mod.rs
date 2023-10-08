@@ -37,21 +37,7 @@ mod keymap;
 
 pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
-#[derive(Debug)]
-pub enum NewConError {
-    EstablishCon(&'static str),
-    Reply,
-    NoEmptyKeycodes, // "There was no space to map any keycodes"
-}
-
-impl Display for NewConError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "error establishing X11 connection with x11rb")
-    }
-}
-
-impl Error for NewConError {}
-
+/*
 #[derive(Debug)]
 pub enum ConnectionError {
     MappingFailed(Keysym),
@@ -85,7 +71,7 @@ impl From<std::io::Error> for ConnectionError {
     fn from(e: std::io::Error) -> Self {
         ConnectionError::Format(e)
     }
-}
+}*/
 
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys

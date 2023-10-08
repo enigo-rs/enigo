@@ -17,11 +17,11 @@ use x11rb::{
 
 use super::{
     keymap::{Bind, KeyMap},
-    Keysym, NewConError, NO_SYMBOL,
+    Keysym, NO_SYMBOL,
 };
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -147,15 +147,15 @@ impl Drop for Con {
 }
 
 impl Bind<Keycode> for CompositorConnection {
-    fn bind_key(&self, keycode: Keycode, keysym: Keysym) {
+    fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a
         // map that is tolower(keysym), toupper(keysym), tolower(keysym),
         // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
         // https://stackoverflow.com/a/44334103
         self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
-            .unwrap();
-        self.sync().unwrap();
+            .map_err(|e| ())?;
+        self.sync().map_err(|e| ())
     }
 }
 
