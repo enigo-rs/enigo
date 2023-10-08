@@ -43,7 +43,8 @@ pub struct Con {
 impl From<ConnectError> for NewConError {
     fn from(error: ConnectError) -> Self {
         println!("{error:?}");
-        Self::EstablishCon
+        // TODO: Describe why exactly it failed
+        Self::EstablishCon("failed to establish the connection")
     }
 }
 impl From<ReplyError> for NewConError {

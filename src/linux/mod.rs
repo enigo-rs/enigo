@@ -32,13 +32,14 @@ pub mod constants;
 #[cfg(feature = "wayland")]
 use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 
+#[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
 
 pub type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
 
 #[derive(Debug)]
 pub enum NewConError {
-    EstablishCon,
+    EstablishCon(&'static str),
     Reply,
     NoEmptyKeycodes, // "There was no space to map any keycodes"
 }
@@ -208,11 +209,11 @@ impl KeyboardControllableNext for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.enter_text(text);
+            con.enter_text(text)?;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.enter_text(text);
+            con.enter_text(text)?;
         }
         Ok(Some(()))
     }

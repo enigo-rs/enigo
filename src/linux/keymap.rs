@@ -1,9 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
-use std::io::{Seek, SeekFrom, Write};
-
-use xkbcommon::xkb::keysym_get_name;
 
 use super::{ConnectionError, Keysym, NO_SYMBOL};
 use crate::{Direction, Key};
@@ -176,6 +173,8 @@ where
     #[cfg(feature = "wayland")]
     pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
         use super::{KEYMAP_BEGINNING, KEYMAP_END};
+        use std::io::{Seek, SeekFrom, Write};
+        use xkbcommon::xkb::keysym_get_name;
 
         // Don't do anything if there were no changes
         if !self.needs_regeneration {

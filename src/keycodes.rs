@@ -576,7 +576,7 @@ impl TryFrom<Key> for xkbcommon::xkb::Keysym {
     type Error = &'static str;
 
     #[allow(clippy::too_many_lines)]
-    fn try_from(key: Key) -> Result<Self, Self::Error> {
+    fn try_from(key: Key) -> Result<Self, &'static str> {
         use xkbcommon::xkb::Keysym;
 
         #[allow(clippy::match_same_arms)]

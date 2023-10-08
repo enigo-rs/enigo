@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ffi::CString, ptr};
+use std::{ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
@@ -12,6 +12,7 @@ use xkeysym::Keysym;
 const CURRENT_WINDOW: c_ulong = 0;
 const DEFAULT_DELAY: u32 = 12; // milliseconds
 const XDO_SUCCESS: c_int = 0;
+
 type Window = c_ulong;
 type Xdo = *const c_void;
 
@@ -81,7 +82,6 @@ fn mousebutton(button: MouseButton) -> c_int {
     }
 }
 
-#[allow(clippy::module_name_repetitions)]
 /// The main struct for handling the event emitting
 pub struct Con {
     xdo: Xdo,
@@ -93,14 +93,16 @@ unsafe impl Send for Con {}
 
 impl Con {
     /// Create a new Enigo instance
-    /// If no dyp_name is provided, the $DISPLAY environment variable is read
+    /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
     #[allow(clippy::unnecessary_wraps)]
     fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
         let xdo = match dyp_name {
             Some(name) => {
                 let Ok(string) = CString::new(name) else {
-                    return Err(NewConError::EstablishCon);
+                    return Err(NewConError::EstablishCon(
+                        "the display name contained a null byte",
+                    ));
                 };
                 unsafe { xdo_new(string.as_ptr()) }
             }
@@ -108,7 +110,9 @@ impl Con {
         };
         // If it was not possible to establish a connection, a NULL pointer is returned
         if xdo.is_null() {
-            return Err(NewConError::EstablishCon);
+            return Err(NewConError::EstablishCon(
+                "establishing a connection to the display name was unsuccessful",
+            ));
         }
         Ok(Self {
             xdo,
@@ -147,7 +151,11 @@ impl Drop for Con {
 
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
-        let string = CString::new(text.replace("\0", "")).unwrap();
+        let Ok(string) = CString::new(text) else {
+            return Err(InputError::InvalidInput(
+                "the text to enter contained a NULL byte ('\\0’), which is not allowed",
+            ));
+        };
         let res = unsafe {
             xdo_enter_text_window(
                 self.xdo,
@@ -163,14 +171,24 @@ impl KeyboardControllableNext for Con {
     }
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let string = CString::new(
-            Keysym::try_from(key)
-                .unwrap()
-                .name()
-                .unwrap()
-                .replace("XK_", ""), // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
-        )
-        .unwrap();
+        let Ok(keysym) = Keysym::try_from(key) else {
+            return Err(InputError::InvalidInput(
+                "you can't enter a raw keycode with xdotools",
+            ));
+        };
+        let Some(keysym_name) = keysym.name() else {
+            // this should never happen, because we only use keysyms with a known name
+            return Err(InputError::InvalidInput("the keysym does not have a name"));
+        };
+        let keysym_name = keysym_name.replace("XK_", ""); // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
+
+        let Ok(string) = CString::new(keysym_name) else {
+            // this should never happen, because none of the names contain NULL bytes
+            return Err(InputError::InvalidInput(
+                "the name of the keystring contained a null byte",
+            ));
+        };
+
         let res = match direction {
             Direction::Click => unsafe {
                 xdo_send_keysequence_window(

@@ -401,9 +401,10 @@ pub trait KeyboardControllableNext {
     ///
     /// # Errors
     /// TODO
-    fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>>;
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>>;
     /// Enter the text
-    /// Use a fast method to enter the text, if it is available
+    /// Use a fast method to enter the text, if it is available. The text should
+    /// not contain any NULL bytes ('\0')
     ///
     /// # Errors
     /// TODO
@@ -457,6 +458,7 @@ pub enum InputError {
     MappingFailed,
     NoEmptyKeycodes, // There was no space to map any keycodes
     Simulate,
+    InvalidInput(&'static str),
 }
 
 impl Display for InputError {
