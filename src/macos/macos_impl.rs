@@ -13,7 +13,8 @@ use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext,
 };
 
 // required for NSEvent
@@ -264,7 +265,7 @@ impl MouseControllableNext for Enigo {
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        let pressed = Self::pressed_buttons();
+        let pressed = Self::pressed_buttons().unwrap();
         let (current_x, current_y) = self.mouse_loc();
 
         let (absolute, relative) = match coordinate {
@@ -336,27 +337,30 @@ impl MouseControllableNext for Enigo {
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl KeyboardControllableNext for Enigo {
-    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(string)) truncates strings down to 20 characters
-        text.as_bytes().chunks(20).for_each(|chunk| {
+        for chunk in text.as_bytes().chunks(20) {
             // This is safe because we use utf-8 str as input
             let string = unsafe { std::str::from_utf8_unchecked(chunk) };
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
-                .expect("Failed creating event");
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true) else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter the text",
+                ));
+            };
             event.set_string(string);
             event.post(CGEventTapLocation::HID);
-        });
+        }
         thread::sleep(Duration::from_millis(2));
-        Some(())
+        Ok(Some(()))
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Nothing to do
         if key == Key::Layout('\0') {
-            return;
+            return Ok(());
         }
         match direction {
             Direction::Press => self.held.push(key),
@@ -368,17 +372,26 @@ impl KeyboardControllableNext for Enigo {
 
         if direction == Direction::Click || direction == Direction::Press {
             thread::sleep(Duration::from_millis(20));
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
-                .expect("Failed creating event");
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to press the key",
+                ));
+            };
             event.post(CGEventTapLocation::HID);
         }
 
         if direction == Direction::Click || direction == Direction::Release {
             thread::sleep(Duration::from_millis(20));
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
-                .expect("Failed creating event");
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to release the key",
+                ));
+            };
             event.post(CGEventTapLocation::HID);
         }
+        Ok(())
     }
 }
 
@@ -388,8 +401,8 @@ impl Enigo {
         self.held.clone()
     }
 
-    fn pressed_buttons() -> usize {
-        let ns_event = Class::get("NSEvent").unwrap();
+    fn pressed_buttons() -> Result<usize, ()> {
+        let ns_event = Class::get("NSEvent").ok_or(())?;
         unsafe { msg_send![ns_event, pressedMouseButtons] }
     }
 
