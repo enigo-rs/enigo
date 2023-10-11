@@ -95,7 +95,6 @@ extern "C" {
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
 
     #[allow(non_upper_case_globals)]
-    #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
     static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
     #[allow(non_snake_case)]
@@ -131,7 +130,6 @@ extern "C" {
     ) -> CFStringRef;
 
     #[allow(non_upper_case_globals)]
-    #[link_name = "kCFAllocatorDefault"]
     static kCFAllocatorDefault: CFAllocatorRef;
 
     #[allow(non_snake_case)]
