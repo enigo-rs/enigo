@@ -24,13 +24,6 @@ extern "C" {}
 pub type CFDataRef = *const c_void;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
-struct NSPoint {
-    x: f64,
-    y: f64,
-}
-
-#[repr(C)]
 pub struct __TISInputSource;
 pub type TISInputSourceRef = *const __TISInputSource;
 
@@ -329,7 +322,7 @@ impl MouseControllableNext for Enigo {
 
     fn mouse_loc(&self) -> (i32, i32) {
         let ns_event = Class::get("NSEvent").unwrap();
-        let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
+        let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
         (x, self.display.pixels_high() as i32 - y_inv)
     }
