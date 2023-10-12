@@ -79,7 +79,7 @@ struct __CFAllocator([u8; 0]);
 type CFAllocatorRef = *const __CFAllocator;
 
 #[allow(non_upper_case_globals)]
-const kCFStringEncodingUTF8: u32 = 134_217_984;
+const kCFStringEncodingUTF8: u32 = 0x0800_0100;
 
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
