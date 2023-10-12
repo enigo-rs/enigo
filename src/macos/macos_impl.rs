@@ -71,14 +71,7 @@ struct UCKeyboardLayout {
 }
 
 #[allow(non_upper_case_globals)]
-const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 = _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
-
-#[allow(non_camel_case_types)]
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-enum _bindgen_ty_703 {
-    kUCKeyTranslateNoDeadKeysBit = 0,
-}
+const kUCKeyTranslateNoDeadKeysBit: u32 = 0;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -529,7 +522,7 @@ impl Enigo {
                 3, // kUCKeyActionDisplay = 3
                 modifier,
                 LMGetKbdType() as u32,
-                kUCKeyTranslateNoDeadKeysBit as u32,
+                kUCKeyTranslateNoDeadKeysBit,
                 &mut keys_down,
                 8, // sizeof(chars) / sizeof(chars[0]),
                 &mut real_length,
