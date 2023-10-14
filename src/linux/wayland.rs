@@ -6,7 +6,7 @@ use std::time::Instant;
 // use wayland_client::protocol::wl_output;
 use wayland_client::{
     protocol::{wl_pointer, wl_registry, wl_seat},
-    Connection, Dispatch, EventQueue, QueueHandle,
+    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
 };
 use wayland_protocols_misc::{
     zwp_input_method_v2::client::{zwp_input_method_manager_v2, zwp_input_method_v2},
@@ -164,42 +164,68 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    fn send_key_event(&mut self, keycode: Keycode, direction: Direction) {
+    fn send_key_event(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
         if let Some(vk) = &self.virtual_keyboard {
+            is_alive(vk)?;
             let time = self.get_time();
             let keycode = keycode - 8; // Adjust by 8 due to the xkb/xwayland requirements
 
             if direction == Direction::Press || direction == Direction::Click {
                 vk.key(time, keycode, 1);
-                self.event_queue.flush().unwrap();
+                self.flush()?;
             }
             if direction == Direction::Release || direction == Direction::Click {
                 vk.key(time, keycode, 0);
-                self.event_queue.flush().unwrap();
+                self.flush()?;
             }
+            return Ok(());
         }
+        Err(InputError::Simulate("no way to enter key"))
     }
 
     /// Sends a modifier event with the updated bitflag of the modifiers to the
     /// compositor
-    fn send_modifier_event(&mut self, modifiers: ModifierBitflag) {
+    fn send_modifier_event(&mut self, modifiers: ModifierBitflag) -> InputResult<()> {
         if let Some(vk) = &self.virtual_keyboard {
+            is_alive(vk)?;
             vk.modifiers(modifiers, 0, 0, 0);
-            self.event_queue.flush().unwrap();
+            self.flush()?;
+            return Ok(());
         }
+        Err(InputError::Simulate("no way to enter modifier"))
     }
 
     /// Apply the current keymap
     ///
     /// # Errors
     /// TODO
-    fn apply_keymap(&mut self) {
+    fn apply_keymap(&mut self) -> InputResult<()> {
         if let Some(vk) = &self.virtual_keyboard {
+            is_alive(vk)?;
+            let Ok(keymap_res) = self.keymap.regenerate() else {
+                return Err(InputError::Mapping(
+                    "unable to regenerate keymap".to_string(),
+                ));
+            };
             // Only send an updated keymap if we had to regenerate it
-            if let Some(keymap_size) = self.keymap.regenerate().unwrap() {
+            // There should always be a file at this point so unwrapping is fine
+            // here
+            if let Some(keymap_size) = keymap_res {
                 vk.keymap(1, self.keymap.file.as_ref().unwrap().as_fd(), keymap_size);
+                self.flush()?;
             }
-            self.event_queue.flush().unwrap();
+            return Ok(());
+        }
+        Err(InputError::Simulate("no way to apply keymap"))
+    }
+
+    fn flush(&self) -> InputResult<()> {
+        match self.event_queue.flush() {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                println!("{e:?}");
+                return Err(InputError::Simulate("could not flush wayland queue"));
+            }
         }
     }
 }
@@ -232,7 +258,9 @@ impl Drop for Con {
         if let Some(vp) = &self.virtual_pointer {
             vp.destroy();
         }
-        self.event_queue.flush().unwrap();
+        if self.flush().is_err() {
+            println!("could not flush wayland queue");
+        }
     }
 }
 
@@ -492,10 +520,11 @@ impl Drop for WaylandState {
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = &mut self.input_method {
+            is_alive(im)?;
             im.commit_string(text.to_string());
             im.commit(*serial);
             *serial = serial.wrapping_add(1);
-            self.event_queue.flush().unwrap();
+            self.flush()?;
             return Ok(Some(()));
         }
         Ok(None)
@@ -503,12 +532,12 @@ impl KeyboardControllableNext for Con {
     /// Try to enter the key
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         if self.keymap.make_room(&())? {
-            self.apply_keymap();
+            self.apply_keymap()?;
         }
-        let keycode = self.keymap.key_to_keycode(&(), key).unwrap();
+        let keycode = self.keymap.key_to_keycode(&(), key)?;
 
         // Apply the new keymap if there were any changes
-        self.apply_keymap();
+        self.apply_keymap()?;
 
         // Update the status of the keymap
         let modifier = Self::is_modifier(key);
@@ -517,14 +546,14 @@ impl KeyboardControllableNext for Con {
         if let Some(m) = modifier {
             if direction == Direction::Click || direction == Direction::Press {
                 let modifiers = self.keymap.enter_modifier(m, Direction::Press);
-                self.send_modifier_event(modifiers);
+                self.send_modifier_event(modifiers)?;
             }
             if direction == Direction::Click || direction == Direction::Release {
                 let modifiers = self.keymap.enter_modifier(m, Direction::Release);
-                self.send_modifier_event(modifiers);
+                self.send_modifier_event(modifiers)?;
             }
         } else {
-            self.send_key_event(keycode, direction);
+            self.send_key_event(keycode, direction)?;
         }
         Ok(())
     }
@@ -604,10 +633,20 @@ impl MouseControllableNext for Con {
                     vp.motion(time, x as f64, y as f64);
                 }
                 Coordinate::Absolute => {
+                    let Ok(x) = x.try_into() else {
+                        return Err(InputError::InvalidInput(
+                            "the absolute coordinates cannot be negative",
+                        ));
+                    };
+                    let Ok(y) = y.try_into() else {
+                        return Err(InputError::InvalidInput(
+                            "the absolute coordinates cannot be negative",
+                        ));
+                    };
                     vp.motion_absolute(
                         time,
-                        x.try_into().unwrap(),
-                        y.try_into().unwrap(),
+                        x,
+                        y,
                         u32::MAX, // TODO: Check what would be the correct value here
                         u32::MAX, // TODO: Check what would be the correct value here
                     );
@@ -651,5 +690,13 @@ impl MouseControllableNext for Con {
         // TODO Implement this
         println!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
         Err(InputError::Simulate("Not implemented yet"))
+    }
+}
+
+fn is_alive<P: wayland_client::Proxy>(proxy: &P) -> InputResult<()> {
+    if !proxy.is_alive() {
+        Err(InputError::Simulate("wayland proxy is dead"))
+    } else {
+        Ok(())
     }
 }
