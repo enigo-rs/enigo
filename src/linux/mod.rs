@@ -1,6 +1,6 @@
 use crate::{
-    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
-    MouseControllableNext,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -120,43 +120,77 @@ impl Default for Enigo {
 }
 
 impl MouseControllableNext for Enigo {
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        delay: u32,
+    ) -> InputResult<()> {
+        let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.send_mouse_button_event(button, direction, delay);
+            con.send_mouse_button_event(button, direction, delay)?;
+            success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.send_mouse_button_event(button, direction, delay);
+            con.send_mouse_button_event(button, direction, delay)?;
+            success = true;
+        }
+        if success {
+            Ok(())
+        } else {
+            Err(InputError::Simulate("No protocol to enter the result"))
         }
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
+        let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.send_motion_notify_event(x, y, coordinate);
+            con.send_motion_notify_event(x, y, coordinate)?;
+            success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.send_motion_notify_event(x, y, coordinate);
+            con.send_motion_notify_event(x, y, coordinate)?;
+            success = true;
+        }
+        if success {
+            Ok(())
+        } else {
+            Err(InputError::Simulate("No protocol to enter the result"))
         }
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.mouse_scroll_event(length, axis);
+            con.mouse_scroll_event(length, axis)?;
+            success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.mouse_scroll_event(length, axis);
+            con.mouse_scroll_event(length, axis)?;
+            success = true;
+        }
+        if success {
+            Ok(())
+        } else {
+            Err(InputError::Simulate("No protocol to enter the result"))
         }
     }
 
-    fn main_display(&self) -> (i32, i32) {
+    fn main_display(&self) -> InputResult<(i32, i32)> {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             return con.main_display();
@@ -165,10 +199,10 @@ impl MouseControllableNext for Enigo {
         if let Some(con) = self.x11.as_ref() {
             return con.main_display();
         }
-        (0, 0) // TODO: Make this an err
+        Err(InputError::Simulate("No protocol to enter the result"))
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             return con.mouse_loc();
@@ -177,7 +211,7 @@ impl MouseControllableNext for Enigo {
         if let Some(con) = self.x11.as_ref() {
             return con.mouse_loc();
         }
-        (0, 0) // TODO: Make this an err
+        Err(InputError::Simulate("No protocol to enter the result"))
     }
 }
 

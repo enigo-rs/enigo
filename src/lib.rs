@@ -261,7 +261,7 @@ where
     /// ```
     #[must_use]
     fn main_display_size(&self) -> (i32, i32) {
-        self.main_display()
+        self.main_display().unwrap()
     }
 
     /// Get the location of the mouse in screen coordinates (pixels).
@@ -275,7 +275,7 @@ where
     /// ```
     #[must_use]
     fn mouse_location(&self) -> (i32, i32) {
-        self.mouse_loc()
+        self.mouse_loc().unwrap()
     }
 }
 
@@ -437,18 +437,28 @@ pub trait KeyboardControllableNext {
 
 pub trait MouseControllableNext {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32);
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        delay: u32,
+    ) -> InputResult<()>;
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate);
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()>;
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis);
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
-    fn main_display(&self) -> (i32, i32);
+    fn main_display(&self) -> InputResult<(i32, i32)>;
 
-    fn mouse_loc(&self) -> (i32, i32);
+    fn mouse_loc(&self) -> InputResult<(i32, i32)>;
 }
 
 pub type InputResult<T> = Result<T, InputError>;

@@ -19,8 +19,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 
 use super::keymap::{Bind, KeyMap, ModifierBitflag};
 use crate::{
-    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
-    MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -534,7 +534,12 @@ impl MouseControllableNext for Con {
     // fn mouse_move_relative(&mut self, x: i32, y: i32)
 
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _: u32) {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        _: u32,
+    ) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // Do nothing if one of the mouse scroll buttons was released
             // Releasing one of the scroll mouse buttons has no effect
@@ -548,7 +553,7 @@ impl MouseControllableNext for Con {
                     MouseButton::ScrollDown
                     | MouseButton::ScrollUp
                     | MouseButton::ScrollRight
-                    | MouseButton::ScrollLeft => return,
+                    | MouseButton::ScrollLeft => return Ok(()),
                 }
             };
 
@@ -577,13 +582,21 @@ impl MouseControllableNext for Con {
                 vp.frame(); // TODO: Check if this is needed
             }
         }
-        self.event_queue.roundtrip(&mut self.state).unwrap(); // TODO: Change to
-                                                              // flush()
+        // TODO: Change to flush()
+        match self.event_queue.roundtrip(&mut self.state) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
+        }
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             let time = self.get_time();
             match coordinate {
@@ -602,11 +615,14 @@ impl MouseControllableNext for Con {
             }
             vp.frame(); // TODO: Check if this is needed
         }
-        self.event_queue.roundtrip(&mut self.state).unwrap(); // TODO: Change to
-                                                              // flush()
+        // TODO: Change to flush()
+        match self.event_queue.roundtrip(&mut self.state) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
+        }
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // TODO: Check what the value of length should be
             // TODO: Check if it would be better to use .axis_discrete here
@@ -618,19 +634,22 @@ impl MouseControllableNext for Con {
             vp.axis(time, axis, length.into());
             vp.frame(); // TODO: Check if this is needed
         }
-        self.event_queue.roundtrip(&mut self.state).unwrap(); // TODO: Change to
-                                                              // flush()
+        // TODO: Change to flush()
+        match self.event_queue.roundtrip(&mut self.state) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
+        }
     }
 
-    fn main_display(&self) -> (i32, i32) {
+    fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
         println!("You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
-        (0, 0)
+        Err(InputError::Simulate("Not implemented yet"))
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
         println!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
-        (0, 0)
+        Err(InputError::Simulate("Not implemented yet"))
     }
 }

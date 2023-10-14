@@ -223,35 +223,51 @@ impl KeyboardControllableNext for Con {
 
 impl MouseControllableNext for Con {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _: u32) {
-        match direction {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        _: u32,
+    ) -> InputResult<()> {
+        let res = match direction {
             Direction::Press => unsafe {
-                xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button));
+                xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button))
             },
             Direction::Release => unsafe {
-                xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button));
+                xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button))
             },
             Direction::Click => unsafe {
-                xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button));
+                xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button))
             },
         };
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate("unable to enter mouse button"));
+        }
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        match coordinate {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
+        let res = match coordinate {
             Coordinate::Relative => unsafe {
-                xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int);
+                xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int)
             },
-            Coordinate::Absolute => unsafe {
-                xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
-            },
+            Coordinate::Absolute => unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) },
+        };
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate("unable to move the mouse"));
         }
+        Ok(())
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
             length = -length;
@@ -266,24 +282,30 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click, 0);
+            self.send_mouse_button_event(button, Direction::Click, 0)?;
         }
+        Ok(())
     }
 
-    fn main_display(&self) -> (i32, i32) {
+    fn main_display(&self) -> InputResult<(i32, i32)> {
         const MAIN_SCREEN: i32 = 0;
         let mut width = 0;
         let mut height = 0;
-        unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
-        (width, height)
+        let res =
+            unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
+
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate("unable to get the main display"));
+        }
+        Ok((width, height))
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
         let mut x = 0;
         let mut y = 0;
         let mut unused_screen_index = 0;
         let mut unused_window_index = CURRENT_WINDOW;
-        unsafe {
+        let res = unsafe {
             xdo_get_mouse_location2(
                 self.xdo,
                 &mut x,
@@ -292,6 +314,11 @@ impl MouseControllableNext for Con {
                 &mut unused_window_index,
             )
         };
-        (x, y)
+        if res != XDO_SUCCESS {
+            return Err(InputError::Simulate(
+                "unable to get the position of the mouse",
+            ));
+        }
+        Ok((x, y))
     }
 }
