@@ -547,10 +547,6 @@ impl Display for NewConError {
 
 impl Error for NewConError {}
 
-/// Default delay between chunks of keys that are sent to the X11 server in
-/// milliseconds
-const DEFAULT_DELAY: u32 = 12;
-
 /// Settings for creating the Enigo stuct and it's behaviour
 #[allow(dead_code)] // It is not dead code on other platforms
 pub struct EnigoSettings {
@@ -564,9 +560,9 @@ pub struct EnigoSettings {
 impl Default for EnigoSettings {
     fn default() -> Self {
         Self {
-            win_delay: DEFAULT_DELAY,
-            mac_delay: DEFAULT_DELAY,
-            linux_delay: DEFAULT_DELAY,
+            win_delay: 20,
+            mac_delay: 20,
+            linux_delay: 12,
             x11_display: None,
             wayland_display: None,
         }

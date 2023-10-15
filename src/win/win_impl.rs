@@ -54,16 +54,16 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 type ScanCode = u16;
 
 /// The main struct for handling the event emitting
-#[derive(Default)]
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
+    delay: u32,
 }
 
 fn send_input(input: INPUT) -> InputResult<()> {
@@ -269,7 +269,7 @@ impl KeyboardControllableNext for Enigo {
             }
             // Only if the length was 1 do we have to send a "keyup"
             if result.len() == 1 {
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
                 let input = keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
@@ -307,7 +307,7 @@ impl KeyboardControllableNext for Enigo {
                 }
             }
             if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 for scan in &scancodes {
@@ -326,7 +326,7 @@ impl KeyboardControllableNext for Enigo {
                 send_input(input)?;
             }
             if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 let input = keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
@@ -338,6 +338,27 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
+    #[must_use]
+    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+        let EnigoSettings {
+            win_delay: delay, ..
+        } = settings;
+
+        let held = vec![];
+        Ok(Self { held, delay })
+    }
+
+    /// Get the delay per keypress in milliseconds
+    #[must_use]
+    pub fn delay(&self) -> u32 {
+        self.delay / 1000
+    }
+
+    /// Set the delay per keypress in milliseconds
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay * 1000;
+    }
+
     #[allow(clippy::unused_self)]
     fn get_scancode(&self, c: char) -> InputResult<Vec<ScanCode>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
