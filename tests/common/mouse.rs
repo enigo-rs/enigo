@@ -24,7 +24,7 @@ pub fn run(recv: &Receiver<BrowserEvent>) {
 }
 
 fn set(recv: &Receiver<BrowserEvent>, position: (i32, i32)) {
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     enigo.mouse_move_to(position.0, position.1);
     println!("Executed Enigo");
     let ev = recv
@@ -41,7 +41,7 @@ fn set(recv: &Receiver<BrowserEvent>, position: (i32, i32)) {
 }
 
 fn rel(recv: &Receiver<BrowserEvent>, offset: (i32, i32)) {
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     enigo.mouse_move_relative(offset.0, offset.1);
     println!("Executed Enigo");
     let ev = recv
@@ -58,7 +58,7 @@ fn rel(recv: &Receiver<BrowserEvent>, offset: (i32, i32)) {
 }
 
 fn scroll(recv: &Receiver<BrowserEvent>) {
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     enigo.mouse_scroll_x(1);
     println!("Executed Enigo");
     let ev = recv

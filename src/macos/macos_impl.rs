@@ -13,8 +13,8 @@ use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 // required for NSEvent
@@ -139,7 +139,7 @@ extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    delay: u32,
+    delay: u64,
     event_source: CGEventSource,
     display: CGDisplay,
     held: Vec<Key>, // Currently held keys
@@ -287,10 +287,10 @@ impl MouseControllableNext for Enigo {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        Ok(
+        Ok((
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
-        )
+        ))
     }
 
     fn mouse_loc(&self) -> InputResult<(i32, i32)> {
@@ -299,7 +299,7 @@ impl MouseControllableNext for Enigo {
         ))?;
         let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
-        Ok(x, self.display.pixels_high() as i32 - y_inv)
+        Ok((x, self.display.pixels_high() as i32 - y_inv))
     }
 }
 
@@ -364,8 +364,13 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
-    #[must_use]
-    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+    /// Create a new Enigo struct to establish the connection to simulate input
+    /// with the specified settings
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `NewConError` to see under which
+    /// conditions an error will be returned.
+    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let EnigoSettings {
             mac_delay: delay, ..
         } = settings;
@@ -382,25 +387,28 @@ impl Enigo {
             return Err(NewConError::EstablishCon("failed creating event source"));
         };
 
-        Enigo {
-            delay as u64,
+        Ok(Enigo {
+            delay: (*delay).into(),
             event_source,
             display: CGDisplay::main(),
             held,
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
-        }
+        })
     }
 
     /// Get the delay per keypress in milliseconds
     #[must_use]
+    #[allow(clippy::missing_panics_doc)] // It never panics
     pub fn delay(&self) -> u32 {
-        self.delay as u64
+        // Unwrapping here is okay, be cause we always initially have a u32 that gets
+        // converted to an u64. The reverse is always possible
+        self.delay.try_into().unwrap()
     }
 
     /// Set the delay per keypress in milliseconds
     pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay as u64
+        self.delay = delay.into();
     }
 
     /// Returns a list of all currently pressed keys

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 fn main() {
     let wait_time = Duration::from_secs(2);
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 
     thread::sleep(Duration::from_secs(4));
     println!("screen dimensions: {:?}", enigo.main_display_size());

@@ -338,14 +338,22 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
-    #[must_use]
-    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+    /// Create a new Enigo struct to establish the connection to simulate input
+    /// with the specified settings
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `NewConError` to see under which
+    /// conditions an error will be returned.
+    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let EnigoSettings {
             win_delay: delay, ..
         } = settings;
 
         let held = vec![];
-        Ok(Self { held, delay })
+        Ok(Self {
+            held,
+            delay: *delay,
+        })
     }
 
     /// Get the delay per keypress in milliseconds

@@ -16,7 +16,7 @@ fn browser_events() {
     common::launch_browser(&rs);
     println!("Browser was launched");
 
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     enigo.key_click(Key::F11);
     // Full screen animation
     std::thread::sleep(std::time::Duration::from_millis(3000));

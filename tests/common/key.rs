@@ -12,7 +12,7 @@ pub fn run(recv: &Receiver<BrowserEvent>) {
 }
 
 fn press(recv: &Receiver<BrowserEvent>, key: Key) {
-    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     enigo.key_down(key);
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))

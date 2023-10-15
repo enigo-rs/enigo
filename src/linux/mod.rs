@@ -33,8 +33,13 @@ pub struct Enigo {
 }
 
 impl Enigo {
-    #[must_use]
-    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+    /// Create a new Enigo struct to establish the connection to simulate input
+    /// with the specified settings
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `NewConError` to see under which
+    /// conditions an error will be returned.
+    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let mut connection_established = false;
         #[allow(unused_variables)]
         let EnigoSettings {
@@ -57,7 +62,7 @@ impl Enigo {
             }
         };
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        let x11 = match x11::Con::new(x11_display, linux_delay) {
+        let x11 = match x11::Con::new(x11_display, *linux_delay) {
             Ok(con) => {
                 connection_established = true;
                 Some(con)
@@ -78,13 +83,6 @@ impl Enigo {
             #[cfg(any(feature = "x11rb", feature = "xdo"))]
             x11,
         })
-    }
-
-    /// Create a new `Enigo` instance
-    #[must_use]
-    pub fn try_default() -> Result<Self, NewConError> {
-        let settings = EnigoSettings::default();
-        Self::new(settings)
     }
 
     /// Get the delay per keypress

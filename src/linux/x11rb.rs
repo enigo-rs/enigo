@@ -55,7 +55,7 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new(dpy_name: Option<String>, delay: u32) -> Result<Con, NewConError> {
+    pub fn new(dpy_name: &Option<String>, delay: u32) -> Result<Con, NewConError> {
         let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();

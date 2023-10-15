@@ -22,7 +22,7 @@ Cross platform input simulation in Rust!
 - [x] Custom Parser
 
 ```Rust
-let mut enigo = Enigo::new();
+let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 
 enigo.mouse_move_to(500, 200);
 enigo.mouse_click(MouseButton::Left);
