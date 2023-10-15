@@ -50,8 +50,6 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
-// TODO(dustin) use interior mutability not &mut self
-
 use std::{
     error::Error,
     fmt::{self, Display, Formatter},
@@ -381,19 +379,23 @@ impl fmt::Debug for Enigo {
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
+/// The direction of a key or button
 pub enum Direction {
     Press,
     Release,
+    /// Equivalent to a press followed by a release
     Click,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
+/// Specifies the axis to scroll on
 pub enum Axis {
     Horizontal,
     Vertical,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
+/// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
     Relative,
     Absolute,
@@ -402,23 +404,30 @@ pub enum Coordinate {
 pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
-    /// shortcuts not getting recognized
+    /// shortcuts not getting recognized.
     ///
     /// # Errors
-    /// TODO
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>>;
+
     /// Enter the text
     /// Use a fast method to enter the text, if it is available. The text should
-    /// not contain any NULL bytes ('\0')
+    /// not contain any NULL bytes ('\0'). You can use unicode here like: ❤️.
+    /// This works regardless of the current keyboard layout. You cannot use
+    /// this function for entering shortcuts or something similar. For
+    /// shortcuts, use the [`KeyboardControllableNext::enter_key`] method
+    /// instead.
     ///
     /// # Errors
-    /// TODO
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
         }
-        // Fall back to entering single keys if no fast text entry is available
 
+        // Fall back to entering single keys if no fast text entry is available
         let fast_text_res = self.fast_text_entry(text);
         match fast_text_res {
             Ok(o) => {
@@ -433,24 +442,53 @@ pub trait KeyboardControllableNext {
         }
     }
 
-    /// Sends a key event to the X11 server via `XTest` extension
+    /// Sends an individual key event. Some of the keys are specific to a
+    /// platform.
     ///
     /// # Errors
-    /// TODO
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 }
 
+/// Contains functions to control the mouse and to get the size of the display.
+/// Enigo uses a cartesian coordinate system for specifying coordinates. The
+/// origin in this system is located in the top-left corner of the current
+/// screen, with positive values extending along the axes down and to the
+/// right of the origin point and it is measured in pixels. The same coordinate
+/// system is used on all operating systems.
 pub trait MouseControllableNext {
-    // Sends a button event to the X11 server via `XTest` extension
+    /// Sends an individual mouse button event. You can use this for example to
+    /// simulate a click of the left mouse key. Some of the buttons are specific
+    /// to a platform.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn send_mouse_button_event(
         &mut self,
         button: MouseButton,
         direction: Direction,
-        delay: u32,
+        delay: u32, //TODO: Remove this argument
     ) -> InputResult<()>;
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
+    /// Move the mouse cursor to the specified x and y coordinates.
+    ///
+    /// You can specify absolute coordinates or relative from the current
+    /// position.
+    ///
+    /// If you use absolute coordinates, the topleft corner of your monitor
+    /// screen is x=0 y=0. Move the cursor down the screen by increasing the y
+    /// and to the right by increasing x coordinate.
+    ///
+    /// If you use relative coordinates, a positive x value moves the mouse
+    /// cursor `x` pixels to the right. A negative value for `x` moves the mouse
+    /// cursor to the left. A positive value of y moves the mouse cursor down, a
+    /// negative one moves the mouse cursor up.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn send_motion_notify_event(
         &mut self,
         x: i32,
@@ -458,11 +496,36 @@ pub trait MouseControllableNext {
         coordinate: Coordinate,
     ) -> InputResult<()>;
 
-    // Sends a scroll event to the X11 server via `XTest` extension
+    /// Send a mouse scroll event
+    ///
+    /// # Arguments
+    /// * `axis` - The axis to scroll on
+    /// * `length` - Number of 15° (click) rotations of the mouse wheel to
+    ///   scroll. How many lines will be scrolled depends on the current setting
+    ///   of the operating system.
+    ///
+    /// With `Axis::Vertical`, a positive length will result in scrolling down
+    /// and negative ones up. With `Axis::Horizontal`, a positive length
+    /// will result in scrolling to the right and negative ones to the left
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
+    /// Get the (width, height) of the main display in pixels. This currently
+    /// only works on the main display
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn main_display(&self) -> InputResult<(i32, i32)>;
 
+    /// Get the location of the mouse in pixels
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
     fn mouse_loc(&self) -> InputResult<(i32, i32)>;
 }
 
