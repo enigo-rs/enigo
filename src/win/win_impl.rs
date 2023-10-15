@@ -351,12 +351,12 @@ impl Enigo {
     /// Get the delay per keypress in milliseconds
     #[must_use]
     pub fn delay(&self) -> u32 {
-        self.delay / 1000
+        self.delay
     }
 
     /// Set the delay per keypress in milliseconds
     pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay * 1000;
+        self.delay = delay;
     }
 
     #[allow(clippy::unused_self)]

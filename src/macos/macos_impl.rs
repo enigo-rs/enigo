@@ -139,6 +139,7 @@ extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
+    delay: u32,
     event_source: CGEventSource,
     display: CGDisplay,
     held: Vec<Key>, // Currently held keys
@@ -337,7 +338,7 @@ impl KeyboardControllableNext for Enigo {
         let keycode = self.key_to_keycode(key);
 
         if direction == Direction::Click || direction == Direction::Press {
-            thread::sleep(Duration::from_millis(20));
+            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
             else {
                 return Err(InputError::Simulate(
@@ -348,7 +349,7 @@ impl KeyboardControllableNext for Enigo {
         }
 
         if direction == Direction::Click || direction == Direction::Release {
-            thread::sleep(Duration::from_millis(20));
+            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
             else {
                 return Err(InputError::Simulate(
@@ -362,7 +363,12 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
-    pub fn new() -> Result<Self, NewConError> {
+    #[must_use]
+    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+        let EnigoSettings {
+            mac_delay: delay, ..
+        } = settings;
+
         let held = Vec::new();
 
         let double_click_delay = Duration::from_secs(1);
@@ -376,6 +382,7 @@ impl Enigo {
         };
 
         Enigo {
+            delay as u64,
             event_source,
             display: CGDisplay::main(),
             held,
@@ -384,8 +391,15 @@ impl Enigo {
         }
     }
 
-    fn try_default() -> Result<Self, NewConError> {
-        Self::new()
+    /// Get the delay per keypress in milliseconds
+    #[must_use]
+    pub fn delay(&self) -> u32 {
+        self.delay as u64
+    }
+
+    /// Set the delay per keypress in milliseconds
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay as u64
     }
 
     /// Returns a list of all currently pressed keys
