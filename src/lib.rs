@@ -168,7 +168,7 @@ where
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Press, 0)
+        self.send_mouse_button_event(button, Direction::Press)
             .unwrap();
     }
 
@@ -190,7 +190,7 @@ where
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Release, 0)
+        self.send_mouse_button_event(button, Direction::Release)
             .unwrap();
     }
 
@@ -209,7 +209,7 @@ where
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Click, 0)
+        self.send_mouse_button_event(button, Direction::Click)
             .unwrap();
     }
 
@@ -453,7 +453,6 @@ pub trait MouseControllableNext {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        delay: u32, //TODO: Remove this argument
     ) -> InputResult<()>;
 
     /// Move the mouse cursor to the specified x and y coordinates.

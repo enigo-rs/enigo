@@ -215,7 +215,6 @@ impl MouseControllableNext for Con {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        _: u32,
     ) -> InputResult<()> {
         let res = match direction {
             Direction::Press => unsafe {
@@ -267,7 +266,7 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click, 0)?;
+            self.send_mouse_button_event(button, Direction::Click)?;
         }
         Ok(())
     }

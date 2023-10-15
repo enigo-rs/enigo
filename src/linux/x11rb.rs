@@ -242,7 +242,6 @@ impl MouseControllableNext for Con {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        _delay: u32,
     ) -> InputResult<()> {
         let detail = match button {
             MouseButton::Left => 1,
@@ -361,7 +360,7 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click, self.delay)?;
+            self.send_mouse_button_event(button, Direction::Click)?;
         }
         Ok(())
     }

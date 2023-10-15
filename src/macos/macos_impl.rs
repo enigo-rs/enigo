@@ -160,7 +160,6 @@ impl MouseControllableNext for Enigo {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        delay: u32,
     ) -> InputResult<()> {
         let (current_x, current_y) = self.mouse_loc()?;
 

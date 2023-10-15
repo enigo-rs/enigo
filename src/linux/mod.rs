@@ -119,17 +119,16 @@ impl MouseControllableNext for Enigo {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        delay: u32,
     ) -> InputResult<()> {
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            con.send_mouse_button_event(button, direction, delay)?;
+            con.send_mouse_button_event(button, direction)?;
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            con.send_mouse_button_event(button, direction, delay)?;
+            con.send_mouse_button_event(button, direction)?;
             success = true;
         }
         if success {

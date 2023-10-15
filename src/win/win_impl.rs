@@ -120,7 +120,6 @@ impl MouseControllableNext for Enigo {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        _delay: u32,
     ) -> InputResult<()> {
         let button_no = match button {
             MouseButton::Back => 1,
