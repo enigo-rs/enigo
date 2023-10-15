@@ -1,6 +1,7 @@
 # Unreleased
 
 ## Changed
+- All: A new Enigo struct is now always created with some settings
 - Rust: MSRV is 1.65
 - All held keys are released when Enigo is dropped
 - win: Don't panic if it was not possible to move the mouse
@@ -11,6 +12,7 @@
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
 - Linux: Partial support for Wayland was added. Use the experimental feature `wayland` to test it. Only the virtual_keyboard and input_method protocol can be used. This is not going to work on GNOME, but should work for example with phosh
 - win: Use DirectInput in addition to the SetCursorPos function in order to support DirectX
+- All: You can now chose how long the delay between keypresses should be on each platform and change it during the runtime
 
 ## Fixed
 - macOS: Add info how much a mouse was moved relative to the last position
