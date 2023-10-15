@@ -134,7 +134,8 @@ where
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Absolute);
+        self.send_motion_notify_event(x, y, Coordinate::Absolute)
+            .unwrap();
     }
 
     /// Move the mouse cursor the specified amount in the x and y
@@ -151,7 +152,8 @@ where
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Relative);
+        self.send_motion_notify_event(x, y, Coordinate::Relative)
+            .unwrap();
     }
 
     /// Push down the mouse button specified by the parameter
@@ -169,7 +171,8 @@ where
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Press, 0);
+        self.send_mouse_button_event(button, Direction::Press, 0)
+            .unwrap();
     }
 
     /// Release a pushed down mouse button
@@ -190,7 +193,8 @@ where
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Release, 0);
+        self.send_mouse_button_event(button, Direction::Release, 0)
+            .unwrap();
     }
 
     /// Click a mouse button
@@ -208,7 +212,8 @@ where
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Click, 0);
+        self.send_mouse_button_event(button, Direction::Click, 0)
+            .unwrap();
     }
 
     /// Scroll the mouse (wheel) left or right
@@ -227,7 +232,7 @@ where
     /// enigo.mouse_scroll_x(2);
     /// ```
     fn mouse_scroll_x(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Horizontal);
+        self.mouse_scroll_event(length, Axis::Horizontal).unwrap();
     }
 
     /// Scroll the mouse (wheel) up or down
@@ -246,7 +251,7 @@ where
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Vertical);
+        self.mouse_scroll_event(length, Axis::Vertical).unwrap();
     }
 
     /// Get the (width, height) of the main display in screen coordinates

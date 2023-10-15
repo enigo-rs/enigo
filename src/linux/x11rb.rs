@@ -15,8 +15,8 @@ use x11rb::{
 
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    Axis, Coordinate, Direction, InputResult, Key, KeyboardControllableNext, MouseButton,
-    MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -129,6 +129,31 @@ impl Con {
         }
         Ok(unused_keycodes)
     }
+    fn device_id(&self) -> InputResult<u8> {
+        x11rb::protocol::xinput::list_input_devices(&self.connection)
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when listing input devices with x11rb: {e:?}")
+            })?
+            .reply()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate(
+                    "error with the reply from listing input devices with x11rb: {e:?}",
+                )
+            })?
+            .devices
+            .iter()
+            .find(|d| d.device_use == DeviceUse::IS_X_KEYBOARD)
+            .map_or_else(
+                || {
+                    Err(InputError::Simulate(
+                        "error with the reply from listing input devices with x11rb: {e:?}",
+                    ))
+                },
+                |d| Ok(d.device_id),
+            )
+    }
 }
 
 impl Drop for Con {
@@ -165,7 +190,7 @@ impl KeyboardControllableNext for Con {
     /// Try to enter the key
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         self.keymap.make_room(&())?;
-        let keycode = self.keymap.key_to_keycode(&self.connection, key).unwrap();
+        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
         self.keymap.update_delays(keycode);
         // Send the events to the compositor
         let detail = keycode;
@@ -173,15 +198,7 @@ impl KeyboardControllableNext for Con {
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
-        let deviceid = x11rb::protocol::xinput::list_input_devices(&self.connection)
-            .unwrap()
-            .reply()
-            .unwrap()
-            .devices
-            .iter()
-            .find(|d| d.device_use == DeviceUse::IS_X_KEYBOARD)
-            .map(|d| d.device_id)
-            .unwrap();
+        let deviceid = self.device_id()?;
 
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -194,7 +211,10 @@ impl KeyboardControllableNext for Con {
                     root_y,
                     deviceid,
                 )
-                .unwrap();
+                .map_err(|e| {
+                    println!("{e}");
+                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                })?;
         }
 
         // TODO: Check if we need to update the delays again
@@ -212,9 +232,18 @@ impl KeyboardControllableNext for Con {
                     root_y,
                     deviceid,
                 )
-                .unwrap();
+                .map_err(|e| {
+                    println!("{e}");
+                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                })?;
         }
-        self.connection.sync().unwrap();
+
+        self.connection.sync()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+            })?;
+
         self.keymap.last_event_before_delays = std::time::Instant::now();
         Ok(())
     }
@@ -222,7 +251,12 @@ impl KeyboardControllableNext for Con {
 
 impl MouseControllableNext for Con {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        delay: u32,
+    ) -> InputResult<()> {
         let detail = match button {
             MouseButton::Left => 1,
             MouseButton::Middle => 2,
@@ -238,15 +272,7 @@ impl MouseControllableNext for Con {
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
-        let deviceid = x11rb::protocol::xinput::list_input_devices(&self.connection)
-            .unwrap()
-            .reply()
-            .unwrap()
-            .devices
-            .iter()
-            .find(|d| d.device_use == DeviceUse::IS_X_POINTER)
-            .map(|d| d.device_id)
-            .unwrap();
+        let deviceid = self.device_id()?;
 
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -259,7 +285,10 @@ impl MouseControllableNext for Con {
                     root_y,
                     deviceid,
                 )
-                .unwrap();
+                .map_err(|e| {
+                    println!("{e}");
+                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                })?;
         }
         if direction == Direction::Release || direction == Direction::Click {
             // Add a delay for the release part of a click
@@ -278,41 +307,61 @@ impl MouseControllableNext for Con {
                     root_y,
                     deviceid,
                 )
-                .unwrap();
+                .map_err(|e| {
+                    println!("{e}");
+                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                })?;
         }
-        self.connection.sync().unwrap();
+        self.connection.sync()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+            })?;
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
         let type_ = x11rb::protocol::xproto::MOTION_NOTIFY_EVENT;
-        // TRUE -> relative coordinates
-        // FALSE -> absolute coordinates
         let detail = match coordinate {
             Coordinate::Relative => 1,
             Coordinate::Absolute => 0,
         };
         let time = x11rb::CURRENT_TIME;
         let root = x11rb::NONE; //  the root window of the screen the pointer is currently on
-        let root_x = x.try_into().unwrap();
-        let root_y = y.try_into().unwrap();
-        let deviceid = x11rb::protocol::xinput::list_input_devices(&self.connection)
-            .unwrap()
-            .reply()
-            .unwrap()
-            .devices
-            .iter()
-            .find(|d| d.device_use == DeviceUse::IS_X_POINTER)
-            .map(|d| d.device_id)
-            .unwrap();
+
+        let Ok(root_x) = x.try_into() else {
+            return Err(InputError::InvalidInput(
+                "the coordinates cannot be negative and must fit in i16",
+            ));
+        };
+        let Ok(root_y) = y.try_into() else {
+            return Err(InputError::InvalidInput(
+                "the coordinates cannot be negative and must fit in i16",
+            ));
+        };
+        let deviceid = self.device_id()?;
         self.connection
             .xtest_fake_input(type_, detail, time, root, root_x, root_y, deviceid)
-            .unwrap();
-        self.connection.sync().unwrap();
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+            })?;
+        self.connection.sync()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+            })?;
+        Ok(())
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
             length = -length;
@@ -327,29 +376,46 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click, self.delay);
+            self.send_mouse_button_event(button, Direction::Click, self.delay)?;
         }
+        Ok(())
     }
 
-    fn main_display(&self) -> (i32, i32) {
+    fn main_display(&self) -> InputResult<(i32, i32)> {
         let main_display = self
             .connection
             .randr_get_screen_resources(self.screen.root)
-            .unwrap()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate(
+                    "error when requesting randr_get_screen_resources with x11rb: {e:?}",
+                )
+            })?
             .reply()
-            .unwrap()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate(
+                    "error with the reply of randr_get_screen_resources with x11rb: {e:?}",
+                )
+            })?
             .modes[0];
 
-        (main_display.width as i32, main_display.height as i32)
+        Ok((main_display.width as i32, main_display.height as i32))
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
         let reply = self
             .connection
             .query_pointer(self.screen.root)
-            .unwrap()
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error when requesting query_pointer with x11rb: {e:?}")
+            })?
             .reply()
-            .unwrap();
-        (reply.root_x as i32, reply.root_y as i32)
+            .map_err(|e| {
+                println!("{e}");
+                InputError::Simulate("error with the reply of query_pointer with x11rb: {e:?}")
+            })?;
+        Ok((reply.root_x as i32, reply.root_y as i32))
     }
 }

@@ -3,10 +3,9 @@ use std::convert::TryInto;
 use std::os::unix::io::AsFd;
 use std::time::Instant;
 
-// use wayland_client::protocol::wl_output;
 use wayland_client::{
     protocol::{wl_pointer, wl_registry, wl_seat},
-    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
+    Connection, Dispatch, EventQueue, QueueHandle,
 };
 use wayland_protocols_misc::{
     zwp_input_method_v2::client::{zwp_input_method_manager_v2, zwp_input_method_v2},
@@ -224,7 +223,7 @@ impl Con {
             Ok(()) => Ok(()),
             Err(e) => {
                 println!("{e:?}");
-                return Err(InputError::Simulate("could not flush wayland queue"));
+                Err(InputError::Simulate("could not flush wayland queue"))
             }
         }
     }
@@ -694,9 +693,9 @@ impl MouseControllableNext for Con {
 }
 
 fn is_alive<P: wayland_client::Proxy>(proxy: &P) -> InputResult<()> {
-    if !proxy.is_alive() {
-        Err(InputError::Simulate("wayland proxy is dead"))
-    } else {
+    if proxy.is_alive() {
         Ok(())
+    } else {
+        Err(InputError::Simulate("wayland proxy is dead"))
     }
 }
