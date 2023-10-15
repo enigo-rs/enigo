@@ -218,6 +218,7 @@ impl Con {
         Err(InputError::Simulate("no way to apply keymap"))
     }
 
+    /// Flush the Wayland queue
     fn flush(&self) -> InputResult<()> {
         match self.event_queue.flush() {
             Ok(()) => Ok(()),
@@ -246,7 +247,7 @@ pub enum Modifier {
 }
 
 impl Drop for Con {
-    // Release the held keys before the connection is dropped
+    // Destroy the Wayland objects we created
     fn drop(&mut self) {
         if let Some(vk) = &self.virtual_keyboard {
             vk.destroy();
@@ -263,6 +264,7 @@ impl Drop for Con {
     }
 }
 
+/// Stores the manager for the various protocols
 struct WaylandState {
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
@@ -368,12 +370,12 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
     fn event(
         _state: &mut Self,
         _manager: &zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
-        _event: zwp_virtual_keyboard_manager_v1::Event,
+        event: zwp_virtual_keyboard_manager_v1::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Received a virtual keyboard manager event {event:?}");
+        println!("Received a virtual keyboard manager event {event:?}");
     }
 }
 
@@ -381,12 +383,12 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
     fn event(
         _state: &mut Self,
         _vk: &zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
-        _event: zwp_virtual_keyboard_v1::Event,
+        event: zwp_virtual_keyboard_v1::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Got a virtual keyboard event {event:?}");
+        println!("Got a virtual keyboard event {event:?}");
     }
 }
 
@@ -394,37 +396,38 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
     fn event(
         _state: &mut Self,
         _manager: &zwp_input_method_manager_v2::ZwpInputMethodManagerV2,
-        _event: zwp_input_method_manager_v2::Event,
+        event: zwp_input_method_manager_v2::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Received an input method manager event {event:?}");
+        println!("Received an input method manager event {event:?}");
     }
 }
 impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
     fn event(
         _state: &mut Self,
         _vk: &zwp_input_method_v2::ZwpInputMethodV2,
-        _event: zwp_input_method_v2::Event,
+        event: zwp_input_method_v2::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Got a virtual keyboard event {event:?}");
+        println!("Got a virtual keyboard event {event:?}");
     }
 }
 impl Dispatch<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, ()> for WaylandState {
     fn event(
         _state: &mut Self,
         _vk: &org_kde_kwin_fake_input::OrgKdeKwinFakeInput,
-        _event: org_kde_kwin_fake_input::Event,
+        event: org_kde_kwin_fake_input::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
-    ) { // This should never happen, as there are no events specified for this
-         // in the protocol
-         // println!("Got a plasma fake input event {event:?}");
+    ) {
+        // This should never happen, as there are no events specified for this
+        // in the protocol
+        println!("Got a plasma fake input event {event:?}");
     }
 }
 
@@ -432,12 +435,12 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
     fn event(
         _state: &mut Self,
         _seat: &wl_seat::WlSeat,
-        _event: wl_seat::Event,
+        event: wl_seat::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Got a seat event {event:?}");
+        println!("Got a seat event {event:?}");
     }
 }
 
@@ -483,12 +486,12 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
     fn event(
         _state: &mut Self,
         _manager: &zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
-        _event: zwlr_virtual_pointer_manager_v1::Event,
+        event: zwlr_virtual_pointer_manager_v1::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Received a virtual keyboard manager event {event:?}");
+        println!("Received a virtual keyboard manager event {event:?}");
     }
 }
 
@@ -496,16 +499,17 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
     fn event(
         _state: &mut Self,
         _vk: &zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
-        _event: zwlr_virtual_pointer_v1::Event,
+        event: zwlr_virtual_pointer_v1::Event,
         _: &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // println!("Got a virtual keyboard event {event:?}");
+        println!("Got a virtual keyboard event {event:?}");
     }
 }
 
 impl Drop for WaylandState {
+    // Destroy the manager for the protocols we used
     fn drop(&mut self) {
         if let Some(im_mgr) = self.im_manager.as_ref() {
             im_mgr.destroy();
@@ -528,7 +532,7 @@ impl KeyboardControllableNext for Con {
         }
         Ok(None)
     }
-    /// Try to enter the key
+
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         if self.keymap.make_room(&())? {
             self.apply_keymap()?;
@@ -558,10 +562,6 @@ impl KeyboardControllableNext for Con {
     }
 }
 impl MouseControllableNext for Con {
-    //fn mouse_move_to(&mut self, x: i32, y: i32) {}
-    // fn mouse_move_relative(&mut self, x: i32, y: i32)
-
-    // Sends a button event to the X11 server via `XTest` extension
     fn send_mouse_button_event(
         &mut self,
         button: MouseButton,
@@ -617,8 +617,6 @@ impl MouseControllableNext for Con {
         }
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(
         &mut self,
         x: i32,

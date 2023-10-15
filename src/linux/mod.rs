@@ -10,55 +10,19 @@ compile_error!(
 );
 
 #[cfg(feature = "wayland")]
-pub mod wayland;
+mod wayland;
 #[cfg(any(feature = "x11rb", feature = "xdo"))]
 #[cfg_attr(feature = "x11rb", path = "x11rb.rs")]
 #[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
 mod x11;
 
 #[cfg(feature = "wayland")]
-pub mod constants;
+mod constants;
 #[cfg(feature = "wayland")]
 use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
-
-/*
-#[derive(Debug)]
-pub enum ConnectionError {
-    MappingFailed(Keysym),
-    Connection(String),
-    Format(std::io::Error),
-    General(String),
-    LostConnection,
-    NoKeycode,
-    SetLayoutFailed(String),
-    Unimplemented,
-    Utf(std::string::FromUtf8Error),
-}
-
-impl std::fmt::Display for ConnectionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConnectionError::MappingFailed(e) => write!(f, "Allocation failed: {e:?}"),
-            ConnectionError::Connection(e) => write!(f, "Connection: {e}"),
-            ConnectionError::Format(e) => write!(f, "Format: {e}"),
-            ConnectionError::General(e) => write!(f, "General: {e}"),
-            ConnectionError::LostConnection => write!(f, "Lost connection"),
-            ConnectionError::NoKeycode => write!(f, "No keycode mapped"),
-            ConnectionError::SetLayoutFailed(e) => write!(f, "set_layout() failed: {e}"),
-            ConnectionError::Unimplemented => write!(f, "Unimplemented"),
-            ConnectionError::Utf(e) => write!(f, "UTF: {e}"),
-        }
-    }
-}
-
-impl From<std::io::Error> for ConnectionError {
-    fn from(e: std::io::Error) -> Self {
-        ConnectionError::Format(e)
-    }
-}*/
 
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
@@ -69,9 +33,7 @@ pub struct Enigo {
 }
 
 impl Enigo {
-    /// Get the delay per keypress.
-    /// Default value is 12.
-    /// This is Linux-specific.
+    /// Get the delay per keypress
     #[must_use]
     pub fn delay(&self) -> u32 {
         // On Wayland there is no delay
@@ -83,8 +45,7 @@ impl Enigo {
         0 // TODO: Make this an Option
     }
 
-    /// Set the delay per keypress.
-    /// This is Linux-specific.
+    /// Set the delay per keypress
     #[allow(unused_variables)]
     pub fn set_delay(&mut self, delay: u32) {
         // On Wayland there is no delay
@@ -144,8 +105,6 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(
         &mut self,
         x: i32,
@@ -170,7 +129,6 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut success = false;
         #[cfg(feature = "wayland")]
@@ -228,7 +186,6 @@ impl KeyboardControllableNext for Enigo {
         Ok(Some(()))
     }
 
-    /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Nothing to do
         if key == Key::Layout('\0') {

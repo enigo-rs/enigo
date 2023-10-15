@@ -27,7 +27,6 @@ const DEFAULT_DELAY: u32 = 12;
 
 pub type Keycode = u8;
 
-#[allow(clippy::module_name_repetitions)]
 pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
@@ -51,11 +50,12 @@ impl From<ReplyError> for NewConError {
 impl Con {
     /// Tries to establish a new X11 connection using the specified parameters
     ///
-    /// `delay`: Minimum delay in milliseconds between keypresses in order to
-    /// properly enter all chars
+    /// # Arguments
     ///
-    /// `dpy_name`: If no `dpy_name` is provided, the value from $DISPLAY is
-    /// used.
+    /// * `delay` - Minimum delay in milliseconds between keypresses in order to
+    ///   properly enter all chars
+    /// * `dpy_name` - If no `dpy_name` is provided, the value from $DISPLAY is
+    ///   used
     ///
     /// # Errors
     /// TODO
@@ -90,19 +90,17 @@ impl Con {
         Self::new(dyp_name, delay)
     }
 
-    /// Get the delay per keypress in milliseconds.
-    /// Default value is 12 ms.
-    /// This is Linux-specific.
+    /// Get the delay per keypress in milliseconds
     #[must_use]
     pub fn delay(&self) -> u32 {
         self.delay
     }
-    /// Set the delay in milliseconds per keypress.
-    /// This is Linux-specific.
+    /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
     }
 
+    /// Find keycodes that have not yet been mapped any keysyms
     fn find_unused_keycodes(
         connection: &CompositorConnection,
         keycode_min: Keycode,
@@ -129,7 +127,10 @@ impl Con {
         }
         Ok(unused_keycodes)
     }
-    fn device_id(&self) -> InputResult<u8> {
+
+    // Get the device id of the first device that is found which has the same usage
+    // as the input parameter
+    fn device_id(&self, usage: DeviceUse) -> InputResult<u8> {
         x11rb::protocol::xinput::list_input_devices(&self.connection)
             .map_err(|e| {
                 println!("{e}");
@@ -144,7 +145,7 @@ impl Con {
             })?
             .devices
             .iter()
-            .find(|d| d.device_use == DeviceUse::IS_X_KEYBOARD)
+            .find(|d| d.device_use == usage)
             .map_or_else(
                 || {
                     Err(InputError::Simulate(
@@ -187,18 +188,18 @@ impl KeyboardControllableNext for Con {
         // xdotools can do it, so it is possible
         Ok(None)
     }
-    /// Try to enter the key
+
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         self.keymap.make_room(&())?;
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
         self.keymap.update_delays(keycode);
-        // Send the events to the compositor
+
         let detail = keycode;
         let time = self.keymap.pending_delays;
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
-        let deviceid = self.device_id()?;
+        let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -250,7 +251,6 @@ impl KeyboardControllableNext for Con {
 }
 
 impl MouseControllableNext for Con {
-    // Sends a button event to the X11 server via `XTest` extension
     fn send_mouse_button_event(
         &mut self,
         button: MouseButton,
@@ -272,7 +272,7 @@ impl MouseControllableNext for Con {
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
-        let deviceid = self.device_id()?;
+        let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -320,8 +320,6 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(
         &mut self,
         x: i32,
@@ -346,9 +344,9 @@ impl MouseControllableNext for Con {
                 "the coordinates cannot be negative and must fit in i16",
             ));
         };
-        let deviceid = self.device_id()?;
+        let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
         self.connection
-            .xtest_fake_input(type_, detail, time, root, root_x, root_y, deviceid)
+            .xtest_fake_input(type_, detail, time, root, root_x, root_y, deviceid) // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
             .map_err(|e| {
                 println!("{e}");
                 InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")

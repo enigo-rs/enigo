@@ -9,7 +9,9 @@ use crate::{
 use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
-const DEFAULT_DELAY: u32 = 12; // milliseconds
+/// Default delay between chunks of keys that are sent to the X11 server in
+/// milliseconds
+const DEFAULT_DELAY: u32 = 12;
 const XDO_SUCCESS: c_int = 0;
 
 type Window = c_ulong;
@@ -94,7 +96,6 @@ impl Con {
     /// Create a new Enigo instance
     /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
-    #[allow(clippy::unnecessary_wraps)]
     fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
         let xdo = match dyp_name {
             Some(name) => {
@@ -118,6 +119,7 @@ impl Con {
             delay: delay * 1000,
         })
     }
+
     /// Tries to establish a new X11 connection using default parameters
     ///
     /// # Errors
@@ -127,19 +129,19 @@ impl Con {
         let delay = DEFAULT_DELAY;
         Self::new(dyp_name, delay)
     }
-    /// Get the delay per keypress in milliseconds.
-    /// Default value is 12.
-    /// This is Linux-specific.
+
+    /// Get the delay per keypress in milliseconds
     #[must_use]
     pub fn delay(&self) -> u32 {
         self.delay / 1000
     }
-    /// Set the delay per keypress in milliseconds.
-    /// This is Linux-specific.
+
+    /// Set the delay per keypress in milliseconds
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay * 1000;
     }
 }
+
 impl Drop for Con {
     fn drop(&mut self) {
         unsafe {
@@ -168,7 +170,7 @@ impl KeyboardControllableNext for Con {
         }
         Ok(Some(()))
     }
-    /// Sends a key event to the X11 server via `XTest` extension
+
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let Ok(keysym) = Keysym::try_from(key) else {
             return Err(InputError::InvalidInput(
@@ -222,7 +224,6 @@ impl KeyboardControllableNext for Con {
 }
 
 impl MouseControllableNext for Con {
-    // Sends a button event to the X11 server via `XTest` extension
     fn send_mouse_button_event(
         &mut self,
         button: MouseButton,
@@ -246,8 +247,6 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn send_motion_notify_event(
         &mut self,
         x: i32,
@@ -266,7 +265,6 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
