@@ -1,7 +1,7 @@
 use std::sync::mpsc::channel;
 
 use common::BrowserEvent;
-use enigo::{Key, KeyboardControllable};
+use enigo::{Enigo, EnigoSettings, Key, KeyboardControllable};
 
 mod common;
 
@@ -16,7 +16,8 @@ fn browser_events() {
     common::launch_browser(&rs);
     println!("Browser was launched");
 
-    enigo::Enigo::new().key_click(Key::F11);
+    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
+    enigo.key_click(Key::F11);
     // Full screen animation
     std::thread::sleep(std::time::Duration::from_millis(3000));
     rs.recv_timeout(std::time::Duration::from_millis(500))

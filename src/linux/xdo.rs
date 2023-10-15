@@ -9,9 +9,6 @@ use crate::{
 use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
-/// Default delay between chunks of keys that are sent to the X11 server in
-/// milliseconds
-const DEFAULT_DELAY: u32 = 12;
 const XDO_SUCCESS: c_int = 0;
 
 type Window = c_ulong;
@@ -96,10 +93,10 @@ impl Con {
     /// Create a new Enigo instance
     /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
-    fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
+    pub fn new(dyp_name: Option<String>, delay: u32) -> Result<Self, NewConError> {
         let xdo = match dyp_name {
             Some(name) => {
-                let Ok(string) = CString::new(name) else {
+                let Ok(string) = CString::new(name.as_bytes()) else {
                     return Err(NewConError::EstablishCon(
                         "the display name contained a null byte",
                     ));
@@ -118,16 +115,6 @@ impl Con {
             xdo,
             delay: delay * 1000,
         })
-    }
-
-    /// Tries to establish a new X11 connection using default parameters
-    ///
-    /// # Errors
-    /// TODO
-    pub fn try_default() -> Result<Self, NewConError> {
-        let dyp_name = None;
-        let delay = DEFAULT_DELAY;
-        Self::new(dyp_name, delay)
     }
 
     /// Get the delay per keypress in milliseconds

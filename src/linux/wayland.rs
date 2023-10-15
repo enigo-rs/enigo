@@ -39,7 +39,7 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new() -> Result<Self, NewConError> {
+    pub fn new(dpy_name: Option<String>) -> Result<Self, NewConError> {
         // Setup Wayland Connection
         let connection = match Connection::connect_to_env() {
             Ok(connection) => connection,

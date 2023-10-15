@@ -353,21 +353,6 @@ where
     }
 }
 
-impl Enigo {
-    /// Constructs a new `Enigo` instance.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut enigo = Enigo::new();
-    /// ```
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 impl KeyboardControllable for Enigo {}
 impl MouseControllable for Enigo {}
 
@@ -561,3 +546,29 @@ impl Display for NewConError {
 }
 
 impl Error for NewConError {}
+
+/// Default delay between chunks of keys that are sent to the X11 server in
+/// milliseconds
+const DEFAULT_DELAY: u32 = 12;
+
+/// Settings for creating the Enigo stuct and it's behaviour
+#[allow(dead_code)] // It is not dead code on other platforms
+pub struct EnigoSettings {
+    win_delay: u32,
+    mac_delay: u32,
+    linux_delay: u32,
+    x11_display: Option<String>,
+    wayland_display: Option<String>,
+}
+
+impl Default for EnigoSettings {
+    fn default() -> Self {
+        Self {
+            win_delay: DEFAULT_DELAY,
+            mac_delay: DEFAULT_DELAY,
+            linux_delay: DEFAULT_DELAY,
+            x11_display: None,
+            wayland_display: None,
+        }
+    }
+}

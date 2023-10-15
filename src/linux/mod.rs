@@ -1,6 +1,6 @@
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -33,6 +33,60 @@ pub struct Enigo {
 }
 
 impl Enigo {
+    #[must_use]
+    pub fn new(settings: EnigoSettings) -> Result<Self, NewConError> {
+        let mut connection_established = false;
+        #[allow(unused_variables)]
+        let EnigoSettings {
+            linux_delay,
+            x11_display,
+            wayland_display,
+            ..
+        } = settings;
+
+        let held = Vec::new();
+        #[cfg(feature = "wayland")]
+        let wayland = match wayland::Con::new(wayland_display) {
+            Ok(con) => {
+                connection_established = true;
+                Some(con)
+            }
+            Err(e) => {
+                println!("{e}");
+                None
+            }
+        };
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        let x11 = match x11::Con::new(x11_display, linux_delay) {
+            Ok(con) => {
+                connection_established = true;
+                Some(con)
+            }
+            Err(e) => {
+                println!("{e}");
+                None
+            }
+        };
+        if !connection_established {
+            return Err(NewConError::EstablishCon("no successful connection"));
+        }
+
+        Ok(Self {
+            held,
+            #[cfg(feature = "wayland")]
+            wayland,
+            #[cfg(any(feature = "x11rb", feature = "xdo"))]
+            x11,
+        })
+    }
+
+    /// Create a new `Enigo` instance
+    #[must_use]
+    pub fn try_default() -> Result<Self, NewConError> {
+        let settings = EnigoSettings::default();
+        Self::new(settings)
+    }
+
     /// Get the delay per keypress
     #[must_use]
     pub fn delay(&self) -> u32 {
@@ -59,24 +113,6 @@ impl Enigo {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> Vec<Key> {
         self.held.clone()
-    }
-}
-
-impl Default for Enigo {
-    /// Create a new `Enigo` instance
-    fn default() -> Self {
-        let held = Vec::new();
-        #[cfg(feature = "wayland")]
-        let wayland = wayland::Con::new().ok();
-        #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        let x11 = Some(x11::Con::try_default().unwrap());
-        Self {
-            held,
-            #[cfg(feature = "wayland")]
-            wayland,
-            #[cfg(any(feature = "x11rb", feature = "xdo"))]
-            x11,
-        }
     }
 }
 

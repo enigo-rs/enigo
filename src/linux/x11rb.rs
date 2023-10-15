@@ -21,10 +21,6 @@ use crate::{
 
 type CompositorConnection = RustConnection<DefaultStream>;
 
-/// Default delay between chunks of keys that are sent to the X11 server in
-/// milliseconds
-const DEFAULT_DELAY: u32 = 12;
-
 pub type Keycode = u8;
 
 pub struct Con {
@@ -59,8 +55,8 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
-        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
+    pub fn new(dpy_name: Option<String>, delay: u32) -> Result<Con, NewConError> {
+        let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
@@ -80,21 +76,12 @@ impl Con {
         })
     }
 
-    /// Tries to establish a new X11 connection using default parameters
-    ///
-    /// # Errors
-    /// TODO
-    pub fn try_default() -> Result<Self, NewConError> {
-        let dyp_name = None;
-        let delay = DEFAULT_DELAY;
-        Self::new(dyp_name, delay)
-    }
-
     /// Get the delay per keypress in milliseconds
     #[must_use]
     pub fn delay(&self) -> u32 {
         self.delay
     }
+
     /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
@@ -255,7 +242,7 @@ impl MouseControllableNext for Con {
         &mut self,
         button: MouseButton,
         direction: Direction,
-        delay: u32,
+        _delay: u32,
     ) -> InputResult<()> {
         let detail = match button {
             MouseButton::Left => 1,
@@ -268,7 +255,7 @@ impl MouseControllableNext for Con {
             MouseButton::Back => 8,
             MouseButton::Forward => 9,
         };
-        let mut time = delay;
+        let time = self.delay;
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
@@ -294,7 +281,7 @@ impl MouseControllableNext for Con {
             // Add a delay for the release part of a click
             // TODO: Maybe calculate here if a delay is needed as well
             if direction == Direction::Click {
-                time = DEFAULT_DELAY;
+                // time = DEFAULT_DELAY;
             }
 
             self.connection

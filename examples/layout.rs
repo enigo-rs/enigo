@@ -1,10 +1,10 @@
-use enigo::{Enigo, Key, KeyboardControllable};
+use enigo::{Enigo, EnigoSettings, Key, KeyboardControllable};
 use std::thread;
 use std::time::Duration;
 
 fn main() {
     thread::sleep(Duration::from_secs(4));
-    let mut enigo = Enigo::new();
+    let mut enigo = Enigo::new(EnigoSettings::default()).unwrap();
 
     enigo.key_click(Key::PageDown);
     enigo.key_click(enigo::Key::UpArrow);
