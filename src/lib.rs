@@ -514,12 +514,20 @@ pub trait MouseControllableNext {
 
 pub type InputResult<T> = Result<T, InputError>;
 
+/// Error when simulating input
 #[derive(PartialEq, Clone, Debug)]
 pub enum InputError {
+    /// Mapping a keycode to a keysym failed
     Mapping(String),
+    /// Unmapping a keycode failed
     Unmapping(String),
-    NoEmptyKeycodes, // There was no space to map any keycodes
+    /// There was no space to map any keycodes
+    NoEmptyKeycodes,
+    /// There was an error with the protocol
     Simulate(&'static str),
+    /// The input you want to simulate is invalid
+    /// This happens for example if you want to enter text that contains NULL
+    /// bytes ('/0')
     InvalidInput(&'static str),
 }
 
@@ -531,11 +539,15 @@ impl Display for InputError {
 
 impl Error for InputError {}
 
+/// Error when establishing a new connection
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum NewConError {
+    /// Error while creating the connection
     EstablishCon(&'static str),
+    /// Error when receiving a reply
     Reply,
-    NoEmptyKeycodes, // "There was no space to map any keycodes"
+    /// The keymap is full, so there was no space to map any keycodes to keysyms
+    NoEmptyKeycodes,
 }
 
 impl Display for NewConError {
@@ -550,11 +562,18 @@ impl Error for NewConError {}
 #[allow(dead_code)] // It is not dead code on other platforms
 #[derive(PartialEq, Clone, Debug)]
 pub struct EnigoSettings {
+    /// Sleep delay on Windows
     win_delay: u32,
+    /// Sleep delay on macOS
     mac_delay: u32,
+    /// Sleep delay on Linux X11
     linux_delay: u32,
+    /// Display name to connect to when using Linux X11
     x11_display: Option<String>,
+    /// Display name to connect to when using Linux Wayland
     wayland_display: Option<String>,
+    /// Set this to true if you want all held keys to get released when Enigo
+    /// gets dropped
     release_keys_when_dropped: bool,
 }
 
