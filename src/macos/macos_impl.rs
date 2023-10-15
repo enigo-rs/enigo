@@ -14,7 +14,7 @@ use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext,
+    MouseButton, MouseControllableNext, NewConError,
 };
 
 // required for NSEvent
@@ -153,31 +153,15 @@ pub struct Enigo {
                                             * not yet been released */
 }
 
-impl Default for Enigo {
-    fn default() -> Self {
-        let held = Vec::new();
-
-        let double_click_delay = Duration::from_secs(1);
-        let double_click_delay_setting: f64 =
-            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
-        let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
-
-        Enigo {
-            // TODO(dustin): return error rather than panic here
-            event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
-                .expect("Failed creating event source"),
-            display: CGDisplay::main(),
-            held,
-            double_click_delay,
-            last_mouse_click: [(0, Instant::now()); 7],
-        }
-    }
-}
-
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
-        let (current_x, current_y) = self.mouse_loc();
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        delay: u32,
+    ) -> InputResult<()> {
+        let (current_x, current_y) = self.mouse_loc()?;
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
@@ -191,10 +175,14 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
-            let event =
-                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-                    .unwrap();
 
+            let Ok(event) =
+                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter mouse button",
+                ));
+            };
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.post(CGEventTapLocation::HID);
         }
@@ -209,24 +197,34 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
                     println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
-                    return;
+                    return Ok(());
                 }
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
-            let event =
+            let Ok(event) =
                 CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-                    .unwrap();
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter mouse button",
+                ));
+            };
 
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.post(CGEventTapLocation::HID);
         }
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        let pressed = Self::pressed_buttons().unwrap();
-        let (current_x, current_y) = self.mouse_loc();
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
+        let pressed = Self::pressed_buttons()?;
+        let (current_x, current_y) = self.mouse_loc()?;
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
@@ -244,9 +242,13 @@ impl MouseControllableNext for Enigo {
             };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
-        let event =
+        let Ok(event) =
             CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, mouse_button)
-                .unwrap();
+        else {
+            return Err(InputError::Simulate(
+                "failed creating event to move the mouse",
+            ));
+        };
 
         // Add information by how much the mouse was moved
         event.set_integer_value_field(
@@ -262,33 +264,37 @@ impl MouseControllableNext for Enigo {
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let (ax, len_x, len_y) = match axis {
             Axis::Horizontal => (2, 0, -length),
             Axis::Vertical => (1, -length, 0),
         };
 
-        let event = CGEvent::new_scroll_event(
+        let Ok(event) = CGEvent::new_scroll_event(
             self.event_source.clone(),
             ScrollEventUnit::LINE,
             ax,
             len_x,
             len_y,
             0,
-        )
-        .expect("Failed creating event");
+        ) else {
+            return Err(InputError::Simulate("failed creating event to scroll"));
+        };
+
         event.post(CGEventTapLocation::HID);
     }
 
-    fn main_display(&self) -> (i32, i32) {
+    fn main_display(&self) -> InputResult<(i32, i32)> {
         (
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
         )
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
-        let ns_event = Class::get("NSEvent").unwrap();
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
+            "failed creating event to get the mouse location",
+        ))?;
         let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
         (x, self.display.pixels_high() as i32 - y_inv)
@@ -356,13 +362,41 @@ impl KeyboardControllableNext for Enigo {
 }
 
 impl Enigo {
+    pub fn new() -> Result<Self, NewConError> {
+        let held = Vec::new();
+
+        let double_click_delay = Duration::from_secs(1);
+        let double_click_delay_setting: f64 =
+            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
+        let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
+
+        let Ok(event_source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+        else {
+            return Err(NewConError::EstablishCon("failed creating event source"));
+        };
+
+        Enigo {
+            event_source,
+            display: CGDisplay::main(),
+            held,
+            double_click_delay,
+            last_mouse_click: [(0, Instant::now()); 7],
+        }
+    }
+
+    fn try_default() -> Result<Self, NewConError> {
+        Self::new()
+    }
+
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> Vec<Key> {
         self.held.clone()
     }
 
-    fn pressed_buttons() -> Result<usize, ()> {
-        let ns_event = Class::get("NSEvent").ok_or(())?;
+    fn pressed_buttons() -> InputResult<usize> {
+        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
+            "failed creating event to get the pressed mouse buttons",
+        ))?;
         unsafe { msg_send![ns_event, pressedMouseButtons] }
     }
 
@@ -487,10 +521,10 @@ impl Enigo {
         };
         if success == TRUE as u8 {
             let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-            return Some(rust_string);
+            Some(rust_string)
+        } else {
+            None
         }
-
-        None
     }
 
     #[allow(clippy::unused_self)]
