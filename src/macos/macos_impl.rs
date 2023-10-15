@@ -260,8 +260,8 @@ impl MouseControllableNext for Enigo {
             core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
             relative.1.into(),
         );
-
         event.post(CGEventTapLocation::HID);
+        Ok(())
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
@@ -283,10 +283,11 @@ impl MouseControllableNext for Enigo {
         };
 
         event.post(CGEventTapLocation::HID);
+        Ok(())
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        (
+        Ok(
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
         )
@@ -298,7 +299,7 @@ impl MouseControllableNext for Enigo {
         ))?;
         let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
-        (x, self.display.pixels_high() as i32 - y_inv)
+        Ok(x, self.display.pixels_high() as i32 - y_inv)
     }
 }
 
