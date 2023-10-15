@@ -116,7 +116,12 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _delay: u32) {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+        _delay: u32,
+    ) -> InputResult<()> {
         let button_no = match button {
             MouseButton::Back => 1,
             MouseButton::Forward => 2,
@@ -134,7 +139,7 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
             let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input);
+            send_input(input)?;
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
@@ -147,30 +152,26 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
                     println!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
-                    return;
+                    return Ok(());
                 }
             };
             let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input);
+            send_input(input)?;
         }
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            // TODO: Duplicate code from the mouse_loc fn. Replace it once that function
-            // becomes fallible.
-            let mut point = POINT { x: 0, y: 0 };
-            let result = unsafe { GetCursorPos(&mut point) };
-
-            // Don't move the mouse if it wasn't possible to get the current position
-            if result.is_err() {
-                return;
-            }
-
-            let (current_x, current_y) = (point.x, point.y);
-            (current_x + x, current_y + y)
+            let (x_absolute, y_absolute) = self.mouse_loc()?;
+            (x_absolute + x, y_absolute + y)
         } else {
             (x, y)
         };
@@ -181,35 +182,51 @@ impl MouseControllableNext for Enigo {
             x_absolute,
             y_absolute,
         );
-        send_input(input);
+        send_input(input)?;
 
-        unsafe { SetCursorPos(x_absolute, y_absolute) };
-        //assert!(result.is_ok(), "Unable to move mouse");
+        if unsafe { SetCursorPos(x_absolute, y_absolute) }.is_ok() {
+            Ok(())
+        } else {
+            Err(InputError::Simulate(
+                "could not set a new position of the mouse pointer",
+            ))
+        }
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let input = match axis {
             Axis::Horizontal => {
                 mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
             }
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
-        send_input(input);
-    }
-    fn main_display(&self) -> (i32, i32) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-        (w, h)
+        send_input(input)?;
+        Ok(())
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
-        let mut point = POINT { x: 0, y: 0 };
-        let result = unsafe { GetCursorPos(&mut point) };
-        if result.is_ok() {
-            (point.x, point.y)
+    fn main_display(&self) -> InputResult<(i32, i32)> {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        if w == 0 || h == 0 {
+            // Last error does not contain information about why there was an issue so it is
+            // not used here
+            Err(InputError::Simulate(
+                "could not get the dimensions of the screen",
+            ))
         } else {
-            (0, 0)
+            Ok((w, h))
+        }
+    }
+
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        let mut point = POINT { x: 0, y: 0 };
+        if unsafe { GetCursorPos(&mut point) }.is_ok() {
+            Ok((point.x, point.y))
+        } else {
+            Err(InputError::Simulate(
+                "could not get the current mouse location",
+            ))
         }
     }
 }

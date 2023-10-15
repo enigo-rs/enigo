@@ -2,20 +2,17 @@ use enigo::{Enigo, Key, KeyboardControllable};
 use std::thread;
 use std::time::Duration;
 
-#[cfg(target_os = "Windows")]
-use enigo::{MouseButton, MouseControllable};
-
+// This example will do different things depending on the platform
 fn main() {
     thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new();
 
     #[cfg(target_os = "macos")]
-    enigo.key_click(Key::Launchpad); // Opens launchpad
+    enigo.key_click(Key::Launchpad); // macOS: Open launchpad
 
     #[cfg(target_os = "linux")]
-    enigo.key_click(Key::Meta); // Opens launcher
+    enigo.key_click(Key::Meta); // linux: Open launcher
 
-    #[cfg(target_os = "Windows")]
-    enigo.mouse_click(MouseButton::XButton1); // Clicks the 4th mouse button
-                                              // (usually Browser_Back)
+    #[cfg(target_os = "windows")]
+    enigo.key_click(Key::Divide); // windows: Enter divide symbol (slash)
 }
