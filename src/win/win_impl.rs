@@ -63,6 +63,7 @@ type ScanCode = u16;
 /// The main struct for handling the event emitting
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
+    release_keys_when_dropped: bool,
     delay: u32,
 }
 
@@ -345,12 +346,15 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let EnigoSettings {
-            win_delay: delay, ..
+            win_delay: delay,
+            release_keys_when_dropped,
+            ..
         } = settings;
 
         let held = vec![];
         Ok(Self {
             held,
+            release_keys_when_dropped: *release_keys_when_dropped,
             delay: *delay,
         })
     }
@@ -436,6 +440,9 @@ fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
+        if !self.release_keys_when_dropped {
+            return;
+        }
         for &k in &self.held() {
             if self.enter_key(k, Direction::Release).is_err() {
                 println!("unable to release {k:?}");

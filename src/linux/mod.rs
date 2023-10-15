@@ -26,6 +26,7 @@ mod keymap;
 
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
+    release_keys_when_dropped: bool,
     #[cfg(feature = "wayland")]
     wayland: Option<wayland::Con>,
     #[cfg(any(feature = "x11rb", feature = "xdo"))]
@@ -46,6 +47,7 @@ impl Enigo {
             linux_delay,
             x11_display,
             wayland_display,
+            release_keys_when_dropped,
             ..
         } = settings;
 
@@ -78,6 +80,7 @@ impl Enigo {
 
         Ok(Self {
             held,
+            release_keys_when_dropped: *release_keys_when_dropped,
             #[cfg(feature = "wayland")]
             wayland,
             #[cfg(any(feature = "x11rb", feature = "xdo"))]
@@ -245,6 +248,9 @@ impl KeyboardControllableNext for Enigo {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
+        if !self.release_keys_when_dropped {
+            return;
+        }
         for &k in &self.held() {
             if self.enter_key(k, Direction::Release).is_err() {
                 println!("unable to release {k:?}");

@@ -143,6 +143,7 @@ pub struct Enigo {
     event_source: CGEventSource,
     display: CGDisplay,
     held: Vec<Key>, // Currently held keys
+    release_keys_when_dropped: bool,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
@@ -371,7 +372,9 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let EnigoSettings {
-            mac_delay: delay, ..
+            mac_delay: delay,
+            release_keys_when_dropped,
+            ..
         } = settings;
 
         let held = Vec::new();
@@ -391,6 +394,7 @@ impl Enigo {
             event_source,
             display: CGDisplay::main(),
             held,
+            release_keys_when_dropped: *release_keys_when_dropped,
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
         })
@@ -593,6 +597,9 @@ impl Enigo {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
+        if !self.release_keys_when_dropped {
+            return;
+        }
         for &k in &self.held() {
             if self.enter_key(k, Direction::Release).is_err() {
                 println!("unable to release {k:?}");

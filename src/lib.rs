@@ -555,6 +555,7 @@ pub struct EnigoSettings {
     linux_delay: u32,
     x11_display: Option<String>,
     wayland_display: Option<String>,
+    release_keys_when_dropped: bool,
 }
 
 impl Default for EnigoSettings {
@@ -565,6 +566,7 @@ impl Default for EnigoSettings {
             linux_delay: 12,
             x11_display: None,
             wayland_display: None,
+            release_keys_when_dropped: true,
         }
     }
 }
