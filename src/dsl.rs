@@ -222,7 +222,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
     Ok(tokens)
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Action {
     Down,
     Up,

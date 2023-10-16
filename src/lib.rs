@@ -362,7 +362,7 @@ impl fmt::Debug for Enigo {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// The direction of a key or button
 pub enum Direction {
     Press,
@@ -371,14 +371,14 @@ pub enum Direction {
     Click,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies the axis to scroll on
 pub enum Axis {
     Horizontal,
     Vertical,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
     Relative,
@@ -515,7 +515,7 @@ pub trait MouseControllableNext {
 pub type InputResult<T> = Result<T, InputError>;
 
 /// Error when simulating input
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputError {
     /// Mapping a keycode to a keysym failed
     Mapping(String),
@@ -540,7 +540,7 @@ impl Display for InputError {
 impl Error for InputError {}
 
 /// Error when establishing a new connection
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NewConError {
     /// Error while creating the connection
     EstablishCon(&'static str),
@@ -560,7 +560,7 @@ impl Error for NewConError {}
 
 /// Settings for creating the Enigo stuct and it's behaviour
 #[allow(dead_code)] // It is not dead code on other platforms
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnigoSettings {
     /// Sleep delay on Windows
     win_delay: u32,
