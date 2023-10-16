@@ -306,18 +306,37 @@ impl MouseControllableNext for Enigo {
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl KeyboardControllableNext for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+        // Fn to create an iterator over sub slices of a str that have the specified
+        // length
+        fn chunks(s: &str, len: usize) -> impl Iterator<Item = &str> {
+            assert!(len > 0);
+            let mut indices = s.char_indices().map(|(idx, _)| idx).peekable();
+
+            std::iter::from_fn(move || {
+                let Some(start_idx) = indices.next() else {
+                    return None;
+                };
+                for _ in 0..len - 1 {
+                    indices.next();
+                }
+                let end_idx = match indices.peek() {
+                    Some(idx) => *idx,
+                    None => s.bytes().len(),
+                };
+                Some(&s[start_idx..end_idx])
+            })
+        }
+
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
-        // event.set_string(string)) truncates strings down to 20 characters
-        for chunk in text.as_bytes().chunks(20) {
-            // This is safe because we use utf-8 str as input
-            let string = unsafe { std::str::from_utf8_unchecked(chunk) };
+        // event.set_string(chunk)) truncates strings down to 20 characters
+        for chunk in chunks(text, 20) {
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true) else {
                 return Err(InputError::Simulate(
                     "failed creating event to enter the text",
                 ));
             };
-            event.set_string(string);
+            event.set_string(chunk);
             event.post(CGEventTapLocation::HID);
         }
         thread::sleep(Duration::from_millis(2));
