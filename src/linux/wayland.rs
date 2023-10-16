@@ -46,7 +46,7 @@ impl Con {
             Err(e) => {
                 println!("{e:?}");
                 return Err(NewConError::EstablishCon(
-                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0: {e}'",
+                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0': {e}",
                 ));
             }
         };
