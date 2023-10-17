@@ -442,7 +442,7 @@ impl Enigo {
         let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
             "failed creating event to get the pressed mouse buttons",
         ))?;
-        unsafe { msg_send![ns_event, pressedMouseButtons] }
+        Ok(unsafe { msg_send![ns_event, pressedMouseButtons] })
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
