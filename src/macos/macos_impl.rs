@@ -188,7 +188,7 @@ impl MouseControllableNext for Enigo {
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
-            let click_count = self.nth_button_press(button, Direction::Press);
+            let click_count = self.nth_button_press(button, Direction::Release);
             let (button, event_type) = match button {
                 MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
                 MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
