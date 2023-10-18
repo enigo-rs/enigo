@@ -25,7 +25,7 @@
 //! # Examples
 //! ```no_run
 //! use enigo::*;
-//! let mut enigo = Enigo::new();
+//! let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 //! //paste
 //! enigo.key_down(Key::Control);
 //! enigo.key_click(Key::Layout('v'));
@@ -34,7 +34,7 @@
 //!
 //! ```no_run
 //! use enigo::*;
-//! let mut enigo = Enigo::new();
+//! let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 //! enigo.mouse_move_to(500, 200);
 //! enigo.mouse_down(MouseButton::Left);
 //! enigo.mouse_move_relative(100, 100);
@@ -47,12 +47,12 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_sign_loss)]
-#![allow(clippy::missing_panics_doc)]
 #![allow(deprecated)]
 
-// TODO(dustin) use interior mutability not &mut self
-
-use std::fmt;
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+};
 
 /// DSL parser module
 ///
@@ -127,11 +127,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Absolute);
+        self.send_motion_notify_event(x, y, Coordinate::Absolute)
+            .unwrap();
     }
 
     /// Move the mouse cursor the specified amount in the x and y
@@ -144,11 +145,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Relative);
+        self.send_motion_notify_event(x, y, Coordinate::Relative)
+            .unwrap();
     }
 
     /// Push down the mouse button specified by the parameter
@@ -162,11 +164,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Press, 0);
+        self.send_mouse_button_event(button, Direction::Press)
+            .unwrap();
     }
 
     /// Release a pushed down mouse button
@@ -182,12 +185,13 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_down(MouseButton::Right);
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Release, 0);
+        self.send_mouse_button_event(button, Direction::Release)
+            .unwrap();
     }
 
     /// Click a mouse button
@@ -201,11 +205,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Click, 0);
+        self.send_mouse_button_event(button, Direction::Click)
+            .unwrap();
     }
 
     /// Scroll the mouse (wheel) left or right
@@ -220,11 +225,11 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_scroll_x(2);
     /// ```
     fn mouse_scroll_x(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Horizontal);
+        self.mouse_scroll_event(length, Axis::Horizontal).unwrap();
     }
 
     /// Scroll the mouse (wheel) up or down
@@ -239,11 +244,11 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Vertical);
+        self.mouse_scroll_event(length, Axis::Vertical).unwrap();
     }
 
     /// Get the (width, height) of the main display in screen coordinates
@@ -253,12 +258,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// let (width, height) = enigo.main_display_size();
     /// ```
     #[must_use]
     fn main_display_size(&self) -> (i32, i32) {
-        self.main_display()
+        self.main_display().unwrap()
     }
 
     /// Get the location of the mouse in screen coordinates (pixels).
@@ -267,12 +272,12 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// let (x, y) = enigo.mouse_location();
     /// ```
     #[must_use]
     fn mouse_location(&self) -> (i32, i32) {
-        self.mouse_loc()
+        self.mouse_loc().unwrap()
     }
 }
 
@@ -323,43 +328,28 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new();
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
     /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str) {
-        self.enter_text(sequence);
+        self.enter_text(sequence).unwrap();
     }
 
     /// Press down the given key
     fn key_down(&mut self, key: Key) {
-        self.enter_key(key, Direction::Press);
+        self.enter_key(key, Direction::Press).unwrap();
     }
 
     /// Release a pressed down key
     fn key_up(&mut self, key: Key) {
-        self.enter_key(key, Direction::Release);
+        self.enter_key(key, Direction::Release).unwrap();
     }
 
     /// Press and release the key. It is the same as calling the
     /// [`KeyboardControllable::key_down`] and
     /// [`KeyboardControllable::key_up`] functions consecutively
     fn key_click(&mut self, key: Key) {
-        self.enter_key(key, Direction::Click);
-    }
-}
-
-impl Enigo {
-    /// Constructs a new `Enigo` instance.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut enigo = Enigo::new();
-    /// ```
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+        self.enter_key(key, Direction::Click).unwrap();
     }
 }
 
@@ -372,20 +362,24 @@ impl fmt::Debug for Enigo {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// The direction of a key or button
 pub enum Direction {
     Press,
     Release,
+    /// Equivalent to a press followed by a release
     Click,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Specifies the axis to scroll on
 pub enum Axis {
     Horizontal,
     Vertical,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
     Relative,
     Absolute,
@@ -394,38 +388,204 @@ pub enum Coordinate {
 pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
-    /// shortcuts not getting recognized
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()>;
+    /// shortcuts not getting recognized.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>>;
+
     /// Enter the text
-    /// Use a fast method to enter the text, if it is available
-    fn enter_text(&mut self, text: &str) {
+    /// Use a fast method to enter the text, if it is available. The text should
+    /// not contain any NULL bytes ('\0'). You can use unicode here like: ❤️.
+    /// This works regardless of the current keyboard layout. You cannot use
+    /// this function for entering shortcuts or something similar. For
+    /// shortcuts, use the [`KeyboardControllableNext::enter_key`] method
+    /// instead.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
-            return; // Nothing to simulate.
+            return Ok(()); // Nothing to simulate.
         }
+
         // Fall back to entering single keys if no fast text entry is available
-        if self.fast_text_entry(text).is_none() {
-            for c in text.chars() {
-                self.enter_key(Key::Layout(c), Direction::Click);
+        let fast_text_res = self.fast_text_entry(text);
+        match fast_text_res {
+            Ok(o) => {
+                if o.is_none() {
+                    for c in text.chars() {
+                        self.enter_key(Key::Layout(c), Direction::Click)?;
+                    }
+                }
+                Ok(())
             }
+            Err(e) => Err(e),
         }
     }
 
-    /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction);
+    /// Sends an individual key event. Some of the keys are specific to a
+    /// platform.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 }
 
+/// Contains functions to control the mouse and to get the size of the display.
+/// Enigo uses a cartesian coordinate system for specifying coordinates. The
+/// origin in this system is located in the top-left corner of the current
+/// screen, with positive values extending along the axes down and to the
+/// right of the origin point and it is measured in pixels. The same coordinate
+/// system is used on all operating systems.
 pub trait MouseControllableNext {
-    // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32);
+    /// Sends an individual mouse button event. You can use this for example to
+    /// simulate a click of the left mouse key. Some of the buttons are specific
+    /// to a platform.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+    ) -> InputResult<()>;
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate);
+    /// Move the mouse cursor to the specified x and y coordinates.
+    ///
+    /// You can specify absolute coordinates or relative from the current
+    /// position.
+    ///
+    /// If you use absolute coordinates, the topleft corner of your monitor
+    /// screen is x=0 y=0. Move the cursor down the screen by increasing the y
+    /// and to the right by increasing x coordinate.
+    ///
+    /// If you use relative coordinates, a positive x value moves the mouse
+    /// cursor `x` pixels to the right. A negative value for `x` moves the mouse
+    /// cursor to the left. A positive value of y moves the mouse cursor down, a
+    /// negative one moves the mouse cursor up.
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()>;
 
-    // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis);
+    /// Send a mouse scroll event
+    ///
+    /// # Arguments
+    /// * `axis` - The axis to scroll on
+    /// * `length` - Number of 15° (click) rotations of the mouse wheel to
+    ///   scroll. How many lines will be scrolled depends on the current setting
+    ///   of the operating system.
+    ///
+    /// With `Axis::Vertical`, a positive length will result in scrolling down
+    /// and negative ones up. With `Axis::Horizontal`, a positive length
+    /// will result in scrolling to the right and negative ones to the left
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
-    fn main_display(&self) -> (i32, i32);
+    /// Get the (width, height) of the main display in pixels. This currently
+    /// only works on the main display
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn main_display(&self) -> InputResult<(i32, i32)>;
 
-    fn mouse_loc(&self) -> (i32, i32);
+    /// Get the location of the mouse in pixels
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn mouse_loc(&self) -> InputResult<(i32, i32)>;
+}
+
+pub type InputResult<T> = Result<T, InputError>;
+
+/// Error when simulating input
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputError {
+    /// Mapping a keycode to a keysym failed
+    Mapping(String),
+    /// Unmapping a keycode failed
+    Unmapping(String),
+    /// There was no space to map any keycodes
+    NoEmptyKeycodes,
+    /// There was an error with the protocol
+    Simulate(&'static str),
+    /// The input you want to simulate is invalid
+    /// This happens for example if you want to enter text that contains NULL
+    /// bytes ('/0')
+    InvalidInput(&'static str),
+}
+
+impl Display for InputError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for InputError {}
+
+/// Error when establishing a new connection
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NewConError {
+    /// Error while creating the connection
+    EstablishCon(&'static str),
+    /// Error when receiving a reply
+    Reply,
+    /// The keymap is full, so there was no space to map any keycodes to keysyms
+    NoEmptyKeycodes,
+}
+
+impl Display for NewConError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "error establishing X11 connection with x11rb")
+    }
+}
+
+impl Error for NewConError {}
+
+/// Settings for creating the Enigo stuct and it's behaviour
+#[allow(dead_code)] // It is not dead code on other platforms
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EnigoSettings {
+    /// Sleep delay on Windows
+    win_delay: u32,
+    /// Sleep delay on macOS
+    mac_delay: u32,
+    /// Sleep delay on Linux X11
+    linux_delay: u32,
+    /// Display name to connect to when using Linux X11
+    x11_display: Option<String>,
+    /// Display name to connect to when using Linux Wayland
+    wayland_display: Option<String>,
+    /// Set this to true if you want all held keys to get released when Enigo
+    /// gets dropped
+    release_keys_when_dropped: bool,
+}
+
+impl Default for EnigoSettings {
+    fn default() -> Self {
+        Self {
+            win_delay: 20,
+            mac_delay: 20,
+            linux_delay: 12,
+            x11_display: None,
+            wayland_display: None,
+            release_keys_when_dropped: true,
+        }
+    }
 }

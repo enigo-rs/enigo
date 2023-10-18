@@ -54,31 +54,34 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
-type KeyCode = u16;
 type ScanCode = u16;
 
 /// The main struct for handling the event emitting
-#[derive(Default)]
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
+    release_keys_when_dropped: bool,
+    delay: u32,
 }
 
-fn send_input(input: INPUT) -> Result<(), &'static str> {
+fn send_input(input: INPUT) -> InputResult<()> {
     let Ok(input_size): Result<i32, _> = size_of::<INPUT>().try_into() else {
-        return Err("Could not convert the size of INPUT to i32");
+        return Err(InputError::InvalidInput(
+            "the size of the INPUT was so large, the size exceeded i32::MAX",
+        ));
     };
-    let successfully_sent = unsafe { SendInput(&[input], input_size) };
-
-    if usize::try_from(successfully_sent)
-        .map(|successfully_sent| successfully_sent != 1)
-        .unwrap_or(true)
-    {
-        return Err("Not all input events were sent");
+    if unsafe { SendInput(&[input], input_size) } == 1 {
+        Ok(())
+    } else {
+        let last_err = std::io::Error::last_os_error();
+        println!("{last_err}");
+        Err(InputError::Simulate(
+            "not all input events were sent. they may have been blocked by UIPI",
+        ))
     }
-    Ok(())
 }
 
 fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) -> INPUT {
@@ -114,7 +117,11 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, _delay: u32) {
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+    ) -> InputResult<()> {
         let button_no = match button {
             MouseButton::Back => 1,
             MouseButton::Forward => 2,
@@ -132,7 +139,7 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
             let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input);
+            send_input(input)?;
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
@@ -145,30 +152,26 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
                     println!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
-                    return;
+                    return Ok(());
                 }
             };
             let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input);
+            send_input(input)?;
         }
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            // TODO: Duplicate code from the mouse_loc fn. Replace it once that function
-            // becomes fallible.
-            let mut point = POINT { x: 0, y: 0 };
-            let result = unsafe { GetCursorPos(&mut point) };
-
-            // Don't move the mouse if it wasn't possible to get the current position
-            if result.is_err() {
-                return;
-            }
-
-            let (current_x, current_y) = (point.x, point.y);
-            (current_x + x, current_y + y)
+            let (x_absolute, y_absolute) = self.mouse_loc()?;
+            (x_absolute + x, y_absolute + y)
         } else {
             (x, y)
         };
@@ -179,50 +182,66 @@ impl MouseControllableNext for Enigo {
             x_absolute,
             y_absolute,
         );
-        send_input(input);
+        send_input(input)?;
 
-        unsafe { SetCursorPos(x_absolute, y_absolute) };
-        //assert!(result.is_ok(), "Unable to move mouse");
+        if unsafe { SetCursorPos(x_absolute, y_absolute) }.is_ok() {
+            Ok(())
+        } else {
+            Err(InputError::Simulate(
+                "could not set a new position of the mouse pointer",
+            ))
+        }
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let input = match axis {
             Axis::Horizontal => {
                 mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
             }
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
-        send_input(input);
-    }
-    fn main_display(&self) -> (i32, i32) {
-        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-        (w, h)
+        send_input(input)?;
+        Ok(())
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
-        let mut point = POINT { x: 0, y: 0 };
-        let result = unsafe { GetCursorPos(&mut point) };
-        if result.is_ok() {
-            (point.x, point.y)
+    fn main_display(&self) -> InputResult<(i32, i32)> {
+        let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        if w == 0 || h == 0 {
+            // Last error does not contain information about why there was an issue so it is
+            // not used here
+            Err(InputError::Simulate(
+                "could not get the dimensions of the screen",
+            ))
         } else {
-            (0, 0)
+            Ok((w, h))
+        }
+    }
+
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        let mut point = POINT { x: 0, y: 0 };
+        if unsafe { GetCursorPos(&mut point) }.is_ok() {
+            Ok((point.x, point.y))
+        } else {
+            Err(InputError::Simulate(
+                "could not get the current mouse location",
+            ))
         }
     }
 }
 
 impl KeyboardControllableNext for Enigo {
-    fn fast_text_entry(&mut self, _text: &str) -> Option<()> {
-        None
+    fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
+        Ok(None)
     }
 
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
-    fn enter_text(&mut self, text: &str) {
+    fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
-            return; // Nothing to simulate.
+            return Ok(()); // Nothing to simulate.
         }
         let mut buffer = [0; 2];
 
@@ -233,40 +252,37 @@ impl KeyboardControllableNext for Enigo {
                 '\r' => { // TODO: What is the correct key to type here?
                 }
                 '\t' => return self.enter_key(Key::Tab, Direction::Click),
-                '\0' => return,
+                '\0' => return Err(InputError::InvalidInput("the text contained a null byte")),
                 _ => (),
             }
             // Windows uses uft-16 encoding. We need to check
             // for variable length characters. As such some
             // characters can be 32 bit long and those are
-            // encoded in such called hight and low surrogates
-            // each 16 bit wide that needs to be send after
+            // encoded in what is called high and low surrogates.
+            // Each are 16 bit wide and need to be sent after
             // another to the SendInput function without
             // being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
+            for &utf16_surrogate in &*result {
+                let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), utf16_surrogate);
+                send_input(input)?;
+            }
+            // Only if the length was 1 do we have to send a "keyup"
             if result.len() == 1 {
-                let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), result[0]);
-                send_input(input);
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
                 let input = keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
                     result[0],
                 );
-                send_input(input);
-            } else {
-                for utf16_surrogate in result {
-                    let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), *utf16_surrogate);
-                    send_input(input);
-                }
-                // do i need to produce a keyup?
-                // self.unicode_key_up(0);
+                send_input(input)?;
             }
         }
+        Ok(())
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         match direction {
             Direction::Press => self.held.push(key),
             Direction::Release => self.held.retain(|&k| k != key),
@@ -280,61 +296,123 @@ impl KeyboardControllableNext for Enigo {
                 '\r' => { // TODO: What is the correct key to type here?
                 }
                 '\t' => return self.enter_key(Key::Tab, direction),
-                '\0' => return,
+                '\0' => return Ok(()),
                 _ => (),
             }
-            let scancodes = self.get_scancode(c);
+            let scancodes = self.get_scancode(c)?;
             if direction == Direction::Click || direction == Direction::Press {
                 for scan in &scancodes {
                     let input = keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
-                    send_input(input);
+                    send_input(input)?;
                 }
             }
             if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 for scan in &scancodes {
                     let input =
                         keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
-                    send_input(input);
+                    send_input(input)?;
                 }
             }
         } else {
-            let keycode = key_to_keycode(key);
+            // It is okay to unwrap here because key_to_keycode only returns a None for
+            // Key::Layout and we already ensured that is not the case
+            let keycode = key_to_keycode(key).unwrap();
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
                 let input = keybd_event(keyflags, keycode, 0u16);
-                send_input(input);
+                send_input(input)?;
             }
             if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(20));
+                thread::sleep(time::Duration::from_millis(self.delay as u64));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 let input = keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
-                send_input(input);
+                send_input(input)?;
             }
         };
+        Ok(())
     }
 }
 
 impl Enigo {
+    /// Create a new Enigo struct to establish the connection to simulate input
+    /// with the specified settings
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `NewConError` to see under which
+    /// conditions an error will be returned.
+    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
+        let EnigoSettings {
+            win_delay: delay,
+            release_keys_when_dropped,
+            ..
+        } = settings;
+
+        let held = vec![];
+        Ok(Self {
+            held,
+            release_keys_when_dropped: *release_keys_when_dropped,
+            delay: *delay,
+        })
+    }
+
+    /// Get the delay per keypress in milliseconds
+    #[must_use]
+    pub fn delay(&self) -> u32 {
+        self.delay
+    }
+
+    /// Set the delay per keypress in milliseconds
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay;
+    }
+
     #[allow(clippy::unused_self)]
-    fn get_scancode(&self, c: char) -> Vec<ScanCode> {
+    fn get_scancode(&self, c: char) -> InputResult<Vec<ScanCode>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
-        let utf16: Vec<u16> = c.encode_utf16(&mut buffer).into();
-        let keycode_and_shiftstate: Vec<ScanCode> = utf16
-            .iter()
-            .map(|&x| unsafe { VkKeyScanW(x) as KeyCode })
-            .map(|x| unsafe { MapVirtualKeyW(x as u32, MAP_VIRTUAL_KEY_TYPE(0)) as ScanCode })
-            .collect();
-        //assert!(utf16.len() == 2, "This char is not allowed");
-        // TODO: Allow
-        // entering utf16 chars that have a length of two (such as \U0001d54a)
-        // NOTE VkKeyScanW uses the current keyboard layout
-        // to specify a layout use VkKeyScanExW and GetKeyboardLayout
-        // or load one with LoadKeyboardLayoutW
-        keycode_and_shiftstate
+        let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
+        let mut scancodes = vec![];
+        for &utf16_surrogate in &utf16_surrogates {
+            // Translate a character to the corresponding virtual-key code and shift state.
+            // If the function succeeds, the low-order byte of the return value contains the
+            // virtual-key code and the high-order byte contains the shift state, which can
+            // be a combination of the following flag bits. If the function finds no key
+            // that translates to the passed character code, both the low-order and
+            // high-order bytes contain –1
+            let keystate = match u32::try_from(unsafe { VkKeyScanW(utf16_surrogate) }) {
+                // TODO: Double check if u32::MAX is correct here. If I am not
+                // mistaken, -1 is stored as 11111111 meaning u32::MAX should be
+                // correct here
+                Ok(u32::MAX) => {
+                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+                }
+                Ok(keystate) => keystate,
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(InputError::InvalidInput(
+                        "key state could not be converted to u32",
+                    ));
+                }
+            };
+            // Translate the virtual-key code to a scan code
+            match unsafe { MapVirtualKeyW(keystate, MAP_VIRTUAL_KEY_TYPE(0)) }.try_into() {
+                // If there is no translation, the return value is zero
+                Ok(0) => {
+                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+                }
+                Ok(scan_code) => {
+                    scancodes.push(scan_code);
+                }
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(InputError::InvalidInput("scan code did not fit into u16"));
+                }
+            };
+        }
+        Ok(scancodes)
     }
 
     /// Returns a list of all currently pressed keys
@@ -362,16 +440,20 @@ fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
+        if !self.release_keys_when_dropped {
+            return;
+        }
         for &k in &self.held() {
-            self.enter_key(k, Direction::Release);
+            if self.enter_key(k, Direction::Release).is_err() {
+                println!("unable to release {k:?}");
+            };
         }
     }
 }
 
 #[allow(clippy::too_many_lines)]
-fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
-    // I mean duh, we still need to support deprecated keys until they're removed
-    match key {
+fn key_to_keycode(key: Key) -> Option<VIRTUAL_KEY> {
+    let vk = match key {
         Key::Num0 => VK_0,
         Key::Num1 => VK_1,
         Key::Num2 => VK_2,
@@ -619,7 +701,8 @@ fn key_to_keycode(key: Key) -> VIRTUAL_KEY {
         Key::XButton2 => VK_XBUTTON2,
         Key::Zoom => VK_ZOOM,
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
-        Key::Layout(_) => panic!(), // TODO: Don't panic here
+        Key::Layout(_) => return None,
         Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
-    }
+    };
+    Some(vk)
 }

@@ -13,105 +13,73 @@ use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Coordinate, Direction, Key, KeyboardControllableNext, MouseButton, MouseControllableNext,
+    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 // required for NSEvent
 #[link(name = "AppKit", kind = "framework")]
 extern "C" {}
 
-pub type CFDataRef = *const c_void;
+type CFDataRef = *const c_void;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
-struct NSPoint {
-    x: f64,
-    y: f64,
-}
-
-#[repr(C)]
-pub struct __TISInputSource;
-pub type TISInputSourceRef = *const __TISInputSource;
+struct __TISInputSource;
+type TISInputSourceRef = *const __TISInputSource;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct __CFString([u8; 0]);
-pub type CFStringRef = *const __CFString;
-pub type Boolean = c_uchar;
-pub type UInt8 = c_uchar;
-pub type SInt32 = c_int;
-pub type UInt16 = c_ushort;
-pub type UInt32 = c_uint;
-pub type UniChar = UInt16;
-pub type UniCharCount = c_ulong;
+struct __CFString([u8; 0]);
+type CFStringRef = *const __CFString;
+type Boolean = c_uchar;
+type UInt8 = c_uchar;
+type SInt32 = c_int;
+type UInt16 = c_ushort;
+type UInt32 = c_uint;
+type UniChar = UInt16;
+type UniCharCount = c_ulong;
 
-pub type OptionBits = UInt32;
-pub type OSStatus = SInt32;
+type OptionBits = UInt32;
+type OSStatus = SInt32;
 
-pub type CFStringEncoding = UInt32;
+type CFStringEncoding = UInt32;
 
-pub const TRUE: c_uint = 1;
+const TRUE: c_uint = 1;
 
 #[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct UCKeyboardTypeHeader {
-    pub keyboardTypeFirst: UInt32,
-    pub keyboardTypeLast: UInt32,
-    pub keyModifiersToTableNumOffset: UInt32,
-    pub keyToCharTableIndexOffset: UInt32,
-    pub keyStateRecordsIndexOffset: UInt32,
-    pub keyStateTerminatorsOffset: UInt32,
-    pub keySequenceDataIndexOffset: UInt32,
+struct UCKeyboardTypeHeader {
+    keyboardTypeFirst: UInt32,
+    keyboardTypeLast: UInt32,
+    keyModifiersToTableNumOffset: UInt32,
+    keyToCharTableIndexOffset: UInt32,
+    keyStateRecordsIndexOffset: UInt32,
+    keyStateTerminatorsOffset: UInt32,
+    keySequenceDataIndexOffset: UInt32,
 }
 
 #[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct UCKeyboardLayout {
-    pub keyLayoutHeaderFormat: UInt16,
-    pub keyLayoutDataVersion: UInt16,
-    pub keyLayoutFeatureInfoOffset: UInt32,
-    pub keyboardTypeCount: UInt32,
-    pub keyboardTypeList: [UCKeyboardTypeHeader; 1usize],
+struct UCKeyboardLayout {
+    keyLayoutHeaderFormat: UInt16,
+    keyLayoutDataVersion: UInt16,
+    keyLayoutFeatureInfoOffset: UInt32,
+    keyboardTypeCount: UInt32,
+    keyboardTypeList: [UCKeyboardTypeHeader; 1usize],
 }
 
 #[allow(non_upper_case_globals)]
-pub const kUCKeyTranslateNoDeadKeysBit: _bindgen_ty_703 =
-    _bindgen_ty_703::kUCKeyTranslateNoDeadKeysBit;
-
-#[allow(non_camel_case_types)]
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum _bindgen_ty_703 {
-    kUCKeyTranslateNoDeadKeysBit = 0,
-}
+const kUCKeyTranslateNoDeadKeysBit: u32 = 0;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct __CFAllocator([u8; 0]);
-pub type CFAllocatorRef = *const __CFAllocator;
-
-// #[repr(u32)]
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-// pub enum _bindgen_ty_15 {
-//     kCFStringEncodingMacRoman = 0,
-//     kCFStringEncodingWindowsLatin1 = 1280,
-//     kCFStringEncodingISOLatin1 = 513,
-//     kCFStringEncodingNextStepLatin = 2817,
-//     kCFStringEncodingASCII = 1536,
-//     kCFStringEncodingUnicode = 256,
-//     kCFStringEncodingUTF8 = 134217984,
-//     kCFStringEncodingNonLossyASCII = 3071,
-//     kCFStringEncodingUTF16BE = 268435712,
-//     kCFStringEncodingUTF16LE = 335544576,
-//     kCFStringEncodingUTF32 = 201326848,
-//     kCFStringEncodingUTF32BE = 402653440,
-//     kCFStringEncodingUTF32LE = 469762304,
-// }
+struct __CFAllocator([u8; 0]);
+type CFAllocatorRef = *const __CFAllocator;
 
 #[allow(non_upper_case_globals)]
-pub const kCFStringEncodingUTF8: u32 = 134_217_984;
+const kCFStringEncodingUTF8: u32 = 0x0800_0100;
 
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
@@ -119,26 +87,20 @@ extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
 
-    //     extern void *
-    // TISGetInputSourceProperty(
-    //   TISInputSourceRef   inputSource,
-    //   CFStringRef         propertyKey)
-
     #[allow(non_upper_case_globals)]
-    #[link_name = "kTISPropertyUnicodeKeyLayoutData"]
-    pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
+    static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
     #[allow(non_snake_case)]
-    pub fn TISGetInputSourceProperty(
+    fn TISGetInputSourceProperty(
         inputSource: TISInputSourceRef,
         propertyKey: CFStringRef,
     ) -> *mut c_void;
 
     #[allow(non_snake_case)]
-    pub fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
+    fn CFDataGetBytePtr(theData: CFDataRef) -> *const UInt8;
 
     #[allow(non_snake_case)]
-    pub fn UCKeyTranslate(
+    fn UCKeyTranslate(
         keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
         virtualKeyCode: UInt16,
         keyAction: UInt16,
@@ -151,24 +113,23 @@ extern "C" {
         unicodeString: *mut UniChar,
     ) -> OSStatus;
 
-    pub fn LMGetKbdType() -> UInt8;
+    fn LMGetKbdType() -> UInt8;
 
     #[allow(non_snake_case)]
-    pub fn CFStringCreateWithCharacters(
+    fn CFStringCreateWithCharacters(
         alloc: CFAllocatorRef,
         chars: *const UniChar,
         numChars: CFIndex,
     ) -> CFStringRef;
 
     #[allow(non_upper_case_globals)]
-    #[link_name = "kCFAllocatorDefault"]
-    pub static kCFAllocatorDefault: CFAllocatorRef;
+    static kCFAllocatorDefault: CFAllocatorRef;
 
     #[allow(non_snake_case)]
-    pub fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
+    fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
 
     #[allow(non_snake_case)]
-    pub fn CFStringGetCString(
+    fn CFStringGetCString(
         theString: CFStringRef,
         buffer: *mut c_char,
         bufferSize: CFIndex,
@@ -178,9 +139,11 @@ extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
+    delay: u64,
     event_source: CGEventSource,
     display: CGDisplay,
     held: Vec<Key>, // Currently held keys
+    release_keys_when_dropped: bool,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
@@ -192,31 +155,14 @@ pub struct Enigo {
                                             * not yet been released */
 }
 
-impl Default for Enigo {
-    fn default() -> Self {
-        let held = Vec::new();
-
-        let double_click_delay = Duration::from_secs(1);
-        let double_click_delay_setting: f64 =
-            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
-        let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
-
-        Enigo {
-            // TODO(dustin): return error rather than panic here
-            event_source: CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
-                .expect("Failed creating event source"),
-            display: CGDisplay::main(),
-            held,
-            double_click_delay,
-            last_mouse_click: [(0, Instant::now()); 7],
-        }
-    }
-}
-
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(&mut self, button: MouseButton, direction: Direction, delay: u32) {
-        let (current_x, current_y) = self.mouse_loc();
+    fn send_mouse_button_event(
+        &mut self,
+        button: MouseButton,
+        direction: Direction,
+    ) -> InputResult<()> {
+        let (current_x, current_y) = self.mouse_loc()?;
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
@@ -230,15 +176,19 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
-            let event =
-                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-                    .unwrap();
 
+            let Ok(event) =
+                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter mouse button",
+                ));
+            };
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
-            let click_count = self.nth_button_press(button, Direction::Press);
+            let click_count = self.nth_button_press(button, Direction::Release);
             let (button, event_type) = match button {
                 MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
                 MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
@@ -248,24 +198,34 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
                     println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
-                    return;
+                    return Ok(());
                 }
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
-            let event =
+            let Ok(event) =
                 CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-                    .unwrap();
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter mouse button",
+                ));
+            };
 
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.post(CGEventTapLocation::HID);
         }
+        Ok(())
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(&mut self, x: i32, y: i32, coordinate: Coordinate) {
-        let pressed = Self::pressed_buttons();
-        let (current_x, current_y) = self.mouse_loc();
+    fn send_motion_notify_event(
+        &mut self,
+        x: i32,
+        y: i32,
+        coordinate: Coordinate,
+    ) -> InputResult<()> {
+        let pressed = Self::pressed_buttons()?;
+        let (current_x, current_y) = self.mouse_loc()?;
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
@@ -283,9 +243,13 @@ impl MouseControllableNext for Enigo {
             };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
-        let event =
+        let Ok(event) =
             CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, mouse_button)
-                .unwrap();
+        else {
+            return Err(InputError::Simulate(
+                "failed creating event to move the mouse",
+            ));
+        };
 
         // Add information by how much the mouse was moved
         event.set_integer_value_field(
@@ -296,67 +260,94 @@ impl MouseControllableNext for Enigo {
             core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
             relative.1.into(),
         );
-
         event.post(CGEventTapLocation::HID);
+        Ok(())
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) {
+    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let (ax, len_x, len_y) = match axis {
             Axis::Horizontal => (2, 0, -length),
             Axis::Vertical => (1, -length, 0),
         };
 
-        let event = CGEvent::new_scroll_event(
+        let Ok(event) = CGEvent::new_scroll_event(
             self.event_source.clone(),
             ScrollEventUnit::LINE,
             ax,
             len_x,
             len_y,
             0,
-        )
-        .expect("Failed creating event");
+        ) else {
+            return Err(InputError::Simulate("failed creating event to scroll"));
+        };
+
         event.post(CGEventTapLocation::HID);
+        Ok(())
     }
 
-    fn main_display(&self) -> (i32, i32) {
-        (
+    fn main_display(&self) -> InputResult<(i32, i32)> {
+        Ok((
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
-        )
+        ))
     }
 
-    fn mouse_loc(&self) -> (i32, i32) {
-        let ns_event = Class::get("NSEvent").unwrap();
-        let pt: NSPoint = unsafe { msg_send![ns_event, mouseLocation] };
+    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
+            "failed creating event to get the mouse location",
+        ))?;
+        let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
-        (x, self.display.pixels_high() as i32 - y_inv)
+        Ok((x, self.display.pixels_high() as i32 - y_inv))
     }
 }
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl KeyboardControllableNext for Enigo {
-    fn fast_text_entry(&mut self, text: &str) -> Option<()> {
+    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+        // Fn to create an iterator over sub slices of a str that have the specified
+        // length
+        fn chunks(s: &str, len: usize) -> impl Iterator<Item = &str> {
+            assert!(len > 0);
+            let mut indices = s.char_indices().map(|(idx, _)| idx).peekable();
+
+            std::iter::from_fn(move || {
+                let Some(start_idx) = indices.next() else {
+                    return None;
+                };
+                for _ in 0..len - 1 {
+                    indices.next();
+                }
+                let end_idx = match indices.peek() {
+                    Some(idx) => *idx,
+                    None => s.bytes().len(),
+                };
+                Some(&s[start_idx..end_idx])
+            })
+        }
+
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
-        // event.set_string(string)) truncates strings down to 20 characters
-        text.as_bytes().chunks(20).for_each(|chunk| {
-            // This is safe because we use utf-8 str as input
-            let string = unsafe { std::str::from_utf8_unchecked(chunk) };
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true)
-                .expect("Failed creating event");
-            event.set_string(string);
+        // event.set_string(chunk)) truncates strings down to 20 characters
+        for chunk in chunks(text, 20) {
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true) else {
+                return Err(InputError::Simulate(
+                    "failed creating event to enter the text",
+                ));
+            };
+            event.set_string(chunk);
             event.post(CGEventTapLocation::HID);
-        });
+        }
         thread::sleep(Duration::from_millis(2));
-        Some(())
+        Ok(Some(()))
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) {
+    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Nothing to do
         if key == Key::Layout('\0') {
-            return;
+            return Ok(());
         }
         match direction {
             Direction::Press => self.held.push(key),
@@ -367,30 +358,91 @@ impl KeyboardControllableNext for Enigo {
         let keycode = self.key_to_keycode(key);
 
         if direction == Direction::Click || direction == Direction::Press {
-            thread::sleep(Duration::from_millis(20));
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
-                .expect("Failed creating event");
+            thread::sleep(Duration::from_millis(self.delay));
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to press the key",
+                ));
+            };
             event.post(CGEventTapLocation::HID);
         }
 
         if direction == Direction::Click || direction == Direction::Release {
-            thread::sleep(Duration::from_millis(20));
-            let event = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
-                .expect("Failed creating event");
+            thread::sleep(Duration::from_millis(self.delay));
+            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
+            else {
+                return Err(InputError::Simulate(
+                    "failed creating event to release the key",
+                ));
+            };
             event.post(CGEventTapLocation::HID);
         }
+        Ok(())
     }
 }
 
 impl Enigo {
+    /// Create a new Enigo struct to establish the connection to simulate input
+    /// with the specified settings
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `NewConError` to see under which
+    /// conditions an error will be returned.
+    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
+        let EnigoSettings {
+            mac_delay: delay,
+            release_keys_when_dropped,
+            ..
+        } = settings;
+
+        let held = Vec::new();
+
+        let double_click_delay = Duration::from_secs(1);
+        let double_click_delay_setting: f64 =
+            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
+        let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
+
+        let Ok(event_source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+        else {
+            return Err(NewConError::EstablishCon("failed creating event source"));
+        };
+
+        Ok(Enigo {
+            delay: (*delay).into(),
+            event_source,
+            display: CGDisplay::main(),
+            held,
+            release_keys_when_dropped: *release_keys_when_dropped,
+            double_click_delay,
+            last_mouse_click: [(0, Instant::now()); 7],
+        })
+    }
+
+    /// Get the delay per keypress in milliseconds
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)] // It never panics
+    pub fn delay(&self) -> u32 {
+        // Unwrapping here is okay, be cause we always initially have a u32 that gets
+        // converted to an u64. The reverse is always possible
+        self.delay.try_into().unwrap()
+    }
+
+    /// Set the delay per keypress in milliseconds
+    pub fn set_delay(&mut self, delay: u32) {
+        self.delay = delay.into();
+    }
+
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> Vec<Key> {
         self.held.clone()
     }
 
-    fn pressed_buttons() -> usize {
-        let ns_event = Class::get("NSEvent").unwrap();
-        unsafe { msg_send![ns_event, pressedMouseButtons] }
+    fn pressed_buttons() -> InputResult<usize> {
+        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
+            "failed creating event to get the pressed mouse buttons",
+        ))?;
+        Ok(unsafe { msg_send![ns_event, pressedMouseButtons] })
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
@@ -514,10 +566,10 @@ impl Enigo {
         };
         if success == TRUE as u8 {
             let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-            return Some(rust_string);
+            Some(rust_string)
+        } else {
+            None
         }
-
-        None
     }
 
     #[allow(clippy::unused_self)]
@@ -549,7 +601,7 @@ impl Enigo {
                 3, // kUCKeyActionDisplay = 3
                 modifier,
                 LMGetKbdType() as u32,
-                kUCKeyTranslateNoDeadKeysBit as u32,
+                kUCKeyTranslateNoDeadKeysBit,
                 &mut keys_down,
                 8, // sizeof(chars) / sizeof(chars[0]),
                 &mut real_length,
@@ -564,8 +616,13 @@ impl Enigo {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
+        if !self.release_keys_when_dropped {
+            return;
+        }
         for &k in &self.held() {
-            self.enter_key(k, Direction::Release);
+            if self.enter_key(k, Direction::Release).is_err() {
+                println!("unable to release {k:?}");
+            };
         }
     }
 }
