@@ -1,4 +1,4 @@
-use std::{mem::size_of, thread, time};
+use std::mem::size_of;
 
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -64,16 +64,15 @@ type ScanCode = u16;
 pub struct Enigo {
     held: Vec<Key>, // Currently held keys
     release_keys_when_dropped: bool,
-    delay: u32,
 }
 
-fn send_input(input: INPUT) -> InputResult<()> {
+fn send_input(input: &[INPUT]) -> InputResult<()> {
     let Ok(input_size): Result<i32, _> = size_of::<INPUT>().try_into() else {
         return Err(InputError::InvalidInput(
             "the size of the INPUT was so large, the size exceeded i32::MAX",
         ));
     };
-    if unsafe { SendInput(&[input], input_size) } == 1 {
+    if unsafe { SendInput(input, input_size) } == input.len().try_into().unwrap() {
         Ok(())
     } else {
         let last_err = std::io::Error::last_os_error();
@@ -122,6 +121,7 @@ impl MouseControllableNext for Enigo {
         button: MouseButton,
         direction: Direction,
     ) -> InputResult<()> {
+        let mut input = vec![];
         let button_no = match button {
             MouseButton::Back => 1,
             MouseButton::Forward => 2,
@@ -138,8 +138,7 @@ impl MouseControllableNext for Enigo {
                 MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
                 MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
             };
-            let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input)?;
+            input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
@@ -155,10 +154,9 @@ impl MouseControllableNext for Enigo {
                     return Ok(());
                 }
             };
-            let input = mouse_event(mouse_event_flag, button_no, 0, 0);
-            send_input(input)?;
+            input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
         }
-        Ok(())
+        send_input(&input)
     }
 
     // Sends a motion notify event to the X11 server via `XTest` extension
@@ -182,8 +180,10 @@ impl MouseControllableNext for Enigo {
             x_absolute,
             y_absolute,
         );
-        send_input(input)?;
+        send_input(&vec![input])?;
 
+        // This also moves the mouse but is not subject to mouse accelleration
+        // Sometimes the send_input is not enough
         if unsafe { SetCursorPos(x_absolute, y_absolute) }.is_ok() {
             Ok(())
         } else {
@@ -201,7 +201,7 @@ impl MouseControllableNext for Enigo {
             }
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
-        send_input(input)?;
+        send_input(&vec![input])?;
         Ok(())
     }
 
@@ -245,6 +245,7 @@ impl KeyboardControllableNext for Enigo {
         }
         let mut buffer = [0; 2];
 
+        let mut input = vec![];
         for c in text.chars() {
             // Handle special characters seperately
             match c {
@@ -264,25 +265,27 @@ impl KeyboardControllableNext for Enigo {
             // being interrupted by "keyup"
             let result = c.encode_utf16(&mut buffer);
             for &utf16_surrogate in &*result {
-                let input = keybd_event(KEYEVENTF_UNICODE, VIRTUAL_KEY(0), utf16_surrogate);
-                send_input(input)?;
+                input.push(keybd_event(
+                    KEYEVENTF_UNICODE,
+                    VIRTUAL_KEY(0),
+                    utf16_surrogate,
+                ));
             }
             // Only if the length was 1 do we have to send a "keyup"
             if result.len() == 1 {
-                thread::sleep(time::Duration::from_millis(self.delay as u64));
-                let input = keybd_event(
+                input.push(keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
                     result[0],
-                );
-                send_input(input)?;
+                ));
             }
         }
-        Ok(())
+        send_input(&input)
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        let mut input = vec![];
         match direction {
             Direction::Press => self.held.push(key),
             Direction::Release => self.held.retain(|&k| k != key),
@@ -302,18 +305,16 @@ impl KeyboardControllableNext for Enigo {
             let scancodes = self.get_scancode(c)?;
             if direction == Direction::Click || direction == Direction::Press {
                 for scan in &scancodes {
-                    let input = keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan);
-                    send_input(input)?;
+                    input.push(keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan));
                 }
-            }
-            if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(self.delay as u64));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 for scan in &scancodes {
-                    let input =
-                        keybd_event(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, VIRTUAL_KEY(0), *scan);
-                    send_input(input)?;
+                    input.push(keybd_event(
+                        KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+                        VIRTUAL_KEY(0),
+                        *scan,
+                    ));
                 }
             }
         } else {
@@ -322,18 +323,13 @@ impl KeyboardControllableNext for Enigo {
             let keycode = key_to_keycode(key).unwrap();
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
-                let input = keybd_event(keyflags, keycode, 0u16);
-                send_input(input)?;
-            }
-            if direction == Direction::Click {
-                thread::sleep(time::Duration::from_millis(self.delay as u64));
+                input.push(keybd_event(keyflags, keycode, 0u16));
             }
             if direction == Direction::Click || direction == Direction::Release {
-                let input = keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16);
-                send_input(input)?;
+                input.push(keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16));
             }
         };
-        Ok(())
+        send_input(&input)
     }
 }
 
@@ -346,7 +342,6 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
         let EnigoSettings {
-            win_delay: delay,
             release_keys_when_dropped,
             ..
         } = settings;
@@ -355,19 +350,7 @@ impl Enigo {
         Ok(Self {
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
-            delay: *delay,
         })
-    }
-
-    /// Get the delay per keypress in milliseconds
-    #[must_use]
-    pub fn delay(&self) -> u32 {
-        self.delay
-    }
-
-    /// Set the delay per keypress in milliseconds
-    pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay;
     }
 
     #[allow(clippy::unused_self)]

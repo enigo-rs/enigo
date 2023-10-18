@@ -562,8 +562,6 @@ impl Error for NewConError {}
 #[allow(dead_code)] // It is not dead code on other platforms
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnigoSettings {
-    /// Sleep delay on Windows
-    win_delay: u32,
     /// Sleep delay on macOS
     mac_delay: u32,
     /// Sleep delay on Linux X11
@@ -580,7 +578,6 @@ pub struct EnigoSettings {
 impl Default for EnigoSettings {
     fn default() -> Self {
         Self {
-            win_delay: 20,
             mac_delay: 20,
             linux_delay: 12,
             x11_display: None,
