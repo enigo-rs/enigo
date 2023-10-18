@@ -261,8 +261,7 @@ impl KeyboardControllableNext for Enigo {
             // characters can be 32 bit long and those are
             // encoded in what is called high and low surrogates.
             // Each are 16 bit wide and need to be sent after
-            // another to the SendInput function without
-            // being interrupted by "keyup"
+            // another to the SendInput function
             let result = c.encode_utf16(&mut buffer);
             for &utf16_surrogate in &*result {
                 input.push(keybd_event(
@@ -270,9 +269,6 @@ impl KeyboardControllableNext for Enigo {
                     VIRTUAL_KEY(0),
                     utf16_surrogate,
                 ));
-            }
-            // Only if the length was 1 do we have to send a "keyup"
-            if result.len() == 1 {
                 input.push(keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
