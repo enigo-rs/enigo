@@ -190,7 +190,7 @@ impl MouseControllableNext for Enigo {
             x_absolute,
             y_absolute,
         );
-        send_input(&vec![input])?;
+        send_input(&[input])?;
 
         // This also moves the mouse but is not subject to mouse accelleration
         // Sometimes the send_input is not enough
@@ -212,7 +212,7 @@ impl MouseControllableNext for Enigo {
             }
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
-        send_input(&vec![input])?;
+        send_input(&[input])?;
         Ok(())
     }
 

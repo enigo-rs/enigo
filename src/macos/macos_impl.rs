@@ -10,7 +10,7 @@ use core_graphics::event::{
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{

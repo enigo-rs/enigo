@@ -619,12 +619,12 @@ impl Display for InputError {
             InputError::Mapping(e) => format!("error when mapping keycode to keysym: ({e})"),
             InputError::Unmapping(e) => format!("error when unmapping keysym: ({e})"),
             InputError::NoEmptyKeycodes => {
-                format!("there were no empty keycodes that could be used")
+                "there were no empty keycodes that could be used".to_string()
             }
             InputError::Simulate(e) => format!("simulating input failed: ({e})"),
             InputError::InvalidInput(e) => format!("you tried to simulate invalid input: ({e})"),
         };
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }
 
@@ -645,14 +645,15 @@ impl Display for NewConError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let string = match self {
             NewConError::EstablishCon(e) => format!("no connection could be established: ({e})"),
-            NewConError::Reply => format!(
+            NewConError::Reply => {
                 "there was an error with the reply from the display server. this should not happen"
-            ),
+                    .to_string()
+            }
             NewConError::NoEmptyKeycodes => {
-                format!("there were no empty keycodes that could be used")
+                "there were no empty keycodes that could be used".to_string()
             }
         };
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }
 
