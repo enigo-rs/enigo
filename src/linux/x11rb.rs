@@ -243,6 +243,11 @@ impl KeyboardControllableNext for Con {
             })?;
 
         self.keymap.last_event_before_delays = std::time::Instant::now();
+
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.enter_key(keycode, direction);
+
         Ok(())
     }
 }

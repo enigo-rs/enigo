@@ -590,6 +590,11 @@ impl KeyboardControllableNext for Con {
         } else {
             self.send_key_event(keycode, direction)?;
         }
+
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.enter_key(keycode, direction);
+
         Ok(())
     }
 }

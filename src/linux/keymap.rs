@@ -5,7 +5,7 @@ use std::fmt::Display;
 use log::debug;
 pub(super) use xkbcommon::xkb::Keysym;
 
-use crate::{InputError, InputResult, Key};
+use crate::{Direction, InputError, InputResult, Key};
 
 #[cfg(feature = "wayland")]
 pub(super) type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
@@ -21,6 +21,8 @@ const DEFAULT_DELAY: u32 = 12;
 pub struct KeyMap<Keycode> {
     pub(super) keymap: HashMap<Keysym, Keycode>,
     unused_keycodes: VecDeque<Keycode>,
+    protected_keycodes: Vec<Keycode>, /* These keycodes cannot be unmapped, because they are
+                                       * currently held */
     needs_regeneration: bool,
     #[cfg(feature = "wayland")]
     pub(super) file: Option<std::fs::File>, // Temporary file that contains the keymap
@@ -59,6 +61,7 @@ where
         let capacity: usize = keycode_max.try_into().unwrap() - keycode_min.try_into().unwrap();
         let capacity = capacity + 1;
         let keymap = HashMap::with_capacity(capacity);
+        let held_keycodes = vec![];
         let needs_regeneration = true;
         #[cfg(feature = "wayland")]
         let file = None;
@@ -75,6 +78,7 @@ where
         Self {
             keymap,
             unused_keycodes,
+            protected_keycodes: held_keycodes,
             needs_regeneration,
             #[cfg(feature = "wayland")]
             file,
@@ -204,13 +208,23 @@ where
     pub fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<bool> {
         // Unmap all keys, if all keycodes are already being used
         // TODO: Don't unmap the keycodes if they will be needed next
-        // TODO: Don't unmap held keys!
         if self.unused_keycodes.is_empty() {
             let mapped_keys = self.keymap.clone();
-            for (sym, keycode) in mapped_keys {
+            let held_keycodes = self.protected_keycodes.clone();
+            let mut made_room = false;
+
+            for (&sym, &keycode) in mapped_keys
+                .iter()
+                .filter(|(_, keycode)| !held_keycodes.contains(keycode))
+            {
                 self.unmap(c, sym, keycode)?;
+                made_room = true;
             }
-            return Ok(true);
+            if made_room {
+                return Ok(true);
+            } else {
+                return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
+            }
         }
         Ok(false)
     }
@@ -292,6 +306,20 @@ where
                 self.modifiers
             }
             crate::Direction::Click => self.modifiers,
+        }
+    }
+
+    pub fn enter_key(&mut self, keycode: Keycode, direction: Direction) {
+        match direction {
+            Direction::Press => {
+                debug!("added the key {keycode} to the held keycodes");
+                self.protected_keycodes.push(keycode);
+            }
+            Direction::Release => {
+                debug!("removed the key {keycode} from the held keycodes");
+                self.protected_keycodes.retain(|&k| k != keycode);
+            }
+            Direction::Click => (),
         }
     }
 }
