@@ -183,12 +183,10 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        self.keymap.make_room(&())?;
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
-        self.keymap.update_delays(keycode);
 
         let detail = keycode;
-        let time = self.keymap.pending_delays;
+        let time = self.keymap.pending_delays();
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
@@ -217,7 +215,7 @@ impl KeyboardControllableNext for Con {
 
         // TODO: Check if we need to update the delays again
         // self.keymap.update_delays(keycode);
-        // let time = self.keymap.pending_delays;
+        // let time = self.keymap.pending_delays();
 
         if direction == Direction::Release || direction == Direction::Click {
             self.connection
@@ -241,8 +239,6 @@ impl KeyboardControllableNext for Con {
                 error!("{e}");
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
-
-        self.keymap.last_event_before_delays = std::time::Instant::now();
 
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys

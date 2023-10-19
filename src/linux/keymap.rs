@@ -33,9 +33,9 @@ pub struct KeyMap<Keycode> {
     #[cfg(feature = "x11rb")]
     delay: u32, // milliseconds
     #[cfg(feature = "x11rb")]
-    pub(super) last_event_before_delays: std::time::Instant, // Time of the last event
+    last_event_before_delays: std::time::Instant, // Time of the last event
     #[cfg(feature = "x11rb")]
-    pub(super) pending_delays: u32,
+    pending_delays: u32,
 }
 
 // TODO: Check if the bounds can be simplified
@@ -112,6 +112,8 @@ where
                     // The keysym is already mapped and cached in the keymap
                     keycode
                 } else {
+                    // Unmap keysyms if there are no unused keycodes
+                    self.make_room(c)?;
                     // The keysym needs to get mapped to an unused keycode.
                     // Always map the keycode if it has not yet been mapped, so it is layer agnostic
                     self.map(c, sym)?
@@ -119,7 +121,15 @@ where
             }
         };
 
+        #[cfg(feature = "x11rb")]
+        self.update_delays(keycode);
         Ok(keycode)
+    }
+
+    /// Get the pending delay
+    #[cfg(feature = "x11rb")]
+    pub fn pending_delays(&self) -> u32 {
+        self.pending_delays
     }
 
     /// Add the Keysym to the keymap
@@ -139,10 +149,7 @@ where
                 };
                 self.needs_regeneration = true;
                 self.keymap.insert(keysym, unused_keycode);
-                debug!(
-                    "Succeeded to map keycode {} to keysym {:?}",
-                    unused_keycode, keysym
-                );
+                debug!("mapped keycode {} to keysym {:?}", unused_keycode, keysym);
                 Ok(unused_keycode)
             }
             // All keycodes are being used. A mapping is not possible
@@ -166,14 +173,13 @@ where
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.keymap.remove(&keysym);
-        debug!("Unmapped keysym {:?}", keysym);
+        debug!("unmapped keysym {:?}", keysym);
         Ok(())
     }
 
     // Update the delay
     // TODO: A delay of 1 ms in all cases seems to work on my machine. Maybe
     // this is not needed?
-    // TODO: Only needed for x11rb
     #[cfg(feature = "x11rb")]
     pub fn update_delays(&mut self, keycode: Keycode) {
         // Check if a delay is needed
@@ -206,7 +212,7 @@ where
     /// make some room by freeing the already mapped keycodes.
     /// Returns true, if keys were unmapped and the keymap needs to be
     /// regenerated
-    pub fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<bool> {
+    fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
         // Unmap all keys, if all keycodes are already being used
         // TODO: Don't unmap the keycodes if they will be needed next
         if self.unused_keycodes.is_empty() {
@@ -222,11 +228,11 @@ where
                 made_room = true;
             }
             if made_room {
-                return Ok(true);
+                return Ok(());
             }
             return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
         }
-        Ok(false)
+        Ok(())
     }
 
     /// Regenerate the keymap if there were any changes
@@ -320,6 +326,11 @@ where
                 self.protected_keycodes.retain(|&k| k != keycode);
             }
             Direction::Click => (),
+        }
+
+        #[cfg(feature = "x11rb")]
+        {
+            self.last_event_before_delays = std::time::Instant::now();
         }
     }
 }

@@ -566,9 +566,6 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        if self.keymap.make_room(&())? {
-            self.apply_keymap()?;
-        }
         let keycode = self.keymap.key_to_keycode(&(), key)?;
 
         // Apply the new keymap if there were any changes
