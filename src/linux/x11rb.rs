@@ -176,7 +176,7 @@ impl Bind<Keycode> for CompositorConnection {
 
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
-        warn!("fast text entry is not yet implemented with xdo");
+        warn!("fast text entry is not yet implemented with x11rb");
         // TODO: Add fast method
         // xdotools can do it, so it is possible
         Ok(None)

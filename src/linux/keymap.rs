@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
 
-use log::debug;
+use log::{debug, trace};
 pub(super) use xkbcommon::xkb::Keysym;
 
 use crate::{Direction, InputError, InputResult, Key};
@@ -129,9 +129,10 @@ where
         match self.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
-                debug!(
+                trace!(
                     "trying to map keycode {} to keysym {:?}",
-                    unused_keycode, keysym
+                    unused_keycode,
+                    keysym
                 );
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));
@@ -158,14 +159,14 @@ where
         keysym: Keysym,
         keycode: Keycode,
     ) -> InputResult<()> {
-        debug!("trying to unmap keysym {:?}", keysym);
+        trace!("trying to unmap keysym {:?}", keysym);
         if c.bind_key(keycode, NO_SYMBOL).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
         };
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.keymap.remove(&keysym);
-        debug!("Succeeded to unmap keysym {:?}", keysym);
+        debug!("Unmapped keysym {:?}", keysym);
         Ok(())
     }
 
@@ -222,9 +223,8 @@ where
             }
             if made_room {
                 return Ok(true);
-            } else {
-                return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
             }
+            return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
         }
         Ok(false)
     }

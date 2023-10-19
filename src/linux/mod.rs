@@ -1,4 +1,4 @@
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 
 use crate::{
     Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
@@ -146,20 +146,20 @@ impl MouseControllableNext for Enigo {
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            debug!("try sending button event via wayland");
+            trace!("try sending button event via wayland");
             con.send_mouse_button_event(button, direction)?;
-            debug!("successfully sent button event via wayland");
+            debug!("sent button event via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            debug!("try sending button event via x11");
+            trace!("try sending button event via x11");
             con.send_mouse_button_event(button, direction)?;
-            debug!("successfully sent button event via x11");
+            debug!("sent button event via x11");
             success = true;
         }
         if success {
-            debug!("successfully sent button event");
+            debug!("sent button event");
             Ok(())
         } else {
             Err(InputError::Simulate("No protocol to enter the result"))
@@ -176,20 +176,20 @@ impl MouseControllableNext for Enigo {
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            debug!("try moving the mouse via wayland");
+            trace!("try moving the mouse via wayland");
             con.send_motion_notify_event(x, y, coordinate)?;
-            debug!("successfully moved the mouse via wayland");
+            debug!("moved the mouse via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            debug!("try moving the mouse via x11");
+            trace!("try moving the mouse via x11");
             con.send_motion_notify_event(x, y, coordinate)?;
-            debug!("successfully moved the mouse via x11");
+            debug!("moved the mouse via x11");
             success = true;
         }
         if success {
-            debug!("successfully moved the mouse");
+            debug!("moved the mouse");
             Ok(())
         } else {
             Err(InputError::Simulate("No protocol to enter the result"))
@@ -201,20 +201,20 @@ impl MouseControllableNext for Enigo {
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            debug!("try scrolling via wayland");
+            trace!("try scrolling via wayland");
             con.mouse_scroll_event(length, axis)?;
-            debug!("successfully scrolled via wayland");
+            debug!("scrolled via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            debug!("try scrolling via x11");
+            trace!("try scrolling via x11");
             con.mouse_scroll_event(length, axis)?;
-            debug!("successfully scrolled via x11");
+            debug!("scrolled via x11");
             success = true;
         }
         if success {
-            debug!("successfully scrolled");
+            debug!("scrolled");
             Ok(())
         } else {
             Err(InputError::Simulate("No protocol to enter the result"))
@@ -225,12 +225,12 @@ impl MouseControllableNext for Enigo {
         debug!("\x1b[93mmain_display()\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
-            debug!("try getting the dimensions of the display via wayland");
+            trace!("try getting the dimensions of the display via wayland");
             return con.main_display();
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
-            debug!("try getting the dimensions of the display via x11");
+            trace!("try getting the dimensions of the display via x11");
             return con.main_display();
         }
         Err(InputError::Simulate("No protocol to enter the result"))
@@ -240,12 +240,12 @@ impl MouseControllableNext for Enigo {
         debug!("\x1b[93mmouse_loc()\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
-            debug!("try getting the mouse location via wayland");
+            trace!("try getting the mouse location via wayland");
             return con.mouse_loc();
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
-            debug!("try getting the mouse location via x11");
+            trace!("try getting the mouse location via x11");
             return con.mouse_loc();
         }
         Err(InputError::Simulate("No protocol to enter the result"))
@@ -257,15 +257,15 @@ impl KeyboardControllableNext for Enigo {
         debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            debug!("try entering text fast via wayland");
+            trace!("try entering text fast via wayland");
             con.enter_text(text)?;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            debug!("try entering text fast via x11");
+            trace!("try entering text fast via x11");
             con.enter_text(text)?;
         }
-        debug!("successfully entered text fast");
+        debug!("entered the text fast");
         Ok(Some(()))
     }
 
@@ -279,15 +279,15 @@ impl KeyboardControllableNext for Enigo {
 
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
-            debug!("try entering the key via wayland");
+            trace!("try entering the key via wayland");
             con.enter_key(key, direction)?;
-            debug!("successfully entered the key via wayland");
+            debug!("entered the key via wayland");
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
-            debug!("try entering the key via x11");
+            trace!("try entering the key via x11");
             con.enter_key(key, direction)?;
-            debug!("successfully entered the key via x11");
+            debug!("entered the key via x11");
         }
 
         match direction {
@@ -302,7 +302,7 @@ impl KeyboardControllableNext for Enigo {
             Direction::Click => (),
         }
 
-        debug!("successfully entered the key");
+        debug!("entered the key");
         Ok(())
     }
 }
