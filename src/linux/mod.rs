@@ -62,7 +62,7 @@ impl Enigo {
                 Some(con)
             }
             Err(e) => {
-                warn!("failed to establish wayland connection: {e}");
+                warn!("{e}");
                 None
             }
         };

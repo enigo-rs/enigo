@@ -145,6 +145,12 @@ impl Con {
         }
         let keymap = KeyMap::new(8, 255, unused_keycodes);
 
+        if virtual_keyboard.is_none() && input_method.is_none() && virtual_pointer.is_none() {
+            return Err(NewConError::EstablishCon(
+                "no protocol available to simulate input",
+            ));
+        }
+
         Ok(Self {
             keymap,
             event_queue,

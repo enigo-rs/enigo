@@ -615,7 +615,16 @@ pub enum InputError {
 
 impl Display for InputError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "error establishing X11 connection with x11rb")
+        let string = match self {
+            InputError::Mapping(e) => format!("error when mapping keycode to keysym: ({e})"),
+            InputError::Unmapping(e) => format!("error when unmapping keysym: ({e})"),
+            InputError::NoEmptyKeycodes => {
+                format!("there were no empty keycodes that could be used")
+            }
+            InputError::Simulate(e) => format!("simulating input failed: ({e})"),
+            InputError::InvalidInput(e) => format!("you tried to simulate invalid input: ({e})"),
+        };
+        write!(f, "{}", string)
     }
 }
 
@@ -634,7 +643,16 @@ pub enum NewConError {
 
 impl Display for NewConError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "error establishing X11 connection with x11rb")
+        let string = match self {
+            NewConError::EstablishCon(e) => format!("no connection could be established: ({e})"),
+            NewConError::Reply => format!(
+                "there was an error with the reply from the display server. this should not happen"
+            ),
+            NewConError::NoEmptyKeycodes => {
+                format!("there were no empty keycodes that could be used")
+            }
+        };
+        write!(f, "{}", string)
     }
 }
 
