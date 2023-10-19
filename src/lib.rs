@@ -563,16 +563,16 @@ impl Error for NewConError {}
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnigoSettings {
     /// Sleep delay on macOS
-    mac_delay: u32,
+    pub mac_delay: u32,
     /// Sleep delay on Linux X11
-    linux_delay: u32,
+    pub linux_delay: u32,
     /// Display name to connect to when using Linux X11
-    x11_display: Option<String>,
+    pub x11_display: Option<String>,
     /// Display name to connect to when using Linux Wayland
-    wayland_display: Option<String>,
+    pub wayland_display: Option<String>,
     /// Set this to true if you want all held keys to get released when Enigo
     /// gets dropped
-    release_keys_when_dropped: bool,
+    pub release_keys_when_dropped: bool,
 }
 
 impl Default for EnigoSettings {
