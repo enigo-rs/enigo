@@ -195,8 +195,8 @@ impl KeyboardControllableNext for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
         debug!(
-            "xtest_fake_input with keycode {}, deviceid {}",
-            detail, deviceid
+            "xtest_fake_input with keycode {}, deviceid {}, delay {}",
+            detail, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -271,8 +271,8 @@ impl MouseControllableNext for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with button {}, deviceid {}",
-            detail, deviceid
+            "xtest_fake_input with button {}, deviceid {}, delay {}",
+            detail, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -347,8 +347,8 @@ impl MouseControllableNext for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}",
-            detail, deviceid, root_x, root_y
+            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}, delay {}",
+            detail, deviceid, root_x, root_y, time
         );
 
         self.connection
