@@ -1,6 +1,9 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::env;
 use std::os::unix::io::AsFd;
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
 use std::time::Instant;
 
 use wayland_client::{
@@ -34,6 +37,20 @@ pub struct Con {
     base_time: std::time::Instant,
 }
 
+/*
+if let Ok(Ok(conn)) = std::env::var("WAYLAND_DISPLAY")
+        .map_err(anyhow::Error::msg)
+        .map(|display_str| {
+            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+                .map(Into::<PathBuf>::into)
+                .ok_or(ConnectError::NoCompositor)?;
+            socket_path.push(display_str);
+
+            Ok(UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositor)?)
+        })
+        .and_then(|s| s.map(|s| Connection::from_socket(s).map_err(anyhow::Error::msg)))
+*/
+
 impl Con {
     /// Tries to establish a new Wayland connection
     ///
@@ -41,7 +58,22 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: &Option<String>) -> Result<Self, NewConError> {
         // Setup Wayland Connection
-        let connection = match Connection::connect_to_env() {
+        let connection = match dpy_name {
+            Some(dyp_name) => {
+                let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+                    .map(Into::<PathBuf>::into)
+                    .ok_or(NewConError::EstablishCon(
+                        "no XDG_RUNTIME_DIR env variable found",
+                    ))?;
+                socket_path.push(dyp_name);
+                let stream = UnixStream::connect(socket_path)
+                    .map_err(|_| NewConError::EstablishCon("unable to open unix stream"))?;
+                Connection::from_socket(stream)
+            }
+            None => Connection::connect_to_env(),
+        };
+
+        let connection = match connection {
             Ok(connection) => connection,
             Err(e) => {
                 println!("{e:?}");
