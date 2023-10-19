@@ -54,6 +54,8 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
+use log::{debug, error};
+
 /// DSL parser module
 ///
 /// The current status is that you can just print [unicode](http://unicode.org/) characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
@@ -131,8 +133,13 @@ where
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Absolute)
-            .unwrap();
+        match self.send_motion_notify_event(x, y, Coordinate::Absolute) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Move the mouse cursor the specified amount in the x and y
@@ -149,8 +156,13 @@ where
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        self.send_motion_notify_event(x, y, Coordinate::Relative)
-            .unwrap();
+        match self.send_motion_notify_event(x, y, Coordinate::Relative) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Push down the mouse button specified by the parameter
@@ -168,8 +180,13 @@ where
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Press)
-            .unwrap();
+        match self.send_mouse_button_event(button, Direction::Press) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Release a pushed down mouse button
@@ -190,8 +207,13 @@ where
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Release)
-            .unwrap();
+        match self.send_mouse_button_event(button, Direction::Release) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Click a mouse button
@@ -209,8 +231,13 @@ where
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
-        self.send_mouse_button_event(button, Direction::Click)
-            .unwrap();
+        match self.send_mouse_button_event(button, Direction::Click) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Scroll the mouse (wheel) left or right
@@ -229,7 +256,13 @@ where
     /// enigo.mouse_scroll_x(2);
     /// ```
     fn mouse_scroll_x(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Horizontal).unwrap();
+        match self.mouse_scroll_event(length, Axis::Horizontal) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Scroll the mouse (wheel) up or down
@@ -248,7 +281,13 @@ where
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32) {
-        self.mouse_scroll_event(length, Axis::Vertical).unwrap();
+        match self.mouse_scroll_event(length, Axis::Vertical) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Get the (width, height) of the main display in screen coordinates
@@ -263,7 +302,13 @@ where
     /// ```
     #[must_use]
     fn main_display_size(&self) -> (i32, i32) {
-        self.main_display().unwrap()
+        match self.main_display() {
+            Ok(dpy) => dpy,
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Get the location of the mouse in screen coordinates (pixels).
@@ -277,7 +322,13 @@ where
     /// ```
     #[must_use]
     fn mouse_location(&self) -> (i32, i32) {
-        self.mouse_loc().unwrap()
+        match self.mouse_loc() {
+            Ok(loc) => loc,
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 }
 
@@ -332,24 +383,48 @@ where
     /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str) {
-        self.enter_text(sequence).unwrap();
+        match self.enter_text(sequence) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Press down the given key
     fn key_down(&mut self, key: Key) {
-        self.enter_key(key, Direction::Press).unwrap();
+        match self.enter_key(key, Direction::Press) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Release a pressed down key
     fn key_up(&mut self, key: Key) {
-        self.enter_key(key, Direction::Release).unwrap();
+        match self.enter_key(key, Direction::Release) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 
     /// Press and release the key. It is the same as calling the
     /// [`KeyboardControllable::key_down`] and
     /// [`KeyboardControllable::key_up`] functions consecutively
     fn key_click(&mut self, key: Key) {
-        self.enter_key(key, Direction::Click).unwrap();
+        match self.enter_key(key, Direction::Click) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{e}");
+                panic!()
+            }
+        }
     }
 }
 
@@ -408,21 +483,28 @@ pub trait KeyboardControllableNext {
     /// conditions an error will be returned.
     fn enter_text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
+            debug!("The text to enter was empty");
             return Ok(()); // Nothing to simulate.
         }
 
         // Fall back to entering single keys if no fast text entry is available
         let fast_text_res = self.fast_text_entry(text);
         match fast_text_res {
-            Ok(o) => {
-                if o.is_none() {
-                    for c in text.chars() {
-                        self.enter_key(Key::Layout(c), Direction::Click)?;
-                    }
+            Ok(Some(())) => {
+                debug!("fast text entry was successful");
+                Ok(())
+            }
+            Ok(None) => {
+                debug!("fast text entry not available. Trying to enter individual letters now");
+                for c in text.chars() {
+                    self.enter_key(Key::Layout(c), Direction::Click)?;
                 }
                 Ok(())
             }
-            Err(e) => Err(e),
+            Err(e) => {
+                error!("{e}");
+                Err(e)
+            }
         }
     }
 
@@ -577,6 +659,7 @@ pub struct EnigoSettings {
 
 impl Default for EnigoSettings {
     fn default() -> Self {
+        debug!("using default settings");
         Self {
             mac_delay: 20,
             linux_delay: 12,

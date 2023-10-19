@@ -10,6 +10,7 @@ use core_graphics::event::{
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+use log::{debug, error, info, trace};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
@@ -162,6 +163,9 @@ impl MouseControllableNext for Enigo {
         button: MouseButton,
         direction: Direction,
     ) -> InputResult<()> {
+        debug!(
+            "\x1b[93msend_mouse_button_event(button: {button:?}, direction: {direction:?})\x1b[0m"
+        );
         let (current_x, current_y) = self.mouse_loc()?;
 
         if direction == Direction::Click || direction == Direction::Press {
@@ -185,6 +189,7 @@ impl MouseControllableNext for Enigo {
                 ));
             };
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
+
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
@@ -197,7 +202,7 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollDown
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
-                    println!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
+                    info!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
                     return Ok(());
                 }
             };
@@ -211,6 +216,7 @@ impl MouseControllableNext for Enigo {
             };
 
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
+
             event.post(CGEventTapLocation::HID);
         }
         Ok(())
@@ -224,6 +230,7 @@ impl MouseControllableNext for Enigo {
         y: i32,
         coordinate: Coordinate,
     ) -> InputResult<()> {
+        debug!("\x1b[93msend_motion_notify_event(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let pressed = Self::pressed_buttons()?;
         let (current_x, current_y) = self.mouse_loc()?;
 
@@ -260,12 +267,14 @@ impl MouseControllableNext for Enigo {
             core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
             relative.1.into(),
         );
+
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
         let (ax, len_x, len_y) = match axis {
             Axis::Horizontal => (2, 0, -length),
             Axis::Vertical => (1, -length, 0),
@@ -287,6 +296,7 @@ impl MouseControllableNext for Enigo {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mmain_display()\x1b[0m");
         Ok((
             self.display.pixels_wide() as i32,
             self.display.pixels_high() as i32,
@@ -294,6 +304,7 @@ impl MouseControllableNext for Enigo {
     }
 
     fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mmouse_loc()\x1b[0m");
         let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
             "failed creating event to get the mouse location",
         ))?;
@@ -327,6 +338,7 @@ impl KeyboardControllableNext for Enigo {
             })
         }
 
+        debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(chunk)) truncates strings down to 20 characters
@@ -337,6 +349,7 @@ impl KeyboardControllableNext for Enigo {
                 ));
             };
             event.set_string(chunk);
+
             event.post(CGEventTapLocation::HID);
         }
         thread::sleep(Duration::from_millis(2));
@@ -345,13 +358,20 @@ impl KeyboardControllableNext for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
         if key == Key::Layout('\0') {
             return Ok(());
         }
         match direction {
-            Direction::Press => self.held.push(key),
-            Direction::Release => self.held.retain(|&k| k != key),
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
             Direction::Click => (),
         }
 
@@ -365,6 +385,7 @@ impl KeyboardControllableNext for Enigo {
                     "failed creating event to press the key",
                 ));
             };
+
             event.post(CGEventTapLocation::HID);
         }
 
@@ -376,6 +397,7 @@ impl KeyboardControllableNext for Enigo {
                     "failed creating event to release the key",
                 ));
             };
+
             event.post(CGEventTapLocation::HID);
         }
         Ok(())
@@ -407,6 +429,8 @@ impl Enigo {
         else {
             return Err(NewConError::EstablishCon("failed creating event source"));
         };
+
+        debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
         Ok(Enigo {
             delay: (*delay).into(),
@@ -442,7 +466,9 @@ impl Enigo {
         let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
             "failed creating event to get the pressed mouse buttons",
         ))?;
-        Ok(unsafe { msg_send![ns_event, pressedMouseButtons] })
+        let pressed_buttons = unsafe { msg_send![ns_event, pressedMouseButtons] };
+        debug!("pressed_buttons: {pressed_buttons}");
+        Ok(pressed_buttons)
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
@@ -461,7 +487,9 @@ impl Enigo {
                 self.last_mouse_click[button as usize].0 = 1;
             }
         }
-        self.last_mouse_click[button as usize].0
+        let nth_button_press = self.last_mouse_click[button as usize].0;
+        debug!("nth_button_press: {nth_button_press}");
+        nth_button_press
     }
     fn key_to_keycode(&self, key: Key) -> CGKeyCode {
         // A list of names is available at:
@@ -530,7 +558,7 @@ impl Enigo {
         for keycode in 0..128 {
             // no modifier
             if let Some(key_string) = self.keycode_to_string(keycode, 0x100) {
-                // println!("{:?}", string);
+                // debug!("{:?}", string);
                 if string == key_string {
                     pressed_keycode = keycode;
                 }
@@ -538,7 +566,7 @@ impl Enigo {
 
             // shift modifier
             if let Some(key_string) = self.keycode_to_string(keycode, 0x20102) {
-                // println!("{:?}", string);
+                // debug!("{:?}", string);
                 if string == key_string {
                     pressed_keycode = keycode;
                 }
@@ -546,11 +574,11 @@ impl Enigo {
 
             // alt modifier
             // if let Some(string) = self.keycode_to_string(keycode, 0x80120) {
-            //     println!("{:?}", string);
+            //     debug!("{:?}", string);
             // }
             // alt + shift modifier
             // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
-            //     println!("{:?}", string);
+            //     debug!("{:?}", string);
             // }
         }
 
@@ -579,6 +607,7 @@ impl Enigo {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
         if layout_data.is_null() {
+            debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL");
             // TISGetInputSourceProperty returns null with some keyboard layout.
             // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
             // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
@@ -621,8 +650,9 @@ impl Drop for Enigo {
         }
         for &k in &self.held() {
             if self.enter_key(k, Direction::Release).is_err() {
-                println!("unable to release {k:?}");
+                error!("unable to release {k:?}");
             };
         }
+        debug!("released all held keys");
     }
 }
