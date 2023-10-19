@@ -276,17 +276,6 @@ impl KeyboardControllableNext for Enigo {
             debug!("entering the null byte is a noop");
             return Ok(());
         }
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
-            }
-            Direction::Click => (),
-        }
 
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
@@ -300,6 +289,19 @@ impl KeyboardControllableNext for Enigo {
             con.enter_key(key, direction)?;
             debug!("successfully entered the key via x11");
         }
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
         debug!("successfully entered the key");
         Ok(())
     }

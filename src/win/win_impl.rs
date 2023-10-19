@@ -297,17 +297,6 @@ impl KeyboardControllableNext for Enigo {
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
-            }
-            Direction::Click => (),
-        }
 
         if let Key::Layout(c) = key {
             // Handle special characters seperately
@@ -349,7 +338,21 @@ impl KeyboardControllableNext for Enigo {
                 input.push(keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16));
             }
         };
-        send_input(&input)
+        send_input(&input)?;
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
     }
 }
 
