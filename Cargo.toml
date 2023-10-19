@@ -29,6 +29,7 @@ wayland = [
 ]
 
 [dependencies]
+log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -65,6 +66,7 @@ xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
+env_logger = "0.10"
 tungstenite = "0.20"
 url = "2"
 webbrowser = "0.8"

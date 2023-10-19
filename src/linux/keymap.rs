@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
 
+use log::debug;
 pub(super) use xkbcommon::xkb::Keysym;
 
 use crate::{InputError, InputResult, Key};
@@ -124,11 +125,19 @@ where
         match self.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
+                debug!(
+                    "trying to map keycode {} to keysym {:?}",
+                    unused_keycode, keysym
+                );
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));
                 };
                 self.needs_regeneration = true;
                 self.keymap.insert(keysym, unused_keycode);
+                debug!(
+                    "Succeeded to map keycode {} to keysym {:?}",
+                    unused_keycode, keysym
+                );
                 Ok(unused_keycode)
             }
             // All keycodes are being used. A mapping is not possible
@@ -145,12 +154,14 @@ where
         keysym: Keysym,
         keycode: Keycode,
     ) -> InputResult<()> {
+        debug!("trying to unmap keysym {:?}", keysym);
         if c.bind_key(keycode, NO_SYMBOL).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
         };
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.keymap.remove(&keysym);
+        debug!("Succeeded to unmap keysym {:?}", keysym);
         Ok(())
     }
 
@@ -177,8 +188,10 @@ where
                 .try_into()
                 .unwrap_or(u32::MAX);
             self.pending_delays = self.delay.saturating_sub(elapsed_ms);
+            debug!("delay needed");
             self.last_keys.clear();
         } else {
+            debug!("no delay needed");
             self.pending_delays = 1;
         }
         self.last_keys.push(keycode);
@@ -215,6 +228,7 @@ where
 
         // Don't do anything if there were no changes
         if !self.needs_regeneration {
+            debug!("keymap did not change and does not require regeneration");
             return Ok(None);
         }
 
@@ -248,7 +262,10 @@ where
         keymap_file.set_len(keymap_len)?;
         self.needs_regeneration = false;
         match keymap_len.try_into() {
-            Ok(v) => Ok(Some(v)),
+            Ok(v) => {
+                debug!("regenerated the keymap");
+                Ok(Some(v))
+            }
             Err(_) => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "the length of the new keymap exceeds the u32::MAX",

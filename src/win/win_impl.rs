@@ -1,5 +1,6 @@
 use std::mem::size_of;
 
+use log::{debug, error, info};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
@@ -72,11 +73,16 @@ fn send_input(input: &[INPUT]) -> InputResult<()> {
             "the size of the INPUT was so large, the size exceeded i32::MAX",
         ));
     };
-    if unsafe { SendInput(input, input_size) } == input.len().try_into().unwrap() {
+    let Ok(input_len) = input.len().try_into() else {
+        return Err(InputError::InvalidInput(
+            "the number of INPUT was so large, the length of the Vec exceeded i32::MAX",
+        ));
+    };
+    if unsafe { SendInput(input, input_size) } == input_len {
         Ok(())
     } else {
         let last_err = std::io::Error::last_os_error();
-        println!("{last_err}");
+        error!("{last_err}");
         Err(InputError::Simulate(
             "not all input events were sent. they may have been blocked by UIPI",
         ))
@@ -121,6 +127,9 @@ impl MouseControllableNext for Enigo {
         button: MouseButton,
         direction: Direction,
     ) -> InputResult<()> {
+        debug!(
+            "\x1b[93msend_mouse_button_event(button: {button:?}, direction: {direction:?})\x1b[0m"
+        );
         let mut input = vec![];
         let button_no = match button {
             MouseButton::Back => 1,
@@ -150,7 +159,7 @@ impl MouseControllableNext for Enigo {
                 | MouseButton::ScrollDown
                 | MouseButton::ScrollLeft
                 | MouseButton::ScrollRight => {
-                    println!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
+                    info!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
                     return Ok(());
                 }
             };
@@ -167,6 +176,7 @@ impl MouseControllableNext for Enigo {
         y: i32,
         coordinate: Coordinate,
     ) -> InputResult<()> {
+        debug!("\x1b[93msend_motion_notify_event(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
             let (x_absolute, y_absolute) = self.mouse_loc()?;
             (x_absolute + x, y_absolute + y)
@@ -195,6 +205,7 @@ impl MouseControllableNext for Enigo {
 
     // Sends a scroll event to the X11 server via `XTest` extension
     fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
         let input = match axis {
             Axis::Horizontal => {
                 mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
@@ -206,6 +217,7 @@ impl MouseControllableNext for Enigo {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mmain_display()\x1b[0m");
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
         let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         if w == 0 || h == 0 {
@@ -220,6 +232,7 @@ impl MouseControllableNext for Enigo {
     }
 
     fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mmouse_loc()\x1b[0m");
         let mut point = POINT { x: 0, y: 0 };
         if unsafe { GetCursorPos(&mut point) }.is_ok() {
             Ok((point.x, point.y))
@@ -240,6 +253,7 @@ impl KeyboardControllableNext for Enigo {
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
     fn enter_text(&mut self, text: &str) -> InputResult<()> {
+        debug!("\x1b[93menter_text(text: {text})\x1b[0m");
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
         }
@@ -281,10 +295,17 @@ impl KeyboardControllableNext for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
         match direction {
-            Direction::Press => self.held.push(key),
-            Direction::Release => self.held.retain(|&k| k != key),
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
             Direction::Click => (),
         }
 
@@ -295,7 +316,10 @@ impl KeyboardControllableNext for Enigo {
                 '\r' => { // TODO: What is the correct key to type here?
                 }
                 '\t' => return self.enter_key(Key::Tab, direction),
-                '\0' => return Ok(()),
+                '\0' => {
+                    debug!("entering Key::Layout('\\0') is a noop");
+                    return Ok(());
+                }
                 _ => (),
             }
             let scancodes = self.get_scancode(c)?;
@@ -343,6 +367,9 @@ impl Enigo {
         } = settings;
 
         let held = vec![];
+
+        debug!("\x1b[93mconnection established on windows\x1b[0m");
+
         Ok(Self {
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
@@ -370,7 +397,7 @@ impl Enigo {
                 }
                 Ok(keystate) => keystate,
                 Err(e) => {
-                    println!("{e:?}");
+                    error!("{e:?}");
                     return Err(InputError::InvalidInput(
                         "key state could not be converted to u32",
                     ));
@@ -386,7 +413,7 @@ impl Enigo {
                     scancodes.push(scan_code);
                 }
                 Err(e) => {
-                    println!("{e:?}");
+                    error!("{e:?}");
                     return Err(InputError::InvalidInput("scan code did not fit into u16"));
                 }
             };
@@ -410,6 +437,7 @@ fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
         // TODO: The keys "BREAK (CTRL+PAUSE) key" and "ENTER key in the numeric keypad" are missing
         VK_RMENU | VK_RCONTROL | VK_UP | VK_DOWN | VK_LEFT | VK_RIGHT | VK_INSERT | VK_DELETE
         | VK_HOME | VK_END | VK_PRIOR | VK_NEXT | VK_NUMLOCK | VK_SNAPSHOT | VK_DIVIDE => {
+            debug!("extended key detected");
             KEYBD_EVENT_FLAGS::default() | KEYEVENTF_EXTENDEDKEY
         }
         _ => KEYBD_EVENT_FLAGS::default(),
@@ -424,9 +452,10 @@ impl Drop for Enigo {
         }
         for &k in &self.held() {
             if self.enter_key(k, Direction::Release).is_err() {
-                println!("unable to release {k:?}");
+                error!("unable to release {k:?}");
             };
         }
+        debug!("released all held keys");
     }
 }
 

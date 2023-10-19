@@ -6,6 +6,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use log::{debug, error, warn};
 use wayland_client::{
     protocol::{wl_pointer, wl_registry, wl_seat},
     Connection, Dispatch, EventQueue, QueueHandle,
@@ -37,20 +38,6 @@ pub struct Con {
     base_time: std::time::Instant,
 }
 
-/*
-if let Ok(Ok(conn)) = std::env::var("WAYLAND_DISPLAY")
-        .map_err(anyhow::Error::msg)
-        .map(|display_str| {
-            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
-                .map(Into::<PathBuf>::into)
-                .ok_or(ConnectError::NoCompositor)?;
-            socket_path.push(display_str);
-
-            Ok(UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositor)?)
-        })
-        .and_then(|s| s.map(|s| Connection::from_socket(s).map_err(anyhow::Error::msg)))
-*/
-
 impl Con {
     /// Tries to establish a new Wayland connection
     ///
@@ -60,6 +47,10 @@ impl Con {
         // Setup Wayland Connection
         let connection = match dpy_name {
             Some(dyp_name) => {
+                debug!(
+                    "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
+                    dyp_name
+                );
                 let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
                     .map(Into::<PathBuf>::into)
                     .ok_or(NewConError::EstablishCon(
@@ -70,27 +61,30 @@ impl Con {
                     .map_err(|_| NewConError::EstablishCon("unable to open unix stream"))?;
                 Connection::from_socket(stream)
             }
-            None => Connection::connect_to_env(),
+            None => {
+                debug!("\x1b[93mtrying to establish a connection to $WAYLAND_DISPLAY\x1b[0m");
+                Connection::connect_to_env()
+            }
         };
 
         let connection = match connection {
             Ok(connection) => connection,
             Err(e) => {
-                println!("{e:?}");
+                error!("{:?}", e);
                 return Err(NewConError::EstablishCon(
-                    "failed to connect to Wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0': {e}",
+                    "failed to connect to wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0': {e}",
                 ));
             }
         };
 
         // Check to see if there was an error trying to connect
         if let Some(e) = connection.protocol_error() {
-            println!(
-                "Unknown Wayland initialization failure: {} {} {} {}",
+            error!(
+                "unknown wayland initialization failure: {} {} {} {}",
                 e.code, e.object_id, e.object_interface, e.message
             );
             return Err(NewConError::EstablishCon(
-                "failed to connect to Wayland. there was a protocol error",
+                "failed to connect to wayland. there was a protocol error",
             ));
         }
 
@@ -255,7 +249,7 @@ impl Con {
         match self.event_queue.flush() {
             Ok(()) => Ok(()),
             Err(e) => {
-                println!("{e:?}");
+                error!("{:?}", e);
                 Err(InputError::Simulate("could not flush wayland queue"))
             }
         }
@@ -291,7 +285,7 @@ impl Drop for Con {
             vp.destroy();
         }
         if self.flush().is_err() {
-            println!("could not flush wayland queue");
+            error!("could not flush wayland queue");
         }
     }
 }
@@ -380,7 +374,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     state.pointer_manager = Some(manager);
                 }
                 "org_kde_kwin_fake_input" => {
-                    println!("FAKE_INPUT AVAILABLE!");
+                    debug!("FAKE_INPUT AVAILABLE!");
                     let kde_input = registry
                         .bind::<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, _, _>(
                             name,
@@ -391,7 +385,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     state.kde_input = Some(kde_input);
                 }
                 s => {
-                    println!("i: {s}");
+                    debug!("i: {}", s);
                 }
             }
         }
@@ -407,7 +401,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Received a virtual keyboard manager event {event:?}");
+        warn!("Received a virtual keyboard manager event {:?}", event);
     }
 }
 
@@ -420,7 +414,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Got a virtual keyboard event {event:?}");
+        warn!("Got a virtual keyboard event {:?}", event);
     }
 }
 
@@ -433,7 +427,7 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Received an input method manager event {event:?}");
+        warn!("Received an input method manager event {:?}", event);
     }
 }
 impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
@@ -445,7 +439,7 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Got a virtual keyboard event {event:?}");
+        warn!("Got a input method event {:?}", event);
     }
 }
 impl Dispatch<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, ()> for WaylandState {
@@ -459,7 +453,7 @@ impl Dispatch<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, ()> for WaylandState
     ) {
         // This should never happen, as there are no events specified for this
         // in the protocol
-        println!("Got a plasma fake input event {event:?}");
+        warn!("Got a plasma fake input event {:?}", event);
     }
 }
 
@@ -472,7 +466,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Got a seat event {event:?}");
+        warn!("Got a seat event {:?}", event);
     }
 }
 
@@ -499,7 +493,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
             } => {
                 state.width = x;
                 state.height = y;
-                println!("x: {x}, y: {y}, physical_width: {physical_width}, physical_height: {physical_height}, make: {make}, model: {model}");
+                warn!("x: {}, y: {}, physical_width: {}, physical_height: {}, make: {}, : {}",x,y,physical_width,physical_height,make,model,model);
             }
             wl_output::Event::Mode {
                 flags,
@@ -507,7 +501,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                 height,
                 refresh,
             } => {
-                println!("width: {width}, height: {height}");
+                warn!("width: {}, : {height}",width,height);
             }
             _ => {}
         };
@@ -523,7 +517,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Received a virtual keyboard manager event {event:?}");
+        warn!("Received a virtual keyboard manager event {:?}", event);
     }
 }
 
@@ -536,7 +530,7 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        println!("Got a virtual keyboard event {event:?}");
+        warn!("Got a virtual keyboard event {:?}", event);
     }
 }
 
@@ -710,13 +704,13 @@ impl MouseControllableNext for Con {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        println!("You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!("You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
         Err(InputError::Simulate("Not implemented yet"))
     }
 
     fn mouse_loc(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        println!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
         Err(InputError::Simulate("Not implemented yet"))
     }
 }

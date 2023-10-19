@@ -2,6 +2,8 @@ use std::{ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
+use log::{debug, error, warn};
+
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
     MouseButton, MouseControllableNext, NewConError,
@@ -94,6 +96,7 @@ impl Con {
     /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
     pub fn new(dyp_name: &Option<String>, delay: u32) -> Result<Self, NewConError> {
+        debug!("using xdo");
         let xdo = match dyp_name {
             Some(name) => {
                 let Ok(string) = CString::new(name.as_bytes()) else {

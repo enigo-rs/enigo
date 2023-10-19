@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
 
+use log::{debug, error, warn};
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -32,14 +33,13 @@ pub struct Con {
 
 impl From<ConnectError> for NewConError {
     fn from(error: ConnectError) -> Self {
-        println!("{error:?}");
-        // TODO: Describe why exactly it failed
+        error!("{error:?}");
         Self::EstablishCon("failed to establish the connection")
     }
 }
 impl From<ReplyError> for NewConError {
     fn from(error: ReplyError) -> Self {
-        println!("{error:?}");
+        error!("{error:?}");
         Self::Reply
     }
 }
@@ -56,6 +56,7 @@ impl Con {
     /// # Errors
     /// TODO
     pub fn new(dpy_name: &Option<String>, delay: u32) -> Result<Con, NewConError> {
+        debug!("using x11rb");
         let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
@@ -106,9 +107,11 @@ impl Con {
 
         // Split the mapping into the chunks of keysyms that are mapped to each keycode
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
+        debug!("unused keycodes:");
         for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
             // Check if the keycode is unused
             if syms.iter().all(|&s| s == NO_SYMBOL.raw()) {
+                debug!("{}", kc);
                 unused_keycodes.push_back(kc);
             }
         }
@@ -120,12 +123,12 @@ impl Con {
     fn device_id(&self, usage: DeviceUse) -> InputResult<u8> {
         x11rb::protocol::xinput::list_input_devices(&self.connection)
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when listing input devices with x11rb: {e:?}")
             })?
             .reply()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate(
                     "error with the reply from listing input devices with x11rb: {e:?}",
                 )
@@ -148,9 +151,11 @@ impl Drop for Con {
     fn drop(&mut self) {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
+        debug!("x11rb connection was dropped");
         for &keycode in self.keymap.keymap.values() {
-            if self.connection.bind_key(keycode, NO_SYMBOL).is_err() {
-                println!("unable to unmap keycode {keycode:?}");
+            match self.connection.bind_key(keycode, NO_SYMBOL) {
+                Ok(()) => debug!("unmapped keycode {keycode:?}"),
+                Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
             };
         }
     }
@@ -164,13 +169,14 @@ impl Bind<Keycode> for CompositorConnection {
         // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
         // https://stackoverflow.com/a/44334103
         self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
-            .map_err(|e| println!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
-        self.sync().map_err(|e| println!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
+            .map_err(|e| error!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
+        self.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
     }
 }
 
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
+        warn!("fast text entry is not yet implemented with xdo");
         // TODO: Add fast method
         // xdotools can do it, so it is possible
         Ok(None)
@@ -188,6 +194,10 @@ impl KeyboardControllableNext for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
+        debug!(
+            "xtest_fake_input with keycode {}, deviceid {}",
+            detail, deviceid
+        );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -200,7 +210,7 @@ impl KeyboardControllableNext for Con {
                     deviceid,
                 )
                 .map_err(|e| {
-                    println!("{e}");
+                    error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
         }
@@ -221,14 +231,14 @@ impl KeyboardControllableNext for Con {
                     deviceid,
                 )
                 .map_err(|e| {
-                    println!("{e}");
+                    error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
         }
 
         self.connection.sync()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
 
@@ -260,6 +270,10 @@ impl MouseControllableNext for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
+        debug!(
+            "xtest_fake_input with button {}, deviceid {}",
+            detail, deviceid
+        );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -272,7 +286,7 @@ impl MouseControllableNext for Con {
                     deviceid,
                 )
                 .map_err(|e| {
-                    println!("{e}");
+                    error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
         }
@@ -294,13 +308,13 @@ impl MouseControllableNext for Con {
                     deviceid,
                 )
                 .map_err(|e| {
-                    println!("{e}");
+                    error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
         }
         self.connection.sync()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
         Ok(())
@@ -331,15 +345,21 @@ impl MouseControllableNext for Con {
             ));
         };
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
+
+        debug!(
+            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}",
+            detail, deviceid, root_x, root_y
+        );
+
         self.connection
             .xtest_fake_input(type_, detail, time, root, root_x, root_y, deviceid) // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
             })?;
         self.connection.sync()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
         Ok(())
@@ -370,14 +390,14 @@ impl MouseControllableNext for Con {
             .connection
             .randr_get_screen_resources(self.screen.root)
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate(
                     "error when requesting randr_get_screen_resources with x11rb: {e:?}",
                 )
             })?
             .reply()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate(
                     "error with the reply of randr_get_screen_resources with x11rb: {e:?}",
                 )
@@ -392,12 +412,12 @@ impl MouseControllableNext for Con {
             .connection
             .query_pointer(self.screen.root)
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error when requesting query_pointer with x11rb: {e:?}")
             })?
             .reply()
             .map_err(|e| {
-                println!("{e}");
+                error!("{e}");
                 InputError::Simulate("error with the reply of query_pointer with x11rb: {e:?}")
             })?;
         Ok((reply.root_x as i32, reply.root_y as i32))
