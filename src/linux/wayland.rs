@@ -6,7 +6,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use wayland_client::{
     protocol::{wl_pointer, wl_registry, wl_seat},
     Connection, Dispatch, EventQueue, QueueHandle,
@@ -385,7 +385,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     state.kde_input = Some(kde_input);
                 }
                 s => {
-                    debug!("i: {}", s);
+                    trace!("i: {}", s);
                 }
             }
         }

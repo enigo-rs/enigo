@@ -2,7 +2,7 @@ use std::{ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
-use log::{debug, error, warn};
+use log::debug;
 
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
