@@ -5,10 +5,9 @@ use std::fmt::Display;
 use log::{debug, trace};
 pub(super) use xkbcommon::xkb::Keysym;
 
-use crate::{Direction, InputError, InputResult, Key};
-
 #[cfg(feature = "wayland")]
-pub(super) type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
+use crate::keycodes::ModifierBitflag;
+use crate::{Direction, InputError, InputResult, Key};
 
 /// The "empty" keyboard symbol.
 // TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
@@ -199,10 +198,10 @@ where
                 .try_into()
                 .unwrap_or(u32::MAX);
             self.pending_delays = self.delay.saturating_sub(elapsed_ms);
-            debug!("delay needed");
+            trace!("delay needed");
             self.last_keys.clear();
         } else {
-            debug!("no delay needed");
+            trace!("no delay needed");
             self.pending_delays = 1;
         }
         self.last_keys.push(keycode);

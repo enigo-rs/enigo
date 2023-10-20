@@ -20,10 +20,10 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1, zwlr_virtual_pointer_v1,
 };
 
-use super::keymap::{Bind, KeyMap, ModifierBitflag};
+use super::keymap::{Bind, KeyMap};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Coordinate, Direction, InputError,
+    InputResult, Key, KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -169,28 +169,6 @@ impl Con {
         time.try_into().unwrap()
     }
 
-    /// Check if the key is a modifier
-    ///
-    /// If it is a modifier, return it's bitfield.
-    /// Otherwise return a None
-    pub fn is_modifier(key: Key) -> Option<ModifierBitflag> {
-        match key {
-            Key::Shift | Key::LShift | Key::RShift => Some(Modifier::Shift as ModifierBitflag),
-            Key::CapsLock => Some(Modifier::Lock as ModifierBitflag),
-            Key::Control | Key::LControl | Key::RControl => {
-                Some(Modifier::Control as ModifierBitflag)
-            }
-            Key::Alt | Key::Option => Some(Modifier::Mod1 as ModifierBitflag),
-            Key::Numlock => Some(Modifier::Mod2 as ModifierBitflag),
-            // Key:: => Some(Modifier::Mod3 as ModifierBitflag),
-            Key::Command | Key::Super | Key::Windows | Key::Meta => {
-                Some(Modifier::Mod4 as ModifierBitflag)
-            }
-            Key::ModeChange => Some(Modifier::Mod5 as ModifierBitflag),
-            _ => None,
-        }
-    }
-
     /// Press/Release a keycode
     ///
     /// # Errors
@@ -265,17 +243,6 @@ impl Con {
 impl Bind<Keycode> for Con {
     // Nothing to do
     // On Wayland only the whole keymap can be applied
-}
-
-pub enum Modifier {
-    Shift = 0x1,
-    Lock = 0x2,
-    Control = 0x4,
-    Mod1 = 0x8,
-    Mod2 = 0x10,
-    Mod3 = 0x20,
-    Mod4 = 0x40,
-    Mod5 = 0x80,
 }
 
 impl Drop for Con {
@@ -571,17 +538,18 @@ impl KeyboardControllableNext for Con {
         // Apply the new keymap if there were any changes
         self.apply_keymap()?;
 
-        // Update the status of the keymap
-        let modifier = Self::is_modifier(key);
-
         // Send the events to the compositor
-        if let Some(m) = modifier {
+        if let Ok(modifier) = Modifier::try_from(key) {
             if direction == Direction::Click || direction == Direction::Press {
-                let modifiers = self.keymap.enter_modifier(m, Direction::Press);
+                let modifiers = self
+                    .keymap
+                    .enter_modifier(modifier.bitflag(), Direction::Press);
                 self.send_modifier_event(modifiers)?;
             }
             if direction == Direction::Click || direction == Direction::Release {
-                let modifiers = self.keymap.enter_modifier(m, Direction::Release);
+                let modifiers = self
+                    .keymap
+                    .enter_modifier(modifier.bitflag(), Direction::Release);
                 self.send_modifier_event(modifiers)?;
             }
         } else {

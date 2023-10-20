@@ -1,23 +1,23 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
 
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use x11rb::{
     connection::Connection,
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, Screen},
+        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
     wrapper::ConnectionExt as _,
 };
 
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, Axis, Coordinate, Direction, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -28,9 +28,17 @@ pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
+    modifiers: Vec<Keycode>,
     delay: u32, // milliseconds
 }
 
+impl From<ConnectionError> for NewConError {
+    fn from(error: ConnectionError) -> Self {
+        // This should only be possible when trying to get the modifier map
+        error!("{error:?}");
+        Self::EstablishCon("failed to get the modifier map")
+    }
+}
 impl From<ConnectError> for NewConError {
     fn from(error: ConnectError) -> Self {
         error!("{error:?}");
@@ -69,10 +77,14 @@ impl Con {
         }
         let keymap = KeyMap::new(min_keycode, max_keycode, unused_keycodes);
 
+        // Get the keycodes of the modifiers
+        let modifiers = Self::find_modifier_keycodes(&connection)?;
+
         Ok(Con {
             connection,
             screen,
             keymap,
+            modifiers,
             delay,
         })
     }
@@ -116,6 +128,35 @@ impl Con {
             }
         }
         Ok(unused_keycodes)
+    }
+    /// Find the keycodes that must be used for the modifiers
+    fn find_modifier_keycodes(
+        connection: &CompositorConnection,
+    ) -> Result<Vec<Keycode>, ReplyError> {
+        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
+        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
+        let GetModifierMappingReply {
+            keycodes: modifiers,
+            ..
+        } = modifier_reply;
+        trace!("the keycodes associated with the modifiers are {modifiers:?}");
+
+        debug!("modifier mapping:");
+        let mut modifier_keycodes = vec![0; 8];
+        'mods: for (mod_no, mod_keycode) in modifier_keycodes.iter_mut().enumerate().take(8) {
+            let start = mod_no * keycodes_per_modifier;
+            for &keycode in &modifiers[start..start + keycodes_per_modifier] {
+                if keycode != 0 {
+                    // Found one keycode that can be used for this modifier
+                    debug!("mod_no: {mod_no} -> {keycode}");
+                    *mod_keycode = keycode;
+                    continue 'mods;
+                }
+            }
+            warn!("modifier_no: {mod_no} is unmapped");
+        }
+
+        Ok(modifier_keycodes)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -183,7 +224,16 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
+        // Check if the key is a modifier
+        let keycode = match Modifier::try_from(key) {
+            // If it is a modifier, the already mapped keycode must be used
+            Ok(modifier) => {
+                debug!("it is a modifier: {modifier:?}");
+                self.modifiers[modifier.no()]
+            }
+            // All regular keys might have to get mapped
+            _ => self.keymap.key_to_keycode(&self.connection, key)?,
+        };
 
         let detail = keycode;
         let time = self.keymap.pending_delays();
