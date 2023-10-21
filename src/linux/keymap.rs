@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 use log::{debug, trace};
 pub(super) use xkbcommon::xkb::Keysym;
+use xkeysym::KeyCode;
 
 #[cfg(feature = "wayland")]
 use crate::keycodes::ModifierBitflag;
@@ -18,7 +19,12 @@ const DEFAULT_DELAY: u32 = 12;
 
 #[derive(Debug)]
 pub struct KeyMap<Keycode> {
-    pub(super) keymap: HashMap<Keysym, Keycode>,
+    pub(super) additionally_mapped: HashMap<Keysym, Keycode>,
+    keysyms: Vec<u32>,
+    keycode_min: Keycode,
+    keycode_max: Keycode,
+    keysyms_per_keycode: u8,
+
     unused_keycodes: VecDeque<Keycode>,
     protected_keycodes: Vec<Keycode>, /* These keycodes cannot be unmapped, because they are
                                        * currently held */
@@ -56,6 +62,8 @@ where
         keycode_min: Keycode,
         keycode_max: Keycode,
         unused_keycodes: VecDeque<Keycode>,
+        keysyms_per_keycode: u8,
+        keysyms: Vec<u32>,
     ) -> Self {
         let capacity: usize = keycode_max.try_into().unwrap() - keycode_min.try_into().unwrap();
         let capacity = capacity + 1;
@@ -75,7 +83,11 @@ where
         #[cfg(feature = "x11rb")]
         let pending_delays = 0;
         Self {
-            keymap,
+            additionally_mapped: keymap,
+            keysyms,
+            keycode_min,
+            keycode_max,
+            keysyms_per_keycode,
             unused_keycodes,
             protected_keycodes: held_keycodes,
             needs_regeneration,
@@ -94,6 +106,35 @@ where
         }
     }
 
+    fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
+        let keycode_min: usize = self.keycode_min.try_into().unwrap();
+        let keycode_max: usize = self.keycode_max.try_into().unwrap();
+
+        for j in 0..self.keysyms_per_keycode {
+            for i in keycode_min..=keycode_max {
+                let i: u32 = i.try_into().unwrap();
+                let min_keycode: u32 = keycode_min.try_into().unwrap();
+                let keycode = KeyCode::from(i);
+                let min_keycode = KeyCode::from(min_keycode);
+                if let Some(ks) = xkeysym::keysym(
+                    keycode,
+                    j,
+                    min_keycode,
+                    self.keysyms_per_keycode,
+                    &self.keysyms,
+                ) {
+                    if ks == keysym {
+                        let i: usize = i.try_into().unwrap();
+                        let i: Keycode = i.try_into().unwrap();
+                        trace!("found keysym in row {i}, col {j}");
+                        return Some(i);
+                    }
+                }
+            }
+        }
+        None
+    }
+
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
     pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
@@ -107,7 +148,12 @@ where
                 // Unwrapping here is okay, because the fn only returns an error if it was a
                 // Key::Raw and we test that before
                 let sym = Keysym::try_from(key).unwrap();
-                if let Some(&keycode) = self.keymap.get(&sym) {
+
+                if let Some(keycode) = self.keysym_to_keycode(sym) {
+                    return Ok(keycode);
+                }
+
+                if let Some(&keycode) = self.additionally_mapped.get(&sym) {
                     // The keysym is already mapped and cached in the keymap
                     keycode
                 } else {
@@ -147,7 +193,7 @@ where
                     return Err(InputError::Mapping(format!("{keysym:?}")));
                 };
                 self.needs_regeneration = true;
-                self.keymap.insert(keysym, unused_keycode);
+                self.additionally_mapped.insert(keysym, unused_keycode);
                 debug!("mapped keycode {} to keysym {:?}", unused_keycode, keysym);
                 Ok(unused_keycode)
             }
@@ -171,7 +217,7 @@ where
         };
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
-        self.keymap.remove(&keysym);
+        self.additionally_mapped.remove(&keysym);
         debug!("unmapped keysym {:?}", keysym);
         Ok(())
     }
@@ -215,7 +261,7 @@ where
         // Unmap all keys, if all keycodes are already being used
         // TODO: Don't unmap the keycodes if they will be needed next
         if self.unused_keycodes.is_empty() {
-            let mapped_keys = self.keymap.clone();
+            let mapped_keys = self.additionally_mapped.clone();
             let held_keycodes = self.protected_keycodes.clone();
             let mut made_room = false;
 
@@ -265,7 +311,7 @@ where
         // Move the virtual cursor of the file to the end of the part of the keymap that
         // is always the same so we only overwrite the parts that can change.
         keymap_file.seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))?;
-        for (&keysym, &keycode) in &self.keymap {
+        for (&keysym, &keycode) in &self.additionally_mapped {
             write!(
                 keymap_file,
                 "

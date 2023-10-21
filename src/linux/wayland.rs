@@ -143,7 +143,10 @@ impl Con {
         for n in 8..=255 {
             unused_keycodes.push_back(n as Keycode);
         }
-        let keymap = KeyMap::new(8, 255, unused_keycodes);
+
+        // TODO: Double check this and adjust it
+        let (keysyms_per_keycode, keysyms) = (0, vec![]);
+        let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
 
         if virtual_keyboard.is_none() && input_method.is_none() && virtual_pointer.is_none() {
             return Err(NewConError::EstablishCon(

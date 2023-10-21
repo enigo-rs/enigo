@@ -70,12 +70,21 @@ impl Con {
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
-        let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+        let (keysyms_per_keycode, keysyms) =
+            Self::get_keybord_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+        let unused_keycodes =
+            Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
         if unused_keycodes.is_empty() {
             return Err(NewConError::NoEmptyKeycodes);
         }
-        let keymap = KeyMap::new(min_keycode, max_keycode, unused_keycodes);
+        let keymap = KeyMap::new(
+            min_keycode,
+            max_keycode,
+            unused_keycodes,
+            keysyms_per_keycode,
+            keysyms,
+        );
 
         // Get the keycodes of the modifiers
         let modifiers = Self::find_modifier_keycodes(&connection)?;
@@ -101,30 +110,39 @@ impl Con {
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
-    fn find_unused_keycodes(
+    fn get_keybord_mapping(
         connection: &CompositorConnection,
         keycode_min: Keycode,
         keycode_max: Keycode,
-    ) -> Result<VecDeque<Keycode>, ReplyError> {
-        let mut unused_keycodes: VecDeque<Keycode> =
-            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
-
+    ) -> Result<(u8, Vec<u32>), ReplyError> {
         let GetKeyboardMappingReply {
             keysyms_per_keycode,
             keysyms,
             ..
         } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min)?
+            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min + 1)?
             .reply()?;
+
+        //let keysyms = keysyms.into_iter().map(|s| Keysym::from(s)).collect();
+        Ok((keysyms_per_keycode, keysyms))
+    }
+
+    fn unused_keycodes(
+        keycode_min: Keycode,
+        keycode_max: Keycode,
+        keysyms_per_keycode: u8,
+        keysyms: &[u32],
+    ) -> VecDeque<Keycode> {
+        let mut unused_keycodes: VecDeque<Keycode> =
+            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
 
         // Split the mapping into the chunks of keysyms that are mapped to each keycode
         trace!("initial keymap:");
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
         for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
             // Check if the keycode is unused
-
             if log::log_enabled!(log::Level::Trace) {
-                let syms_name: Vec<Keysym> = syms.into_iter().map(|&s| Keysym::from(s)).collect();
+                let syms_name: Vec<Keysym> = syms.iter().map(|&s| Keysym::from(s)).collect();
                 trace!("{kc}:  {syms_name:?}");
             }
 
@@ -133,8 +151,9 @@ impl Con {
             }
         }
         debug!("unused keycodes: {unused_keycodes:?}");
-        Ok(unused_keycodes)
+        unused_keycodes
     }
+
     /// Find the keycodes that must be used for the modifiers
     fn find_modifier_keycodes(
         connection: &CompositorConnection,
@@ -200,7 +219,7 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for &keycode in self.keymap.keymap.values() {
+        for &keycode in self.keymap.additionally_mapped.values() {
             match self.connection.bind_key(keycode, NO_SYMBOL) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
@@ -268,6 +287,7 @@ impl KeyboardControllableNext for Con {
                     error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
+            trace!("press");
         }
 
         // TODO: Check if we need to update the delays again
@@ -289,6 +309,7 @@ impl KeyboardControllableNext for Con {
                     error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
+            trace!("released");
         }
 
         self.connection.sync()
