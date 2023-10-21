@@ -118,15 +118,21 @@ impl Con {
             .reply()?;
 
         // Split the mapping into the chunks of keysyms that are mapped to each keycode
+        trace!("initial keymap:");
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
-        debug!("unused keycodes:");
         for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
             // Check if the keycode is unused
+
+            if log::log_enabled!(log::Level::Trace) {
+                let syms_name: Vec<Keysym> = syms.into_iter().map(|&s| Keysym::from(s)).collect();
+                trace!("{kc}:  {syms_name:?}");
+            }
+
             if syms.iter().all(|&s| s == NO_SYMBOL.raw()) {
-                debug!("{}", kc);
                 unused_keycodes.push_back(kc);
             }
         }
+        debug!("unused keycodes: {unused_keycodes:?}");
         Ok(unused_keycodes)
     }
     /// Find the keycodes that must be used for the modifiers
@@ -139,7 +145,8 @@ impl Con {
             keycodes: modifiers,
             ..
         } = modifier_reply;
-        trace!("the keycodes associated with the modifiers are {modifiers:?}");
+        trace!("keycodes per modifier: {keycodes_per_modifier:?}");
+        trace!("the keycodes associated with the modifiers are:\n{modifiers:?}");
 
         debug!("modifier mapping:");
         let mut modifier_keycodes = vec![0; 8];
