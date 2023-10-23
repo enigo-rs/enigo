@@ -10,7 +10,7 @@ use core_graphics::event::{
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
@@ -363,17 +363,6 @@ impl KeyboardControllableNext for Enigo {
         if key == Key::Layout('\0') {
             return Ok(());
         }
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
-            }
-            Direction::Click => (),
-        }
 
         let keycode = self.key_to_keycode(key);
 
@@ -400,6 +389,19 @@ impl KeyboardControllableNext for Enigo {
 
             event.post(CGEventTapLocation::HID);
         }
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
         Ok(())
     }
 }

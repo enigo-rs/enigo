@@ -190,7 +190,7 @@ impl MouseControllableNext for Enigo {
             x_absolute,
             y_absolute,
         );
-        send_input(&vec![input])?;
+        send_input(&[input])?;
 
         // This also moves the mouse but is not subject to mouse accelleration
         // Sometimes the send_input is not enough
@@ -212,7 +212,7 @@ impl MouseControllableNext for Enigo {
             }
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
         };
-        send_input(&vec![input])?;
+        send_input(&[input])?;
         Ok(())
     }
 
@@ -297,17 +297,6 @@ impl KeyboardControllableNext for Enigo {
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
-            }
-            Direction::Click => (),
-        }
 
         if let Key::Layout(c) = key {
             // Handle special characters seperately
@@ -349,7 +338,21 @@ impl KeyboardControllableNext for Enigo {
                 input.push(keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16));
             }
         };
-        send_input(&input)
+        send_input(&input)?;
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
     }
 }
 

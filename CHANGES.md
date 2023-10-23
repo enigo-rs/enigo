@@ -13,6 +13,7 @@
 - Linux: Partial support for Wayland was added. Use the experimental feature `wayland` to test it. Only the virtual_keyboard and input_method protocol can be used. This is not going to work on GNOME, but should work for example with phosh
 - win: Use DirectInput in addition to the SetCursorPos function in order to support DirectX
 - All: You can now chose how long the delay between keypresses should be on each platform and change it during the runtime
+- All: You can now use a logger to investigate errors
 
 ## Fixed
 - macOS: Add info how much a mouse was moved relative to the last position

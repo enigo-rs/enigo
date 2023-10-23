@@ -2,7 +2,7 @@ use std::{ffi::CString, ptr};
 
 use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 
-use log::{debug, error, warn};
+use log::debug;
 
 use crate::{
     Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
@@ -147,6 +147,10 @@ impl KeyboardControllableNext for Con {
                 "the text to enter contained a NULL byte ('\\0’), which is not allowed",
             ));
         };
+        debug!(
+            "xdo_enter_text_window with string {:?}, delay {}",
+            string, self.delay
+        );
         let res = unsafe {
             xdo_enter_text_window(
                 self.xdo,
@@ -181,30 +185,48 @@ impl KeyboardControllableNext for Con {
         };
 
         let res = match direction {
-            Direction::Click => unsafe {
-                xdo_send_keysequence_window(
-                    self.xdo,
-                    CURRENT_WINDOW,
-                    string.as_ptr(),
-                    self.delay as useconds_t,
-                )
-            },
-            Direction::Press => unsafe {
-                xdo_send_keysequence_window_down(
-                    self.xdo,
-                    CURRENT_WINDOW,
-                    string.as_ptr(),
-                    self.delay as useconds_t,
-                )
-            },
-            Direction::Release => unsafe {
-                xdo_send_keysequence_window_up(
-                    self.xdo,
-                    CURRENT_WINDOW,
-                    string.as_ptr(),
-                    self.delay as useconds_t,
-                )
-            },
+            Direction::Click => {
+                debug!(
+                    "xdo_send_keysequence_window with string {:?}, delay {}",
+                    string, self.delay
+                );
+                unsafe {
+                    xdo_send_keysequence_window(
+                        self.xdo,
+                        CURRENT_WINDOW,
+                        string.as_ptr(),
+                        self.delay as useconds_t,
+                    )
+                }
+            }
+            Direction::Press => {
+                debug!(
+                    "xdo_send_keysequence_window_down with string {:?}, delay {}",
+                    string, self.delay
+                );
+                unsafe {
+                    xdo_send_keysequence_window_down(
+                        self.xdo,
+                        CURRENT_WINDOW,
+                        string.as_ptr(),
+                        self.delay as useconds_t,
+                    )
+                }
+            }
+            Direction::Release => {
+                debug!(
+                    "xdo_send_keysequence_window_up with string {:?}, delay {}",
+                    string, self.delay
+                );
+                unsafe {
+                    xdo_send_keysequence_window_up(
+                        self.xdo,
+                        CURRENT_WINDOW,
+                        string.as_ptr(),
+                        self.delay as useconds_t,
+                    )
+                }
+            }
         };
         if res != XDO_SUCCESS {
             return Err(InputError::Simulate("unable to enter key"));
@@ -219,16 +241,20 @@ impl MouseControllableNext for Con {
         button: MouseButton,
         direction: Direction,
     ) -> InputResult<()> {
+        let mouse_button = mousebutton(button);
         let res = match direction {
-            Direction::Press => unsafe {
-                xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button))
-            },
-            Direction::Release => unsafe {
-                xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button))
-            },
-            Direction::Click => unsafe {
-                xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button))
-            },
+            Direction::Press => {
+                debug!("xdo_mouse_down with mouse button {}", mouse_button);
+                unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, mouse_button) }
+            }
+            Direction::Release => {
+                debug!("xdo_mouse_up with mouse button {}", mouse_button);
+                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, mouse_button) }
+            }
+            Direction::Click => {
+                debug!("xdo_click_window with mouse button {}", mouse_button);
+                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, mouse_button) }
+            }
         };
         if res != XDO_SUCCESS {
             return Err(InputError::Simulate("unable to enter mouse button"));
@@ -243,10 +269,14 @@ impl MouseControllableNext for Con {
         coordinate: Coordinate,
     ) -> InputResult<()> {
         let res = match coordinate {
-            Coordinate::Relative => unsafe {
-                xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int)
-            },
-            Coordinate::Absolute => unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) },
+            Coordinate::Relative => {
+                debug!("xdo_move_mouse_relative with x {}, y {}", x, y);
+                unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
+            }
+            Coordinate::Absolute => {
+                debug!("xdo_move_mouse with mouse button with x {}, y {}", x, y);
+                unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
+            }
         };
         if res != XDO_SUCCESS {
             return Err(InputError::Simulate("unable to move the mouse"));
@@ -278,6 +308,8 @@ impl MouseControllableNext for Con {
         const MAIN_SCREEN: i32 = 0;
         let mut width = 0;
         let mut height = 0;
+
+        debug!("xdo_get_viewport_dimensions");
         let res =
             unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
 
@@ -292,6 +324,7 @@ impl MouseControllableNext for Con {
         let mut y = 0;
         let mut unused_screen_index = 0;
         let mut unused_window_index = CURRENT_WINDOW;
+        debug!("xdo_get_mouse_location2");
         let res = unsafe {
             xdo_get_mouse_location2(
                 self.xdo,

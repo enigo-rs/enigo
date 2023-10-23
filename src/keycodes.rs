@@ -572,12 +572,12 @@ pub enum Key {
 
 #[cfg(target_os = "linux")]
 /// Converts a Key to a Keysym
-impl TryFrom<Key> for xkbcommon::xkb::Keysym {
+impl TryFrom<Key> for xkeysym::Keysym {
     type Error = &'static str;
 
     #[allow(clippy::too_many_lines)]
     fn try_from(key: Key) -> Result<Self, &'static str> {
-        use xkbcommon::xkb::Keysym;
+        use xkeysym::Keysym;
 
         #[allow(clippy::match_same_arms)]
         Ok(match key {
@@ -676,3 +676,79 @@ impl TryFrom<Key> for xkbcommon::xkb::Keysym {
         })
     }
 }
+
+#[cfg(target_os = "linux")]
+#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Modifier {
+    Shift,
+    Lock,
+    Control,
+    Mod1,
+    Mod2,
+    Mod3,
+    Mod4,
+    Mod5,
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(any(feature = "wayland", feature = "x11rb"))]
+impl Modifier {
+    /// Returns the bitflag of the modifier that is usually associated with it
+    /// on Linux
+    #[must_use]
+    pub fn bitflag(&self) -> ModifierBitflag {
+        match self {
+            Self::Shift => 0x1,
+            Self::Lock => 0x2,
+            Self::Control => 0x4,
+            Self::Mod1 => 0x8,
+            Self::Mod2 => 0x10,
+            Self::Mod3 => 0x20,
+            Self::Mod4 => 0x40,
+            Self::Mod5 => 0x80,
+        }
+    }
+
+    /// Returns the number of the modifier that is usually associated with it
+    /// on Linux
+    #[must_use]
+    pub fn no(&self) -> usize {
+        match self {
+            Self::Shift => 0,
+            Self::Lock => 1,
+            Self::Control => 2,
+            Self::Mod1 => 3,
+            Self::Mod2 => 4,
+            Self::Mod3 => 5,
+            Self::Mod4 => 6,
+            Self::Mod5 => 7,
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(any(feature = "wayland", feature = "x11rb"))]
+/// Converts a Key to a modifier
+impl TryFrom<Key> for Modifier {
+    type Error = &'static str;
+
+    fn try_from(key: Key) -> Result<Self, &'static str> {
+        match key {
+            Key::Shift | Key::LShift | Key::RShift => Ok(Self::Shift),
+            Key::CapsLock => Ok(Self::Lock),
+            Key::Control | Key::LControl | Key::RControl => Ok(Self::Control),
+            Key::Alt | Key::Option => Ok(Self::Mod1),
+            Key::Numlock => Ok(Self::Mod2),
+            // The Mod3 modifier is usually unmapped
+            // Key::Mod3 => Ok(Self::Mod3),
+            Key::Command | Key::Super | Key::Windows | Key::Meta => Ok(Self::Mod4),
+            Key::ModeChange => Ok(Self::Mod5),
+            _ => Err("not a modifier key"),
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(any(feature = "wayland", feature = "x11rb"))]
+pub(crate) type ModifierBitflag = u32; // TODO: Maybe create a proper type for this

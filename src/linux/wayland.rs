@@ -6,7 +6,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use wayland_client::{
     protocol::{wl_pointer, wl_registry, wl_seat},
     Connection, Dispatch, EventQueue, QueueHandle,
@@ -20,10 +20,10 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1, zwlr_virtual_pointer_v1,
 };
 
-use super::keymap::{Bind, KeyMap, ModifierBitflag};
+use super::keymap::{Bind, KeyMap};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Coordinate, Direction, InputError,
+    InputResult, Key, KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -143,7 +143,16 @@ impl Con {
         for n in 8..=255 {
             unused_keycodes.push_back(n as Keycode);
         }
-        let keymap = KeyMap::new(8, 255, unused_keycodes);
+
+        // TODO: Double check this and adjust it
+        let (keysyms_per_keycode, keysyms) = (0, vec![]);
+        let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
+
+        if virtual_keyboard.is_none() && input_method.is_none() && virtual_pointer.is_none() {
+            return Err(NewConError::EstablishCon(
+                "no protocol available to simulate input",
+            ));
+        }
 
         Ok(Self {
             keymap,
@@ -161,28 +170,6 @@ impl Con {
         let duration = self.base_time.elapsed();
         let time = duration.as_millis();
         time.try_into().unwrap()
-    }
-
-    /// Check if the key is a modifier
-    ///
-    /// If it is a modifier, return it's bitfield.
-    /// Otherwise return a None
-    pub fn is_modifier(key: Key) -> Option<ModifierBitflag> {
-        match key {
-            Key::Shift | Key::LShift | Key::RShift => Some(Modifier::Shift as ModifierBitflag),
-            Key::CapsLock => Some(Modifier::Lock as ModifierBitflag),
-            Key::Control | Key::LControl | Key::RControl => {
-                Some(Modifier::Control as ModifierBitflag)
-            }
-            Key::Alt | Key::Option => Some(Modifier::Mod1 as ModifierBitflag),
-            Key::Numlock => Some(Modifier::Mod2 as ModifierBitflag),
-            // Key:: => Some(Modifier::Mod3 as ModifierBitflag),
-            Key::Command | Key::Super | Key::Windows | Key::Meta => {
-                Some(Modifier::Mod4 as ModifierBitflag)
-            }
-            Key::ModeChange => Some(Modifier::Mod5 as ModifierBitflag),
-            _ => None,
-        }
     }
 
     /// Press/Release a keycode
@@ -259,17 +246,6 @@ impl Con {
 impl Bind<Keycode> for Con {
     // Nothing to do
     // On Wayland only the whole keymap can be applied
-}
-
-pub enum Modifier {
-    Shift = 0x1,
-    Lock = 0x2,
-    Control = 0x4,
-    Mod1 = 0x8,
-    Mod2 = 0x10,
-    Mod3 = 0x20,
-    Mod4 = 0x40,
-    Mod5 = 0x80,
 }
 
 impl Drop for Con {
@@ -385,7 +361,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     state.kde_input = Some(kde_input);
                 }
                 s => {
-                    debug!("i: {}", s);
+                    trace!("i: {}", s);
                 }
             }
         }
@@ -560,30 +536,33 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        if self.keymap.make_room(&())? {
-            self.apply_keymap()?;
-        }
         let keycode = self.keymap.key_to_keycode(&(), key)?;
 
         // Apply the new keymap if there were any changes
         self.apply_keymap()?;
 
-        // Update the status of the keymap
-        let modifier = Self::is_modifier(key);
-
         // Send the events to the compositor
-        if let Some(m) = modifier {
+        if let Ok(modifier) = Modifier::try_from(key) {
             if direction == Direction::Click || direction == Direction::Press {
-                let modifiers = self.keymap.enter_modifier(m, Direction::Press);
+                let modifiers = self
+                    .keymap
+                    .enter_modifier(modifier.bitflag(), Direction::Press);
                 self.send_modifier_event(modifiers)?;
             }
             if direction == Direction::Click || direction == Direction::Release {
-                let modifiers = self.keymap.enter_modifier(m, Direction::Release);
+                let modifiers = self
+                    .keymap
+                    .enter_modifier(modifier.bitflag(), Direction::Release);
                 self.send_modifier_event(modifiers)?;
             }
         } else {
             self.send_key_event(keycode, direction)?;
         }
+
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.enter_key(keycode, direction);
+
         Ok(())
     }
 }

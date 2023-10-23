@@ -1,23 +1,23 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
 
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use x11rb::{
     connection::Connection,
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, Screen},
+        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
     wrapper::ConnectionExt as _,
 };
 
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, Axis, Coordinate, Direction, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -28,9 +28,17 @@ pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
+    modifiers: Vec<Keycode>,
     delay: u32, // milliseconds
 }
 
+impl From<ConnectionError> for NewConError {
+    fn from(error: ConnectionError) -> Self {
+        // This should only be possible when trying to get the modifier map
+        error!("{error:?}");
+        Self::EstablishCon("failed to get the modifier map")
+    }
+}
 impl From<ConnectError> for NewConError {
     fn from(error: ConnectError) -> Self {
         error!("{error:?}");
@@ -62,17 +70,30 @@ impl Con {
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
-        let unused_keycodes = Self::find_unused_keycodes(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+        let (keysyms_per_keycode, keysyms) =
+            Self::get_keybord_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+        let unused_keycodes =
+            Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
         if unused_keycodes.is_empty() {
             return Err(NewConError::NoEmptyKeycodes);
         }
-        let keymap = KeyMap::new(min_keycode, max_keycode, unused_keycodes);
+        let keymap = KeyMap::new(
+            min_keycode,
+            max_keycode,
+            unused_keycodes,
+            keysyms_per_keycode,
+            keysyms,
+        );
+
+        // Get the keycodes of the modifiers
+        let modifiers = Self::find_modifier_keycodes(&connection)?;
 
         Ok(Con {
             connection,
             screen,
             keymap,
+            modifiers,
             delay,
         })
     }
@@ -89,33 +110,79 @@ impl Con {
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
-    fn find_unused_keycodes(
+    fn get_keybord_mapping(
         connection: &CompositorConnection,
         keycode_min: Keycode,
         keycode_max: Keycode,
-    ) -> Result<VecDeque<Keycode>, ReplyError> {
-        let mut unused_keycodes: VecDeque<Keycode> =
-            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
-
+    ) -> Result<(u8, Vec<u32>), ReplyError> {
         let GetKeyboardMappingReply {
             keysyms_per_keycode,
             keysyms,
             ..
         } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min)?
+            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min + 1)?
             .reply()?;
 
+        //let keysyms = keysyms.into_iter().map(|s| Keysym::from(s)).collect();
+        Ok((keysyms_per_keycode, keysyms))
+    }
+
+    fn unused_keycodes(
+        keycode_min: Keycode,
+        keycode_max: Keycode,
+        keysyms_per_keycode: u8,
+        keysyms: &[u32],
+    ) -> VecDeque<Keycode> {
+        let mut unused_keycodes: VecDeque<Keycode> =
+            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
+
         // Split the mapping into the chunks of keysyms that are mapped to each keycode
+        trace!("initial keymap:");
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
-        debug!("unused keycodes:");
         for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
             // Check if the keycode is unused
+            if log::log_enabled!(log::Level::Trace) {
+                let syms_name: Vec<Keysym> = syms.iter().map(|&s| Keysym::from(s)).collect();
+                trace!("{kc}:  {syms_name:?}");
+            }
+
             if syms.iter().all(|&s| s == NO_SYMBOL.raw()) {
-                debug!("{}", kc);
                 unused_keycodes.push_back(kc);
             }
         }
-        Ok(unused_keycodes)
+        debug!("unused keycodes: {unused_keycodes:?}");
+        unused_keycodes
+    }
+
+    /// Find the keycodes that must be used for the modifiers
+    fn find_modifier_keycodes(
+        connection: &CompositorConnection,
+    ) -> Result<Vec<Keycode>, ReplyError> {
+        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
+        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
+        let GetModifierMappingReply {
+            keycodes: modifiers,
+            ..
+        } = modifier_reply;
+        trace!("keycodes per modifier: {keycodes_per_modifier:?}");
+        trace!("the keycodes associated with the modifiers are:\n{modifiers:?}");
+
+        debug!("modifier mapping:");
+        let mut modifier_keycodes = vec![0; 8];
+        'mods: for (mod_no, mod_keycode) in modifier_keycodes.iter_mut().enumerate().take(8) {
+            let start = mod_no * keycodes_per_modifier;
+            for &keycode in &modifiers[start..start + keycodes_per_modifier] {
+                if keycode != 0 {
+                    // Found one keycode that can be used for this modifier
+                    debug!("mod_no: {mod_no} -> {keycode}");
+                    *mod_keycode = keycode;
+                    continue 'mods;
+                }
+            }
+            warn!("modifier_no: {mod_no} is unmapped");
+        }
+
+        Ok(modifier_keycodes)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -152,7 +219,7 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for &keycode in self.keymap.keymap.values() {
+        for &keycode in self.keymap.additionally_mapped.values() {
             match self.connection.bind_key(keycode, NO_SYMBOL) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
@@ -176,27 +243,34 @@ impl Bind<Keycode> for CompositorConnection {
 
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
-        warn!("fast text entry is not yet implemented with xdo");
+        warn!("fast text entry is not yet implemented with x11rb");
         // TODO: Add fast method
         // xdotools can do it, so it is possible
         Ok(None)
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        self.keymap.make_room(&())?;
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
-        self.keymap.update_delays(keycode);
+        // Check if the key is a modifier
+        let keycode = match Modifier::try_from(key) {
+            // If it is a modifier, the already mapped keycode must be used
+            Ok(modifier) => {
+                debug!("it is a modifier: {modifier:?}");
+                self.modifiers[modifier.no()]
+            }
+            // All regular keys might have to get mapped
+            _ => self.keymap.key_to_keycode(&self.connection, key)?,
+        };
 
         let detail = keycode;
-        let time = self.keymap.pending_delays;
+        let time = self.keymap.pending_delays();
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
         debug!(
-            "xtest_fake_input with keycode {}, deviceid {}",
-            detail, deviceid
+            "xtest_fake_input with keycode {}, deviceid {}, delay {}",
+            detail, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -213,11 +287,12 @@ impl KeyboardControllableNext for Con {
                     error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
+            trace!("press");
         }
 
         // TODO: Check if we need to update the delays again
         // self.keymap.update_delays(keycode);
-        // let time = self.keymap.pending_delays;
+        // let time = self.keymap.pending_delays();
 
         if direction == Direction::Release || direction == Direction::Click {
             self.connection
@@ -234,6 +309,7 @@ impl KeyboardControllableNext for Con {
                     error!("{e}");
                     InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
                 })?;
+            trace!("released");
         }
 
         self.connection.sync()
@@ -242,7 +318,10 @@ impl KeyboardControllableNext for Con {
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
 
-        self.keymap.last_event_before_delays = std::time::Instant::now();
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.enter_key(keycode, direction);
+
         Ok(())
     }
 }
@@ -271,8 +350,8 @@ impl MouseControllableNext for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with button {}, deviceid {}",
-            detail, deviceid
+            "xtest_fake_input with button {}, deviceid {}, delay {}",
+            detail, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
@@ -347,8 +426,8 @@ impl MouseControllableNext for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}",
-            detail, deviceid, root_x, root_y
+            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}, delay {}",
+            detail, deviceid, root_x, root_y, time
         );
 
         self.connection
