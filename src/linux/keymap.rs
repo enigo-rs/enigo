@@ -3,16 +3,15 @@ use std::convert::TryInto;
 use std::fmt::Display;
 
 use log::{debug, trace};
-pub(super) use xkbcommon::xkb::Keysym;
-use xkeysym::KeyCode;
+pub(super) use xkeysym::{KeyCode, Keysym};
 
 #[cfg(feature = "wayland")]
 use crate::keycodes::ModifierBitflag;
 use crate::{Direction, InputError, InputResult, Key};
 
 /// The "empty" keyboard symbol.
-// TODO: Replace it with the NO_SYMBOL from xkbcommon, once it is available
-// there
+// TODO: Replace it with the NoSymbol from xkeysym, once a new version was
+// published
 pub const NO_SYMBOL: Keysym = Keysym::new(0);
 #[cfg(feature = "x11rb")]
 const DEFAULT_DELAY: u32 = 12;
@@ -20,25 +19,24 @@ const DEFAULT_DELAY: u32 = 12;
 #[derive(Debug)]
 pub struct KeyMap<Keycode> {
     pub(super) additionally_mapped: HashMap<Keysym, Keycode>,
-    keysyms: Vec<u32>,
     keycode_min: Keycode,
     keycode_max: Keycode,
     keysyms_per_keycode: u8,
+    keysyms: Vec<u32>,
 
     unused_keycodes: VecDeque<Keycode>,
-    protected_keycodes: Vec<Keycode>, /* These keycodes cannot be unmapped, because they are
-                                       * currently held */
+    held_keycodes: Vec<Keycode>, // cannot get unmapped
     needs_regeneration: bool,
     #[cfg(feature = "wayland")]
-    pub(super) file: Option<std::fs::File>, // Temporary file that contains the keymap
+    pub(super) file: Option<std::fs::File>, // temporary file that contains the keymap
     #[cfg(feature = "wayland")]
-    modifiers: ModifierBitflag, // State of the modifiers
+    modifiers: ModifierBitflag, // state of the modifiers
     #[cfg(feature = "x11rb")]
-    last_keys: Vec<Keycode>, // Last pressed keycodes
+    last_keys: Vec<Keycode>, // last pressed keycodes
     #[cfg(feature = "x11rb")]
     delay: u32, // milliseconds
     #[cfg(feature = "x11rb")]
-    last_event_before_delays: std::time::Instant, // Time of the last event
+    last_event_before_delays: std::time::Instant, // time of the last event
     #[cfg(feature = "x11rb")]
     pending_delays: u32,
 }
@@ -84,12 +82,12 @@ where
         let pending_delays = 0;
         Self {
             additionally_mapped: keymap,
-            keysyms,
             keycode_min,
             keycode_max,
             keysyms_per_keycode,
+            keysyms,
             unused_keycodes,
-            protected_keycodes: held_keycodes,
+            held_keycodes,
             needs_regeneration,
             #[cfg(feature = "wayland")]
             file,
@@ -110,7 +108,9 @@ where
         let keycode_min: usize = self.keycode_min.try_into().unwrap();
         let keycode_max: usize = self.keycode_max.try_into().unwrap();
 
-        for j in 0..self.keysyms_per_keycode {
+        // TODO: Change this range to 0..self.keysyms_per_keycode once we find out how
+        // to detect the level and switch it
+        for j in 0..1 {
             for i in keycode_min..=keycode_max {
                 let i: u32 = i.try_into().unwrap();
                 let min_keycode: u32 = keycode_min.try_into().unwrap();
@@ -262,7 +262,7 @@ where
         // TODO: Don't unmap the keycodes if they will be needed next
         if self.unused_keycodes.is_empty() {
             let mapped_keys = self.additionally_mapped.clone();
-            let held_keycodes = self.protected_keycodes.clone();
+            let held_keycodes = self.held_keycodes.clone();
             let mut made_room = false;
 
             for (&sym, &keycode) in mapped_keys
@@ -289,7 +289,8 @@ where
     pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
         use super::{KEYMAP_BEGINNING, KEYMAP_END};
         use std::io::{Seek, SeekFrom, Write};
-        use xkbcommon::xkb::keysym_get_name;
+        use xkbcommon::xkb::keysym_get_name; // TODO: Replace this with the function from xkeysym and get rid of the
+                                             // xkbcommon dependency once the functions return the same results
 
         // Don't do anything if there were no changes
         if !self.needs_regeneration {
@@ -364,11 +365,11 @@ where
         match direction {
             Direction::Press => {
                 debug!("added the key {keycode} to the held keycodes");
-                self.protected_keycodes.push(keycode);
+                self.held_keycodes.push(keycode);
             }
             Direction::Release => {
                 debug!("removed the key {keycode} from the held keycodes");
-                self.protected_keycodes.retain(|&k| k != keycode);
+                self.held_keycodes.retain(|&k| k != keycode);
             }
             Direction::Click => (),
         }

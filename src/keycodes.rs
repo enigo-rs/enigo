@@ -572,12 +572,12 @@ pub enum Key {
 
 #[cfg(target_os = "linux")]
 /// Converts a Key to a Keysym
-impl TryFrom<Key> for xkbcommon::xkb::Keysym {
+impl TryFrom<Key> for xkeysym::Keysym {
     type Error = &'static str;
 
     #[allow(clippy::too_many_lines)]
     fn try_from(key: Key) -> Result<Self, &'static str> {
-        use xkbcommon::xkb::Keysym;
+        use xkeysym::Keysym;
 
         #[allow(clippy::match_same_arms)]
         Ok(match key {
