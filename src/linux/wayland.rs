@@ -148,6 +148,13 @@ impl Con {
         let (keysyms_per_keycode, keysyms) = (0, vec![]);
         let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
 
+        trace!(
+            "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
+            virtual_keyboard.is_some(),
+            input_method.is_some(),
+            virtual_pointer.is_some(),
+        );
+
         if virtual_keyboard.is_none() && input_method.is_none() && virtual_pointer.is_none() {
             return Err(NewConError::EstablishCon(
                 "no protocol available to simulate input",
@@ -183,10 +190,12 @@ impl Con {
             let keycode = keycode - 8; // Adjust by 8 due to the xkb/xwayland requirements
 
             if direction == Direction::Press || direction == Direction::Click {
+                trace!("vk.key({time}, {keycode}, 1)");
                 vk.key(time, keycode, 1);
                 self.flush()?;
             }
             if direction == Direction::Release || direction == Direction::Click {
+                trace!("vk.key({time}, {keycode}, 0)");
                 vk.key(time, keycode, 0);
                 self.flush()?;
             }
@@ -200,6 +209,7 @@ impl Con {
     fn send_modifier_event(&mut self, modifiers: ModifierBitflag) -> InputResult<()> {
         if let Some(vk) = &self.virtual_keyboard {
             is_alive(vk)?;
+            trace!("vk.modifiers({modifiers}, 0, 0, 0)");
             vk.modifiers(modifiers, 0, 0, 0);
             self.flush()?;
             return Ok(());
@@ -212,6 +222,7 @@ impl Con {
     /// # Errors
     /// TODO
     fn apply_keymap(&mut self) -> InputResult<()> {
+        trace!("apply_keymap(&mut self)");
         if let Some(vk) = &self.virtual_keyboard {
             is_alive(vk)?;
             let Ok(keymap_res) = self.keymap.regenerate() else {
@@ -223,6 +234,7 @@ impl Con {
             // There should always be a file at this point so unwrapping is fine
             // here
             if let Some(keymap_size) = keymap_res {
+                trace!("update wayland keymap");
                 vk.keymap(1, self.keymap.file.as_ref().unwrap().as_fd(), keymap_size);
                 self.flush()?;
             }
@@ -526,6 +538,7 @@ impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = &mut self.input_method {
             is_alive(im)?;
+            trace!("fast text input with imput_method protocol");
             im.commit_string(text.to_string());
             im.commit(*serial);
             *serial = serial.wrapping_add(1);
@@ -543,6 +556,7 @@ impl KeyboardControllableNext for Con {
 
         // Send the events to the compositor
         if let Ok(modifier) = Modifier::try_from(key) {
+            trace!("it is a modifier: {modifier:?}");
             if direction == Direction::Click || direction == Direction::Press {
                 let modifiers = self
                     .keymap
@@ -604,12 +618,14 @@ impl MouseControllableNext for Con {
 
             if direction == Direction::Press || direction == Direction::Click {
                 let time = self.get_time();
+                trace!("vp.button({time}, {button}, wl_pointer::ButtonState::Pressed)");
                 vp.button(time, button, wl_pointer::ButtonState::Pressed);
                 vp.frame(); // TODO: Check if this is needed
             }
 
             if direction == Direction::Release || direction == Direction::Click {
                 let time = self.get_time();
+                trace!("vp.button({time}, {button}, wl_pointer::ButtonState::Released)");
                 vp.button(time, button, wl_pointer::ButtonState::Released);
                 vp.frame(); // TODO: Check if this is needed
             }
@@ -631,6 +647,7 @@ impl MouseControllableNext for Con {
             let time = self.get_time();
             match coordinate {
                 Coordinate::Relative => {
+                    trace!("vp.motion({time}, {x}, {y})");
                     vp.motion(time, x as f64, y as f64);
                 }
                 Coordinate::Absolute => {
@@ -644,6 +661,7 @@ impl MouseControllableNext for Con {
                             "the absolute coordinates cannot be negative",
                         ));
                     };
+                    trace!("vp.motion_absolute({time}, {x}, {y}, u32::MAX, u32::MAX)");
                     vp.motion_absolute(
                         time,
                         x,
@@ -671,6 +689,7 @@ impl MouseControllableNext for Con {
                 Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
                 Axis::Vertical => wl_pointer::Axis::VerticalScroll,
             };
+            trace!("vp.axis(time, axis, length.into())");
             vp.axis(time, axis, length.into());
             vp.frame(); // TODO: Check if this is needed
         }
