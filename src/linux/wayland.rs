@@ -250,7 +250,10 @@ impl Con {
     /// Flush the Wayland queue
     fn flush(&self) -> InputResult<()> {
         match self.event_queue.flush() {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                trace!("flushed event queue");
+                Ok(())
+            }
             Err(e) => {
                 error!("{:?}", e);
                 Err(InputError::Simulate("could not flush wayland queue"))
@@ -279,6 +282,7 @@ impl Drop for Con {
         if self.flush().is_err() {
             error!("could not flush wayland queue");
         }
+        trace!("wayland objects were destroyed");
     }
 }
 
@@ -540,7 +544,7 @@ impl Drop for WaylandState {
 
 impl KeyboardControllableNext for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
-        if let Some((im, serial)) = &mut self.input_method {
+        if let Some((im, serial)) = self.input_method.as_mut() {
             is_alive(im)?;
             trace!("fast text input with imput_method protocol");
             im.commit_string(text.to_string());
