@@ -160,8 +160,7 @@ impl Con {
                 "no protocol available to simulate input",
             ));
         }
-
-        Ok(Self {
+        let mut connection = Self {
             keymap,
             event_queue,
             state,
@@ -169,7 +168,12 @@ impl Con {
             input_method,
             virtual_pointer,
             base_time,
-        })
+        };
+
+        if connection.apply_keymap().is_err() {
+            return Err(NewConError::EstablishCon("unable to apply the keymap"));
+        };
+        Ok(connection)
     }
 
     /// Get the duration since the Keymap was created
