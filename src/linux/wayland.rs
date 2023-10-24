@@ -549,11 +549,6 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&(), key)?;
-
-        // Apply the new keymap if there were any changes
-        self.apply_keymap()?;
-
         // Send the events to the compositor
         if let Ok(modifier) = Modifier::try_from(key) {
             trace!("it is a modifier: {modifier:?}");
@@ -570,12 +565,15 @@ impl KeyboardControllableNext for Con {
                 self.send_modifier_event(modifiers)?;
             }
         } else {
-            self.send_key_event(keycode, direction)?;
-        }
+            let keycode = self.keymap.key_to_keycode(&(), key)?;
 
-        // Let the keymap know that the key was held/no longer held
-        // This is important to avoid unmapping held keys
-        self.keymap.enter_key(keycode, direction);
+            // Apply the new keymap if there were any changes
+            self.apply_keymap()?;
+            self.send_key_event(keycode, direction)?;
+            // Let the keymap know that the key was held/no longer held
+            // This is important to avoid unmapping held keys
+            self.keymap.enter_key(keycode, direction);
+        }
 
         Ok(())
     }
