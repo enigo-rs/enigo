@@ -196,12 +196,18 @@ impl Con {
             if direction == Direction::Press || direction == Direction::Click {
                 trace!("vk.key({time}, {keycode}, 1)");
                 vk.key(time, keycode, 1);
-                self.flush()?;
+                // TODO: Change to flush()
+                if self.event_queue.roundtrip(&mut self.state).is_err() {
+                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
+                }
             }
             if direction == Direction::Release || direction == Direction::Click {
                 trace!("vk.key({time}, {keycode}, 0)");
                 vk.key(time, keycode, 0);
-                self.flush()?;
+                // TODO: Change to flush()
+                if self.event_queue.roundtrip(&mut self.state).is_err() {
+                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
+                }
             }
             return Ok(());
         }
@@ -215,7 +221,10 @@ impl Con {
             is_alive(vk)?;
             trace!("vk.modifiers({modifiers}, 0, 0, 0)");
             vk.modifiers(modifiers, 0, 0, 0);
-            self.flush()?;
+            // TODO: Change to flush()
+            if self.event_queue.roundtrip(&mut self.state).is_err() {
+                return Err(InputError::Simulate("The roundtrip on Wayland failed"));
+            }
             return Ok(());
         }
         Err(InputError::Simulate("no way to enter modifier"))
@@ -240,7 +249,10 @@ impl Con {
             if let Some(keymap_size) = keymap_res {
                 trace!("update wayland keymap");
                 vk.keymap(1, self.keymap.file.as_ref().unwrap().as_fd(), keymap_size);
-                self.flush()?;
+                // TODO: Change to flush()
+                if self.event_queue.roundtrip(&mut self.state).is_err() {
+                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
+                }
             }
             return Ok(());
         }
@@ -283,6 +295,9 @@ impl Drop for Con {
             error!("could not flush wayland queue");
         }
         trace!("wayland objects were destroyed");
+
+        // TODO: Change to flush()
+        let _ = self.event_queue.roundtrip(&mut self.state);
     }
 }
 
@@ -550,7 +565,10 @@ impl KeyboardControllableNext for Con {
             im.commit_string(text.to_string());
             im.commit(*serial);
             *serial = serial.wrapping_add(1);
-            self.flush()?;
+            // TODO: Change to flush()
+            if self.event_queue.roundtrip(&mut self.state).is_err() {
+                return Err(InputError::Simulate("The roundtrip on Wayland failed"));
+            }
             return Ok(Some(()));
         }
         Ok(None)
