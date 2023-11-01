@@ -103,39 +103,7 @@ impl Con {
             return Err(NewConError::EstablishCon("wayland roundtrip not possible"));
         };
 
-        // Setup virtual keyboard
-        let virtual_keyboard = if let Some(seat) = state.seat.as_ref() {
-            state
-                .keyboard_manager
-                .as_ref()
-                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()))
-        } else {
-            None
-        };
-
-        // Setup input method
-        let input_method = if let Some(seat) = state.seat.as_ref() {
-            state
-                .im_manager
-                .as_ref()
-                .map(|im_mgr| (im_mgr.get_input_method(seat, &qh, ()), 0))
-        } else {
-            None
-        };
-
-        // Setup virtual pointer
-        let virtual_pointer = state
-            .pointer_manager
-            .as_ref()
-            .map(|vp_mgr| vp_mgr.create_virtual_pointer(state.seat.as_ref(), &qh, ()));
-
-        // Try to authenticate for the KDE Fake Input protocol
-        // TODO: Get this protocol to work
-        if let Some(kde_input) = &state.kde_input {
-            let application = "enigo".to_string();
-            let reason = "enter keycodes or move the mouse".to_string();
-            kde_input.authenticate(application, reason);
-        }
+        let (virtual_keyboard, input_method, virtual_pointer) = (None, None, None);
 
         let base_time = Instant::now();
 
@@ -148,18 +116,6 @@ impl Con {
         let (keysyms_per_keycode, keysyms) = (0, vec![]);
         let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
 
-        trace!(
-            "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
-            virtual_keyboard.is_some(),
-            input_method.is_some(),
-            virtual_pointer.is_some(),
-        );
-
-        if virtual_keyboard.is_none() && input_method.is_none() && virtual_pointer.is_none() {
-            return Err(NewConError::EstablishCon(
-                "no protocol available to simulate input",
-            ));
-        }
         let mut connection = Self {
             keymap,
             event_queue,
@@ -170,10 +126,65 @@ impl Con {
             base_time,
         };
 
+        connection.init_protocols()?;
+
         if connection.apply_keymap().is_err() {
             return Err(NewConError::EstablishCon("unable to apply the keymap"));
         };
         Ok(connection)
+    }
+
+    /// Try to set up all the protocols. An error is returned, if no protocol is
+    /// available
+    fn init_protocols(&mut self) -> Result<(), NewConError> {
+        let qh = self.event_queue.handle();
+
+        if let Some(seat) = self.state.seat.as_ref() {
+            // Setup virtual keyboard
+            self.virtual_keyboard = self
+                .state
+                .keyboard_manager
+                .as_ref()
+                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
+            // Setup input method
+            self.input_method = self
+                .state
+                .im_manager
+                .as_ref()
+                .map(|im_mgr| (im_mgr.get_input_method(seat, &qh, ()), 0));
+        };
+
+        // Setup virtual pointer
+        self.virtual_pointer = self
+            .state
+            .pointer_manager
+            .as_ref()
+            .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
+
+        // Try to authenticate for the KDE Fake Input protocol
+        // TODO: Get this protocol to work
+        if let Some(kde_input) = &self.state.kde_input {
+            let application = "enigo".to_string();
+            let reason = "enter keycodes or move the mouse".to_string();
+            kde_input.authenticate(application, reason);
+        }
+
+        trace!(
+            "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
+            self.virtual_keyboard.is_some(),
+            self.input_method.is_some(),
+            self.virtual_pointer.is_some(),
+        );
+
+        if self.virtual_keyboard.is_none()
+            && self.input_method.is_none()
+            && self.virtual_pointer.is_none()
+        {
+            return Err(NewConError::EstablishCon(
+                "no protocol available to simulate input",
+            ));
+        }
+        Ok(())
     }
 
     /// Get the duration since the Keymap was created
