@@ -566,26 +566,18 @@ pub enum Key {
     Zoom,
     /// Unicode character
     Unicode(char),
-    /// raw keycode eg 0x38
-    Raw(u16),
 }
 
 #[cfg(target_os = "linux")]
 /// Converts a Key to a Keysym
-impl TryFrom<Key> for xkeysym::Keysym {
-    type Error = &'static str;
-
+impl From<Key> for xkeysym::Keysym {
     #[allow(clippy::too_many_lines)]
-    fn try_from(key: Key) -> Result<Self, &'static str> {
+    fn from(key: Key) -> Self {
         use xkeysym::Keysym;
 
         #[allow(clippy::match_same_arms)]
-        Ok(match key {
+        match key {
             Key::Unicode(c) => xkeysym::Keysym::from_char(c),
-            Key::Raw(k) => {
-                println!("raw keycode: {k:?}");
-                return Err("attempted to convert raw keycode to keysym");
-            }
             Key::Alt | Key::Option => Keysym::Alt_L,
             Key::Backspace => Keysym::BackSpace,
             Key::Begin => Keysym::Begin,
@@ -673,7 +665,7 @@ impl TryFrom<Key> for xkeysym::Keysym {
             Key::VolumeUp => Keysym::XF86_AudioRaiseVolume,
             Key::VolumeMute => Keysym::XF86_AudioMute,
             Key::Command | Key::Super | Key::Windows | Key::Meta => Keysym::Super_L,
-        })
+        }
     }
 }
 

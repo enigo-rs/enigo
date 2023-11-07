@@ -251,17 +251,25 @@ impl KeyboardControllableNext for Con {
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Check if the key is a modifier
-        let keycode = match Modifier::try_from(key) {
+        let keycode: u16 = match Modifier::try_from(key) {
             // If it is a modifier, the already mapped keycode must be used
             Ok(modifier) => {
                 debug!("it is a modifier: {modifier:?}");
-                self.modifiers[modifier.no()]
+                self.modifiers[modifier.no()].into()
             }
             // All regular keys might have to get mapped
-            _ => self.keymap.key_to_keycode(&self.connection, key)?,
+            _ => self.keymap.key_to_keycode(&self.connection, key)?.into(),
         };
 
-        let detail = keycode;
+        self.raw(keycode, direction)
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        let Ok(keycode) = keycode.try_into() else {
+            return Err(InputError::InvalidInput(
+                "Keycode was too large. It has to fit in u8 on X11",
+            ));
+        };
         let time = self.keymap.pending_delays();
         let root = self.screen.root;
         let root_x = 0;
@@ -270,13 +278,13 @@ impl KeyboardControllableNext for Con {
 
         debug!(
             "xtest_fake_input with keycode {}, deviceid {}, delay {}",
-            detail, deviceid, time
+            keycode, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::KEY_PRESS_EVENT,
-                    detail,
+                    keycode,
                     time,
                     root,
                     root_x,
@@ -298,7 +306,7 @@ impl KeyboardControllableNext for Con {
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::KEY_RELEASE_EVENT,
-                    detail,
+                    keycode,
                     time, // TODO: Check if there needs to be a delay here
                     root,
                     root_x,

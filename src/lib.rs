@@ -514,6 +514,16 @@ pub trait KeyboardControllableNext {
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
+
+    /// Sends a raw keycode. The keycode may or may not be mapped on the current
+    /// layout. You have to make sure of that yourself. This can be usefull if
+    /// you want to simulate a press regardless of the layout (WASD on video
+    /// games)
+    ///
+    /// # Errors
+    /// Have a look at the documentation of `InputError` to see under which
+    /// conditions an error will be returned.
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()>;
 }
 
 /// Contains functions to control the mouse and to get the size of the display.

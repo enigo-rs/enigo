@@ -614,6 +614,17 @@ impl KeyboardControllableNext for Con {
 
         Ok(())
     }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        // Apply the new keymap if there were any changes
+        self.apply_keymap()?;
+        self.send_key_event(keycode.into(), direction)?;
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.enter_key(keycode.into(), direction);
+
+        Ok(())
+    }
 }
 impl MouseControllableNext for Con {
     fn send_mouse_button_event(

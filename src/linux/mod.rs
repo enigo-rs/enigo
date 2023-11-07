@@ -27,7 +27,7 @@ use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 mod keymap;
 
 pub struct Enigo {
-    held: Vec<Key>, // Currently held keys
+    held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes
     release_keys_when_dropped: bool,
     #[cfg(feature = "wayland")]
     wayland: Option<wayland::Con>,
@@ -53,7 +53,7 @@ impl Enigo {
             ..
         } = settings;
 
-        let held = Vec::new();
+        let held = (Vec::new(), Vec::new());
         #[cfg(feature = "wayland")]
         let wayland = match wayland::Con::new(wayland_display) {
             Ok(con) => {
@@ -129,7 +129,7 @@ impl Enigo {
     }
 
     /// Returns a list of all currently pressed keys
-    pub fn held(&mut self) -> Vec<Key> {
+    pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
     }
 }
@@ -293,16 +293,48 @@ impl KeyboardControllableNext for Enigo {
         match direction {
             Direction::Press => {
                 debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
+                self.held.0.push(key);
             }
             Direction::Release => {
                 debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
+                self.held.0.retain(|&k| k != key);
             }
             Direction::Click => (),
         }
 
         debug!("entered the key");
+        Ok(())
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
+
+        #[cfg(feature = "wayland")]
+        if let Some(con) = self.wayland.as_mut() {
+            trace!("try entering the keycode via wayland");
+            con.raw(keycode, direction)?;
+            debug!("entered the keycode via wayland");
+        }
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            trace!("try entering the keycode via x11");
+            con.raw(keycode, direction)?;
+            debug!("entered the keycode via x11");
+        }
+
+        match direction {
+            Direction::Press => {
+                debug!("added the keycode {keycode:?} to the held keys");
+                self.held.1.push(keycode);
+            }
+            Direction::Release => {
+                debug!("removed the keycode {keycode:?} from the held keys");
+                self.held.1.retain(|&k| k != keycode);
+            }
+            Direction::Click => (),
+        }
+
+        debug!("entered the keycode");
         Ok(())
     }
 }
@@ -313,11 +345,17 @@ impl Drop for Enigo {
         if !self.release_keys_when_dropped {
             return;
         }
-        for &k in &self.held() {
-            if self.enter_key(k, Direction::Release).is_err() {
-                error!("unable to release {:?}", k);
+        let (held_keys, held_keycodes) = self.held();
+        for &key in &held_keys {
+            if self.enter_key(key, Direction::Release).is_err() {
+                error!("unable to release {:?}", key);
             };
         }
-        debug!("released all held keys");
+        for &keycode in &held_keycodes {
+            if self.raw(keycode, Direction::Release).is_err() {
+                error!("unable to release {:?}", keycode);
+            };
+        }
+        debug!("released all held keys and held keycodes");
     }
 }

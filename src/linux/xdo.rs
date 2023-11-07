@@ -166,11 +166,7 @@ impl KeyboardControllableNext for Con {
     }
 
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let Ok(keysym) = Keysym::try_from(key) else {
-            return Err(InputError::InvalidInput(
-                "you can't enter a raw keycode with xdotools",
-            ));
-        };
+        let keysym = Keysym::from(key);
         let Some(keysym_name) = keysym.name() else {
             // this should never happen, because we only use keysyms with a known name
             return Err(InputError::InvalidInput("the keysym does not have a name"));
@@ -232,6 +228,13 @@ impl KeyboardControllableNext for Con {
             return Err(InputError::Simulate("unable to enter key"));
         }
         Ok(())
+    }
+
+    fn raw(&mut self, _keycode: u16, _direction: Direction) -> InputResult<()> {
+        // TODO: Lookup the key name for the keycode and then enter that with xdotool.
+        // This is a bit weird, because xdotool will then do the reverse. Maybe there is
+        // a better way?
+        todo!("You cant enter raw keycodes with xdotool")
     }
 }
 
