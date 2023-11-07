@@ -64,7 +64,7 @@ where
         match token {
             Token::Sequence(buffer) => {
                 for key in buffer.chars() {
-                    enigo.key_click(Key::Layout(key));
+                    enigo.key_click(Key::Unicode(key));
                 }
             }
             Token::Unicode(buffer) => enigo.key_sequence(&buffer),

@@ -1,5 +1,5 @@
 // A key on the keyboard.
-/// For alphabetical keys, use [`Key::Layout`] for a system independent key.
+/// Use [`Key::Unicode`] to enter arbitrary Unicode chars.
 /// If a key is missing, you can use the raw keycode with [`Key::Raw`]. Some of
 /// the keys are only available on a specific platform. Use conditional
 /// compilation to use them.
@@ -564,8 +564,8 @@ pub enum Key {
     XButton2,
     #[cfg(target_os = "windows")]
     Zoom,
-    /// keyboard layout dependent key
-    Layout(char),
+    /// Unicode character
+    Unicode(char),
     /// raw keycode eg 0x38
     Raw(u16),
 }
@@ -581,7 +581,7 @@ impl TryFrom<Key> for xkeysym::Keysym {
 
         #[allow(clippy::match_same_arms)]
         Ok(match key {
-            Key::Layout(c) => xkeysym::Keysym::from_char(c),
+            Key::Unicode(c) => xkeysym::Keysym::from_char(c),
             Key::Raw(k) => {
                 println!("raw keycode: {k:?}");
                 return Err("attempted to convert raw keycode to keysym");

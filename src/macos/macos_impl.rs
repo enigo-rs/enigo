@@ -360,7 +360,7 @@ impl KeyboardControllableNext for Enigo {
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
-        if key == Key::Layout('\0') {
+        if key == Key::Unicode('\0') {
             return Ok(());
         }
 
@@ -548,7 +548,7 @@ impl Enigo {
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
             Key::Raw(raw_keycode) => raw_keycode,
-            Key::Layout(c) => self.get_layoutdependent_keycode(&c.to_string()),
+            Key::Unicode(c) => self.get_layoutdependent_keycode(&c.to_string()),
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
         }
     }

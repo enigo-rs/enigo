@@ -298,7 +298,7 @@ impl KeyboardControllableNext for Enigo {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
 
-        if let Key::Layout(c) = key {
+        if let Key::Unicode(c) = key {
             // Handle special characters seperately
             match c {
                 '\n' => return self.enter_key(Key::Return, direction),
@@ -306,7 +306,7 @@ impl KeyboardControllableNext for Enigo {
                 }
                 '\t' => return self.enter_key(Key::Tab, direction),
                 '\0' => {
-                    debug!("entering Key::Layout('\\0') is a noop");
+                    debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
                 }
                 _ => (),
@@ -328,7 +328,7 @@ impl KeyboardControllableNext for Enigo {
             }
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
-            // Key::Layout and we already ensured that is not the case
+            // Key::Unicode and we already ensured that is not the case
             let keycode = key_to_keycode(key).unwrap();
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
@@ -712,7 +712,7 @@ fn key_to_keycode(key: Key) -> Option<VIRTUAL_KEY> {
         Key::XButton2 => VK_XBUTTON2,
         Key::Zoom => VK_ZOOM,
         Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
-        Key::Layout(_) => return None,
+        Key::Unicode(_) => return None,
         Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
     };
     Some(vk)

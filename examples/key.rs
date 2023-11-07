@@ -7,7 +7,7 @@ fn main() {
     thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 
-    enigo.key_down(Key::Layout('a'));
+    enigo.key_down(Key::Unicode('a'));
     thread::sleep(Duration::from_secs(1));
-    enigo.key_up(Key::Layout('a'));
+    enigo.key_up(Key::Unicode('a'));
 }

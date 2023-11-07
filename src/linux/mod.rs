@@ -272,7 +272,7 @@ impl KeyboardControllableNext for Enigo {
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
-        if key == Key::Layout('\0') {
+        if key == Key::Unicode('\0') {
             debug!("entering the null byte is a noop");
             return Ok(());
         }

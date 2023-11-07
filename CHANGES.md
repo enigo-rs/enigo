@@ -7,6 +7,7 @@
 - win: Don't panic if it was not possible to move the mouse
 - win: Don't move the mouse to a relative position if it was not possible to get the current position
 - All: The feature `with_serde` was renamed to `serde`
+- All: Renamed `Key::Layout(char)` to `Key::Unicode(char)` and clearified its docs
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it

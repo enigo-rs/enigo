@@ -12,6 +12,6 @@ fn main() {
 
     // select all
     enigo.key_down(Key::Control);
-    enigo.key_click(Key::Layout('a'));
+    enigo.key_click(Key::Unicode('a'));
     enigo.key_up(Key::Control);
 }

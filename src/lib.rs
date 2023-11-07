@@ -28,7 +28,7 @@
 //! let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
 //! //paste
 //! enigo.key_down(Key::Control);
-//! enigo.key_click(Key::Layout('v'));
+//! enigo.key_click(Key::Unicode('v'));
 //! enigo.key_up(Key::Control);
 //! ```
 //!
@@ -336,12 +336,11 @@ where
 ///
 /// For the keyboard there are currently two modes you can use. The first mode
 /// is represented by the [`key_sequence`](KeyboardControllable::key_sequence)
-/// function. It's purpose is to simply write unicode characters. This is
-/// independent of the keyboard layout. Please note that
-/// you're not be able to use modifier keys like Control
-/// to influence the outcome. If you want to use modifier keys to e.g.
-/// copy/paste, use the Layout variant. Please note that this is indeed layout
-/// dependent.
+/// function. It's purpose is to simply write unicode characters.
+/// Please note that you're not able to use modifier keys like Control
+/// to influence the outcome. If you want to use shortcuts to e.g.
+/// copy/paste, enter the modifier and enter the appropriate `Key::Unicode`
+/// variant.
 pub trait KeyboardControllable
 where
     Self: KeyboardControllableNext,
@@ -497,7 +496,7 @@ pub trait KeyboardControllableNext {
             Ok(None) => {
                 debug!("fast text entry not available. Trying to enter individual letters now");
                 for c in text.chars() {
-                    self.enter_key(Key::Layout(c), Direction::Click)?;
+                    self.enter_key(Key::Unicode(c), Direction::Click)?;
                 }
                 Ok(())
             }
