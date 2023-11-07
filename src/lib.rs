@@ -68,6 +68,9 @@ pub mod dsl;
 mod platform;
 pub use platform::Enigo;
 
+#[cfg(target_os = "windows")]
+pub use platform::EXT;
+
 /// Contains the available keycodes
 pub mod keycodes;
 pub use keycodes::Key;
@@ -519,6 +522,14 @@ pub trait KeyboardControllableNext {
     /// layout. You have to make sure of that yourself. This can be usefull if
     /// you want to simulate a press regardless of the layout (WASD on video
     /// games)
+    /// Windows only: If you want to enter the keycode (scancode) of an extended
+    /// key, you need to set extra bits. Here is one way to do that:
+    ///
+    /// ```no_run
+    /// use enigo::*;
+    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// enigo.raw(45 | EXT, Direction::Click); // Only set the extra bits on Windows
+    /// ```
     ///
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which

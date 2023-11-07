@@ -15,5 +15,14 @@ fn main() {
     enigo.key_click(Key::Meta); // linux: Open launcher
 
     #[cfg(target_os = "windows")]
-    enigo.key_click(Key::Divide); // windows: Enter divide symbol (slash)
+    {
+        use enigo::KeyboardControllableNext;
+
+        // windows: Enter divide symbol (slash)
+        enigo.key_click(Key::Divide);
+
+        // windows: Press and release the NumLock key. Without the EXT bit set, it would
+        // enter the Pause key
+        enigo.raw(45 | enigo::EXT, enigo::Direction::Click).unwrap();
+    }
 }
