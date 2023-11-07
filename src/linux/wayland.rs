@@ -344,7 +344,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         state: &mut Self,
         registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
@@ -419,7 +419,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
         _state: &mut Self,
         _manager: &zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
         event: zwp_virtual_keyboard_manager_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -432,7 +432,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
         _state: &mut Self,
         _vk: &zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
         event: zwp_virtual_keyboard_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -445,7 +445,7 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
         _state: &mut Self,
         _manager: &zwp_input_method_manager_v2::ZwpInputMethodManagerV2,
         event: zwp_input_method_manager_v2::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -457,7 +457,7 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _state: &mut Self,
         _vk: &zwp_input_method_v2::ZwpInputMethodV2,
         event: zwp_input_method_v2::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -469,7 +469,7 @@ impl Dispatch<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, ()> for WaylandState
         _state: &mut Self,
         _vk: &org_kde_kwin_fake_input::OrgKdeKwinFakeInput,
         event: org_kde_kwin_fake_input::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -484,7 +484,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _state: &mut Self,
         _seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -498,7 +498,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
         state: &mut Self,
         _output: &wl_output::WlOutput,
         event: wl_output::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -535,7 +535,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
         _state: &mut Self,
         _manager: &zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
         event: zwlr_virtual_pointer_manager_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -548,7 +548,7 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
         _state: &mut Self,
         _vk: &zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
         event: zwlr_virtual_pointer_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
