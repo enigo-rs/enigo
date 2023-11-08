@@ -11,7 +11,7 @@
 - All: Split off entering raw keycodes into it's own function
 - All: Renamed `key_sequence` function to `text`
 - All: Renamed `enter_key` function to `key`
-- All: Renamed `send_mouse_button_event` function to `mouse_button`
+- All: Renamed `send_mouse_button_event` function to `button`
 - All: Renamed `send_motion_notify_event` function to `move_mouse`
 - All: Renamed `mouse_scroll_event` function to `scroll`
 - All: Renamed `mouse_location` function to `location`

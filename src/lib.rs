@@ -78,7 +78,7 @@ pub use keycodes::Key;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Represents a mouse button and is used in e.g
-/// [`MouseControllableNext::mouse_button`].
+/// [`MouseControllableNext::button`].
 
 // Warning! If there are ANY CHANGES to this enum, we
 // need to change the size of the array in the macOS implementation of the Enigo
@@ -184,7 +184,7 @@ where
     /// enigo.mouse_down(Button::Left);
     /// ```
     fn mouse_down(&mut self, button: Button) {
-        match self.mouse_button(button, Direction::Press) {
+        match self.button(button, Direction::Press) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -211,7 +211,7 @@ where
     /// enigo.mouse_up(Button::Right);
     /// ```
     fn mouse_up(&mut self, button: Button) {
-        match self.mouse_button(button, Direction::Release) {
+        match self.button(button, Direction::Release) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -235,7 +235,7 @@ where
     /// enigo.mouse_click(Button::Right);
     /// ```
     fn mouse_click(&mut self, button: Button) {
-        match self.mouse_button(button, Direction::Click) {
+        match self.button(button, Direction::Click) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -567,7 +567,7 @@ pub trait MouseControllableNext {
     /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
     #[doc(alias = "mouse_down", alias = "mouse_up", alias = "mouse_click")]
-    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()>;
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()>;
 
     /// Move the mouse cursor to the specified x and y coordinates.
     ///

@@ -158,8 +158,8 @@ pub struct Enigo {
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let (current_x, current_y) = self.location()?;
 
         if direction == Direction::Click || direction == Direction::Press {
@@ -229,7 +229,7 @@ impl MouseControllableNext for Enigo {
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
         };
 
-        let (event_type, mouse_button) =
+        let (event_type, button) =
             if pressed & 1 > 0 {
                 (CGEventType::LeftMouseDragged, CGMouseButton::Left)
             } else if pressed & 2 > 0 {
@@ -240,7 +240,7 @@ impl MouseControllableNext for Enigo {
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
         let Ok(event) =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, mouse_button)
+            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
         else {
             return Err(InputError::Simulate(
                 "failed creating event to move the mouse",

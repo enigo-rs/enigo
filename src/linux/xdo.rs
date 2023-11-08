@@ -239,20 +239,20 @@ impl KeyboardControllableNext for Con {
 }
 
 impl MouseControllableNext for Con {
-    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
-        let mouse_button = mousebutton(button);
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        let button = mousebutton(button);
         let res = match direction {
             Direction::Press => {
-                debug!("xdo_mouse_down with mouse button {}", mouse_button);
-                unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_mouse_down with mouse button {}", button);
+                unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Release => {
-                debug!("xdo_mouse_up with mouse button {}", mouse_button);
-                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_mouse_up with mouse button {}", button);
+                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Click => {
-                debug!("xdo_click_window with mouse button {}", mouse_button);
-                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_click_window with mouse button {}", button);
+                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, button) }
             }
         };
         if res != XDO_SUCCESS {
@@ -293,7 +293,7 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.mouse_button(button, Direction::Click)?;
+            self.button(button, Direction::Click)?;
         }
         Ok(())
     }

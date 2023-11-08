@@ -626,7 +626,7 @@ impl KeyboardControllableNext for Con {
     }
 }
 impl MouseControllableNext for Con {
-    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // Do nothing if one of the mouse scroll buttons was released
             // Releasing one of the scroll mouse buttons has no effect

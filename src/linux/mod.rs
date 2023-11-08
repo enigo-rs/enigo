@@ -135,20 +135,20 @@ impl Enigo {
 }
 
 impl MouseControllableNext for Enigo {
-    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try sending button event via wayland");
-            con.mouse_button(button, direction)?;
+            con.button(button, direction)?;
             debug!("sent button event via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try sending button event via x11");
-            con.mouse_button(button, direction)?;
+            con.button(button, direction)?;
             debug!("sent button event via x11");
             success = true;
         }
