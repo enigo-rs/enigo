@@ -225,10 +225,10 @@ impl KeyboardControllableNext for Enigo {
         for c in text.chars() {
             // Handle special characters seperately
             match c {
-                '\n' => return self.enter_key(Key::Return, Direction::Click),
+                '\n' => return self.key(Key::Return, Direction::Click),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.enter_key(Key::Tab, Direction::Click),
+                '\t' => return self.key(Key::Tab, Direction::Click),
                 '\0' => return Err(InputError::InvalidInput("the text contained a null byte")),
                 _ => (),
             }
@@ -256,17 +256,17 @@ impl KeyboardControllableNext for Enigo {
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
 
         if let Key::Unicode(c) = key {
             // Handle special characters seperately
             match c {
-                '\n' => return self.enter_key(Key::Return, direction),
+                '\n' => return self.key(Key::Return, direction),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.enter_key(Key::Tab, direction),
+                '\t' => return self.key(Key::Tab, direction),
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
@@ -469,7 +469,7 @@ impl Drop for Enigo {
         }
         let (held_keys, held_keycodes) = self.held();
         for key in held_keys {
-            if self.enter_key(key, Direction::Release).is_err() {
+            if self.key(key, Direction::Release).is_err() {
                 error!("unable to release {key:?}");
             };
         }

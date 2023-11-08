@@ -165,7 +165,7 @@ impl KeyboardControllableNext for Con {
         Ok(Some(()))
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let keysym = Keysym::from(key);
         let Some(keysym_name) = keysym.name() else {
             // this should never happen, because we only use keysyms with a known name

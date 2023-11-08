@@ -356,8 +356,8 @@ impl KeyboardControllableNext for Enigo {
         Ok(Some(()))
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
         if key == Key::Unicode('\0') {
             return Ok(());
@@ -676,7 +676,7 @@ impl Drop for Enigo {
 
         let (held_keys, held_keycodes) = self.held();
         for key in held_keys {
-            if self.enter_key(key, Direction::Release).is_err() {
+            if self.key(key, Direction::Release).is_err() {
                 error!("unable to release {key:?}");
             };
         }

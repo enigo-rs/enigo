@@ -269,8 +269,8 @@ impl KeyboardControllableNext for Enigo {
         Ok(Some(()))
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
         if key == Key::Unicode('\0') {
             debug!("entering the null byte is a noop");
@@ -280,13 +280,13 @@ impl KeyboardControllableNext for Enigo {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the key via wayland");
-            con.enter_key(key, direction)?;
+            con.key(key, direction)?;
             debug!("entered the key via wayland");
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering the key via x11");
-            con.enter_key(key, direction)?;
+            con.key(key, direction)?;
             debug!("entered the key via x11");
         }
 
@@ -347,7 +347,7 @@ impl Drop for Enigo {
         }
         let (held_keys, held_keycodes) = self.held();
         for &key in &held_keys {
-            if self.enter_key(key, Direction::Release).is_err() {
+            if self.key(key, Direction::Release).is_err() {
                 error!("unable to release {:?}", key);
             };
         }

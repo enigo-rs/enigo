@@ -249,7 +249,7 @@ impl KeyboardControllableNext for Con {
         Ok(None)
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Check if the key is a modifier
         let keycode: u16 = match Modifier::try_from(key) {
             // If it is a modifier, the already mapped keycode must be used
@@ -328,7 +328,7 @@ impl KeyboardControllableNext for Con {
 
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys
-        self.keymap.enter_key(keycode, direction);
+        self.keymap.key(keycode, direction);
 
         Ok(())
     }

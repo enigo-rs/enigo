@@ -352,7 +352,7 @@ where
         }
     }
 
-    pub fn enter_key(&mut self, keycode: Keycode, direction: Direction) {
+    pub fn key(&mut self, keycode: Keycode, direction: Direction) {
         match direction {
             Direction::Press => {
                 debug!("added the key {keycode} to the held keycodes");

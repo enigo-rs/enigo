@@ -396,7 +396,7 @@ where
 
     /// Press down the given key
     fn key_down(&mut self, key: Key) {
-        match self.enter_key(key, Direction::Press) {
+        match self.key(key, Direction::Press) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -407,7 +407,7 @@ where
 
     /// Release a pressed down key
     fn key_up(&mut self, key: Key) {
-        match self.enter_key(key, Direction::Release) {
+        match self.key(key, Direction::Release) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -420,7 +420,7 @@ where
     /// [`KeyboardControllable::key_down`] and
     /// [`KeyboardControllable::key_up`] functions consecutively
     fn key_click(&mut self, key: Key) {
-        match self.enter_key(key, Direction::Click) {
+        match self.key(key, Direction::Click) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -477,7 +477,7 @@ pub trait KeyboardControllableNext {
     /// not contain any NULL bytes ('\0'). You can use unicode here like: ❤️.
     /// This works regardless of the current keyboard layout. You cannot use
     /// this function for entering shortcuts or something similar. For
-    /// shortcuts, use the [`KeyboardControllableNext::enter_key`] method
+    /// shortcuts, use the [`KeyboardControllableNext::key`] method
     /// instead.
     ///
     /// # Errors
@@ -499,7 +499,7 @@ pub trait KeyboardControllableNext {
             Ok(None) => {
                 debug!("fast text entry not available. Trying to enter individual letters now");
                 for c in text.chars() {
-                    self.enter_key(Key::Unicode(c), Direction::Click)?;
+                    self.key(Key::Unicode(c), Direction::Click)?;
                 }
                 Ok(())
             }
@@ -516,7 +516,7 @@ pub trait KeyboardControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 
     /// Sends a raw keycode. The keycode may or may not be mapped on the current
     /// layout. You have to make sure of that yourself. This can be usefull if
