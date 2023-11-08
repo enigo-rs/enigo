@@ -313,7 +313,7 @@ impl MouseControllableNext for Con {
         Ok((width, height))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         let mut x = 0;
         let mut y = 0;
         let mut unused_screen_index = 0;

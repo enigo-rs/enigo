@@ -325,7 +325,7 @@ where
     /// ```
     #[must_use]
     fn mouse_location(&self) -> (i32, i32) {
-        match self.mouse_loc() {
+        match self.location() {
             Ok(loc) => loc,
             Err(e) => {
                 error!("{e}");
@@ -597,7 +597,7 @@ pub trait MouseControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn mouse_loc(&self) -> InputResult<(i32, i32)>;
+    fn location(&self) -> InputResult<(i32, i32)>;
 }
 
 pub type InputResult<T> = Result<T, InputError>;

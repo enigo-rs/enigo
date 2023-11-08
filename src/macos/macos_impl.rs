@@ -160,7 +160,7 @@ impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
-        let (current_x, current_y) = self.mouse_loc()?;
+        let (current_x, current_y) = self.location()?;
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
@@ -221,7 +221,7 @@ impl MouseControllableNext for Enigo {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let pressed = Self::pressed_buttons()?;
-        let (current_x, current_y) = self.mouse_loc()?;
+        let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
@@ -292,8 +292,8 @@ impl MouseControllableNext for Enigo {
         ))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
-        debug!("\x1b[93mmouse_loc()\x1b[0m");
+    fn location(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mlocation()\x1b[0m");
         let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
             "failed creating event to get the mouse location",
         ))?;

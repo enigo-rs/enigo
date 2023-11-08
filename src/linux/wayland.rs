@@ -742,7 +742,7 @@ impl MouseControllableNext for Con {
         Err(InputError::Simulate("Not implemented yet"))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
         error!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
         Err(InputError::Simulate("Not implemented yet"))

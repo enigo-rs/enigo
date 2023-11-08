@@ -225,17 +225,17 @@ impl MouseControllableNext for Enigo {
         Err(InputError::Simulate("No protocol to enter the result"))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
-        debug!("\x1b[93mmouse_loc()\x1b[0m");
+    fn location(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mlocation()\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the mouse location via wayland");
-            return con.mouse_loc();
+            return con.location();
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
             trace!("try getting the mouse location via x11");
-            return con.mouse_loc();
+            return con.location();
         }
         Err(InputError::Simulate("No protocol to enter the result"))
     }

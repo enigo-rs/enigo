@@ -129,7 +129,7 @@ impl MouseControllableNext for Enigo {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            let (x_absolute, y_absolute) = self.mouse_loc()?;
+            let (x_absolute, y_absolute) = self.location()?;
             (x_absolute + x, y_absolute + y)
         } else {
             (x, y)
@@ -182,8 +182,8 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
-        debug!("\x1b[93mmouse_loc()\x1b[0m");
+    fn location(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mlocation()\x1b[0m");
         let mut point = POINT { x: 0, y: 0 };
         if unsafe { GetCursorPos(&mut point) }.is_ok() {
             Ok((point.x, point.y))

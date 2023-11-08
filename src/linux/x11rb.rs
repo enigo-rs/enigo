@@ -485,7 +485,7 @@ impl MouseControllableNext for Con {
         Ok((main_display.width as i32, main_display.height as i32))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         let reply = self
             .connection
             .query_pointer(self.screen.root)
