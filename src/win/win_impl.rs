@@ -16,7 +16,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
     MouseControllableNext, NewConError, Settings,
 };
 
@@ -195,7 +195,7 @@ impl MouseControllableNext for Enigo {
     }
 }
 
-impl KeyboardControllableNext for Enigo {
+impl Keyboard for Enigo {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }

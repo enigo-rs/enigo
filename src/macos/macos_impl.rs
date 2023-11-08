@@ -14,7 +14,7 @@ use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
     MouseControllableNext, NewConError, Settings,
 };
 
@@ -304,7 +304,7 @@ impl MouseControllableNext for Enigo {
 }
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
-impl KeyboardControllableNext for Enigo {
+impl Keyboard for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         // Fn to create an iterator over sub slices of a str that have the specified
         // length

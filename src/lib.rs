@@ -347,7 +347,7 @@ where
 /// variant.
 pub trait KeyboardControllable
 where
-    Self: KeyboardControllableNext,
+    Self: Keyboard,
 {
     /// Type the string parsed with DSL.
     ///
@@ -467,14 +467,14 @@ pub enum Coordinate {
 
 /// Contains functions to simulate key presses/releases and to input text.
 ///
-/// For entering text, the [`KeyboardControllableNext::text`] function is best.
+/// For entering text, the [`Keyboard::text`] function is best.
 /// If you want to enter a key without having to worry about the layout or the
-/// keymap, use the [`KeyboardControllableNext::key`] function. If you want a
+/// keymap, use the [`Keyboard::key`] function. If you want a
 /// specific (physical) key to be pressed (e.g WASD for games), use the
-/// [`KeyboardControllableNext::raw`] function. The resulting keysym will depend
+/// [`Keyboard::raw`] function. The resulting keysym will depend
 /// on the layout/keymap.
 #[doc(alias = "KeyboardControllable")]
-pub trait KeyboardControllableNext {
+pub trait Keyboard {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized.
@@ -489,7 +489,7 @@ pub trait KeyboardControllableNext {
     /// unicode here like: ❤️. This works regardless of the current keyboard
     /// layout. You cannot use this function for entering shortcuts or
     /// something similar. For shortcuts, use the
-    /// [`KeyboardControllableNext::key`] method instead.
+    /// [`Keyboard::key`] method instead.
     ///
     /// # Errors
     /// The text should not contain any NULL bytes (`\0`). Have a look at the
@@ -524,7 +524,7 @@ pub trait KeyboardControllableNext {
     }
 
     /// Sends an individual key event. It will enter the keysym (virtual key).
-    /// Have a look at the [`KeyboardControllableNext::raw`] function, if you
+    /// Have a look at the [`Keyboard::raw`] function, if you
     /// want to enter a keycode.
     ///
     /// Some of the keys are specific to a platform.
@@ -538,7 +538,7 @@ pub trait KeyboardControllableNext {
     /// Sends a raw keycode. The keycode may or may not be mapped on the current
     /// layout. You have to make sure of that yourself. This can be usefull if
     /// you want to simulate a press regardless of the layout (WASD on video
-    /// games). Have a look at the [`KeyboardControllableNext::key`] function,
+    /// games). Have a look at the [`Keyboard::key`] function,
     /// if you just want to enter a specific key and don't want to worry about
     /// the layout/keymap. Windows only: If you want to enter the keycode
     /// (scancode) of an extended key, you need to set extra bits. You can

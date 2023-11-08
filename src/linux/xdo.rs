@@ -5,7 +5,7 @@ use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 use log::debug;
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
     MouseControllableNext, NewConError,
 };
 use xkeysym::Keysym;
@@ -140,7 +140,7 @@ impl Drop for Con {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         let Ok(string) = CString::new(text) else {
             return Err(InputError::InvalidInput(

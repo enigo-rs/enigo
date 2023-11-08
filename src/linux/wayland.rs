@@ -23,7 +23,7 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 use super::keymap::{Bind, KeyMap};
 use crate::{
     keycodes::Modifier, keycodes::ModifierBitflag, Axis, Button, Coordinate, Direction, InputError,
-    InputResult, Key, KeyboardControllableNext, MouseControllableNext, NewConError,
+    InputResult, Key, Keyboard, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -567,7 +567,7 @@ impl Drop for WaylandState {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = self.input_method.as_mut() {
             is_alive(im)?;

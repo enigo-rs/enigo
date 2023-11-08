@@ -17,7 +17,7 @@ use x11rb::{
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
     keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseControllableNext, NewConError,
+    Keyboard, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -241,7 +241,7 @@ impl Bind<Keycode> for CompositorConnection {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
         warn!("fast text entry is not yet implemented with x11rb");
         // TODO: Add fast method

@@ -2,7 +2,7 @@
 /// Use [`Key::Unicode`] to enter arbitrary Unicode chars.
 /// If a key is missing, please open an issue in our repo and we will quickly
 /// add it. In the mean time, you can simulate that key by using the
-/// [`crate::KeyboardControllableNext::raw`] function. Some of the keys are only
+/// [`crate::Keyboard::raw`] function. Some of the keys are only
 /// available on a specific platform. Use conditional compilation to use them.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

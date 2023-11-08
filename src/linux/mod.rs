@@ -1,7 +1,7 @@
 use log::{debug, error, trace, warn};
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
     MouseControllableNext, NewConError, Settings,
 };
 
@@ -241,7 +241,7 @@ impl MouseControllableNext for Enigo {
     }
 }
 
-impl KeyboardControllableNext for Enigo {
+impl Keyboard for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
         #[cfg(feature = "wayland")]

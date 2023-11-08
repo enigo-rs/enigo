@@ -16,7 +16,7 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     {
-        use enigo::KeyboardControllableNext;
+        use enigo::Keyboard;
 
         // windows: Enter divide symbol (slash)
         enigo.key_click(Key::Divide);
