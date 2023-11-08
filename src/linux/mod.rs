@@ -1,8 +1,8 @@
 use log::{debug, error, trace, warn};
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
-    MouseControllableNext, NewConError, Settings,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, Settings,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -134,7 +134,7 @@ impl Enigo {
     }
 }
 
-impl MouseControllableNext for Enigo {
+impl Mouse for Enigo {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut success = false;

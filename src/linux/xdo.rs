@@ -5,8 +5,7 @@ use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 use log::debug;
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
-    MouseControllableNext, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 use xkeysym::Keysym;
 
@@ -238,7 +237,7 @@ impl Keyboard for Con {
     }
 }
 
-impl MouseControllableNext for Con {
+impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let button = mousebutton(button);
         let res = match direction {

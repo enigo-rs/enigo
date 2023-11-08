@@ -14,8 +14,8 @@ use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard,
-    MouseControllableNext, NewConError, Settings,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, Settings,
 };
 
 // required for NSEvent
@@ -156,7 +156,7 @@ pub struct Enigo {
                                             * not yet been released */
 }
 
-impl MouseControllableNext for Enigo {
+impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");

@@ -23,7 +23,7 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 use super::keymap::{Bind, KeyMap};
 use crate::{
     keycodes::Modifier, keycodes::ModifierBitflag, Axis, Button, Coordinate, Direction, InputError,
-    InputResult, Key, Keyboard, MouseControllableNext, NewConError,
+    InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
 pub type Keycode = u32;
@@ -625,7 +625,7 @@ impl Keyboard for Con {
         Ok(())
     }
 }
-impl MouseControllableNext for Con {
+impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // Do nothing if one of the mouse scroll buttons was released

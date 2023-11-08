@@ -17,7 +17,7 @@ use x11rb::{
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
     keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
-    Keyboard, MouseControllableNext, NewConError,
+    Keyboard, Mouse, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -334,7 +334,7 @@ impl Keyboard for Con {
     }
 }
 
-impl MouseControllableNext for Con {
+impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let detail = match button {
             Button::Left => 1,

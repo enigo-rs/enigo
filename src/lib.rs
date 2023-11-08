@@ -78,7 +78,7 @@ pub use keycodes::Key;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Represents a mouse button and is used in e.g
-/// [`MouseControllableNext::button`].
+/// [`Mouse::button`].
 
 // Warning! If there are ANY CHANGES to this enum, we
 // need to change the size of the array in the macOS implementation of the Enigo
@@ -121,7 +121,7 @@ pub enum Button {
 /// system is used on all operating systems.
 pub trait MouseControllable
 where
-    Self: MouseControllableNext,
+    Self: Mouse,
 {
     /// Move the mouse cursor to the specified x and y coordinates.
     ///
@@ -558,7 +558,7 @@ pub trait Keyboard {
 /// right of the origin point and it is measured in pixels. The same coordinate
 /// system is used on all operating systems.
 #[doc(alias = "MouseControllable")]
-pub trait MouseControllableNext {
+pub trait Mouse {
     /// Sends an individual mouse button event. You can use this for example to
     /// simulate a click of the left mouse key. Some of the buttons are specific
     /// to a platform.
