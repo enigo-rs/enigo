@@ -98,10 +98,10 @@ impl MouseControllableNext for Enigo {
                 MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
                 MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
                 MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XDOWN,
-                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
-                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
-                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
-                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
+                MouseButton::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                MouseButton::ScrollDown => return self.scroll(1, Axis::Vertical),
+                MouseButton::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+                MouseButton::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
             input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
         }
@@ -155,8 +155,8 @@ impl MouseControllableNext for Enigo {
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let input = match axis {
             Axis::Horizontal => {
                 mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)

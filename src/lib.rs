@@ -259,7 +259,7 @@ where
     /// enigo.mouse_scroll_x(2);
     /// ```
     fn mouse_scroll_x(&mut self, length: i32) {
-        match self.mouse_scroll_event(length, Axis::Horizontal) {
+        match self.scroll(length, Axis::Horizontal) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -284,7 +284,7 @@ where
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32) {
-        match self.mouse_scroll_event(length, Axis::Vertical) {
+        match self.scroll(length, Axis::Vertical) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -582,7 +582,7 @@ pub trait MouseControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()>;
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
     /// Get the (width, height) of the main display in pixels. This currently
     /// only works on the main display

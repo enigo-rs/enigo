@@ -278,7 +278,7 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
             length = -length;

@@ -651,10 +651,10 @@ impl MouseControllableNext for Con {
                 MouseButton::Back => 0x116,
                 MouseButton::Forward => 0x115,
                 MouseButton::Middle => 0x112,
-                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
-                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
-                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
-                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
+                MouseButton::ScrollDown => return self.scroll(1, Axis::Vertical),
+                MouseButton::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                MouseButton::ScrollRight => return self.scroll(1, Axis::Horizontal),
+                MouseButton::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
             };
 
             if direction == Direction::Press || direction == Direction::Click {
@@ -716,7 +716,7 @@ impl MouseControllableNext for Con {
         }
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // TODO: Check what the value of length should be
             // TODO: Check if it would be better to use .axis_discrete here

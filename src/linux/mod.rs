@@ -185,20 +185,20 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try scrolling via wayland");
-            con.mouse_scroll_event(length, axis)?;
+            con.scroll(length, axis)?;
             debug!("scrolled via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try scrolling via x11");
-            con.mouse_scroll_event(length, axis)?;
+            con.scroll(length, axis)?;
             debug!("scrolled via x11");
             success = true;
         }
