@@ -5,6 +5,7 @@
 - Rust: MSRV is 1.65
 - All held keys are released when Enigo is dropped
 - win: Don't panic if it was not possible to move the mouse
+- All: Never panic! All functions return Results now
 - win: Don't move the mouse to a relative position if it was not possible to get the current position
 - All: The feature `with_serde` was renamed to `serde`
 - All: Renamed `Key::Layout(char)` to `Key::Unicode(char)` and clearified its docs
