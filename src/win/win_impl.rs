@@ -84,14 +84,8 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
-        debug!(
-            "\x1b[93msend_mouse_button_event(button: {button:?}, direction: {direction:?})\x1b[0m"
-        );
+    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
         let button_no = match button {
             MouseButton::Back => 1,

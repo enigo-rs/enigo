@@ -239,11 +239,7 @@ impl KeyboardControllableNext for Con {
 }
 
 impl MouseControllableNext for Con {
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
+    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
         let mouse_button = mousebutton(button);
         let res = match direction {
             Direction::Press => {
@@ -302,7 +298,7 @@ impl MouseControllableNext for Con {
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click)?;
+            self.mouse_button(button, Direction::Click)?;
         }
         Ok(())
     }

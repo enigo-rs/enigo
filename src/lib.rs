@@ -183,7 +183,7 @@ where
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
-        match self.send_mouse_button_event(button, Direction::Press) {
+        match self.mouse_button(button, Direction::Press) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -210,7 +210,7 @@ where
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
     fn mouse_up(&mut self, button: MouseButton) {
-        match self.send_mouse_button_event(button, Direction::Release) {
+        match self.mouse_button(button, Direction::Release) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -234,7 +234,7 @@ where
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
-        match self.send_mouse_button_event(button, Direction::Click) {
+        match self.mouse_button(button, Direction::Click) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -546,11 +546,7 @@ pub trait MouseControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()>;
+    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()>;
 
     /// Move the mouse cursor to the specified x and y coordinates.
     ///

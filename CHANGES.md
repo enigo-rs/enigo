@@ -11,6 +11,7 @@
 - All: Split off entering raw keycodes into it's own function
 - All: Renamed `key_sequence` function to `text`
 - All: Renamed `enter_key` function to `key`
+- All: Renamed `send_mouse_button_event` function to `mouse_button`
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
