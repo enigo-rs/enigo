@@ -682,11 +682,11 @@ impl MouseControllableNext for Con {
         if let Some(vp) = &self.virtual_pointer {
             let time = self.get_time();
             match coordinate {
-                Coordinate::Relative => {
+                Coordinate::Rel => {
                     trace!("vp.motion({time}, {x}, {y})");
                     vp.motion(time, x as f64, y as f64);
                 }
-                Coordinate::Absolute => {
+                Coordinate::Abs => {
                     let Ok(x) = x.try_into() else {
                         return Err(InputError::InvalidInput(
                             "the absolute coordinates cannot be negative",

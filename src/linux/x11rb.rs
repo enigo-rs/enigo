@@ -406,8 +406,8 @@ impl MouseControllableNext for Con {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let type_ = x11rb::protocol::xproto::MOTION_NOTIFY_EVENT;
         let detail = match coordinate {
-            Coordinate::Relative => 1,
-            Coordinate::Absolute => 0,
+            Coordinate::Rel => 1,
+            Coordinate::Abs => 0,
         };
         let time = x11rb::CURRENT_TIME;
         let root = x11rb::NONE; //  the root window of the screen the pointer is currently on

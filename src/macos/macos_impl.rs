@@ -225,8 +225,8 @@ impl MouseControllableNext for Enigo {
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
-            Coordinate::Absolute => ((x, y), (current_x - x, current_y - y)),
-            Coordinate::Relative => ((current_x + x, current_y + y), (x, y)),
+            Coordinate::Abs => ((x, y), (current_x - x, current_y - y)),
+            Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
         };
 
         let (event_type, mouse_button) =

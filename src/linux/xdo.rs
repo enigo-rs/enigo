@@ -263,11 +263,11 @@ impl MouseControllableNext for Con {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let res = match coordinate {
-            Coordinate::Relative => {
+            Coordinate::Rel => {
                 debug!("xdo_move_mouse_relative with x {}, y {}", x, y);
                 unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
             }
-            Coordinate::Absolute => {
+            Coordinate::Abs => {
                 debug!("xdo_move_mouse with mouse button with x {}, y {}", x, y);
                 unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
             }

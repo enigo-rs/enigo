@@ -136,7 +136,7 @@ where
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        match self.move_mouse(x, y, Coordinate::Absolute) {
+        match self.move_mouse(x, y, Coordinate::Abs) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -159,7 +159,7 @@ where
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        match self.move_mouse(x, y, Coordinate::Relative) {
+        match self.move_mouse(x, y, Coordinate::Rel) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -458,8 +458,8 @@ pub enum Axis {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
-    Relative,
-    Absolute,
+    Rel,
+    Abs,
 }
 
 pub trait KeyboardControllableNext {

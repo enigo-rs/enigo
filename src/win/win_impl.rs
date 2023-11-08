@@ -128,7 +128,7 @@ impl MouseControllableNext for Enigo {
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
+        let (x_absolute, y_absolute) = if coordinate == Coordinate::Rel {
             let (x_absolute, y_absolute) = self.location()?;
             (x_absolute + x, y_absolute + y)
         } else {
