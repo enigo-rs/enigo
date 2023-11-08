@@ -14,8 +14,8 @@ use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError, Settings,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseControllableNext, NewConError, Settings,
 };
 
 // required for NSEvent
@@ -146,8 +146,8 @@ pub struct Enigo {
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     release_keys_when_dropped: bool,
     double_click_delay: Duration,
-    // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
-    last_mouse_click: [(i64, Instant); 7], /* For each of the seven MouseButton variants, we
+    // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabalized
+    last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
                                             * store the last time the button was clicked and
                                             * the nth click that was
                                             * This information is needed to
@@ -158,20 +158,20 @@ pub struct Enigo {
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
         let (current_x, current_y) = self.location()?;
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
             let (button, event_type) = match button {
-                MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
-                MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
-                MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
-                MouseButton::ScrollUp => return self.scroll(-1, Axis::Vertical),
-                MouseButton::ScrollDown => return self.scroll(1, Axis::Vertical),
-                MouseButton::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
-                MouseButton::ScrollRight => return self.scroll(1, Axis::Horizontal),
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
 
@@ -189,13 +189,13 @@ impl MouseControllableNext for Enigo {
         if direction == Direction::Click || direction == Direction::Release {
             let click_count = self.nth_button_press(button, Direction::Release);
             let (button, event_type) = match button {
-                MouseButton::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
-                MouseButton::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
-                MouseButton::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
-                MouseButton::ScrollUp
-                | MouseButton::ScrollDown
-                | MouseButton::ScrollLeft
-                | MouseButton::ScrollRight => {
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+                Button::ScrollUp
+                | Button::ScrollDown
+                | Button::ScrollLeft
+                | Button::ScrollRight => {
                     info!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
                     return Ok(());
                 }
@@ -487,7 +487,7 @@ impl Enigo {
     // function checks if the button was pressed down again fast enough to issue a
     // double (or nth) click and returns the nth click it was. It also takes care of
     // updating the information the Enigo struct stores.
-    fn nth_button_press(&mut self, button: MouseButton, direction: Direction) -> i64 {
+    fn nth_button_press(&mut self, button: Button, direction: Direction) -> i64 {
         if direction == Direction::Press {
             let last_time = self.last_mouse_click[button as usize].1;
             self.last_mouse_click[button as usize].1 = Instant::now();

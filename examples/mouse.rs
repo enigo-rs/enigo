@@ -1,4 +1,4 @@
-use enigo::{Enigo, MouseButton, MouseControllable, Settings};
+use enigo::{Button, Enigo, MouseControllable, Settings};
 use std::thread;
 use std::time::Duration;
 
@@ -16,16 +16,16 @@ fn main() {
     enigo.mouse_move_to(500, 200);
     thread::sleep(wait_time);
 
-    enigo.mouse_down(MouseButton::Left);
+    enigo.mouse_down(Button::Left);
     thread::sleep(wait_time);
 
     enigo.mouse_move_relative(100, 100);
     thread::sleep(wait_time);
 
-    enigo.mouse_up(MouseButton::Left);
+    enigo.mouse_up(Button::Left);
     thread::sleep(wait_time);
 
-    enigo.mouse_click(MouseButton::Left);
+    enigo.mouse_click(Button::Left);
     thread::sleep(wait_time);
 
     enigo.mouse_scroll_x(2);

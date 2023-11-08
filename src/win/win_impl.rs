@@ -16,8 +16,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError, Settings,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseControllableNext, NewConError, Settings,
 };
 
 type ScanCode = u16;
@@ -84,37 +84,37 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
 
 impl MouseControllableNext for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
         let button_no = match button {
-            MouseButton::Back => 1,
-            MouseButton::Forward => 2,
+            Button::Back => 1,
+            Button::Forward => 2,
             _ => 0,
         };
         if direction == Direction::Click || direction == Direction::Press {
             let mouse_event_flag = match button {
-                MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
-                MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
-                MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XDOWN,
-                MouseButton::ScrollUp => return self.scroll(-1, Axis::Vertical),
-                MouseButton::ScrollDown => return self.scroll(1, Axis::Vertical),
-                MouseButton::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
-                MouseButton::ScrollRight => return self.scroll(1, Axis::Horizontal),
+                Button::Left => MOUSEEVENTF_LEFTDOWN,
+                Button::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                Button::Right => MOUSEEVENTF_RIGHTDOWN,
+                Button::Back | Button::Forward => MOUSEEVENTF_XDOWN,
+                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
             input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
-                MouseButton::Left => MOUSEEVENTF_LEFTUP,
-                MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
-                MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XUP,
-                MouseButton::ScrollUp
-                | MouseButton::ScrollDown
-                | MouseButton::ScrollLeft
-                | MouseButton::ScrollRight => {
+                Button::Left => MOUSEEVENTF_LEFTUP,
+                Button::Middle => MOUSEEVENTF_MIDDLEUP,
+                Button::Right => MOUSEEVENTF_RIGHTUP,
+                Button::Back | Button::Forward => MOUSEEVENTF_XUP,
+                Button::ScrollUp
+                | Button::ScrollDown
+                | Button::ScrollLeft
+                | Button::ScrollRight => {
                     info!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
                     return Ok(());
                 }

@@ -1,8 +1,8 @@
 use log::{debug, error, trace, warn};
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError, Settings,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseControllableNext, NewConError, Settings,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -135,7 +135,7 @@ impl Enigo {
 }
 
 impl MouseControllableNext for Enigo {
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mmouse_button(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]

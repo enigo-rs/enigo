@@ -22,8 +22,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 
 use super::keymap::{Bind, KeyMap};
 use crate::{
-    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Coordinate, Direction, InputError,
-    InputResult, Key, KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Button, Coordinate, Direction, InputError,
+    InputResult, Key, KeyboardControllableNext, MouseControllableNext, NewConError,
 };
 
 pub type Keycode = u32;
@@ -626,35 +626,35 @@ impl KeyboardControllableNext for Con {
     }
 }
 impl MouseControllableNext for Con {
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // Do nothing if one of the mouse scroll buttons was released
             // Releasing one of the scroll mouse buttons has no effect
             if direction == Direction::Release {
                 match button {
-                    MouseButton::Left
-                    | MouseButton::Right
-                    | MouseButton::Back
-                    | MouseButton::Forward
-                    | MouseButton::Middle => {}
-                    MouseButton::ScrollDown
-                    | MouseButton::ScrollUp
-                    | MouseButton::ScrollRight
-                    | MouseButton::ScrollLeft => return Ok(()),
+                    Button::Left
+                    | Button::Right
+                    | Button::Back
+                    | Button::Forward
+                    | Button::Middle => {}
+                    Button::ScrollDown
+                    | Button::ScrollUp
+                    | Button::ScrollRight
+                    | Button::ScrollLeft => return Ok(()),
                 }
             };
 
             let button = match button {
                 // Taken from /linux/input-event-codes.h
-                MouseButton::Left => 0x110,
-                MouseButton::Right => 0x111,
-                MouseButton::Back => 0x116,
-                MouseButton::Forward => 0x115,
-                MouseButton::Middle => 0x112,
-                MouseButton::ScrollDown => return self.scroll(1, Axis::Vertical),
-                MouseButton::ScrollUp => return self.scroll(-1, Axis::Vertical),
-                MouseButton::ScrollRight => return self.scroll(1, Axis::Horizontal),
-                MouseButton::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+                Button::Left => 0x110,
+                Button::Right => 0x111,
+                Button::Back => 0x116,
+                Button::Forward => 0x115,
+                Button::Middle => 0x112,
+                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
+                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
             };
 
             if direction == Direction::Press || direction == Direction::Click {

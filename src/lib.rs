@@ -36,9 +36,9 @@
 //! use enigo::*;
 //! let mut enigo = Enigo::new(&Settings::default()).unwrap();
 //! enigo.mouse_move_to(500, 200);
-//! enigo.mouse_down(MouseButton::Left);
+//! enigo.mouse_down(Button::Left);
 //! enigo.mouse_move_relative(100, 100);
-//! enigo.mouse_up(MouseButton::Left);
+//! enigo.mouse_up(Button::Left);
 //! enigo.key_sequence("hello world");
 //! ```
 
@@ -77,13 +77,13 @@ pub use keycodes::Key;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// [`MouseButton`] represents a mouse button and is used in e.g
+/// [`Button`] represents a mouse button and is used in e.g
 /// [`MouseControllable::mouse_click`].
 
 // Warning! If there are ANY CHANGES to this enum, we
 // need to change the size of the array in the macOS implementation of the Enigo
-// struct that stores the nth click for each MouseButton
-pub enum MouseButton {
+// struct that stores the nth click for each Button
+pub enum Button {
     /// Left mouse button
     Left,
     /// Middle mouse button
@@ -169,7 +169,7 @@ where
     }
 
     /// Push down the mouse button specified by the parameter
-    /// `button` of type [`MouseButton`] and hold it until it is released by
+    /// `button` of type [`Button`] and hold it until it is released by
     /// [`MouseControllable::mouse_up`].
     /// Calls to [`MouseControllable::mouse_move_to`] or
     /// [`MouseControllable::mouse_move_relative`] will
@@ -180,9 +180,9 @@ where
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    /// enigo.mouse_down(MouseButton::Left);
+    /// enigo.mouse_down(Button::Left);
     /// ```
-    fn mouse_down(&mut self, button: MouseButton) {
+    fn mouse_down(&mut self, button: Button) {
         match self.mouse_button(button, Direction::Press) {
             Ok(()) => {}
             Err(e) => {
@@ -206,10 +206,10 @@ where
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    /// enigo.mouse_down(MouseButton::Right);
-    /// enigo.mouse_up(MouseButton::Right);
+    /// enigo.mouse_down(Button::Right);
+    /// enigo.mouse_up(Button::Right);
     /// ```
-    fn mouse_up(&mut self, button: MouseButton) {
+    fn mouse_up(&mut self, button: Button) {
         match self.mouse_button(button, Direction::Release) {
             Ok(()) => {}
             Err(e) => {
@@ -231,9 +231,9 @@ where
     /// ```no_run
     /// use enigo::*;
     /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    /// enigo.mouse_click(MouseButton::Right);
+    /// enigo.mouse_click(Button::Right);
     /// ```
-    fn mouse_click(&mut self, button: MouseButton) {
+    fn mouse_click(&mut self, button: Button) {
         match self.mouse_button(button, Direction::Click) {
             Ok(()) => {}
             Err(e) => {
@@ -546,7 +546,7 @@ pub trait MouseControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()>;
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()>;
 
     /// Move the mouse cursor to the specified x and y coordinates.
     ///

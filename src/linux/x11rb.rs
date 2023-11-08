@@ -16,8 +16,8 @@ use x11rb::{
 
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    keycodes::Modifier, Axis, Coordinate, Direction, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
+    KeyboardControllableNext, MouseControllableNext, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -335,17 +335,17 @@ impl KeyboardControllableNext for Con {
 }
 
 impl MouseControllableNext for Con {
-    fn mouse_button(&mut self, button: MouseButton, direction: Direction) -> InputResult<()> {
+    fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let detail = match button {
-            MouseButton::Left => 1,
-            MouseButton::Middle => 2,
-            MouseButton::Right => 3,
-            MouseButton::ScrollUp => 4,
-            MouseButton::ScrollDown => 5,
-            MouseButton::ScrollLeft => 6,
-            MouseButton::ScrollRight => 7,
-            MouseButton::Back => 8,
-            MouseButton::Forward => 9,
+            Button::Left => 1,
+            Button::Middle => 2,
+            Button::Right => 3,
+            Button::ScrollUp => 4,
+            Button::ScrollDown => 5,
+            Button::ScrollLeft => 6,
+            Button::ScrollRight => 7,
+            Button::Back => 8,
+            Button::Forward => 9,
         };
         let time = self.delay;
         let root = self.screen.root;
@@ -448,13 +448,13 @@ impl MouseControllableNext for Con {
         let button = if length < 0 {
             length = -length;
             match axis {
-                Axis::Horizontal => MouseButton::ScrollLeft,
-                Axis::Vertical => MouseButton::ScrollUp,
+                Axis::Horizontal => Button::ScrollLeft,
+                Axis::Vertical => Button::ScrollUp,
             }
         } else {
             match axis {
-                Axis::Horizontal => MouseButton::ScrollRight,
-                Axis::Vertical => MouseButton::ScrollDown,
+                Axis::Horizontal => Button::ScrollRight,
+                Axis::Vertical => Button::ScrollDown,
             }
         };
         for _ in 0..length {
