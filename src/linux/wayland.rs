@@ -307,7 +307,6 @@ impl Drop for Con {
         }
         trace!("wayland objects were destroyed");
 
-        // TODO: Change to flush()
         let _ = self.event_queue.roundtrip(&mut self.state);
     }
 }

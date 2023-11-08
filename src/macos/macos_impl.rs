@@ -143,7 +143,7 @@ pub struct Enigo {
     delay: u64,
     event_source: CGEventSource,
     display: CGDisplay,
-    held: Vec<Key>, // Currently held keys
+    held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     release_keys_when_dropped: bool,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<MouseButton>() here instead of 7 once it is stabalized
@@ -356,7 +356,6 @@ impl KeyboardControllableNext for Enigo {
         Ok(Some(()))
     }
 
-    /// Sends a key event to the X11 server via `XTest` extension
     fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
@@ -364,7 +363,28 @@ impl KeyboardControllableNext for Enigo {
             return Ok(());
         }
 
-        let keycode = self.key_to_keycode(key);
+        let keycode = CGKeyCode::from(key);
+        self.raw(keycode, direction)?;
+
+        // TODO: The list of keys will contain the key and also the associated keycode.
+        // They are a duplicate
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.0.push(key);
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.0.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
         if direction == Direction::Click || direction == Direction::Press {
             thread::sleep(Duration::from_millis(self.delay));
@@ -392,12 +412,12 @@ impl KeyboardControllableNext for Enigo {
 
         match direction {
             Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
+                debug!("added the keycode {keycode:?} to the held keys");
+                self.held.1.push(keycode);
             }
             Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
+                debug!("removed the keycode {keycode:?} from the held keys");
+                self.held.1.retain(|&k| k != keycode);
             }
             Direction::Click => (),
         }
@@ -420,7 +440,7 @@ impl Enigo {
             ..
         } = settings;
 
-        let held = Vec::new();
+        let held = (Vec::new(), Vec::new());
 
         let double_click_delay = Duration::from_secs(1);
         let double_click_delay_setting: f64 =
@@ -460,7 +480,7 @@ impl Enigo {
     }
 
     /// Returns a list of all currently pressed keys
-    pub fn held(&mut self) -> Vec<Key> {
+    pub fn held(&mut self) -> (Vec<Key>, Vec<CGKeyCode>) {
         self.held.clone()
     }
 
@@ -493,7 +513,13 @@ impl Enigo {
         debug!("nth_button_press: {nth_button_press}");
         nth_button_press
     }
-    fn key_to_keycode(&self, key: Key) -> CGKeyCode {
+}
+
+/// Converts a `Key` to a `CGKeyCode`
+#[cfg(target_os = "macos")]
+impl From<Key> for core_graphics::event::CGKeyCode {
+    #[allow(clippy::too_many_lines)]
+    fn from(key: Key) -> Self {
         // A list of names is available at:
         // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
         // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
@@ -547,101 +573,98 @@ impl Enigo {
             Key::VolumeDown => KeyCode::VOLUME_DOWN,
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
-            Key::Raw(raw_keycode) => raw_keycode,
-            Key::Unicode(c) => self.get_layoutdependent_keycode(&c.to_string()),
+            Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()),
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
         }
     }
+}
 
-    fn get_layoutdependent_keycode(&self, string: &str) -> CGKeyCode {
-        let mut pressed_keycode = 0;
+fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
+    let mut pressed_keycode = 0;
 
-        // loop through every keycode (0 - 127)
-        for keycode in 0..128 {
-            // no modifier
-            if let Some(key_string) = self.keycode_to_string(keycode, 0x100) {
-                // debug!("{:?}", string);
-                if string == key_string {
-                    pressed_keycode = keycode;
-                }
+    // loop through every keycode (0 - 127)
+    for keycode in 0..128 {
+        // no modifier
+        if let Some(key_string) = keycode_to_string(keycode, 0x100) {
+            // debug!("{:?}", string);
+            if string == key_string {
+                pressed_keycode = keycode;
             }
-
-            // shift modifier
-            if let Some(key_string) = self.keycode_to_string(keycode, 0x20102) {
-                // debug!("{:?}", string);
-                if string == key_string {
-                    pressed_keycode = keycode;
-                }
-            }
-
-            // alt modifier
-            // if let Some(string) = self.keycode_to_string(keycode, 0x80120) {
-            //     debug!("{:?}", string);
-            // }
-            // alt + shift modifier
-            // if let Some(string) = self.keycode_to_string(keycode, 0xa0122) {
-            //     debug!("{:?}", string);
-            // }
         }
 
-        pressed_keycode
-    }
-
-    fn keycode_to_string(&self, keycode: u16, modifier: u32) -> Option<String> {
-        let cf_string = self.create_string_for_key(keycode, modifier);
-        let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
-        let mut buffer: i8 = std::i8::MAX;
-        let success = unsafe {
-            CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8)
-        };
-        if success == TRUE as u8 {
-            let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-            Some(rust_string)
-        } else {
-            None
+        // shift modifier
+        if let Some(key_string) = keycode_to_string(keycode, 0x20102) {
+            // debug!("{:?}", string);
+            if string == key_string {
+                pressed_keycode = keycode;
+            }
         }
+
+        // alt modifier
+        // if let Some(string) = keycode_to_string(keycode, 0x80120) {
+        //     debug!("{:?}", string);
+        // }
+        // alt + shift modifier
+        // if let Some(string) = keycode_to_string(keycode, 0xa0122) {
+        //     debug!("{:?}", string);
+        // }
     }
 
-    #[allow(clippy::unused_self)]
-    fn create_string_for_key(&self, keycode: u16, modifier: u32) -> CFStringRef {
-        let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-        let mut layout_data = unsafe {
+    pressed_keycode
+}
+
+fn keycode_to_string(keycode: u16, modifier: u32) -> Option<String> {
+    let cf_string = create_string_for_key(keycode, modifier);
+    let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
+    let mut buffer: i8 = std::i8::MAX;
+    let success =
+        unsafe { CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8) };
+    if success == TRUE as u8 {
+        let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
+        Some(rust_string)
+    } else {
+        None
+    }
+}
+
+#[allow(clippy::unused_self)]
+fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
+    let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
+    let mut layout_data =
+        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
+    if layout_data.is_null() {
+        debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL");
+        // TISGetInputSourceProperty returns null with some keyboard layout.
+        // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
+        // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
+        current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
+        layout_data = unsafe {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
-        if layout_data.is_null() {
-            debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL");
-            // TISGetInputSourceProperty returns null with some keyboard layout.
-            // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
-            // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
-            current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
-            layout_data = unsafe {
-                TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
-            };
-            debug_assert!(!layout_data.is_null());
-        }
-        let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
-
-        let mut keys_down: UInt32 = 0;
-        // let mut chars: *mut c_void;//[UniChar; 4];
-        let mut chars: u16 = 0;
-        let mut real_length: UniCharCount = 0;
-        unsafe {
-            UCKeyTranslate(
-                keyboard_layout,
-                keycode,
-                3, // kUCKeyActionDisplay = 3
-                modifier,
-                LMGetKbdType() as u32,
-                kUCKeyTranslateNoDeadKeysBit,
-                &mut keys_down,
-                8, // sizeof(chars) / sizeof(chars[0]),
-                &mut real_length,
-                &mut chars,
-            );
-        }
-
-        unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+        debug_assert!(!layout_data.is_null());
     }
+    let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
+
+    let mut keys_down: UInt32 = 0;
+    // let mut chars: *mut c_void;//[UniChar; 4];
+    let mut chars: u16 = 0;
+    let mut real_length: UniCharCount = 0;
+    unsafe {
+        UCKeyTranslate(
+            keyboard_layout,
+            keycode,
+            3, // kUCKeyActionDisplay = 3
+            modifier,
+            LMGetKbdType() as u32,
+            kUCKeyTranslateNoDeadKeysBit,
+            &mut keys_down,
+            8, // sizeof(chars) / sizeof(chars[0]),
+            &mut real_length,
+            &mut chars,
+        );
+    }
+
+    unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
 }
 
 impl Drop for Enigo {
@@ -650,9 +673,17 @@ impl Drop for Enigo {
         if !self.release_keys_when_dropped {
             return;
         }
-        for &k in &self.held() {
-            if self.enter_key(k, Direction::Release).is_err() {
-                error!("unable to release {k:?}");
+
+        let (held_keys, held_keycodes) = self.held();
+        for key in held_keys {
+            if self.enter_key(key, Direction::Release).is_err() {
+                error!("unable to release {key:?}");
+            };
+        }
+
+        for keycode in held_keycodes {
+            if self.raw(keycode, Direction::Release).is_err() {
+                error!("unable to release {keycode:?}");
             };
         }
         debug!("released all held keys");

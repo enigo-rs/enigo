@@ -523,13 +523,8 @@ pub trait KeyboardControllableNext {
     /// you want to simulate a press regardless of the layout (WASD on video
     /// games)
     /// Windows only: If you want to enter the keycode (scancode) of an extended
-    /// key, you need to set extra bits. Here is one way to do that:
-    ///
-    /// ```no_run
-    /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
-    /// enigo.raw(45 | EXT, Direction::Click); // Only set the extra bits on Windows
-    /// ```
+    /// key, you need to set extra bits. You can for example do: `enigo.raw(45 |
+    /// EXT, Direction::Click)`
     ///
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
