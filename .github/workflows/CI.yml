@@ -48,9 +48,9 @@ jobs:
         run: cargo build --all-features
 
       - name: Build the docs
-        run: cargo doc
+        run: cargo doc --no-deps
       - name: Build the docs with all features enabled
-        run: cargo doc --all-features
+        run: cargo doc --no-deps --all-features
 
       - name: Build the examples
         run: cargo check --examples
