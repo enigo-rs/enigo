@@ -1,4 +1,7 @@
-use enigo::{Enigo, Key, KeyboardControllable, Settings};
+use enigo::{
+    Enigo, Key, Keyboard, Settings,
+    {Direction::Click, Direction::Press, Direction::Release},
+};
 use std::thread;
 use std::time::Duration;
 
@@ -8,10 +11,10 @@ fn main() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     // write text
-    enigo.key_sequence("Hello World! here is a lot of text  ❤️");
+    enigo.text("Hello World! here is a lot of text  ❤️").unwrap();
 
     // select all
-    enigo.key_down(Key::Control);
-    enigo.key_click(Key::Unicode('a'));
-    enigo.key_up(Key::Control);
+    enigo.key(Key::Control, Press).unwrap();
+    enigo.key(Key::Unicode('a'), Click).unwrap();
+    enigo.key(Key::Control, Release).unwrap();
 }

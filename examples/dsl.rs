@@ -1,4 +1,4 @@
-use enigo::{Enigo, KeyboardControllable, Settings};
+use enigo::{Enigo, Settings, DSL};
 use std::thread;
 use std::time::Duration;
 

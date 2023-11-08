@@ -1,4 +1,9 @@
-use enigo::{Button, Enigo, MouseControllable, Settings};
+use enigo::{
+    Button, Enigo, Mouse, Settings,
+    {Axis::Horizontal, Axis::Vertical},
+    {Coordinate::Abs, Coordinate::Rel},
+    {Direction::Click, Direction::Press, Direction::Release},
+};
 use std::thread;
 use std::time::Duration;
 
@@ -8,37 +13,37 @@ fn main() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     thread::sleep(Duration::from_secs(4));
-    println!("screen dimensions: {:?}", enigo.main_display_size());
-    println!("mouse location: {:?}", enigo.mouse_location());
+    println!("screen dimensions: {:?}", enigo.main_display().unwrap());
+    println!("mouse location: {:?}", enigo.location().unwrap());
 
     thread::sleep(wait_time);
 
-    enigo.mouse_move_to(500, 200);
+    enigo.move_mouse(500, 200, Abs).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_down(Button::Left);
+    enigo.button(Button::Left, Press).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_move_relative(100, 100);
+    enigo.move_mouse(100, 100, Rel).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_up(Button::Left);
+    enigo.button(Button::Left, Release).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_click(Button::Left);
+    enigo.button(Button::Left, Click).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_scroll_x(2);
+    enigo.scroll(2, Horizontal).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_scroll_x(-2);
+    enigo.scroll(-2, Horizontal).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_scroll_y(2);
+    enigo.scroll(2, Vertical).unwrap();
     thread::sleep(wait_time);
 
-    enigo.mouse_scroll_y(-2);
+    enigo.scroll(-2, Vertical).unwrap();
     thread::sleep(wait_time);
 
-    println!("mouse location: {:?}", enigo.mouse_location());
+    println!("mouse location: {:?}", enigo.location().unwrap());
 }

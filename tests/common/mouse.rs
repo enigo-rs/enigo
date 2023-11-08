@@ -1,6 +1,6 @@
 use std::sync::mpsc::Receiver;
 
-use enigo::{Enigo, MouseControllable, Settings};
+use enigo::{Axis, Coordinate, Enigo, Mouse, Settings};
 
 use super::BrowserEvent;
 
@@ -25,7 +25,9 @@ pub fn run(recv: &Receiver<BrowserEvent>) {
 
 fn set(recv: &Receiver<BrowserEvent>, position: (i32, i32)) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    enigo.mouse_move_to(position.0, position.1);
+    enigo
+        .move_mouse(position.0, position.1, Coordinate::Abs)
+        .unwrap();
     println!("Executed Enigo");
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))
@@ -42,7 +44,9 @@ fn set(recv: &Receiver<BrowserEvent>, position: (i32, i32)) {
 
 fn rel(recv: &Receiver<BrowserEvent>, offset: (i32, i32)) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    enigo.mouse_move_relative(offset.0, offset.1);
+    enigo
+        .move_mouse(offset.0, offset.1, Coordinate::Rel)
+        .unwrap();
     println!("Executed Enigo");
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))
@@ -59,7 +63,7 @@ fn rel(recv: &Receiver<BrowserEvent>, offset: (i32, i32)) {
 
 fn scroll(recv: &Receiver<BrowserEvent>) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    enigo.mouse_scroll_x(1);
+    enigo.scroll(1, Axis::Horizontal).unwrap();
     println!("Executed Enigo");
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))
@@ -73,7 +77,7 @@ fn scroll(recv: &Receiver<BrowserEvent>) {
         panic!("Event wasn't MouseWheel after mouse::scroll. {ev:?}");
     }
 
-    enigo.mouse_scroll_y(1);
+    enigo.scroll(1, Axis::Vertical).unwrap();
     println!("Executed Enigo");
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))

@@ -1,4 +1,4 @@
-use enigo::{Enigo, Key, KeyboardControllable, Settings};
+use enigo::{Direction::Click, Enigo, Key, Keyboard, Settings};
 use std::thread;
 use std::time::Duration;
 
@@ -9,17 +9,17 @@ fn main() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     #[cfg(target_os = "macos")]
-    enigo.key_click(Key::Launchpad); // macOS: Open launchpad
+    enigo.key(Key::Launchpad, Click).unwrap(); // macOS: Open launchpad
 
     #[cfg(target_os = "linux")]
-    enigo.key_click(Key::Meta); // linux: Open launcher
+    enigo.key(Key::Meta, Click).unwrap(); // linux: Open launcher
 
     #[cfg(target_os = "windows")]
     {
         use enigo::Keyboard;
 
         // windows: Enter divide symbol (slash)
-        enigo.key_click(Key::Divide);
+        enigo.key(Key::Divide, Click).unwrap();
 
         // windows: Press and release the NumLock key. Without the EXT bit set, it would
         // enter the Pause key
