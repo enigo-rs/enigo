@@ -72,7 +72,7 @@ pub use platform::Enigo;
 pub use platform::EXT;
 
 /// Contains the available keycodes
-pub mod keycodes;
+mod keycodes;
 pub use keycodes::Key;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
