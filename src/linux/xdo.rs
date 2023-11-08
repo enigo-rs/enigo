@@ -5,8 +5,7 @@ use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
 use log::debug;
 
 use crate::{
-    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
-    MouseButton, MouseControllableNext, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 use xkeysym::Keysym;
 
@@ -68,17 +67,17 @@ extern "C" {
     ) -> c_int;
 }
 
-fn mousebutton(button: MouseButton) -> c_int {
+fn mousebutton(button: Button) -> c_int {
     match button {
-        MouseButton::Left => 1,
-        MouseButton::Middle => 2,
-        MouseButton::Right => 3,
-        MouseButton::ScrollUp => 4,
-        MouseButton::ScrollDown => 5,
-        MouseButton::ScrollLeft => 6,
-        MouseButton::ScrollRight => 7,
-        MouseButton::Back => 8,
-        MouseButton::Forward => 9,
+        Button::Left => 1,
+        Button::Middle => 2,
+        Button::Right => 3,
+        Button::ScrollUp => 4,
+        Button::ScrollDown => 5,
+        Button::ScrollLeft => 6,
+        Button::ScrollRight => 7,
+        Button::Back => 8,
+        Button::Forward => 9,
     }
 }
 
@@ -140,7 +139,7 @@ impl Drop for Con {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         let Ok(string) = CString::new(text) else {
             return Err(InputError::InvalidInput(
@@ -165,12 +164,8 @@ impl KeyboardControllableNext for Con {
         Ok(Some(()))
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let Ok(keysym) = Keysym::try_from(key) else {
-            return Err(InputError::InvalidInput(
-                "you can't enter a raw keycode with xdotools",
-            ));
-        };
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        let keysym = Keysym::from(key);
         let Some(keysym_name) = keysym.name() else {
             // this should never happen, because we only use keysyms with a known name
             return Err(InputError::InvalidInput("the keysym does not have a name"));
@@ -233,27 +228,30 @@ impl KeyboardControllableNext for Con {
         }
         Ok(())
     }
+
+    fn raw(&mut self, _keycode: u16, _direction: Direction) -> InputResult<()> {
+        // TODO: Lookup the key name for the keycode and then enter that with xdotool.
+        // This is a bit weird, because xdotool will then do the reverse. Maybe there is
+        // a better way?
+        todo!("You cant enter raw keycodes with xdotool")
+    }
 }
 
-impl MouseControllableNext for Con {
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
-        let mouse_button = mousebutton(button);
+impl Mouse for Con {
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        let button = mousebutton(button);
         let res = match direction {
             Direction::Press => {
-                debug!("xdo_mouse_down with mouse button {}", mouse_button);
-                unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_mouse_down with mouse button {}", button);
+                unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Release => {
-                debug!("xdo_mouse_up with mouse button {}", mouse_button);
-                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_mouse_up with mouse button {}", button);
+                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Click => {
-                debug!("xdo_click_window with mouse button {}", mouse_button);
-                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, mouse_button) }
+                debug!("xdo_click_window with mouse button {}", button);
+                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, button) }
             }
         };
         if res != XDO_SUCCESS {
@@ -262,18 +260,13 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let res = match coordinate {
-            Coordinate::Relative => {
+            Coordinate::Rel => {
                 debug!("xdo_move_mouse_relative with x {}, y {}", x, y);
                 unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
             }
-            Coordinate::Absolute => {
+            Coordinate::Abs => {
                 debug!("xdo_move_mouse with mouse button with x {}, y {}", x, y);
                 unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
             }
@@ -284,22 +277,22 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
             length = -length;
             match axis {
-                Axis::Horizontal => MouseButton::ScrollLeft,
-                Axis::Vertical => MouseButton::ScrollUp,
+                Axis::Horizontal => Button::ScrollLeft,
+                Axis::Vertical => Button::ScrollUp,
             }
         } else {
             match axis {
-                Axis::Horizontal => MouseButton::ScrollRight,
-                Axis::Vertical => MouseButton::ScrollDown,
+                Axis::Horizontal => Button::ScrollRight,
+                Axis::Vertical => Button::ScrollDown,
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click)?;
+            self.button(button, Direction::Click)?;
         }
         Ok(())
     }
@@ -319,7 +312,7 @@ impl MouseControllableNext for Con {
         Ok((width, height))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         let mut x = 0;
         let mut y = 0;
         let mut unused_screen_index = 0;

@@ -138,31 +138,22 @@ where
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
     pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
-        let keycode = match key {
-            Key::Raw(kc) => {
-                // TODO: Get rid of there weird try_intos and unwraps
-                let kcz: usize = kc.try_into().unwrap();
-                kcz.try_into().unwrap()
-            }
-            key => {
-                // Unwrapping here is okay, because the fn only returns an error if it was a
-                // Key::Raw and we test that before
-                let sym = Keysym::try_from(key).unwrap();
+        let sym = Keysym::from(key);
 
-                if let Some(keycode) = self.keysym_to_keycode(sym) {
-                    return Ok(keycode);
-                }
+        if let Some(keycode) = self.keysym_to_keycode(sym) {
+            return Ok(keycode);
+        }
 
-                if let Some(&keycode) = self.additionally_mapped.get(&sym) {
-                    // The keysym is already mapped and cached in the keymap
-                    keycode
-                } else {
-                    // Unmap keysyms if there are no unused keycodes
-                    self.make_room(c)?;
-                    // The keysym needs to get mapped to an unused keycode.
-                    // Always map the keycode if it has not yet been mapped, so it is layer agnostic
-                    self.map(c, sym)?
-                }
+        let keycode = {
+            if let Some(&keycode) = self.additionally_mapped.get(&sym) {
+                // The keysym is already mapped and cached in the keymap
+                keycode
+            } else {
+                // Unmap keysyms if there are no unused keycodes
+                self.make_room(c)?;
+                // The keysym needs to get mapped to an unused keycode.
+                // Always map the keycode if it has not yet been mapped, so it is layer agnostic
+                self.map(c, sym)?
             }
         };
 
@@ -361,7 +352,7 @@ where
         }
     }
 
-    pub fn enter_key(&mut self, keycode: Keycode, direction: Direction) {
+    pub fn key(&mut self, keycode: Keycode, direction: Direction) {
         match direction {
             Direction::Press => {
                 debug!("added the key {keycode} to the held keycodes");

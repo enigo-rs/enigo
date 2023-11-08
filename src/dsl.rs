@@ -1,7 +1,10 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::{Key, KeyboardControllable};
+use crate::{
+    Key, Keyboard,
+    {Direction::Click, Direction::Press, Direction::Release},
+};
 
 /// An error that can occur when parsing DSL
 #[derive(Debug, PartialEq, Eq)]
@@ -56,20 +59,23 @@ impl fmt::Display for ParseError {
 /// # Errors
 ///
 /// Will return [`ParseError`] if the input cannot be parsed
+/// # Panics
+///
+/// It will panic if simulating input failed
 pub fn eval<K>(enigo: &mut K, input: &str) -> Result<(), ParseError>
 where
-    K: KeyboardControllable,
+    K: Keyboard,
 {
     for token in tokenize(input)? {
         match token {
             Token::Sequence(buffer) => {
                 for key in buffer.chars() {
-                    enigo.key_click(Key::Layout(key));
+                    enigo.key(Key::Unicode(key), Click).unwrap();
                 }
             }
-            Token::Unicode(buffer) => enigo.key_sequence(&buffer),
-            Token::KeyUp(key) => enigo.key_up(key),
-            Token::KeyDown(key) => enigo.key_down(key),
+            Token::Unicode(buffer) => enigo.text(&buffer).unwrap(),
+            Token::KeyUp(key) => enigo.key(key, Release).unwrap(),
+            Token::KeyDown(key) => enigo.key(key, Press).unwrap(),
         }
     }
     Ok(())

@@ -1,8 +1,8 @@
 use log::{debug, error, trace, warn};
 
 use crate::{
-    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, Settings,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -27,7 +27,7 @@ use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 mod keymap;
 
 pub struct Enigo {
-    held: Vec<Key>, // Currently held keys
+    held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes
     release_keys_when_dropped: bool,
     #[cfg(feature = "wayland")]
     wayland: Option<wayland::Con>,
@@ -42,10 +42,10 @@ impl Enigo {
     /// # Errors
     /// Have a look at the documentation of `NewConError` to see under which
     /// conditions an error will be returned.
-    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
+    pub fn new(settings: &Settings) -> Result<Self, NewConError> {
         let mut connection_established = false;
         #[allow(unused_variables)]
-        let EnigoSettings {
+        let Settings {
             linux_delay,
             x11_display,
             wayland_display,
@@ -53,7 +53,7 @@ impl Enigo {
             ..
         } = settings;
 
-        let held = Vec::new();
+        let held = (Vec::new(), Vec::new());
         #[cfg(feature = "wayland")]
         let wayland = match wayland::Con::new(wayland_display) {
             Ok(con) => {
@@ -129,32 +129,26 @@ impl Enigo {
     }
 
     /// Returns a list of all currently pressed keys
-    pub fn held(&mut self) -> Vec<Key> {
+    pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
     }
 }
 
-impl MouseControllableNext for Enigo {
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
-        debug!(
-            "\x1b[93msend_mouse_button_event(button: {button:?}, direction: {direction:?})\x1b[0m"
-        );
+impl Mouse for Enigo {
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try sending button event via wayland");
-            con.send_mouse_button_event(button, direction)?;
+            con.button(button, direction)?;
             debug!("sent button event via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try sending button event via x11");
-            con.send_mouse_button_event(button, direction)?;
+            con.button(button, direction)?;
             debug!("sent button event via x11");
             success = true;
         }
@@ -166,25 +160,20 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
-        debug!("\x1b[93msend_motion_notify_event(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
+        debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try moving the mouse via wayland");
-            con.send_motion_notify_event(x, y, coordinate)?;
+            con.move_mouse(x, y, coordinate)?;
             debug!("moved the mouse via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try moving the mouse via x11");
-            con.send_motion_notify_event(x, y, coordinate)?;
+            con.move_mouse(x, y, coordinate)?;
             debug!("moved the mouse via x11");
             success = true;
         }
@@ -196,20 +185,20 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try scrolling via wayland");
-            con.mouse_scroll_event(length, axis)?;
+            con.scroll(length, axis)?;
             debug!("scrolled via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try scrolling via x11");
-            con.mouse_scroll_event(length, axis)?;
+            con.scroll(length, axis)?;
             debug!("scrolled via x11");
             success = true;
         }
@@ -236,43 +225,43 @@ impl MouseControllableNext for Enigo {
         Err(InputError::Simulate("No protocol to enter the result"))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
-        debug!("\x1b[93mmouse_loc()\x1b[0m");
+    fn location(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mlocation()\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the mouse location via wayland");
-            return con.mouse_loc();
+            return con.location();
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
             trace!("try getting the mouse location via x11");
-            return con.mouse_loc();
+            return con.location();
         }
         Err(InputError::Simulate("No protocol to enter the result"))
     }
 }
 
-impl KeyboardControllableNext for Enigo {
+impl Keyboard for Enigo {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
-            con.enter_text(text)?;
+            con.text(text)?;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering text fast via x11");
-            con.enter_text(text)?;
+            con.text(text)?;
         }
         debug!("entered the text fast");
         Ok(Some(()))
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
-        if key == Key::Layout('\0') {
+        if key == Key::Unicode('\0') {
             debug!("entering the null byte is a noop");
             return Ok(());
         }
@@ -280,29 +269,61 @@ impl KeyboardControllableNext for Enigo {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the key via wayland");
-            con.enter_key(key, direction)?;
+            con.key(key, direction)?;
             debug!("entered the key via wayland");
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering the key via x11");
-            con.enter_key(key, direction)?;
+            con.key(key, direction)?;
             debug!("entered the key via x11");
         }
 
         match direction {
             Direction::Press => {
                 debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
+                self.held.0.push(key);
             }
             Direction::Release => {
                 debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
+                self.held.0.retain(|&k| k != key);
             }
             Direction::Click => (),
         }
 
         debug!("entered the key");
+        Ok(())
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
+
+        #[cfg(feature = "wayland")]
+        if let Some(con) = self.wayland.as_mut() {
+            trace!("try entering the keycode via wayland");
+            con.raw(keycode, direction)?;
+            debug!("entered the keycode via wayland");
+        }
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        if let Some(con) = self.x11.as_mut() {
+            trace!("try entering the keycode via x11");
+            con.raw(keycode, direction)?;
+            debug!("entered the keycode via x11");
+        }
+
+        match direction {
+            Direction::Press => {
+                debug!("added the keycode {keycode:?} to the held keys");
+                self.held.1.push(keycode);
+            }
+            Direction::Release => {
+                debug!("removed the keycode {keycode:?} from the held keys");
+                self.held.1.retain(|&k| k != keycode);
+            }
+            Direction::Click => (),
+        }
+
+        debug!("entered the keycode");
         Ok(())
     }
 }
@@ -313,11 +334,17 @@ impl Drop for Enigo {
         if !self.release_keys_when_dropped {
             return;
         }
-        for &k in &self.held() {
-            if self.enter_key(k, Direction::Release).is_err() {
-                error!("unable to release {:?}", k);
+        let (held_keys, held_keycodes) = self.held();
+        for &key in &held_keys {
+            if self.key(key, Direction::Release).is_err() {
+                error!("unable to release {:?}", key);
             };
         }
-        debug!("released all held keys");
+        for &keycode in &held_keycodes {
+            if self.raw(keycode, Direction::Release).is_err() {
+                error!("unable to release {:?}", keycode);
+            };
+        }
+        debug!("released all held keys and held keycodes");
     }
 }

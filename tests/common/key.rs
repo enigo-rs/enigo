@@ -1,6 +1,9 @@
 use std::sync::mpsc::Receiver;
 
-use enigo::{Enigo, EnigoSettings, Key, KeyboardControllable};
+use enigo::{
+    Enigo, Key, Keyboard, Settings,
+    {Direction::Press, Direction::Release},
+};
 
 use super::BrowserEvent;
 
@@ -12,8 +15,9 @@ pub fn run(recv: &Receiver<BrowserEvent>) {
 }
 
 fn press(recv: &Receiver<BrowserEvent>, key: Key) {
-    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
-    enigo.key_down(key);
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+
+    enigo.key(key, Press).unwrap();
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))
         .unwrap();
@@ -22,7 +26,7 @@ fn press(recv: &Receiver<BrowserEvent>, key: Key) {
     } else {
         panic!("Event wasn't KeyDown after mouse::press. {ev:?}");
     }
-    enigo.key_up(key);
+    enigo.key(key, Release).unwrap();
     let ev = recv
         .recv_timeout(std::time::Duration::from_millis(5000))
         .unwrap();

@@ -22,8 +22,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 
 use super::keymap::{Bind, KeyMap};
 use crate::{
-    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Coordinate, Direction, InputError,
-    InputResult, Key, KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Button, Coordinate, Direction, InputError,
+    InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
 pub type Keycode = u32;
@@ -307,7 +307,6 @@ impl Drop for Con {
         }
         trace!("wayland objects were destroyed");
 
-        // TODO: Change to flush()
         let _ = self.event_queue.roundtrip(&mut self.state);
     }
 }
@@ -344,7 +343,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         state: &mut Self,
         registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
@@ -419,7 +418,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
         _state: &mut Self,
         _manager: &zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
         event: zwp_virtual_keyboard_manager_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -432,7 +431,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
         _state: &mut Self,
         _vk: &zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
         event: zwp_virtual_keyboard_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -445,7 +444,7 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
         _state: &mut Self,
         _manager: &zwp_input_method_manager_v2::ZwpInputMethodManagerV2,
         event: zwp_input_method_manager_v2::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -457,7 +456,7 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _state: &mut Self,
         _vk: &zwp_input_method_v2::ZwpInputMethodV2,
         event: zwp_input_method_v2::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -469,7 +468,7 @@ impl Dispatch<org_kde_kwin_fake_input::OrgKdeKwinFakeInput, ()> for WaylandState
         _state: &mut Self,
         _vk: &org_kde_kwin_fake_input::OrgKdeKwinFakeInput,
         event: org_kde_kwin_fake_input::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -484,7 +483,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _state: &mut Self,
         _seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -498,7 +497,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
         state: &mut Self,
         _output: &wl_output::WlOutput,
         event: wl_output::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -535,7 +534,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
         _state: &mut Self,
         _manager: &zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
         event: zwlr_virtual_pointer_manager_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -548,7 +547,7 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
         _state: &mut Self,
         _vk: &zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
         event: zwlr_virtual_pointer_v1::Event,
-        _: &(),
+        (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
@@ -568,7 +567,7 @@ impl Drop for WaylandState {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = self.input_method.as_mut() {
             is_alive(im)?;
@@ -585,7 +584,7 @@ impl KeyboardControllableNext for Con {
         Ok(None)
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Send the events to the compositor
         if let Ok(modifier) = Modifier::try_from(key) {
             trace!("it is a modifier: {modifier:?}");
@@ -609,46 +608,53 @@ impl KeyboardControllableNext for Con {
             self.send_key_event(keycode, direction)?;
             // Let the keymap know that the key was held/no longer held
             // This is important to avoid unmapping held keys
-            self.keymap.enter_key(keycode, direction);
+            self.keymap.key(keycode, direction);
         }
 
         Ok(())
     }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        // Apply the new keymap if there were any changes
+        self.apply_keymap()?;
+        self.send_key_event(keycode.into(), direction)?;
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.key(keycode.into(), direction);
+
+        Ok(())
+    }
 }
-impl MouseControllableNext for Con {
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
+impl Mouse for Con {
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // Do nothing if one of the mouse scroll buttons was released
             // Releasing one of the scroll mouse buttons has no effect
             if direction == Direction::Release {
                 match button {
-                    MouseButton::Left
-                    | MouseButton::Right
-                    | MouseButton::Back
-                    | MouseButton::Forward
-                    | MouseButton::Middle => {}
-                    MouseButton::ScrollDown
-                    | MouseButton::ScrollUp
-                    | MouseButton::ScrollRight
-                    | MouseButton::ScrollLeft => return Ok(()),
+                    Button::Left
+                    | Button::Right
+                    | Button::Back
+                    | Button::Forward
+                    | Button::Middle => {}
+                    Button::ScrollDown
+                    | Button::ScrollUp
+                    | Button::ScrollRight
+                    | Button::ScrollLeft => return Ok(()),
                 }
             };
 
             let button = match button {
                 // Taken from /linux/input-event-codes.h
-                MouseButton::Left => 0x110,
-                MouseButton::Right => 0x111,
-                MouseButton::Back => 0x116,
-                MouseButton::Forward => 0x115,
-                MouseButton::Middle => 0x112,
-                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
-                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
-                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
-                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
+                Button::Left => 0x110,
+                Button::Right => 0x111,
+                Button::Back => 0x116,
+                Button::Forward => 0x115,
+                Button::Middle => 0x112,
+                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
+                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
             };
 
             if direction == Direction::Press || direction == Direction::Click {
@@ -672,20 +678,15 @@ impl MouseControllableNext for Con {
         }
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             let time = self.get_time();
             match coordinate {
-                Coordinate::Relative => {
+                Coordinate::Rel => {
                     trace!("vp.motion({time}, {x}, {y})");
                     vp.motion(time, x as f64, y as f64);
                 }
-                Coordinate::Absolute => {
+                Coordinate::Abs => {
                     let Ok(x) = x.try_into() else {
                         return Err(InputError::InvalidInput(
                             "the absolute coordinates cannot be negative",
@@ -715,7 +716,7 @@ impl MouseControllableNext for Con {
         }
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             // TODO: Check what the value of length should be
             // TODO: Check if it would be better to use .axis_discrete here
@@ -741,7 +742,7 @@ impl MouseControllableNext for Con {
         Err(InputError::Simulate("Not implemented yet"))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
         error!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
         Err(InputError::Simulate("Not implemented yet"))

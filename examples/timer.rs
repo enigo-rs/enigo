@@ -1,24 +1,27 @@
-use enigo::EnigoSettings;
-use enigo::{Enigo, Key, KeyboardControllable};
-use std::thread;
-use std::time::Duration;
-use std::time::Instant;
+use enigo::{
+    Enigo, Key, Keyboard, Settings,
+    {Direction::Click, Direction::Press, Direction::Release},
+};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 fn main() {
     env_logger::init();
     thread::sleep(Duration::from_secs(2));
-    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     let now = Instant::now();
 
     // write text
-    enigo.key_sequence("Hello World! ❤️");
+    enigo.text("Hello World! ❤️").unwrap();
 
     let time = now.elapsed();
     println!("{time:?}");
 
     // select all
-    enigo.key_down(Key::Control);
-    enigo.key_click(Key::Layout('a'));
-    enigo.key_up(Key::Control);
+    enigo.key(Key::Control, Press).unwrap();
+    enigo.key(Key::Unicode('a'), Click).unwrap();
+    enigo.key(Key::Control, Release).unwrap();
 }

@@ -22,10 +22,10 @@ Cross platform input simulation in Rust!
 - [x] Custom Parser
 
 ```Rust
-let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
 enigo.mouse_move_to(500, 200);
-enigo.mouse_click(MouseButton::Left);
+enigo.mouse_click(Button::Left);
 enigo.key_sequence_parse("{+CTRL}a{-CTRL}{+SHIFT}Hello World{-SHIFT}");
 ```
 

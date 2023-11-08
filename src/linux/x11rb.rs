@@ -16,8 +16,8 @@ use x11rb::{
 
 use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
 use crate::{
-    keycodes::Modifier, Axis, Coordinate, Direction, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
+    Keyboard, Mouse, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -241,7 +241,7 @@ impl Bind<Keycode> for CompositorConnection {
     }
 }
 
-impl KeyboardControllableNext for Con {
+impl Keyboard for Con {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
         warn!("fast text entry is not yet implemented with x11rb");
         // TODO: Add fast method
@@ -249,19 +249,27 @@ impl KeyboardControllableNext for Con {
         Ok(None)
     }
 
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         // Check if the key is a modifier
-        let keycode = match Modifier::try_from(key) {
+        let keycode: u16 = match Modifier::try_from(key) {
             // If it is a modifier, the already mapped keycode must be used
             Ok(modifier) => {
                 debug!("it is a modifier: {modifier:?}");
-                self.modifiers[modifier.no()]
+                self.modifiers[modifier.no()].into()
             }
             // All regular keys might have to get mapped
-            _ => self.keymap.key_to_keycode(&self.connection, key)?,
+            _ => self.keymap.key_to_keycode(&self.connection, key)?.into(),
         };
 
-        let detail = keycode;
+        self.raw(keycode, direction)
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        let Ok(keycode) = keycode.try_into() else {
+            return Err(InputError::InvalidInput(
+                "Keycode was too large. It has to fit in u8 on X11",
+            ));
+        };
         let time = self.keymap.pending_delays();
         let root = self.screen.root;
         let root_x = 0;
@@ -270,13 +278,13 @@ impl KeyboardControllableNext for Con {
 
         debug!(
             "xtest_fake_input with keycode {}, deviceid {}, delay {}",
-            detail, deviceid, time
+            keycode, deviceid, time
         );
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::KEY_PRESS_EVENT,
-                    detail,
+                    keycode,
                     time,
                     root,
                     root_x,
@@ -298,7 +306,7 @@ impl KeyboardControllableNext for Con {
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::KEY_RELEASE_EVENT,
-                    detail,
+                    keycode,
                     time, // TODO: Check if there needs to be a delay here
                     root,
                     root_x,
@@ -320,28 +328,24 @@ impl KeyboardControllableNext for Con {
 
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys
-        self.keymap.enter_key(keycode, direction);
+        self.keymap.key(keycode, direction);
 
         Ok(())
     }
 }
 
-impl MouseControllableNext for Con {
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
+impl Mouse for Con {
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let detail = match button {
-            MouseButton::Left => 1,
-            MouseButton::Middle => 2,
-            MouseButton::Right => 3,
-            MouseButton::ScrollUp => 4,
-            MouseButton::ScrollDown => 5,
-            MouseButton::ScrollLeft => 6,
-            MouseButton::ScrollRight => 7,
-            MouseButton::Back => 8,
-            MouseButton::Forward => 9,
+            Button::Left => 1,
+            Button::Middle => 2,
+            Button::Right => 3,
+            Button::ScrollUp => 4,
+            Button::ScrollDown => 5,
+            Button::ScrollLeft => 6,
+            Button::ScrollRight => 7,
+            Button::Back => 8,
+            Button::Forward => 9,
         };
         let time = self.delay;
         let root = self.screen.root;
@@ -399,16 +403,11 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let type_ = x11rb::protocol::xproto::MOTION_NOTIFY_EVENT;
         let detail = match coordinate {
-            Coordinate::Relative => 1,
-            Coordinate::Absolute => 0,
+            Coordinate::Rel => 1,
+            Coordinate::Abs => 0,
         };
         let time = x11rb::CURRENT_TIME;
         let root = x11rb::NONE; //  the root window of the screen the pointer is currently on
@@ -444,22 +443,22 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let mut length = length;
         let button = if length < 0 {
             length = -length;
             match axis {
-                Axis::Horizontal => MouseButton::ScrollLeft,
-                Axis::Vertical => MouseButton::ScrollUp,
+                Axis::Horizontal => Button::ScrollLeft,
+                Axis::Vertical => Button::ScrollUp,
             }
         } else {
             match axis {
-                Axis::Horizontal => MouseButton::ScrollRight,
-                Axis::Vertical => MouseButton::ScrollDown,
+                Axis::Horizontal => Button::ScrollRight,
+                Axis::Vertical => Button::ScrollDown,
             }
         };
         for _ in 0..length {
-            self.send_mouse_button_event(button, Direction::Click)?;
+            self.button(button, Direction::Click)?;
         }
         Ok(())
     }
@@ -486,7 +485,7 @@ impl MouseControllableNext for Con {
         Ok((main_display.width as i32, main_display.height as i32))
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
+    fn location(&self) -> InputResult<(i32, i32)> {
         let reply = self
             .connection
             .query_pointer(self.screen.root)

@@ -10,60 +10,22 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
     MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
 };
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A, VK_ABNT_C1,
-    VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK, VK_BROWSER_BACK,
-    VK_BROWSER_FAVORITES, VK_BROWSER_FORWARD, VK_BROWSER_HOME, VK_BROWSER_REFRESH,
-    VK_BROWSER_SEARCH, VK_BROWSER_STOP, VK_C, VK_CANCEL, VK_CAPITAL, VK_CLEAR, VK_CONTROL,
-    VK_CONVERT, VK_CRSEL, VK_D, VK_DBE_ALPHANUMERIC, VK_DBE_CODEINPUT, VK_DBE_DBCSCHAR,
-    VK_DBE_DETERMINESTRING, VK_DBE_ENTERDLGCONVERSIONMODE, VK_DBE_ENTERIMECONFIGMODE,
-    VK_DBE_ENTERWORDREGISTERMODE, VK_DBE_FLUSHSTRING, VK_DBE_HIRAGANA, VK_DBE_KATAKANA,
-    VK_DBE_NOCODEINPUT, VK_DBE_NOROMAN, VK_DBE_ROMAN, VK_DBE_SBCSCHAR, VK_DECIMAL, VK_DELETE,
-    VK_DIVIDE, VK_DOWN, VK_E, VK_END, VK_EREOF, VK_ESCAPE, VK_EXECUTE, VK_EXSEL, VK_F, VK_F1,
-    VK_F10, VK_F11, VK_F12, VK_F13, VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19, VK_F2, VK_F20,
-    VK_F21, VK_F22, VK_F23, VK_F24, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_FINAL,
-    VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B, VK_GAMEPAD_DPAD_DOWN, VK_GAMEPAD_DPAD_LEFT,
-    VK_GAMEPAD_DPAD_RIGHT, VK_GAMEPAD_DPAD_UP, VK_GAMEPAD_LEFT_SHOULDER,
-    VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON, VK_GAMEPAD_LEFT_THUMBSTICK_DOWN,
-    VK_GAMEPAD_LEFT_THUMBSTICK_LEFT, VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT,
-    VK_GAMEPAD_LEFT_THUMBSTICK_UP, VK_GAMEPAD_LEFT_TRIGGER, VK_GAMEPAD_MENU,
-    VK_GAMEPAD_RIGHT_SHOULDER, VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON,
-    VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN, VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT,
-    VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT, VK_GAMEPAD_RIGHT_THUMBSTICK_UP, VK_GAMEPAD_RIGHT_TRIGGER,
-    VK_GAMEPAD_VIEW, VK_GAMEPAD_X, VK_GAMEPAD_Y, VK_H, VK_HANGEUL, VK_HANGUL, VK_HANJA, VK_HELP,
-    VK_HOME, VK_I, VK_ICO_00, VK_ICO_CLEAR, VK_ICO_HELP, VK_IME_OFF, VK_IME_ON, VK_INSERT, VK_J,
-    VK_JUNJA, VK_K, VK_KANA, VK_KANJI, VK_L, VK_LAUNCH_APP1, VK_LAUNCH_APP2, VK_LAUNCH_MAIL,
-    VK_LAUNCH_MEDIA_SELECT, VK_LBUTTON, VK_LCONTROL, VK_LEFT, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_M,
-    VK_MBUTTON, VK_MEDIA_NEXT_TRACK, VK_MEDIA_PLAY_PAUSE, VK_MEDIA_PREV_TRACK, VK_MEDIA_STOP,
-    VK_MENU, VK_MODECHANGE, VK_MULTIPLY, VK_N, VK_NAVIGATION_ACCEPT, VK_NAVIGATION_CANCEL,
-    VK_NAVIGATION_DOWN, VK_NAVIGATION_LEFT, VK_NAVIGATION_MENU, VK_NAVIGATION_RIGHT,
-    VK_NAVIGATION_UP, VK_NAVIGATION_VIEW, VK_NEXT, VK_NONAME, VK_NONCONVERT, VK_NUMLOCK,
-    VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6, VK_NUMPAD7,
-    VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_102, VK_OEM_2, VK_OEM_3, VK_OEM_4, VK_OEM_5,
-    VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_ATTN, VK_OEM_AUTO, VK_OEM_AX, VK_OEM_BACKTAB,
-    VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL, VK_OEM_ENLW, VK_OEM_FINISH,
-    VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU, VK_OEM_FJ_ROYA, VK_OEM_FJ_TOUROKU,
-    VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL, VK_OEM_PA1, VK_OEM_PA2, VK_OEM_PA3, VK_OEM_PERIOD,
-    VK_OEM_PLUS, VK_OEM_RESET, VK_OEM_WSCTRL, VK_P, VK_PA1, VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT,
-    VK_PRIOR, VK_PROCESSKEY, VK_Q, VK_R, VK_RBUTTON, VK_RCONTROL, VK_RETURN, VK_RIGHT, VK_RMENU,
-    VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT, VK_SEPARATOR, VK_SHIFT, VK_SLEEP, VK_SNAPSHOT,
-    VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_UP, VK_V, VK_VOLUME_DOWN, VK_VOLUME_MUTE,
-    VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z, VK_ZOOM,
-};
+
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
 };
 
 use crate::{
-    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, Settings,
 };
 
 type ScanCode = u16;
+pub const EXT: u16 = 0xFF00;
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    held: Vec<Key>, // Currently held keys
+    held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
 }
 
@@ -120,45 +82,39 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
     }
 }
 
-impl MouseControllableNext for Enigo {
+impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
-    fn send_mouse_button_event(
-        &mut self,
-        button: MouseButton,
-        direction: Direction,
-    ) -> InputResult<()> {
-        debug!(
-            "\x1b[93msend_mouse_button_event(button: {button:?}, direction: {direction:?})\x1b[0m"
-        );
+    fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
         let button_no = match button {
-            MouseButton::Back => 1,
-            MouseButton::Forward => 2,
+            Button::Back => 1,
+            Button::Forward => 2,
             _ => 0,
         };
         if direction == Direction::Click || direction == Direction::Press {
             let mouse_event_flag = match button {
-                MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
-                MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
-                MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
-                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XDOWN,
-                MouseButton::ScrollUp => return self.mouse_scroll_event(-1, Axis::Vertical),
-                MouseButton::ScrollDown => return self.mouse_scroll_event(1, Axis::Vertical),
-                MouseButton::ScrollLeft => return self.mouse_scroll_event(-1, Axis::Horizontal),
-                MouseButton::ScrollRight => return self.mouse_scroll_event(1, Axis::Horizontal),
+                Button::Left => MOUSEEVENTF_LEFTDOWN,
+                Button::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                Button::Right => MOUSEEVENTF_RIGHTDOWN,
+                Button::Back | Button::Forward => MOUSEEVENTF_XDOWN,
+                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
             input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
-                MouseButton::Left => MOUSEEVENTF_LEFTUP,
-                MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
-                MouseButton::Right => MOUSEEVENTF_RIGHTUP,
-                MouseButton::Back | MouseButton::Forward => MOUSEEVENTF_XUP,
-                MouseButton::ScrollUp
-                | MouseButton::ScrollDown
-                | MouseButton::ScrollLeft
-                | MouseButton::ScrollRight => {
+                Button::Left => MOUSEEVENTF_LEFTUP,
+                Button::Middle => MOUSEEVENTF_MIDDLEUP,
+                Button::Right => MOUSEEVENTF_RIGHTUP,
+                Button::Back | Button::Forward => MOUSEEVENTF_XUP,
+                Button::ScrollUp
+                | Button::ScrollDown
+                | Button::ScrollLeft
+                | Button::ScrollRight => {
                     info!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
                     return Ok(());
                 }
@@ -170,15 +126,10 @@ impl MouseControllableNext for Enigo {
 
     // Sends a motion notify event to the X11 server via `XTest` extension
     // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
-        debug!("\x1b[93msend_motion_notify_event(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let (x_absolute, y_absolute) = if coordinate == Coordinate::Relative {
-            let (x_absolute, y_absolute) = self.mouse_loc()?;
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
+        debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
+        let (x_absolute, y_absolute) = if coordinate == Coordinate::Rel {
+            let (x_absolute, y_absolute) = self.location()?;
             (x_absolute + x, y_absolute + y)
         } else {
             (x, y)
@@ -204,8 +155,8 @@ impl MouseControllableNext for Enigo {
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
-    fn mouse_scroll_event(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        debug!("\x1b[93mmouse_scroll_event(length: {length:?}, axis: {axis:?})\x1b[0m");
+    fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let input = match axis {
             Axis::Horizontal => {
                 mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
@@ -231,8 +182,8 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn mouse_loc(&self) -> InputResult<(i32, i32)> {
-        debug!("\x1b[93mmouse_loc()\x1b[0m");
+    fn location(&self) -> InputResult<(i32, i32)> {
+        debug!("\x1b[93mlocation()\x1b[0m");
         let mut point = POINT { x: 0, y: 0 };
         if unsafe { GetCursorPos(&mut point) }.is_ok() {
             Ok((point.x, point.y))
@@ -244,7 +195,7 @@ impl MouseControllableNext for Enigo {
     }
 }
 
-impl KeyboardControllableNext for Enigo {
+impl Keyboard for Enigo {
     fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
@@ -252,8 +203,8 @@ impl KeyboardControllableNext for Enigo {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
-    fn enter_text(&mut self, text: &str) -> InputResult<()> {
-        debug!("\x1b[93menter_text(text: {text})\x1b[0m");
+    fn text(&mut self, text: &str) -> InputResult<()> {
+        debug!("\x1b[93mtext(text: {text})\x1b[0m");
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
         }
@@ -263,10 +214,10 @@ impl KeyboardControllableNext for Enigo {
         for c in text.chars() {
             // Handle special characters seperately
             match c {
-                '\n' => return self.enter_key(Key::Return, Direction::Click),
+                '\n' => return self.key(Key::Return, Direction::Click),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.enter_key(Key::Tab, Direction::Click),
+                '\t' => return self.key(Key::Tab, Direction::Click),
                 '\0' => return Err(InputError::InvalidInput("the text contained a null byte")),
                 _ => (),
             }
@@ -294,19 +245,19 @@ impl KeyboardControllableNext for Enigo {
     }
 
     /// Sends a key event to the X11 server via `XTest` extension
-    fn enter_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93menter_key(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
 
-        if let Key::Layout(c) = key {
+        if let Key::Unicode(c) = key {
             // Handle special characters seperately
             match c {
-                '\n' => return self.enter_key(Key::Return, direction),
+                '\n' => return self.key(Key::Return, direction),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.enter_key(Key::Tab, direction),
+                '\t' => return self.key(Key::Tab, direction),
                 '\0' => {
-                    debug!("entering Key::Layout('\\0') is a noop");
+                    debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
                 }
                 _ => (),
@@ -328,8 +279,8 @@ impl KeyboardControllableNext for Enigo {
             }
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
-            // Key::Layout and we already ensured that is not the case
-            let keycode = key_to_keycode(key).unwrap();
+            // Key::Unicode and we already ensured that is not the case
+            let keycode = VIRTUAL_KEY::try_from(key).unwrap();
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
                 input.push(keybd_event(keyflags, keycode, 0u16));
@@ -343,11 +294,58 @@ impl KeyboardControllableNext for Enigo {
         match direction {
             Direction::Press => {
                 debug!("added the key {key:?} to the held keys");
-                self.held.push(key);
+                self.held.0.push(key);
             }
             Direction::Release => {
                 debug!("removed the key {key:?} from the held keys");
-                self.held.retain(|&k| k != key);
+                self.held.0.retain(|&k| k != key);
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
+    }
+
+    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
+        let mut input = vec![];
+
+        // Some keycodes also need to have the KEYEVENTF_EXTENDEDKEY flag set because
+        // the code is used for two different keys. The maximum for a scancode (raw
+        // keycode) is 7F on Windows. Since we use an u16 here, we can use the remaining
+        // bits to allow specifying the user of the library if the flag should get set
+        // or not. It is assumed that all keycodes larger than 7F need the flag to be
+        // set
+        let (keycode, keyflags) = if keycode > 0x7F {
+            (
+                keycode & 0x7F, /* remove the bits used for signaling if the extendend flag
+                                 * should get set */
+                KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
+            )
+        } else {
+            (keycode, KEYEVENTF_SCANCODE)
+        };
+        if direction == Direction::Click || direction == Direction::Press {
+            input.push(keybd_event(keyflags, VIRTUAL_KEY(0), keycode));
+        }
+        if direction == Direction::Click || direction == Direction::Release {
+            input.push(keybd_event(
+                keyflags | KEYEVENTF_KEYUP,
+                VIRTUAL_KEY(0),
+                keycode,
+            ));
+        }
+
+        send_input(&input)?;
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {keycode:?} to the held keys");
+                self.held.1.push(keycode);
+            }
+            Direction::Release => {
+                debug!("removed the key {keycode:?} from the held keys");
+                self.held.1.retain(|&k| k != keycode);
             }
             Direction::Click => (),
         }
@@ -363,13 +361,13 @@ impl Enigo {
     /// # Errors
     /// Have a look at the documentation of `NewConError` to see under which
     /// conditions an error will be returned.
-    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
-        let EnigoSettings {
+    pub fn new(settings: &Settings) -> Result<Self, NewConError> {
+        let Settings {
             release_keys_when_dropped,
             ..
         } = settings;
 
-        let held = vec![];
+        let held = (vec![], vec![]);
 
         debug!("\x1b[93mconnection established on windows\x1b[0m");
 
@@ -425,12 +423,17 @@ impl Enigo {
     }
 
     /// Returns a list of all currently pressed keys
-    pub fn held(&mut self) -> Vec<Key> {
+    pub fn held(&mut self) -> (Vec<Key>, Vec<ScanCode>) {
         self.held.clone()
     }
 }
 
 fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT, VK_NUMLOCK,
+        VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
+    };
+
     match vk {
         // Navigation keys should be injected with the extended flag to distinguish
         // them from the Numpad navigation keys. Otherwise, input Shift+<Navigation key>
@@ -453,267 +456,17 @@ impl Drop for Enigo {
         if !self.release_keys_when_dropped {
             return;
         }
-        for &k in &self.held() {
-            if self.enter_key(k, Direction::Release).is_err() {
-                error!("unable to release {k:?}");
+        let (held_keys, held_keycodes) = self.held();
+        for key in held_keys {
+            if self.key(key, Direction::Release).is_err() {
+                error!("unable to release {key:?}");
+            };
+        }
+        for keycode in held_keycodes {
+            if self.raw(keycode, Direction::Release).is_err() {
+                error!("unable to release {keycode:?}");
             };
         }
         debug!("released all held keys");
     }
-}
-
-#[allow(clippy::too_many_lines)]
-fn key_to_keycode(key: Key) -> Option<VIRTUAL_KEY> {
-    let vk = match key {
-        Key::Num0 => VK_0,
-        Key::Num1 => VK_1,
-        Key::Num2 => VK_2,
-        Key::Num3 => VK_3,
-        Key::Num4 => VK_4,
-        Key::Num5 => VK_5,
-        Key::Num6 => VK_6,
-        Key::Num7 => VK_7,
-        Key::Num8 => VK_8,
-        Key::Num9 => VK_9,
-        Key::A => VK_A,
-        Key::B => VK_B,
-        Key::C => VK_C,
-        Key::D => VK_D,
-        Key::E => VK_E,
-        Key::F => VK_F,
-        Key::G => VK_G,
-        Key::H => VK_H,
-        Key::I => VK_I,
-        Key::J => VK_J,
-        Key::K => VK_K,
-        Key::L => VK_L,
-        Key::M => VK_M,
-        Key::N => VK_N,
-        Key::O => VK_O,
-        Key::P => VK_P,
-        Key::Q => VK_Q,
-        Key::R => VK_R,
-        Key::S => VK_S,
-        Key::T => VK_T,
-        Key::U => VK_U,
-        Key::V => VK_V,
-        Key::W => VK_W,
-        Key::X => VK_X,
-        Key::Y => VK_Y,
-        Key::Z => VK_Z,
-        Key::AbntC1 => VK_ABNT_C1,
-        Key::AbntC2 => VK_ABNT_C2,
-        Key::Accept => VK_ACCEPT,
-        Key::Add => VK_ADD,
-        Key::Alt | Key::Option => VK_MENU,
-        Key::Apps => VK_APPS,
-        Key::Attn => VK_ATTN,
-        Key::Backspace => VK_BACK,
-        Key::BrowserBack => VK_BROWSER_BACK,
-        Key::BrowserFavorites => VK_BROWSER_FAVORITES,
-        Key::BrowserForward => VK_BROWSER_FORWARD,
-        Key::BrowserHome => VK_BROWSER_HOME,
-        Key::BrowserRefresh => VK_BROWSER_REFRESH,
-        Key::BrowserSearch => VK_BROWSER_SEARCH,
-        Key::BrowserStop => VK_BROWSER_STOP,
-        Key::Cancel => VK_CANCEL,
-        Key::CapsLock => VK_CAPITAL,
-        Key::Clear => VK_CLEAR,
-        Key::Control => VK_CONTROL,
-        Key::Convert => VK_CONVERT,
-        Key::Crsel => VK_CRSEL,
-        Key::DBEAlphanumeric => VK_DBE_ALPHANUMERIC,
-        Key::DBECodeinput => VK_DBE_CODEINPUT,
-        Key::DBEDetermineString => VK_DBE_DETERMINESTRING,
-        Key::DBEEnterDLGConversionMode => VK_DBE_ENTERDLGCONVERSIONMODE,
-        Key::DBEEnterIMEConfigMode => VK_DBE_ENTERIMECONFIGMODE,
-        Key::DBEEnterWordRegisterMode => VK_DBE_ENTERWORDREGISTERMODE,
-        Key::DBEFlushString => VK_DBE_FLUSHSTRING,
-        Key::DBEHiragana => VK_DBE_HIRAGANA,
-        Key::DBEKatakana => VK_DBE_KATAKANA,
-        Key::DBENoCodepoint => VK_DBE_NOCODEINPUT,
-        Key::DBENoRoman => VK_DBE_NOROMAN,
-        Key::DBERoman => VK_DBE_ROMAN,
-        Key::DBESBCSChar => VK_DBE_SBCSCHAR,
-        Key::DBESChar => VK_DBE_DBCSCHAR,
-        Key::Decimal => VK_DECIMAL,
-        Key::Delete => VK_DELETE,
-        Key::Divide => VK_DIVIDE,
-        Key::DownArrow => VK_DOWN,
-        Key::End => VK_END,
-        Key::Ereof => VK_EREOF,
-        Key::Escape => VK_ESCAPE,
-        Key::Execute => VK_EXECUTE,
-        Key::Exsel => VK_EXSEL,
-        Key::F1 => VK_F1,
-        Key::F2 => VK_F2,
-        Key::F3 => VK_F3,
-        Key::F4 => VK_F4,
-        Key::F5 => VK_F5,
-        Key::F6 => VK_F6,
-        Key::F7 => VK_F7,
-        Key::F8 => VK_F8,
-        Key::F9 => VK_F9,
-        Key::F10 => VK_F10,
-        Key::F11 => VK_F11,
-        Key::F12 => VK_F12,
-        Key::F13 => VK_F13,
-        Key::F14 => VK_F14,
-        Key::F15 => VK_F15,
-        Key::F16 => VK_F16,
-        Key::F17 => VK_F17,
-        Key::F18 => VK_F18,
-        Key::F19 => VK_F19,
-        Key::F20 => VK_F20,
-        Key::F21 => VK_F21,
-        Key::F22 => VK_F22,
-        Key::F23 => VK_F23,
-        Key::F24 => VK_F24,
-        Key::Final => VK_FINAL,
-        Key::GamepadA => VK_GAMEPAD_A,
-        Key::GamepadB => VK_GAMEPAD_B,
-        Key::GamepadDPadDown => VK_GAMEPAD_DPAD_DOWN,
-        Key::GamepadDPadLeft => VK_GAMEPAD_DPAD_LEFT,
-        Key::GamepadDPadRight => VK_GAMEPAD_DPAD_RIGHT,
-        Key::GamepadDPadUp => VK_GAMEPAD_DPAD_UP,
-        Key::GamepadLeftShoulder => VK_GAMEPAD_LEFT_SHOULDER,
-        Key::GamepadLeftThumbstickButton => VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
-        Key::GamepadLeftThumbstickDown => VK_GAMEPAD_LEFT_THUMBSTICK_DOWN,
-        Key::GamepadLeftThumbstickLeft => VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
-        Key::GamepadLeftThumbstickRight => VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT,
-        Key::GamepadLeftThumbstickUp => VK_GAMEPAD_LEFT_THUMBSTICK_UP,
-        Key::GamepadLeftTrigger => VK_GAMEPAD_LEFT_TRIGGER,
-        Key::GamepadMenu => VK_GAMEPAD_MENU,
-        Key::GamepadRightShoulder => VK_GAMEPAD_RIGHT_SHOULDER,
-        Key::GamepadRightThumbstickButton => VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON,
-        Key::GamepadRightThumbstickDown => VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN,
-        Key::GamepadRightThumbstickLeft => VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT,
-        Key::GamepadRightThumbstickRight => VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT,
-        Key::GamepadRightThumbstickUp => VK_GAMEPAD_RIGHT_THUMBSTICK_UP,
-        Key::GamepadRightTrigger => VK_GAMEPAD_RIGHT_TRIGGER,
-        Key::GamepadView => VK_GAMEPAD_VIEW,
-        Key::GamepadX => VK_GAMEPAD_X,
-        Key::GamepadY => VK_GAMEPAD_Y,
-        Key::Hangeul => VK_HANGEUL,
-        Key::Hangul => VK_HANGUL,
-        Key::Hanja => VK_HANJA,
-        Key::Help => VK_HELP,
-        Key::Home => VK_HOME,
-        Key::Ico00 => VK_ICO_00,
-        Key::IcoClear => VK_ICO_CLEAR,
-        Key::IcoHelp => VK_ICO_HELP,
-        Key::IMEOff => VK_IME_OFF,
-        Key::IMEOn => VK_IME_ON,
-        Key::Insert => VK_INSERT,
-        Key::Junja => VK_JUNJA,
-        Key::Kana => VK_KANA,
-        Key::Kanji => VK_KANJI,
-        Key::LaunchApp1 => VK_LAUNCH_APP1,
-        Key::LaunchApp2 => VK_LAUNCH_APP2,
-        Key::LaunchMail => VK_LAUNCH_MAIL,
-        Key::LaunchMediaSelect => VK_LAUNCH_MEDIA_SELECT,
-        Key::LButton => VK_LBUTTON,
-        Key::LControl => VK_LCONTROL,
-        Key::LeftArrow => VK_LEFT,
-        Key::LMenu => VK_LMENU,
-        Key::LShift => VK_LSHIFT,
-        Key::MButton => VK_MBUTTON,
-        Key::MediaNextTrack => VK_MEDIA_NEXT_TRACK,
-        Key::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
-        Key::MediaPrevTrack => VK_MEDIA_PREV_TRACK,
-        Key::MediaStop => VK_MEDIA_STOP,
-        Key::ModeChange => VK_MODECHANGE,
-        Key::Multiply => VK_MULTIPLY,
-        Key::NavigationAccept => VK_NAVIGATION_ACCEPT,
-        Key::NavigationCancel => VK_NAVIGATION_CANCEL,
-        Key::NavigationDown => VK_NAVIGATION_DOWN,
-        Key::NavigationLeft => VK_NAVIGATION_LEFT,
-        Key::NavigationMenu => VK_NAVIGATION_MENU,
-        Key::NavigationRight => VK_NAVIGATION_RIGHT,
-        Key::NavigationUp => VK_NAVIGATION_UP,
-        Key::NavigationView => VK_NAVIGATION_VIEW,
-        Key::NoName => VK_NONAME,
-        Key::NonConvert => VK_NONCONVERT,
-        Key::None => VK__none_,
-        Key::Numlock => VK_NUMLOCK,
-        Key::Numpad0 => VK_NUMPAD0,
-        Key::Numpad1 => VK_NUMPAD1,
-        Key::Numpad2 => VK_NUMPAD2,
-        Key::Numpad3 => VK_NUMPAD3,
-        Key::Numpad4 => VK_NUMPAD4,
-        Key::Numpad5 => VK_NUMPAD5,
-        Key::Numpad6 => VK_NUMPAD6,
-        Key::Numpad7 => VK_NUMPAD7,
-        Key::Numpad8 => VK_NUMPAD8,
-        Key::Numpad9 => VK_NUMPAD9,
-        Key::OEM1 => VK_OEM_1,
-        Key::OEM102 => VK_OEM_102,
-        Key::OEM2 => VK_OEM_2,
-        Key::OEM3 => VK_OEM_3,
-        Key::OEM4 => VK_OEM_4,
-        Key::OEM5 => VK_OEM_5,
-        Key::OEM6 => VK_OEM_6,
-        Key::OEM7 => VK_OEM_7,
-        Key::OEM8 => VK_OEM_8,
-        Key::OEMAttn => VK_OEM_ATTN,
-        Key::OEMAuto => VK_OEM_AUTO,
-        Key::OEMAx => VK_OEM_AX,
-        Key::OEMBacktab => VK_OEM_BACKTAB,
-        Key::OEMClear => VK_OEM_CLEAR,
-        Key::OEMComma => VK_OEM_COMMA,
-        Key::OEMCopy => VK_OEM_COPY,
-        Key::OEMCusel => VK_OEM_CUSEL,
-        Key::OEMEnlw => VK_OEM_ENLW,
-        Key::OEMFinish => VK_OEM_FINISH,
-        Key::OEMFJJisho => VK_OEM_FJ_JISHO,
-        Key::OEMFJLoya => VK_OEM_FJ_LOYA,
-        Key::OEMFJMasshou => VK_OEM_FJ_MASSHOU,
-        Key::OEMFJRoya => VK_OEM_FJ_ROYA,
-        Key::OEMFJTouroku => VK_OEM_FJ_TOUROKU,
-        Key::OEMJump => VK_OEM_JUMP,
-        Key::OEMMinus => VK_OEM_MINUS,
-        Key::OEMNECEqual => VK_OEM_NEC_EQUAL,
-        Key::OEMPA1 => VK_OEM_PA1,
-        Key::OEMPA2 => VK_OEM_PA2,
-        Key::OEMPA3 => VK_OEM_PA3,
-        Key::OEMPeriod => VK_OEM_PERIOD,
-        Key::OEMPlus => VK_OEM_PLUS,
-        Key::OEMReset => VK_OEM_RESET,
-        Key::OEMWsctrl => VK_OEM_WSCTRL,
-        Key::PA1 => VK_PA1,
-        Key::Packet => VK_PACKET,
-        Key::PageDown => VK_NEXT,
-        Key::PageUp => VK_PRIOR,
-        Key::Pause => VK_PAUSE,
-        Key::Play => VK_PLAY,
-        Key::Print => VK_PRINT,
-        Key::Processkey => VK_PROCESSKEY,
-        Key::RButton => VK_RBUTTON,
-        Key::RControl => VK_RCONTROL,
-        Key::Return => VK_RETURN,
-        Key::RightArrow => VK_RIGHT,
-        Key::RMenu => VK_RMENU,
-        Key::RShift => VK_RSHIFT,
-        Key::RWin => VK_RWIN,
-        Key::Scroll => VK_SCROLL,
-        Key::Select => VK_SELECT,
-        Key::Separator => VK_SEPARATOR,
-        Key::Shift => VK_SHIFT,
-        Key::Sleep => VK_SLEEP,
-        Key::Snapshot => VK_SNAPSHOT,
-        Key::Space => VK_SPACE,
-        Key::Subtract => VK_SUBTRACT,
-        Key::Tab => VK_TAB,
-        Key::UpArrow => VK_UP,
-        Key::VolumeDown => VK_VOLUME_DOWN,
-        Key::VolumeMute => VK_VOLUME_MUTE,
-        Key::VolumeUp => VK_VOLUME_UP,
-        Key::XButton1 => VK_XBUTTON1,
-        Key::XButton2 => VK_XBUTTON2,
-        Key::Zoom => VK_ZOOM,
-        Key::Raw(raw_keycode) => VIRTUAL_KEY(raw_keycode),
-        Key::Layout(_) => return None,
-        Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
-    };
-    Some(vk)
 }
