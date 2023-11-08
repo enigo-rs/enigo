@@ -71,18 +71,19 @@ pub use platform::Enigo;
 #[cfg(target_os = "windows")]
 pub use platform::EXT;
 
-/// Contains the available keycodes
 mod keycodes;
+/// Contains the available keycodes
 pub use keycodes::Key;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// [`Button`] represents a mouse button and is used in e.g
-/// [`MouseControllable::mouse_click`].
+/// Represents a mouse button and is used in e.g
+/// [`MouseControllableNext::mouse_button`].
 
 // Warning! If there are ANY CHANGES to this enum, we
 // need to change the size of the array in the macOS implementation of the Enigo
 // struct that stores the nth click for each Button
+#[doc(alias = "MouseButton")]
 pub enum Button {
     /// Left mouse button
     Left,
@@ -338,7 +339,7 @@ where
 /// Contains functions to simulate key presses and to input text.
 ///
 /// For the keyboard there are currently two modes you can use. The first mode
-/// is represented by the [`key_sequence`](KeyboardControllable::key_sequence)
+/// is represented by the [`KeyboardControllable::key_sequence`]
 /// function. It's purpose is to simply write unicode characters.
 /// Please note that you're not able to use modifier keys like Control
 /// to influence the outcome. If you want to use shortcuts to e.g.
@@ -449,7 +450,7 @@ pub enum Direction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// Specifies the axis to scroll on
+/// Specifies the axis for scrolling
 pub enum Axis {
     Horizontal,
     Vertical,
@@ -458,31 +459,43 @@ pub enum Axis {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
+    #[doc(alias = "Relative")]
     Rel,
+    #[doc(alias = "Absolute")]
     Abs,
 }
 
+/// Contains functions to simulate key presses/releases and to input text.
+///
+/// For entering text, the [`KeyboardControllableNext::text`] function is best.
+/// If you want to enter a key without having to worry about the layout or the
+/// keymap, use the [`KeyboardControllableNext::key`] function. If you want a
+/// specific (physical) key to be pressed (e.g WASD for games), use the
+/// [`KeyboardControllableNext::raw`] function. The resulting keysym will depend
+/// on the layout/keymap.
+#[doc(alias = "KeyboardControllable")]
 pub trait KeyboardControllableNext {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized.
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
     fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>>;
 
     /// Enter the text
-    /// Use a fast method to enter the text, if it is available. The text should
-    /// not contain any NULL bytes ('\0'). You can use unicode here like: ❤️.
-    /// This works regardless of the current keyboard layout. You cannot use
-    /// this function for entering shortcuts or something similar. For
-    /// shortcuts, use the [`KeyboardControllableNext::key`] method
-    /// instead.
+    /// Use a fast method to enter the text, if it is available. You can use
+    /// unicode here like: ❤️. This works regardless of the current keyboard
+    /// layout. You cannot use this function for entering shortcuts or
+    /// something similar. For shortcuts, use the
+    /// [`KeyboardControllableNext::key`] method instead.
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
-    /// conditions an error will be returned.
+    /// The text should not contain any NULL bytes (`\0`). Have a look at the
+    /// documentation of [`InputError`] to see under which other conditions an
+    /// error will be returned.
+    #[doc(alias = "key_sequence")]
     fn text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
             debug!("The text to enter was empty");
@@ -510,25 +523,31 @@ pub trait KeyboardControllableNext {
         }
     }
 
-    /// Sends an individual key event. Some of the keys are specific to a
-    /// platform.
+    /// Sends an individual key event. It will enter the keysym (virtual key).
+    /// Have a look at the [`KeyboardControllableNext::raw`] function, if you
+    /// want to enter a keycode.
+    ///
+    /// Some of the keys are specific to a platform.
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "key_down", alias = "key_up", alias = "key_click")]
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 
     /// Sends a raw keycode. The keycode may or may not be mapped on the current
     /// layout. You have to make sure of that yourself. This can be usefull if
     /// you want to simulate a press regardless of the layout (WASD on video
-    /// games)
-    /// Windows only: If you want to enter the keycode (scancode) of an extended
-    /// key, you need to set extra bits. You can for example do: `enigo.raw(45 |
-    /// EXT, Direction::Click)`
+    /// games). Have a look at the [`KeyboardControllableNext::key`] function,
+    /// if you just want to enter a specific key and don't want to worry about
+    /// the layout/keymap. Windows only: If you want to enter the keycode
+    /// (scancode) of an extended key, you need to set extra bits. You can
+    /// for example do: `enigo.raw(45 | EXT, Direction::Click)`
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "Key::Raw")]
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()>;
 }
 
@@ -538,14 +557,16 @@ pub trait KeyboardControllableNext {
 /// screen, with positive values extending along the axes down and to the
 /// right of the origin point and it is measured in pixels. The same coordinate
 /// system is used on all operating systems.
+#[doc(alias = "MouseControllable")]
 pub trait MouseControllableNext {
     /// Sends an individual mouse button event. You can use this for example to
     /// simulate a click of the left mouse key. Some of the buttons are specific
     /// to a platform.
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "mouse_down", alias = "mouse_up", alias = "mouse_click")]
     fn mouse_button(&mut self, button: Button, direction: Direction) -> InputResult<()>;
 
     /// Move the mouse cursor to the specified x and y coordinates.
@@ -563,8 +584,9 @@ pub trait MouseControllableNext {
     /// negative one moves the mouse cursor up.
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "mouse_move_to", alias = "mouse_move_relative")]
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()>;
 
     /// Send a mouse scroll event
@@ -575,28 +597,31 @@ pub trait MouseControllableNext {
     ///   scroll. How many lines will be scrolled depends on the current setting
     ///   of the operating system.
     ///
-    /// With `Axis::Vertical`, a positive length will result in scrolling down
-    /// and negative ones up. With `Axis::Horizontal`, a positive length
+    /// With [`Axis::Vertical`], a positive length will result in scrolling down
+    /// and negative ones up. With [`Axis::Horizontal`], a positive length
     /// will result in scrolling to the right and negative ones to the left
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "mouse_scroll_x", alias = "mouse_scroll_y")]
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
     /// Get the (width, height) of the main display in pixels. This currently
     /// only works on the main display
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "main_display_size")]
     fn main_display(&self) -> InputResult<(i32, i32)>;
 
     /// Get the location of the mouse in pixels
     ///
     /// # Errors
-    /// Have a look at the documentation of `InputError` to see under which
+    /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
+    #[doc(alias = "mouse_location")]
     fn location(&self) -> InputResult<(i32, i32)>;
 }
 
@@ -615,7 +640,7 @@ pub enum InputError {
     Simulate(&'static str),
     /// The input you want to simulate is invalid
     /// This happens for example if you want to enter text that contains NULL
-    /// bytes ('/0')
+    /// bytes (`\0`)
     InvalidInput(&'static str),
 }
 
