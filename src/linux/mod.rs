@@ -258,12 +258,12 @@ impl KeyboardControllableNext for Enigo {
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
-            con.enter_text(text)?;
+            con.text(text)?;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering text fast via x11");
-            con.enter_text(text)?;
+            con.text(text)?;
         }
         debug!("entered the text fast");
         Ok(Some(()))

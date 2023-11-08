@@ -214,8 +214,8 @@ impl KeyboardControllableNext for Enigo {
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized
-    fn enter_text(&mut self, text: &str) -> InputResult<()> {
-        debug!("\x1b[93menter_text(text: {text})\x1b[0m");
+    fn text(&mut self, text: &str) -> InputResult<()> {
+        debug!("\x1b[93mtext(text: {text})\x1b[0m");
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
         }

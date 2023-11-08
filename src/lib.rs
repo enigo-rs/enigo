@@ -385,7 +385,7 @@ where
     /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str) {
-        match self.enter_text(sequence) {
+        match self.text(sequence) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -483,7 +483,7 @@ pub trait KeyboardControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn enter_text(&mut self, text: &str) -> InputResult<()> {
+    fn text(&mut self, text: &str) -> InputResult<()> {
         if text.is_empty() {
             debug!("The text to enter was empty");
             return Ok(()); // Nothing to simulate.

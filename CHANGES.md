@@ -9,6 +9,7 @@
 - All: The feature `with_serde` was renamed to `serde`
 - All: Renamed `Key::Layout(char)` to `Key::Unicode(char)` and clearified its docs
 - All: Split off entering raw keycodes into it's own function
+- All: Renamed `key_sequence` to `text`
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
