@@ -261,12 +261,7 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let res = match coordinate {
             Coordinate::Relative => {
                 debug!("xdo_move_mouse_relative with x {}, y {}", x, y);

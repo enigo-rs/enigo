@@ -136,7 +136,7 @@ where
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        match self.send_motion_notify_event(x, y, Coordinate::Absolute) {
+        match self.move_mouse(x, y, Coordinate::Absolute) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -159,7 +159,7 @@ where
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
-        match self.send_motion_notify_event(x, y, Coordinate::Relative) {
+        match self.move_mouse(x, y, Coordinate::Relative) {
             Ok(()) => {}
             Err(e) => {
                 error!("{e}");
@@ -565,12 +565,7 @@ pub trait MouseControllableNext {
     /// # Errors
     /// Have a look at the documentation of `InputError` to see under which
     /// conditions an error will be returned.
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()>;
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()>;
 
     /// Send a mouse scroll event
     ///

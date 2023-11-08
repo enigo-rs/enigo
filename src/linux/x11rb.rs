@@ -403,12 +403,7 @@ impl MouseControllableNext for Con {
         Ok(())
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let type_ = x11rb::protocol::xproto::MOTION_NOTIFY_EVENT;
         let detail = match coordinate {
             Coordinate::Relative => 1,

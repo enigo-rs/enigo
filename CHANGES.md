@@ -12,6 +12,7 @@
 - All: Renamed `key_sequence` function to `text`
 - All: Renamed `enter_key` function to `key`
 - All: Renamed `send_mouse_button_event` function to `mouse_button`
+- All: Renamed `send_motion_notify_event` function to `move_mouse`
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it

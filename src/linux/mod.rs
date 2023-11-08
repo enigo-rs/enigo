@@ -160,25 +160,20 @@ impl MouseControllableNext for Enigo {
         }
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
-        debug!("\x1b[93msend_motion_notify_event(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
+        debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let mut success = false;
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try moving the mouse via wayland");
-            con.send_motion_notify_event(x, y, coordinate)?;
+            con.move_mouse(x, y, coordinate)?;
             debug!("moved the mouse via wayland");
             success = true;
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try moving the mouse via x11");
-            con.send_motion_notify_event(x, y, coordinate)?;
+            con.move_mouse(x, y, coordinate)?;
             debug!("moved the mouse via x11");
             success = true;
         }

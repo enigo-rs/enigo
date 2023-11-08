@@ -678,12 +678,7 @@ impl MouseControllableNext for Con {
         }
     }
 
-    fn send_motion_notify_event(
-        &mut self,
-        x: i32,
-        y: i32,
-        coordinate: Coordinate,
-    ) -> InputResult<()> {
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         if let Some(vp) = &self.virtual_pointer {
             let time = self.get_time();
             match coordinate {
