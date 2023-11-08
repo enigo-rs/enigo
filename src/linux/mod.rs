@@ -1,8 +1,8 @@
 use log::{debug, error, trace, warn};
 
 use crate::{
-    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError, Settings,
 };
 
 // If none of these features is enabled, there is no way to simulate input
@@ -42,10 +42,10 @@ impl Enigo {
     /// # Errors
     /// Have a look at the documentation of `NewConError` to see under which
     /// conditions an error will be returned.
-    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
+    pub fn new(settings: &Settings) -> Result<Self, NewConError> {
         let mut connection_established = false;
         #[allow(unused_variables)]
-        let EnigoSettings {
+        let Settings {
             linux_delay,
             x11_display,
             wayland_display,

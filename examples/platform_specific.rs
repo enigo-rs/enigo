@@ -1,4 +1,4 @@
-use enigo::{Enigo, EnigoSettings, Key, KeyboardControllable};
+use enigo::{Enigo, Key, KeyboardControllable, Settings};
 use std::thread;
 use std::time::Duration;
 
@@ -6,7 +6,7 @@ use std::time::Duration;
 fn main() {
     env_logger::init();
     thread::sleep(Duration::from_secs(2));
-    let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     #[cfg(target_os = "macos")]
     enigo.key_click(Key::Launchpad); // macOS: Open launchpad

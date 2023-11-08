@@ -14,8 +14,8 @@ use log::{debug, error, info};
 use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
-    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError, Settings,
 };
 
 // required for NSEvent
@@ -422,8 +422,8 @@ impl Enigo {
     /// # Errors
     /// Have a look at the documentation of `NewConError` to see under which
     /// conditions an error will be returned.
-    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
-        let EnigoSettings {
+    pub fn new(settings: &Settings) -> Result<Self, NewConError> {
+        let Settings {
             mac_delay: delay,
             release_keys_when_dropped,
             ..

@@ -25,7 +25,7 @@
 //! # Examples
 //! ```no_run
 //! use enigo::*;
-//! let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+//! let mut enigo = Enigo::new(&Settings::default()).unwrap();
 //! //paste
 //! enigo.key_down(Key::Control);
 //! enigo.key_click(Key::Unicode('v'));
@@ -34,7 +34,7 @@
 //!
 //! ```no_run
 //! use enigo::*;
-//! let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+//! let mut enigo = Enigo::new(&Settings::default()).unwrap();
 //! enigo.mouse_move_to(500, 200);
 //! enigo.mouse_down(MouseButton::Left);
 //! enigo.mouse_move_relative(100, 100);
@@ -132,7 +132,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_move_to(500, 200);
     /// ```
     fn mouse_move_to(&mut self, x: i32, y: i32) {
@@ -155,7 +155,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_move_relative(100, 100);
     /// ```
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
@@ -179,7 +179,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_down(MouseButton::Left);
     /// ```
     fn mouse_down(&mut self, button: MouseButton) {
@@ -205,7 +205,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_down(MouseButton::Right);
     /// enigo.mouse_up(MouseButton::Right);
     /// ```
@@ -230,7 +230,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_click(MouseButton::Right);
     /// ```
     fn mouse_click(&mut self, button: MouseButton) {
@@ -255,7 +255,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_scroll_x(2);
     /// ```
     fn mouse_scroll_x(&mut self, length: i32) {
@@ -280,7 +280,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.mouse_scroll_y(2);
     /// ```
     fn mouse_scroll_y(&mut self, length: i32) {
@@ -300,7 +300,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// let (width, height) = enigo.main_display_size();
     /// ```
     #[must_use]
@@ -320,7 +320,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// let (x, y) = enigo.mouse_location();
     /// ```
     #[must_use]
@@ -381,7 +381,7 @@ where
     ///
     /// ```no_run
     /// use enigo::*;
-    /// let mut enigo = Enigo::new(&EnigoSettings::default()).unwrap();
+    /// let mut enigo = Enigo::new(&Settings::default()).unwrap();
     /// enigo.key_sequence("hello world ❤️");
     /// ```
     fn key_sequence(&mut self, sequence: &str) {
@@ -668,7 +668,7 @@ impl Error for NewConError {}
 /// Settings for creating the Enigo stuct and it's behaviour
 #[allow(dead_code)] // It is not dead code on other platforms
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct EnigoSettings {
+pub struct Settings {
     /// Sleep delay on macOS
     pub mac_delay: u32,
     /// Sleep delay on Linux X11
@@ -682,7 +682,7 @@ pub struct EnigoSettings {
     pub release_keys_when_dropped: bool,
 }
 
-impl Default for EnigoSettings {
+impl Default for Settings {
     fn default() -> Self {
         debug!("using default settings");
         Self {

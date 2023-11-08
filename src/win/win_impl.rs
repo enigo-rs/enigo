@@ -16,8 +16,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{
-    Axis, Coordinate, Direction, EnigoSettings, InputError, InputResult, Key,
-    KeyboardControllableNext, MouseButton, MouseControllableNext, NewConError,
+    Axis, Coordinate, Direction, InputError, InputResult, Key, KeyboardControllableNext,
+    MouseButton, MouseControllableNext, NewConError, Settings,
 };
 
 type ScanCode = u16;
@@ -361,8 +361,8 @@ impl Enigo {
     /// # Errors
     /// Have a look at the documentation of `NewConError` to see under which
     /// conditions an error will be returned.
-    pub fn new(settings: &EnigoSettings) -> Result<Self, NewConError> {
-        let EnigoSettings {
+    pub fn new(settings: &Settings) -> Result<Self, NewConError> {
+        let Settings {
             release_keys_when_dropped,
             ..
         } = settings;
