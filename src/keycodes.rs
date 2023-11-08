@@ -566,6 +566,7 @@ pub enum Key {
     #[cfg(target_os = "windows")]
     Zoom,
     /// Unicode character
+    #[doc(alias = "Layout")]
     Unicode(char),
 }
 
