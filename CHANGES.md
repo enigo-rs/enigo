@@ -15,7 +15,7 @@
 - All: Renamed `send_motion_notify_event` function to `move_mouse`
 - All: Renamed `mouse_scroll_event` function to `scroll`
 - All: Renamed `mouse_location` function to `location`
-- All: Renamed `MouseButton` function to `Button`
+- All: Renamed `MouseButton` enum to `Button`
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
