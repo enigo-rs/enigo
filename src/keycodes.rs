@@ -995,7 +995,7 @@ impl Modifier {
     /// Returns the bitflag of the modifier that is usually associated with it
     /// on Linux
     #[must_use]
-    pub(crate) fn bitflag(&self) -> ModifierBitflag {
+    pub(crate) fn bitflag(self) -> ModifierBitflag {
         match self {
             Self::Shift => 0x1,
             Self::Lock => 0x2,
@@ -1011,7 +1011,7 @@ impl Modifier {
     /// Returns the number of the modifier that is usually associated with it
     /// on Linux
     #[must_use]
-    pub(crate) fn no(&self) -> usize {
+    pub(crate) fn no(self) -> usize {
         match self {
             Self::Shift => 0,
             Self::Lock => 1,
