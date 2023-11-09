@@ -124,8 +124,6 @@ impl Mouse for Enigo {
         send_input(&input)
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let (x_absolute, y_absolute) = if coordinate == Coordinate::Rel {
@@ -196,7 +194,7 @@ impl Mouse for Enigo {
 }
 
 impl Keyboard for Enigo {
-    fn fast_text_entry(&mut self, _text: &str) -> InputResult<Option<()>> {
+    fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
 

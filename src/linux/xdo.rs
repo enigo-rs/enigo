@@ -140,7 +140,7 @@ impl Drop for Con {
 }
 
 impl Keyboard for Con {
-    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+    fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         let Ok(string) = CString::new(text) else {
             return Err(InputError::InvalidInput(
                 "the text to enter contained a NULL byte ('\\0’), which is not allowed",

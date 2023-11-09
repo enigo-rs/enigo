@@ -189,7 +189,8 @@ impl DSL for Enigo {}
 /// on the layout/keymap.
 #[doc(alias = "KeyboardControllable")]
 pub trait Keyboard {
-    // TODO: Remove this from the trait (should not be public)
+    /// Do not use this directly. Use the [`Keyboard::text`] function.
+    ///
     /// Enter the whole text string instead of entering individual keys
     /// This is much faster if you type longer text at the cost of keyboard
     /// shortcuts not getting recognized.
@@ -197,7 +198,8 @@ pub trait Keyboard {
     /// # Errors
     /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
-    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>>;
+    #[doc(hidden)]
+    fn fast_text(&mut self, text: &str) -> InputResult<Option<()>>;
 
     /// Enter the text
     /// Use a fast method to enter the text, if it is available. You can use
@@ -218,7 +220,7 @@ pub trait Keyboard {
         }
 
         // Fall back to entering single keys if no fast text entry is available
-        let fast_text_res = self.fast_text_entry(text);
+        let fast_text_res = self.fast_text(text);
         match fast_text_res {
             Ok(Some(())) => {
                 debug!("fast text entry was successful");

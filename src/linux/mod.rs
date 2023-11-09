@@ -114,7 +114,7 @@ impl Enigo {
         if let Some(con) = self.x11.as_ref() {
             return con.delay();
         }
-        0 // TODO: Make this an Option
+        0
     }
 
     /// Set the delay per keypress
@@ -242,8 +242,8 @@ impl Mouse for Enigo {
 }
 
 impl Keyboard for Enigo {
-    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
-        debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
+    fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
+        debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");

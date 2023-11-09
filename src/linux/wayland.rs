@@ -112,7 +112,6 @@ impl Con {
             unused_keycodes.push_back(n as Keycode);
         }
 
-        // TODO: Double check this and adjust it
         let (keysyms_per_keycode, keysyms) = (0, vec![]);
         let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
 
@@ -568,7 +567,7 @@ impl Drop for WaylandState {
 }
 
 impl Keyboard for Con {
-    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+    fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         if let Some((im, serial)) = self.input_method.as_mut() {
             is_alive(im)?;
             trace!("fast text input with imput_method protocol");

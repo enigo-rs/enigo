@@ -216,8 +216,6 @@ impl Mouse for Enigo {
         Ok(())
     }
 
-    // Sends a motion notify event to the X11 server via `XTest` extension
-    // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let pressed = Self::pressed_buttons()?;
@@ -305,7 +303,7 @@ impl Mouse for Enigo {
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl Keyboard for Enigo {
-    fn fast_text_entry(&mut self, text: &str) -> InputResult<Option<()>> {
+    fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         // Fn to create an iterator over sub slices of a str that have the specified
         // length
         fn chunks(s: &str, len: usize) -> impl Iterator<Item = &str> {
@@ -327,7 +325,7 @@ impl Keyboard for Enigo {
             })
         }
 
-        debug!("\x1b[93mfast_text_entry(text: {text})\x1b[0m");
+        debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(chunk)) truncates strings down to 20 characters
