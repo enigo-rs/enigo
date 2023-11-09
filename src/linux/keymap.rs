@@ -250,7 +250,6 @@ where
     /// regenerated
     fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
         // Unmap all keys, if all keycodes are already being used
-        // TODO: Don't unmap the keycodes if they will be needed next
         if self.unused_keycodes.is_empty() {
             let mapped_keys = self.additionally_mapped.clone();
             let held_keycodes = self.held_keycodes.clone();
@@ -280,8 +279,7 @@ where
     pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
         use super::{KEYMAP_BEGINNING, KEYMAP_END};
         use std::io::{Seek, SeekFrom, Write};
-        use xkbcommon::xkb::keysym_get_name; // TODO: Replace this with the function from xkeysym and get rid of the
-                                             // xkbcommon dependency once the functions return the same results
+        use xkbcommon::xkb::keysym_get_name;
 
         // Don't do anything if there were no changes
         if !self.needs_regeneration {

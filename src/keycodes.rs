@@ -1050,4 +1050,4 @@ impl TryFrom<Key> for Modifier {
 
 #[cfg(target_os = "linux")]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
-pub(crate) type ModifierBitflag = u32; // TODO: Maybe create a proper type for this
+pub(crate) type ModifierBitflag = u32;
