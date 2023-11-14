@@ -17,6 +17,7 @@
 - All: Renamed `mouse_scroll_event` function to `scroll`
 - All: Renamed `mouse_location` function to `location`
 - All: Renamed `MouseButton` enum to `Button`
+- DSL: The DSL was removed and replaced with the `Agent` trait. Activate the `serde` feature to use it. Have a look at the `serde` example to get an idea how to use it
 
 ## Added
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it

@@ -1,10 +1,15 @@
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use log::trace;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 // A key on the keyboard.
 /// Use [`Key::Unicode`] to enter arbitrary Unicode chars.
 /// If a key is missing, please open an issue in our repo and we will quickly
 /// add it. In the mean time, you can simulate that key by using the
 /// [`crate::Keyboard::raw`] function. Some of the keys are only
 /// available on a specific platform. Use conditional compilation to use them.
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
     #[cfg(target_os = "windows")]
@@ -577,6 +582,8 @@ impl From<Key> for xkeysym::Keysym {
     fn from(key: Key) -> Self {
         use xkeysym::Keysym;
 
+        trace!("Key::from(key: {key:?})");
+
         #[allow(clippy::match_same_arms)]
         match key {
             Key::Unicode(c) => xkeysym::Keysym::from_char(c),
@@ -722,6 +729,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z, VK_ZOOM,
         };
 
+        trace!("Key::try_from(key: {key:?})");
         let vk = match key {
             Key::Num0 => VK_0,
             Key::Num1 => VK_1,
@@ -972,12 +980,15 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::Unicode(_) => return Err("Unicode must be entered via scancodes"),
             Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
         };
+
+        trace!("virtual key: {vk:?})");
         Ok(vk)
     }
 }
 
 #[cfg(target_os = "linux")]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Modifier {
     Shift,

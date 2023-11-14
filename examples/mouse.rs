@@ -1,8 +1,9 @@
 use enigo::{
-    Button, Enigo, Mouse, Settings,
+    Button,
+    Direction::{Click, Press, Release},
+    Enigo, Mouse, Settings,
     {Axis::Horizontal, Axis::Vertical},
     {Coordinate::Abs, Coordinate::Rel},
-    {Direction::Click, Direction::Press, Direction::Release},
 };
 use std::thread;
 use std::time::Duration;
