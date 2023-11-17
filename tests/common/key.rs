@@ -1,8 +1,8 @@
 use std::sync::mpsc::Receiver;
 
 use enigo::{
+    Direction::{Press, Release},
     Enigo, Key, Keyboard, Settings,
-    {Direction::Press, Direction::Release},
 };
 
 use super::BrowserEvent;

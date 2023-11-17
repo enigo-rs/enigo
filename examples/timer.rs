@@ -1,6 +1,6 @@
 use enigo::{
+    Direction::{Click, Press, Release},
     Enigo, Key, Keyboard, Settings,
-    {Direction::Click, Direction::Press, Direction::Release},
 };
 use std::{
     thread,

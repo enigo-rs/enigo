@@ -17,9 +17,12 @@ categories = ["development-tools::testing", "api-bindings", "hardware-support"]
 license = "MIT"
 exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = ["xdo"]
-xdo = []
+serde = ["dep:serde"]
 wayland = [
     "dep:wayland-client",
     "dep:wayland-protocols-misc",
@@ -27,6 +30,7 @@ wayland = [
     "dep:wayland-protocols-plasma",
     "dep:tempfile",
 ]
+xdo = []
 
 [dependencies]
 log = "0.4"
@@ -70,3 +74,8 @@ env_logger = "0.10"
 tungstenite = "0.20"
 url = "2"
 webbrowser = "0.8"
+ron = "0.8"
+
+[[example]]
+name = "serde"
+required-features = ["serde"]

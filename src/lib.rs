@@ -17,29 +17,26 @@
 //! size
 //! - [`Enigo`] (struct): implements the two traits [`Keyboard`] and [`Mouse`]
 //!
-//! A simple [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
-//! is available. It is documented in the [`dsl`] module.
+//! This crate previously included a simple DSL. This is no longer the case. In order to simplify the codebase and also allow serializing objects, you can now serialize and deserialize most enums and structs of this crate. You can use this instead of the DSL. This feature is hidden behind the `serde` feature. Have a look at the `serde` example to see how to use it to serialize Tokens in the [RON](https://crates.io/crates/ron) format.
 
 //! # Examples
 //! ```no_run
 //! use enigo::{
-//!     Enigo, Key, Keyboard, Settings,
-//!     {Direction::Click, Direction::Press, Direction::Release},
+//!     Button, Coordinate,
+//!     Direction::{Click, Press, Release},
+//!     Enigo, Key, Keyboard, Mouse, Settings,
 //! };
 //! let mut enigo = Enigo::new(&Settings::default()).unwrap();
-//! //paste
+//! // Paste
 //! enigo.key(Key::Control, Press);
 //! enigo.key(Key::Unicode('v'), Click);
 //! enigo.key(Key::Control, Release);
-//! ```
-//!
-//! ```no_run
-//! use enigo::*;
-//! let mut enigo = Enigo::new(&Settings::default()).unwrap();
+//! // Do things with the mouse
 //! enigo.move_mouse(500, 200, Coordinate::Abs);
-//! enigo.button(Button::Left, Direction::Press);
+//! enigo.button(Button::Left, Press);
 //! enigo.move_mouse(100, 100, Coordinate::Rel);
-//! enigo.button(Button::Left, Direction::Release);
+//! enigo.button(Button::Left, Release);
+//! // Enter text
 //! enigo.text("hello world");
 //! ```
 
@@ -56,12 +53,16 @@ use std::{
 };
 
 use log::{debug, error};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-/// DSL parser module
-///
-/// The current status is that you can just print [unicode](http://unicode.org/) characters like [emoji](http://getemoji.com/) without the `{+SHIFT}`
-/// [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) or any other "special" key on the Linux, macOS and Windows operating system.
-pub mod dsl;
+/// This crate contains the [`crate::agent::Token`] struct and the
+/// [`crate::agent::Agent`] trait. A token is an instruction for the [`Enigo`]
+/// struct to do something. If you want Enigo to simulate input, you then have
+/// to tell the enigo struct to [`crate::agent::Agent::execute`] the token. Have
+/// a look at the `serde` example if you'd like to read some code to see how it
+/// works.
+pub mod agent;
 
 #[cfg_attr(target_os = "linux", path = "linux/mod.rs")]
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
@@ -120,6 +121,7 @@ impl fmt::Debug for Enigo {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// The direction of a key or button
 pub enum Direction {
@@ -129,6 +131,7 @@ pub enum Direction {
     Click,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies the axis for scrolling
 pub enum Axis {
@@ -136,48 +139,15 @@ pub enum Axis {
     Vertical,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
-    #[doc(alias = "Relative")]
-    Rel,
     #[doc(alias = "Absolute")]
     Abs,
+    #[doc(alias = "Relative")]
+    Rel,
 }
-
-// TODO: Remove this trait (better move it to dsl)
-pub trait DSL
-where
-    Self: Keyboard,
-{
-    // TODO: Remove this from the trait (better move it to dsl)
-    /// Type the string parsed with DSL.
-    ///
-    /// Typing {+SHIFT}hello{-SHIFT} becomes HELLO.
-    /// Please have a look at the [dsl] module for more information.
-    fn key_sequence_parse(&mut self, sequence: &str)
-    where
-        Self: Sized,
-    {
-        self.key_sequence_parse_try(sequence)
-            .expect("Could not parse sequence");
-    }
-
-    // TODO: Remove this from the trait (better move it to dsl)
-    /// Same as [`DSL::key_sequence_parse`] except returns any
-    /// errors
-    ///  # Errors
-    ///
-    /// Returns a [`dsl::ParseError`] if the sequence cannot be parsed
-    fn key_sequence_parse_try(&mut self, sequence: &str) -> Result<(), dsl::ParseError>
-    where
-        Self: Sized,
-    {
-        dsl::eval(self, sequence)
-    }
-}
-
-impl DSL for Enigo {}
 
 /// Contains functions to simulate key presses/releases and to input text.
 ///
@@ -409,6 +379,7 @@ impl Error for NewConError {}
 
 /// Settings for creating the Enigo stuct and it's behaviour
 #[allow(dead_code)] // It is not dead code on other platforms
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Settings {
     /// Sleep delay on macOS
