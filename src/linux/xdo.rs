@@ -1,6 +1,9 @@
-use std::{ffi::CString, ptr};
+use std::{
+    ffi::{c_char, c_int, c_ulong, c_void, CString},
+    ptr,
+};
 
-use libc::{c_char, c_int, c_ulong, c_void, useconds_t};
+use libc::useconds_t;
 
 use log::debug;
 
