@@ -190,7 +190,7 @@ impl Con {
     fn get_time(&self) -> u32 {
         let duration = self.base_time.elapsed();
         let time = duration.as_millis();
-        time.try_into().unwrap()
+        time.try_into().unwrap_or(u32::MAX)
     }
 
     /// Press/Release a keycode
