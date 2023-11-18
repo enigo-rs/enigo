@@ -456,9 +456,7 @@ impl Enigo {
     #[must_use]
     #[allow(clippy::missing_panics_doc)] // It never panics
     pub fn delay(&self) -> u32 {
-        // Unwrapping here is okay, be cause we always initially have a u32 that gets
-        // converted to an u64. The reverse is always possible
-        self.delay.try_into().unwrap()
+        self.delay.try_into().unwrap_or(u32::MAX)
     }
 
     /// Set the delay per keypress in milliseconds

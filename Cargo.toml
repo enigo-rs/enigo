@@ -1,19 +1,25 @@
 [package]
 name = "enigo"
-version = "0.1.3"
+version = "0.2.0-rc1"
 authors = [
     "pentamassiv <pentamassiv@posteo.de>",
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2021"
 rust-version = "1.65"
-description = "Cross-platform (Linux, Windows & macOS) library to simulate keyboard and/or mouse events"
+description = "Cross-platform (Linux, Windows & macOS) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
 repository = "https://github.com/enigo-rs/enigo"
 readme = "README.md"
-keywords = ["input", "mouse", "testing", "keyboard", "automation"]
-categories = ["development-tools::testing", "api-bindings", "hardware-support"]
+keywords = ["simulate", "input", "mouse", "keyboard", "automation"]
+categories = [
+    "development-tools::testing",
+    "api-bindings",
+    "hardware-support",
+    "os",
+    "simulation",
+]
 license = "MIT"
 exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
@@ -78,4 +84,5 @@ ron = "0.8"
 
 [[example]]
 name = "serde"
+path = "examples/serde.rs"
 required-features = ["serde"]
