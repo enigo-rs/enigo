@@ -4,8 +4,6 @@
 
 ![Rust version](https://img.shields.io/badge/rust--version-1.65+-brightgreen.svg)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
-[![Discord chat](https://img.shields.io/discord/315925376486342657.svg)](https://discord.gg/Eb8CsnN)
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/enigo-rs/Lobby)
 
 # enigo
 
@@ -19,17 +17,17 @@ Cross platform input simulation in Rust!
 - [x] MacOS text
 - [x] Win mouse
 - [x] Win text
-- [x] Custom Parser
+- [x] Serialize/Deserialize
 
 ```Rust
 let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
-enigo.mouse_move_to(500, 200);
-enigo.mouse_click(Button::Left);
-enigo.key_sequence_parse("{+CTRL}a{-CTRL}{+SHIFT}Hello World{-SHIFT}");
+enigo.move_mouse(500, 200, Abs).unwrap();
+enigo.button(Button::Left, Click).unwrap();
+enigo.text("Hello World! here is a lot of text  ❤️").unwrap();
 ```
 
-For more look at examples
+For more look at the examples.
 
 ## Runtime dependencies
 
