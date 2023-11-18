@@ -350,7 +350,11 @@ impl Keyboard for Enigo {
             return Ok(());
         }
 
-        let keycode = CGKeyCode::from(key);
+        let Ok(keycode) = CGKeyCode::try_from(key) else {
+            return Err(InputError::InvalidInput(
+                "virtual keycodes on macOS have to fit into u16",
+            ));
+        };
         self.raw(keycode, direction)?;
 
         // TODO: The list of keys will contain the key and also the associated keycode.
@@ -501,14 +505,15 @@ impl Enigo {
 }
 
 /// Converts a `Key` to a `CGKeyCode`
-#[cfg(target_os = "macos")]
-impl From<Key> for core_graphics::event::CGKeyCode {
+impl TryFrom<Key> for core_graphics::event::CGKeyCode {
+    type Error = ();
+
     #[allow(clippy::too_many_lines)]
-    fn from(key: Key) -> Self {
+    fn try_from(key: Key) -> Result<Self, Self::Error> {
         // A list of names is available at:
         // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
         // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
-        match key {
+        let key = match key {
             Key::Alt | Key::Option => KeyCode::OPTION,
             Key::Backspace => KeyCode::DELETE,
             Key::CapsLock => KeyCode::CAPS_LOCK,
@@ -559,8 +564,15 @@ impl From<Key> for core_graphics::event::CGKeyCode {
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
             Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()),
+            Key::Other(v) => {
+                let Ok(v) = u16::try_from(v) else {
+                    return Err(());
+                };
+                v
+            }
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
-        }
+        };
+        Ok(key)
     }
 }
 

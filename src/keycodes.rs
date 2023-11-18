@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 // A key on the keyboard.
 /// Use [`Key::Unicode`] to enter arbitrary Unicode chars.
 /// If a key is missing, please open an issue in our repo and we will quickly
-/// add it. In the mean time, you can simulate that key by using the
-/// [`crate::Keyboard::raw`] function. Some of the keys are only
+/// add it. In the mean time, you can simulate that key by using [`Key::Other`]
+/// or the [`crate::Keyboard::raw`] function. Some of the keys are only
 /// available on a specific platform. Use conditional compilation to use them.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -573,6 +573,13 @@ pub enum Key {
     /// Unicode character
     #[doc(alias = "Layout")]
     Unicode(char),
+    /// Use this for keys that are not listed here that you know the
+    /// value of. Let us know if you think the key should be listed so
+    /// we can add it
+    /// On Linux, this will result in a keysym,
+    /// On Windows, this will result in a Virtual_Key and
+    /// On macOS, this will yield a KeyCode
+    Other(u32),
 }
 
 #[cfg(target_os = "linux")]
@@ -674,6 +681,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::VolumeUp => Keysym::XF86_AudioRaiseVolume,
             Key::VolumeMute => Keysym::XF86_AudioMute,
             Key::Command | Key::Super | Key::Windows | Key::Meta => Keysym::Super_L,
+            Key::Other(v) => Keysym::from(v),
         }
     }
 }
@@ -686,8 +694,8 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
     #[allow(clippy::too_many_lines)]
     fn try_from(key: Key) -> Result<Self, Self::Error> {
         use windows::Win32::UI::Input::KeyboardAndMouse::{
-            VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A,
-            VK_ABNT_C1, VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK,
+            VK__none_, VIRTUAL_KEY, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9,
+            VK_A, VK_ABNT_C1, VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK,
             VK_BROWSER_BACK, VK_BROWSER_FAVORITES, VK_BROWSER_FORWARD, VK_BROWSER_HOME,
             VK_BROWSER_REFRESH, VK_BROWSER_SEARCH, VK_BROWSER_STOP, VK_C, VK_CANCEL, VK_CAPITAL,
             VK_CLEAR, VK_CONTROL, VK_CONVERT, VK_CRSEL, VK_D, VK_DBE_ALPHANUMERIC,
@@ -978,6 +986,12 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::XButton2 => VK_XBUTTON2,
             Key::Zoom => VK_ZOOM,
             Key::Unicode(_) => return Err("Unicode must be entered via scancodes"),
+            Key::Other(v) => {
+                let Ok(v) = u16::try_from(v) else {
+                    return Err("virtual keycodes on Windows have to fit into u16");
+                };
+                VIRTUAL_KEY(v)
+            }
             Key::Super | Key::Command | Key::Windows | Key::Meta | Key::LWin => VK_LWIN,
         };
 
