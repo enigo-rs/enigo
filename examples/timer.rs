@@ -21,7 +21,12 @@ fn main() {
     println!("{time:?}");
 
     // select all
-    enigo.key(Key::Control, Press).unwrap();
+    let control_or_command = if cfg!(target_os = "macos") {
+        Key::Meta
+    } else {
+        Key::Control
+    };
+    enigo.key(control_or_command, Press).unwrap();
     enigo.key(Key::Unicode('a'), Click).unwrap();
-    enigo.key(Key::Control, Release).unwrap();
+    enigo.key(control_or_command, Release).unwrap();
 }

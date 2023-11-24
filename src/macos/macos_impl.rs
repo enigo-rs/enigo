@@ -10,17 +10,13 @@ use core_graphics::event::{
     ScrollEventUnit,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+use icrate::AppKit;
 use log::{debug, error, info};
-use objc::{class, msg_send, runtime::Class, sel, sel_impl};
 
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
     NewConError, Settings,
 };
-
-// required for NSEvent
-#[link(name = "AppKit", kind = "framework")]
-extern "C" {}
 
 type CFDataRef = *const c_void;
 
@@ -218,7 +214,7 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let pressed = Self::pressed_buttons()?;
+        let pressed = unsafe { AppKit::NSEvent::pressedMouseButtons() };
         let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
@@ -227,14 +223,15 @@ impl Mouse for Enigo {
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
         };
 
-        let (event_type, button) =
-            if pressed & 1 > 0 {
-                (CGEventType::LeftMouseDragged, CGMouseButton::Left)
-            } else if pressed & 2 > 0 {
-                (CGEventType::RightMouseDragged, CGMouseButton::Right)
-            } else {
-                (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button here is ignored so it can be anything
-            };
+        let (event_type, button) = if pressed & 1 > 0 {
+            (CGEventType::LeftMouseDragged, CGMouseButton::Left)
+        } else if pressed & 2 > 0 {
+            (CGEventType::RightMouseDragged, CGMouseButton::Right)
+        } else {
+            (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button
+                                                           // here is ignored so
+                                                           // it can be anything
+        };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
         let Ok(event) =
@@ -292,10 +289,7 @@ impl Mouse for Enigo {
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
-            "failed creating event to get the mouse location",
-        ))?;
-        let pt: CGPoint = unsafe { msg_send![ns_event, mouseLocation] };
+        let pt = unsafe { AppKit::NSEvent::mouseLocation() };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
         Ok((x, self.display.pixels_high() as i32 - y_inv))
     }
@@ -434,8 +428,8 @@ impl Enigo {
         let held = (Vec::new(), Vec::new());
 
         let double_click_delay = Duration::from_secs(1);
-        let double_click_delay_setting: f64 =
-            unsafe { msg_send![class!(NSEvent), doubleClickInterval] }; // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
+        let double_click_delay_setting = unsafe { AppKit::NSEvent::doubleClickInterval() };
+        // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
         let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
 
         let Ok(event_source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
@@ -471,15 +465,6 @@ impl Enigo {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> (Vec<Key>, Vec<CGKeyCode>) {
         self.held.clone()
-    }
-
-    fn pressed_buttons() -> InputResult<usize> {
-        let ns_event = Class::get("NSEvent").ok_or(InputError::Simulate(
-            "failed creating event to get the pressed mouse buttons",
-        ))?;
-        let pressed_buttons = unsafe { msg_send![ns_event, pressedMouseButtons] };
-        debug!("pressed_buttons: {pressed_buttons}");
-        Ok(pressed_buttons)
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
