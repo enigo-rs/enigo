@@ -65,7 +65,7 @@ wayland-protocols-plasma = { version = "0.2", features = [
     "client",
 ], optional = true }
 wayland-client = { version = "0.31", optional = true }
-x11rb = { version = "0.12", features = [
+x11rb = { version = "0.13", features = [
     "randr",
     "xinput",
     "xtest",
