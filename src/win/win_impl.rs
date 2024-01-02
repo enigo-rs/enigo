@@ -12,7 +12,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
+    GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
 };
 
 use crate::{
@@ -126,30 +126,13 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let (x_absolute, y_absolute) = if coordinate == Coordinate::Rel {
-            let (x_absolute, y_absolute) = self.location()?;
-            (x_absolute + x, y_absolute + y)
+        let flags = if coordinate == Coordinate::Abs {
+            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
         } else {
-            (x, y)
+            MOUSEEVENTF_MOVE
         };
-
-        let input = mouse_event(
-            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-            0,
-            x_absolute,
-            y_absolute,
-        );
-        send_input(&[input])?;
-
-        // This also moves the mouse but is not subject to mouse accelleration
-        // Sometimes the send_input is not enough
-        if unsafe { SetCursorPos(x_absolute, y_absolute) }.is_ok() {
-            Ok(())
-        } else {
-            Err(InputError::Simulate(
-                "could not set a new position of the mouse pointer",
-            ))
-        }
+        let input = mouse_event(flags, 0, x, y);
+        send_input(&[input])
     }
 
     // Sends a scroll event to the X11 server via `XTest` extension
