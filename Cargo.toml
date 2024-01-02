@@ -51,7 +51,7 @@ windows = { version = "0.51", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = { version = "0.23", features = ["highsierra"] }
-icrate = { version = "0.0.4", features = ["AppKit_all"] }
+icrate = { version = "0.1.0", features = ["AppKit_all"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
