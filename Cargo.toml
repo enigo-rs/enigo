@@ -75,7 +75,7 @@ xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
-env_logger = "0.10"
+env_logger = "0.11"
 tungstenite = "0.21"
 url = "2"
 webbrowser = "0.8"
