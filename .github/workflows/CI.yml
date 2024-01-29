@@ -19,7 +19,7 @@ jobs:
         rust:
           - stable
           - nightly
-          - "1.65.0"
+          - "1.71.0"
         platform:
           - ubuntu-latest
           - windows-latest
