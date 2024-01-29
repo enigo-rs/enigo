@@ -6,7 +6,7 @@ authors = [
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 description = "Cross-platform (Linux, Windows & macOS) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
