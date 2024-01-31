@@ -4,14 +4,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use core_graphics::display::{CFIndex, CGDisplay, CGPoint};
-use core_graphics::event::{
-    CGEvent, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField, KeyCode,
-    ScrollEventUnit,
+use core_graphics::{
+    display::{CFIndex, CGDisplay, CGPoint},
+    event::{
+        CGEvent, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
+        KeyCode, ScrollEventUnit,
+    },
+    event_source::{CGEventSource, CGEventSourceStateID},
 };
-use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use icrate::AppKit;
+use foreign_types_shared::ForeignTypeRef as _;
+use icrate::{AppKit, AppKit::NSEvent, Foundation::NSPoint};
 use log::{debug, error, info};
+use objc2::msg_send;
 
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
@@ -337,19 +341,100 @@ impl Keyboard for Enigo {
         Ok(Some(()))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         // Nothing to do
         if key == Key::Unicode('\0') {
             return Ok(());
         }
+        match key {
+            Key::VolumeUp => {
+                debug!("special case for handling the VolumeUp key");
+                Enigo::special_keys(0, direction)?;
+            }
+            Key::VolumeDown => {
+                debug!("special case for handling the VolumeDown key");
+                Enigo::special_keys(1, direction)?;
+            }
+            Key::BrightnessUp => {
+                debug!("special case for handling the BrightnessUp key");
+                Enigo::special_keys(2, direction)?;
+            }
+            Key::BrightnessDown => {
+                debug!("special case for handling the BrightnessDown key");
+                Enigo::special_keys(3, direction)?;
+            }
+            Key::Power => {
+                debug!("special case for handling the VolumeMute key");
+                Enigo::special_keys(6, direction)?;
+            }
+            Key::VolumeMute => {
+                debug!("special case for handling the VolumeMute key");
+                Enigo::special_keys(7, direction)?;
+            }
 
-        let Ok(keycode) = CGKeyCode::try_from(key) else {
-            return Err(InputError::InvalidInput(
-                "virtual keycodes on macOS have to fit into u16",
-            ));
-        };
-        self.raw(keycode, direction)?;
+            Key::ContrastUp => {
+                debug!("special case for handling the VolumeUp key");
+                Enigo::special_keys(11, direction)?;
+            }
+            Key::ContrastDown => {
+                debug!("special case for handling the VolumeDown key");
+                Enigo::special_keys(12, direction)?;
+            }
+            Key::LaunchPanel => {
+                debug!("special case for handling the MediaPlayPause key");
+                Enigo::special_keys(13, direction)?;
+            }
+            Key::Eject => {
+                debug!("special case for handling the MediaNextTrack key");
+                Enigo::special_keys(14, direction)?;
+            }
+            Key::VidMirror => {
+                debug!("special case for handling the MediaPrevTrack key");
+                Enigo::special_keys(15, direction)?;
+            }
+            Key::MediaPlayPause => {
+                debug!("special case for handling the MediaPlayPause key");
+                Enigo::special_keys(16, direction)?;
+            }
+            Key::MediaNextTrack => {
+                debug!("special case for handling the MediaNextTrack key");
+                Enigo::special_keys(17, direction)?;
+            }
+            Key::MediaPrevTrack => {
+                debug!("special case for handling the MediaPrevTrack key");
+                Enigo::special_keys(18, direction)?;
+            }
+            Key::MediaFast => {
+                debug!("special case for handling the MediaNextTrack key");
+                Enigo::special_keys(19, direction)?;
+            }
+            Key::MediaRewind => {
+                debug!("special case for handling the MediaPrevTrack key");
+                Enigo::special_keys(20, direction)?;
+            }
+            Key::IlluminationUp => {
+                debug!("special case for handling the MediaPrevTrack key");
+                Enigo::special_keys(21, direction)?;
+            }
+            Key::IlluminationDown => {
+                debug!("special case for handling the MediaNextTrack key");
+                Enigo::special_keys(22, direction)?;
+            }
+            Key::IlluminationToggle => {
+                debug!("special case for handling the MediaPrevTrack key");
+                Enigo::special_keys(23, direction)?;
+            }
+            _ => {
+                let Ok(keycode) = CGKeyCode::try_from(key) else {
+                    return Err(InputError::InvalidInput(
+                        "virtual keycodes on macOS have to fit into u16",
+                    ));
+                };
+                self.raw(keycode, direction)?;
+            }
+        }
 
         // TODO: The list of keys will contain the key and also the associated keycode.
         // They are a duplicate
@@ -487,6 +572,65 @@ impl Enigo {
         debug!("nth_button_press: {nth_button_press}");
         nth_button_press
     }
+
+    fn special_keys(code: isize, direction: Direction) -> InputResult<()> {
+        if direction == Direction::Press || direction == Direction::Click {
+            let event = unsafe {
+                AppKit::NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+                AppKit::NSEventTypeSystemDefined, // 14
+                NSPoint::ZERO,
+                0xa00, // NSEventModifierFlagCapsLock and NSEventModifierFlagOption
+                0.0,
+                0,
+                None,
+                8,
+                (code << 16) | (0xa << 8),
+                -1
+            )
+            };
+
+            if let Some(event) = event {
+                let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
+                cg_event.post(CGEventTapLocation::HID);
+            } else {
+                return Err(InputError::Simulate(
+                    "failed creating event to press special key",
+                ));
+            }
+        }
+
+        if direction == Direction::Release || direction == Direction::Click {
+            let event = unsafe {
+                AppKit::NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+                AppKit::NSEventTypeSystemDefined, // 14
+                NSPoint::ZERO,
+                0xb00, // NSEventModifierFlagCapsLock, NSEventModifierFlagOptionNSEventModifier and FlagShift
+                0.0,
+                0,
+                None,
+                8,
+                (code << 16) | (0xb << 8),
+                -1
+            )
+            };
+
+            if let Some(event) = event {
+                let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
+                cg_event.post(CGEventTapLocation::HID);
+            } else {
+                return Err(InputError::Simulate(
+                    "failed creating event to release special key",
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    unsafe fn ns_event_cg_event(event: &NSEvent) -> &CGEventRef {
+        let ptr: *mut c_void = unsafe { msg_send![event, CGEvent] };
+        unsafe { CGEventRef::from_ptr(ptr.cast()) }
+    }
 }
 
 /// Converts a `Key` to a `CGKeyCode`
@@ -556,6 +700,22 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
                 v
             }
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
+            Key::BrightnessDown
+            | Key::BrightnessUp
+            | Key::ContrastUp
+            | Key::ContrastDown
+            | Key::Eject
+            | Key::IlluminationDown
+            | Key::IlluminationUp
+            | Key::IlluminationToggle
+            | Key::LaunchPanel
+            | Key::MediaFast
+            | Key::MediaNextTrack
+            | Key::MediaPlayPause
+            | Key::MediaPrevTrack
+            | Key::MediaRewind
+            | Key::Power
+            | Key::VidMirror => return Err(()),
         };
         Ok(key)
     }

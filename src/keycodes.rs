@@ -101,9 +101,13 @@ pub enum Key {
     /// backspace key
     Backspace,
     #[cfg(target_os = "linux")]
-    Begin,
-    #[cfg(target_os = "linux")]
     Break,
+    #[cfg(target_os = "linux")]
+    Begin,
+    #[cfg(target_os = "macos")]
+    BrightnessDown,
+    #[cfg(target_os = "macos")]
+    BrightnessUp,
     #[cfg(target_os = "windows")]
     BrowserBack,
     #[cfg(target_os = "windows")]
@@ -127,6 +131,10 @@ pub enum Key {
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
     Command,
+    #[cfg(target_os = "macos")]
+    ContrastUp,
+    #[cfg(target_os = "macos")]
+    ContrastDown,
     /// control key
     Control,
     #[cfg(target_os = "windows")]
@@ -169,6 +177,8 @@ pub enum Key {
     Divide,
     /// down arrow key
     DownArrow,
+    #[cfg(target_os = "macos")]
+    Eject,
     /// end key
     End,
     #[cfg(target_os = "windows")]
@@ -322,6 +332,12 @@ pub enum Key {
     IcoClear,
     #[cfg(target_os = "windows")]
     IcoHelp,
+    #[cfg(target_os = "macos")]
+    IlluminationDown,
+    #[cfg(target_os = "macos")]
+    IlluminationUp,
+    #[cfg(target_os = "macos")]
+    IlluminationToggle,
     #[cfg(target_os = "windows")]
     IMEOff,
     #[cfg(target_os = "windows")]
@@ -345,6 +361,8 @@ pub enum Key {
     #[cfg(target_os = "macos")]
     /// Opens launchpad
     Launchpad,
+    #[cfg(target_os = "macos")]
+    LaunchPanel,
     #[cfg(target_os = "windows")]
     LButton,
     LControl,
@@ -359,12 +377,13 @@ pub enum Key {
     LWin,
     #[cfg(target_os = "windows")]
     MButton,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    MediaFast,
     MediaNextTrack,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaPlayPause,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaPrevTrack,
+    #[cfg(target_os = "macos")]
+    MediaRewind,
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     MediaStop,
     /// meta key (also known as "windows", "super", and "command")
@@ -502,6 +521,8 @@ pub enum Key {
     Pause,
     #[cfg(target_os = "windows")]
     Play,
+    #[cfg(target_os = "macos")]
+    Power,
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     Print,
     #[cfg(target_os = "windows")]
@@ -558,6 +579,8 @@ pub enum Key {
     Undo,
     /// up arrow key
     UpArrow,
+    #[cfg(target_os = "macos")]
+    VidMirror,
     VolumeDown,
     VolumeMute,
     VolumeUp,

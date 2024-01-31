@@ -32,6 +32,7 @@
 - win, linux: `key_sequence()` and  `key_click(Key::Layout())` can properly enter new lines and tabs
 - linux: You can enter `Key::ScrollLock` now
 - win: No more sleeps! Simulating input is done in 1 ms instead of 40+ ms. This is most obvious when entering long strings
+- macOS: Added keys to control media, brightness, contrast, illumination and more
 
 # 0.1.3
 
