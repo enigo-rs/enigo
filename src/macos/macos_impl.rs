@@ -309,9 +309,7 @@ impl Keyboard for Enigo {
             let mut indices = s.char_indices().map(|(idx, _)| idx).peekable();
 
             std::iter::from_fn(move || {
-                let Some(start_idx) = indices.next() else {
-                    return None;
-                };
+                let start_idx = indices.next()?;
                 for _ in 0..len - 1 {
                     indices.next();
                 }
@@ -324,15 +322,23 @@ impl Keyboard for Enigo {
         }
 
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
-        // NOTE(dustin): This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
+        // WORKAROUND: This is a fix for issue https://github.com/enigo-rs/enigo/issues/68
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(chunk)) truncates strings down to 20 characters
-        for chunk in chunks(text, 20) {
+        for mut chunk in chunks(text, 20) {
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true) else {
                 return Err(InputError::Simulate(
                     "failed creating event to enter the text",
                 ));
             };
+            // WORKAROUND: This is a fix for issue https://github.com/enigo-rs/enigo/issues/260
+            // This is needed to get rid of all leading newline characters.
+            // event.set_string(chunk)) silently fails if the chunk starts with a newline
+            // character
+            while chunk.starts_with('\n') {
+                self.key(Key::Return, Direction::Click)?;
+                chunk = &chunk[1..];
+            }
             event.set_string(chunk);
 
             event.post(CGEventTapLocation::HID);
