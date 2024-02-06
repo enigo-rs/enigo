@@ -332,13 +332,28 @@ impl Keyboard for Enigo {
                 ));
             };
             // WORKAROUND: This is a fix for issue https://github.com/enigo-rs/enigo/issues/260
-            // This is needed to get rid of all leading newline characters.
-            // event.set_string(chunk)) silently fails if the chunk starts with a newline
-            // character
-            while chunk.starts_with('\n') {
-                self.key(Key::Return, Direction::Click)?;
-                chunk = &chunk[1..];
+            // This is needed to get rid of all leading line feed, tab and carriage return
+            // characters. event.set_string(chunk)) silently fails if the chunk
+            // starts with a newline character
+            loop {
+                if chunk.starts_with('\t') {
+                    self.key(Key::Tab, Direction::Click)?;
+                    chunk = &chunk[1..];
+                    continue;
+                }
+                if chunk.starts_with('\r') {
+                    self.text("\u{200B}\r")?;
+                    chunk = &chunk[1..];
+                    continue;
+                }
+                if chunk.starts_with('\n') {
+                    self.text("\u{200B}\n")?;
+                    chunk = &chunk[1..];
+                    continue;
+                }
+                break;
             }
+
             event.set_string(chunk);
 
             event.post(CGEventTapLocation::HID);
