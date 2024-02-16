@@ -584,6 +584,9 @@ pub enum Key {
     VolumeDown,
     VolumeMute,
     VolumeUp,
+    #[cfg(target_os = "linux")]
+    /// microphone mute toggle on linux
+    MicMute,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// windows key on Windows (super key on Linux, command key on macOS)
     Windows,
@@ -703,6 +706,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::VolumeDown => Keysym::XF86_AudioLowerVolume,
             Key::VolumeUp => Keysym::XF86_AudioRaiseVolume,
             Key::VolumeMute => Keysym::XF86_AudioMute,
+            Key::MicMute => Keysym::XF86_AudioMicMute,
             Key::Command | Key::Super | Key::Windows | Key::Meta => Keysym::Super_L,
             Key::Other(v) => Keysym::from(v),
         }
