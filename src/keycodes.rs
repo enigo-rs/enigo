@@ -603,8 +603,8 @@ pub enum Key {
     /// value of. Let us know if you think the key should be listed so
     /// we can add it
     /// On Linux, this will result in a keysym,
-    /// On Windows, this will result in a Virtual_Key and
-    /// On macOS, this will yield a KeyCode
+    /// On Windows, this will result in a `Virtual_Key` and
+    /// On macOS, this will yield a `KeyCode`
     Other(u32),
 }
 

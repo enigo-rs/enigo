@@ -94,11 +94,11 @@ pub enum Button {
     /// Right mouse button
     Right,
     #[cfg(any(target_os = "windows", target_os = "linux"))]
-    /// 4th mouse button. Typically performs the same function as Browser_Back
+    /// 4th mouse button. Typically performs the same function as `Browser_Back`
     Back,
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     /// 5th mouse button. Typically performs the same function as
-    /// Browser_Forward
+    /// `Browser_Forward`
     Forward,
 
     /// Scroll up button. It is better to use the
