@@ -58,7 +58,8 @@ fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) -> INPUT {
             mi: MOUSEINPUT {
                 dx,
                 dy,
-                mouseData: data,
+                mouseData: data as u32, /* mouseData unfortunately is defined as unsigned even
+                                         * though we need negative values as well */
                 dwFlags: flags,
                 time: 0, /* Always set it to 0 (see https://web.archive.org/web/20231004113147/https://devblogs.microsoft.com/oldnewthing/20121101-00/?p=6193) */
                 dwExtraInfo: 0,
