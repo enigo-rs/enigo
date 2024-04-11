@@ -1,4 +1,4 @@
-#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[cfg(any(all(unix, not(target_os = "macos")), target_os = "windows"))]
 use log::trace;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -100,9 +100,9 @@ pub enum Key {
     Attn,
     /// backspace key
     Backspace,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Break,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Begin,
     #[cfg(target_os = "macos")]
     BrightnessDown,
@@ -122,11 +122,11 @@ pub enum Key {
     BrowserSearch,
     #[cfg(target_os = "windows")]
     BrowserStop,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Cancel,
     /// caps lock key
     CapsLock,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Clear,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
@@ -185,7 +185,7 @@ pub enum Key {
     Ereof,
     /// escape key (esc)
     Escape,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Execute,
     #[cfg(target_os = "windows")]
     Exsel,
@@ -229,45 +229,45 @@ pub enum Key {
     F19,
     /// F20 key
     F20,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// F21 key
     F21,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// F22 key
     F22,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// F23 key
     F23,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// F24 key
     F24,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F25,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F26,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F27,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F28,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F29,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F30,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F31,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F32,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F33,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F34,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     F35,
     #[cfg(target_os = "macos")]
     Function,
     #[cfg(target_os = "windows")]
     Final,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Find,
     #[cfg(target_os = "windows")]
     GamepadA,
@@ -319,9 +319,9 @@ pub enum Key {
     GamepadY,
     #[cfg(target_os = "windows")]
     Hangeul,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Hangul,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Hanja,
     Help,
     /// home key
@@ -342,13 +342,13 @@ pub enum Key {
     IMEOff,
     #[cfg(target_os = "windows")]
     IMEOn,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Insert,
     #[cfg(target_os = "windows")]
     Junja,
     #[cfg(target_os = "windows")]
     Kana,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Kanji,
     #[cfg(target_os = "windows")]
     LaunchApp1,
@@ -368,9 +368,9 @@ pub enum Key {
     LControl,
     /// left arrow key
     LeftArrow,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Linefeed,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     LMenu,
     LShift,
     #[cfg(target_os = "windows")]
@@ -384,14 +384,14 @@ pub enum Key {
     MediaPrevTrack,
     #[cfg(target_os = "macos")]
     MediaRewind,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     MediaStop,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
     #[cfg(target_os = "macos")]
     /// Opens mission control
     MissionControl,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     ModeChange,
     #[cfg(target_os = "windows")]
     Multiply,
@@ -417,7 +417,7 @@ pub enum Key {
     NonConvert,
     #[cfg(target_os = "windows")]
     None,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numlock,
     #[cfg(target_os = "windows")]
     Numpad0,
@@ -517,13 +517,13 @@ pub enum Key {
     PageDown,
     /// page up key
     PageUp,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Pause,
     #[cfg(target_os = "windows")]
     Play,
     #[cfg(target_os = "macos")]
     Power,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Print,
     #[cfg(target_os = "windows")]
     Processkey,
@@ -532,7 +532,7 @@ pub enum Key {
     #[cfg(target_os = "macos")]
     RCommand,
     RControl,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Redo,
     /// return key
     Return,
@@ -547,17 +547,17 @@ pub enum Key {
     RWin,
     #[cfg(target_os = "windows")]
     Scroll,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     ScrollLock,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Select,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     ScriptSwitch,
     #[cfg(target_os = "windows")]
     Separator,
     /// shift key
     Shift,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     /// Lock shift key
     ShiftLock,
     #[cfg(target_os = "windows")]
@@ -571,11 +571,11 @@ pub enum Key {
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
     Super,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     SysReq,
     /// tab key (tabulator)
     Tab,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     Undo,
     /// up arrow key
     UpArrow,
@@ -584,7 +584,7 @@ pub enum Key {
     VolumeDown,
     VolumeMute,
     VolumeUp,
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     /// microphone mute toggle on linux
     MicMute,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
@@ -608,7 +608,7 @@ pub enum Key {
     Other(u32),
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, not(target_os = "macos")))]
 /// Converts a Key to a Keysym
 impl From<Key> for xkeysym::Keysym {
     #[allow(clippy::too_many_lines)]
@@ -1027,7 +1027,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1042,7 +1042,7 @@ pub(crate) enum Modifier {
     Mod5,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 impl Modifier {
     /// Returns the bitflag of the modifier that is usually associated with it
@@ -1078,7 +1078,7 @@ impl Modifier {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 /// Converts a Key to a modifier
 impl TryFrom<Key> for Modifier {
@@ -1100,6 +1100,6 @@ impl TryFrom<Key> for Modifier {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 pub(crate) type ModifierBitflag = u32;

@@ -11,7 +11,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     enigo.key(Key::Launchpad, Click).unwrap(); // macOS: Open launchpad
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, not(target_os = "macos")))]
     enigo.key(Key::Meta, Click).unwrap(); // linux: Open launcher
 
     #[cfg(target_os = "windows")]
