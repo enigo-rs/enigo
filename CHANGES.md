@@ -28,6 +28,7 @@
 - All: You can now use a logger to investigate errors
 
 ## Fixed
+- *BSD: Fix the build for BSDs
 - macOS: Add info how much a mouse was moved relative to the last position
 - macOS: A mouse drag with the right key is now possible too
 - win, linux: `key_sequence()` and  `key_click(Key::Layout())` can properly enter new lines and tabs

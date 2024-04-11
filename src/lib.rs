@@ -64,7 +64,7 @@ use serde::{Deserialize, Serialize};
 /// works.
 pub mod agent;
 
-#[cfg_attr(target_os = "linux", path = "linux/mod.rs")]
+#[cfg_attr(all(unix, not(target_os = "macos")), path = "linux/mod.rs")]
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
 #[cfg_attr(target_os = "windows", path = "win/mod.rs")]
 mod platform;
@@ -93,10 +93,10 @@ pub enum Button {
     Middle,
     /// Right mouse button
     Right,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// 4th mouse button. Typically performs the same function as `Browser_Back`
     Back,
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// 5th mouse button. Typically performs the same function as
     /// `Browser_Forward`
     Forward,

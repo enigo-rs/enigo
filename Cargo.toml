@@ -57,7 +57,7 @@ icrate = { version = "0.1", features = [
 objc2 = { version = "0.5", features = ["relax-void-encoding"] }
 foreign-types-shared = "0.3"
 
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 wayland-protocols-misc = { version = "0.2", features = [
     "client",
