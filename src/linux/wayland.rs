@@ -272,10 +272,10 @@ impl Con {
     fn raw(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
         // Apply the new keymap if there were any changes
         self.apply_keymap()?;
-        self.send_key_event(keycode.into(), direction)?;
+        self.send_key_event(keycode, direction)?;
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys
-        self.keymap.key(keycode.into(), direction);
+        self.keymap.key(keycode, direction);
 
         Ok(())
     }

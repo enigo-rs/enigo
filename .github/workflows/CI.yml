@@ -27,6 +27,7 @@ jobs:
         features:
           - default
           - default,serde
+          - libei
           - wayland
           - xdo
           - x11rb
