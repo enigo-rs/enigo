@@ -26,10 +26,10 @@ fn browser_events() {
         .unwrap(); // KeyUp("F11")
 
     common::mouse::run(&rs);
-    println!("Mouse test successfull");
+    println!("Mouse test successful");
     common::key::run(&rs);
-    println!("Keyboard test successfull");
-    println!("All tests successfull");
+    println!("Keyboard test successful");
+    println!("All tests successful");
 }
 
 /*

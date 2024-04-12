@@ -24,6 +24,12 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
+        features:
+          - default
+          - default,serde
+          - wayland
+          - xdo
+          - x11rb
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -43,34 +49,34 @@ jobs:
         run: cargo clippy --all-targets --all-features --examples -- -D clippy::pedantic
 
       - name: Build the code
-        run: cargo build
+        run: cargo build --no-default-features --features ${{ matrix.features }}
       - name: Build the code with all features enabled
         run: cargo build --all-features
 
       - name: Build the docs
-        run: cargo doc --no-deps
+        run: cargo doc --no-deps --no-default-features --features ${{ matrix.features }}
       - name: Build the docs with all features enabled
         run: cargo doc --no-deps --all-features
 
       - name: Build the examples
-        run: cargo check --examples
+        run: cargo check --examples --no-default-features --features ${{ matrix.features }}
       - name: Build the examples with all features enabled
         run: cargo check --examples --all-features
 
       - name: Build the examples in release mode
-        run: cargo check --examples
+        run: cargo check --release --examples --no-default-features --features ${{ matrix.features }}
       - name: Build the examples in release mode with all features enabled
-        run: cargo check --examples --all-features
+        run: cargo check --release --examples --all-features
 
       - name: Test the code
-        run: cargo test
+        run: cargo test --no-default-features --features ${{ matrix.features }}
       - name: Test the code with all features enabled
         run: cargo test --all-features
 
       - name: Test the code in release mode
-        run: cargo test --release
-      - name: Test the code with all features enabled
-        run: cargo test --all-features --release
+        run: cargo test --release --no-default-features --features ${{ matrix.features }}
+      - name: Test the code in release mode with all features enabled
+        run: cargo test --release --all-features
 
       - name: Setup headless display for integration tests
         if: runner.os == 'Linux' # The integration tests only work on Linux right now

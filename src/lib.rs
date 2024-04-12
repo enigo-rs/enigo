@@ -223,7 +223,7 @@ pub trait Keyboard {
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()>;
 
     /// Sends a raw keycode. The keycode may or may not be mapped on the current
-    /// layout. You have to make sure of that yourself. This can be usefull if
+    /// layout. You have to make sure of that yourself. This can be useful if
     /// you want to simulate a press regardless of the layout (WASD on video
     /// games). Have a look at the [`Keyboard::key`] function,
     /// if you just want to enter a specific key and don't want to worry about
@@ -261,7 +261,7 @@ pub trait Mouse {
     /// You can specify absolute coordinates or relative from the current
     /// position.
     ///
-    /// If you use absolute coordinates, the topleft corner of your monitor
+    /// If you use absolute coordinates, the top left corner of your monitor
     /// screen is x=0 y=0. Move the cursor down the screen by increasing the y
     /// and to the right by increasing x coordinate.
     ///
@@ -377,7 +377,7 @@ impl Display for NewConError {
 
 impl Error for NewConError {}
 
-/// Settings for creating the Enigo stuct and it's behaviour
+/// Settings for creating the Enigo struct and it's behavior
 #[allow(dead_code)] // It is not dead code on other platforms
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

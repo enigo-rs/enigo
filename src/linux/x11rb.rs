@@ -71,7 +71,7 @@ impl Con {
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
         let (keysyms_per_keycode, keysyms) =
-            Self::get_keybord_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+            Self::get_keyboard_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
         let unused_keycodes =
             Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
@@ -110,7 +110,7 @@ impl Con {
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
-    fn get_keybord_mapping(
+    fn get_keyboard_mapping(
         connection: &CompositorConnection,
         keycode_min: Keycode,
         keycode_max: Keycode,

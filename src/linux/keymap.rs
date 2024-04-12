@@ -374,7 +374,7 @@ pub trait Bind<Keycode> {
     // Map the keysym to the given keycode
     // Only use keycodes that are not used, otherwise the existing mapping is
     // overwritten
-    // If the keycode is mapped to the NoSymbol keysym, the key is unbinded and can
+    // If the keycode is mapped to the NoSymbol keysym, the key is unbound and can
     // get used again later
     fn bind_key(&self, _: Keycode, _: Keysym) -> Result<(), ()> {
         Ok(()) // No need to do anything
