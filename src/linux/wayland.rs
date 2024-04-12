@@ -269,6 +269,17 @@ impl Con {
         Err(InputError::Simulate("no way to apply keymap"))
     }
 
+    fn raw(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
+        // Apply the new keymap if there were any changes
+        self.apply_keymap()?;
+        self.send_key_event(keycode.into(), direction)?;
+        // Let the keymap know that the key was held/no longer held
+        // This is important to avoid unmapping held keys
+        self.keymap.key(keycode.into(), direction);
+
+        Ok(())
+    }
+
     /// Flush the Wayland queue
     fn flush(&self) -> InputResult<()> {
         match self.event_queue.flush() {
@@ -601,27 +612,14 @@ impl Keyboard for Con {
             }
         } else {
             let keycode = self.keymap.key_to_keycode(&(), key)?;
-
-            // Apply the new keymap if there were any changes
-            self.apply_keymap()?;
-            self.send_key_event(keycode, direction)?;
-            // Let the keymap know that the key was held/no longer held
-            // This is important to avoid unmapping held keys
-            self.keymap.key(keycode, direction);
+            self.raw(keycode, direction)?;
         }
 
         Ok(())
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
-        // Apply the new keymap if there were any changes
-        self.apply_keymap()?;
-        self.send_key_event(keycode.into(), direction)?;
-        // Let the keymap know that the key was held/no longer held
-        // This is important to avoid unmapping held keys
-        self.keymap.key(keycode.into(), direction);
-
-        Ok(())
+        self.raw(keycode as u32, direction)
     }
 }
 impl Mouse for Con {
