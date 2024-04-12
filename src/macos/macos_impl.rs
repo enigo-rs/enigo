@@ -146,7 +146,7 @@ pub struct Enigo {
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     release_keys_when_dropped: bool,
     double_click_delay: Duration,
-    // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabalized
+    // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
                                             * store the last time the button was clicked and
                                             * the nth click that was

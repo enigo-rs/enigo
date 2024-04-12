@@ -178,7 +178,7 @@ impl Keyboard for Con {
         let Ok(string) = CString::new(keysym_name) else {
             // this should never happen, because none of the names contain NULL bytes
             return Err(InputError::InvalidInput(
-                "the name of the keystring contained a null byte",
+                "the name of the keysym contained a null byte",
             ));
         };
 

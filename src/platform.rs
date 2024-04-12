@@ -1,5 +1,8 @@
 use crate::{Keyboard, Mouse};
 
+// Enum without any variants
+// This can never get constructed
+// See https://github.com/enigo-rs/enigo/pull/269 for more details
 enum Never {}
 
 pub struct Enigo {

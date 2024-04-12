@@ -28,7 +28,7 @@ runs:
           echo "privileged_startx was executed"
           echo "/opt/X11/bin" >> $GITHUB_PATH
         else
-          echo "This Action is only applicaple for Linux and macOS. The current runner is $RUNNER_OS, so this does nothing."
+          echo "This Action is only applicable for Linux and macOS. The current runner is $RUNNER_OS, so this does nothing."
           exit 0
         fi
       shell: bash

@@ -194,7 +194,7 @@ impl Keyboard for Enigo {
 
         let mut input = vec![];
         for c in text.chars() {
-            // Handle special characters seperately
+            // Handle special characters separately
             match c {
                 '\n' => return self.key(Key::Return, Direction::Click),
                 '\r' => { // TODO: What is the correct key to type here?
@@ -232,7 +232,7 @@ impl Keyboard for Enigo {
         let mut input = vec![];
 
         if let Key::Unicode(c) = key {
-            // Handle special characters seperately
+            // Handle special characters separately
             match c {
                 '\n' => return self.key(Key::Return, direction),
                 '\r' => { // TODO: What is the correct key to type here?
@@ -300,7 +300,7 @@ impl Keyboard for Enigo {
         // set
         let (keycode, keyflags) = if keycode > 0x7F {
             (
-                keycode & 0x7F, /* remove the bits used for signaling if the extendend flag
+                keycode & 0x7F, /* remove the bits used for signaling if the extended flag
                                  * should get set */
                 KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
             )
