@@ -9,15 +9,19 @@
 
 Cross platform input simulation in Rust!
 
+- [x] Serialize/Deserialize
 - [x] Linux (X11) mouse
 - [x] Linux (X11) text
-- [ ] Linux (Wayland) mouse
-- [ ] Linux (Wayland) text
+- [x] Linux (Wayland) mouse
+- [x] Linux (Wayland) text
+- [x] Linux (libei) mouse
+- [x] Linux (libei) text
 - [x] MacOS mouse
 - [x] MacOS text
-- [x] Win mouse
-- [x] Win text
-- [x] Serialize/Deserialize
+- [x] Windows mouse
+- [x] Windows text
+
+Enigo also works on *BSDs if they use X11 or Wayland. I don't have a machine to test it and there are no Github Action runners for it, so the BSD support is not explicitly listed.
 
 ```Rust
 let mut enigo = Enigo::new(&Settings::default()).unwrap();
@@ -27,7 +31,16 @@ enigo.button(Button::Left, Click).unwrap();
 enigo.text("Hello World! here is a lot of text  ❤️").unwrap();
 ```
 
-For more look at the examples.
+For more, look at the ([examples](examples)).
+
+## Features
+
+By default, enigo currently works on Windows, macOS and Linux (X11). If you want to be able to serialize and deserialize commands for enigo ([example](examples/serde.rs)), you need to activate the `serde` feature.
+
+There are multiple ways how to simulate input on Linux and not all systems support everything. Enigo can also use wayland protocols and libei to simulate input but there are currently some bugs with it. That is why they are hidden behind feature flags.
+
+If you do not want your users to have to install any runtime dependencies on Linux when using X11, you can try the experimental `x11rb` feature.
+
 
 ## Runtime dependencies
 

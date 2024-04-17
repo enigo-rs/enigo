@@ -38,6 +38,7 @@ wayland = [
     "dep:tempfile",
 ]
 xdo = []
+x11rb = ["dep:x11rb"]
 
 [dependencies]
 log = "0.4"
