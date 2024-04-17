@@ -1,4 +1,11 @@
 # Unreleased
+## Changed
+
+## Added
+
+## Fixed
+
+# 0.2.0
 
 ## Changed
 - All: A new Enigo struct is now always created with some settings
