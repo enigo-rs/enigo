@@ -2,7 +2,7 @@
 
 ## Changed
 - All: A new Enigo struct is now always created with some settings
-- Rust: MSRV is 1.71
+- Rust: MSRV is 1.75
 - All held keys are released when Enigo is dropped
 - win: Don't panic if it was not possible to move the mouse
 - All: Never panic! All functions return Results now

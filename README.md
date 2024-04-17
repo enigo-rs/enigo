@@ -2,7 +2,7 @@
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Dependency status](https://deps.rs/repo/github/enigo-rs/enigo/status.svg)](https://deps.rs/repo/github/enigo-rs/enigo)
 
-![Rust version](https://img.shields.io/badge/rust--version-1.71+-brightgreen.svg)
+![Rust version](https://img.shields.io/badge/rust--version-1.75+-brightgreen.svg)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
 
 # enigo
