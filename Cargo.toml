@@ -6,7 +6,7 @@ authors = [
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.75"
 description = "Cross-platform (Linux, Windows & macOS) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
@@ -27,7 +27,8 @@ exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 all-features = true
 
 [features]
-default = ["xdo"]
+default = ["libei"]
+libei = ["dep:reis", "dep:ashpd", "dep:pollster", "dep:once_cell"]
 serde = ["dep:serde"]
 wayland = [
     "dep:wayland-client",
@@ -59,6 +60,10 @@ foreign-types-shared = "0.3"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
+reis = { version = "0.2.0", optional = true }
+ashpd = { version = "0.8.1", optional = true }
+pollster = { version = "0.3.0", optional = true }
+once_cell = { version = "1.19.0", optional = true }
 wayland-protocols-misc = { version = "0.2", features = [
     "client",
 ], optional = true }

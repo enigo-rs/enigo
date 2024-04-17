@@ -19,17 +19,35 @@ jobs:
         rust:
           - stable
           - nightly
-          - "1.71.0"
+          - "1.75.0"
         platform:
           - ubuntu-latest
           - windows-latest
           - macos-latest
         features:
-          - default
-          - default,serde
-          - wayland
-          - xdo
-          - x11rb
+          - "--all-features"
+          - "--features default"
+          - "--features libei"
+          - "--features wayland"
+          - "--features xdo"
+          - "--features x11rb"
+        exclude:
+          - platform: windows-latest
+            features: "--features libei"
+          - platform: windows-latest
+            features: "--features wayland"
+          - platform: windows-latest
+            features: "--features xdo"
+          - platform: windows-latest
+            features: "--features x11rb"
+          - platform: macos-latest
+            features: "--features libei"
+          - platform: macos-latest
+            features: "--features wayland"
+          - platform: macos-latest
+            features: "--features xdo"
+          - platform: macos-latest
+            features: "--features x11rb"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -44,46 +62,34 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Check clippy lints
-        run: cargo clippy --all-targets --all-features -- -D clippy::pedantic
+        run: cargo clippy --no-default-features ${{ matrix.features }} -- -D clippy::pedantic
       - name: Check clippy lints for the examples
-        run: cargo clippy --all-targets --all-features --examples -- -D clippy::pedantic
+        run: cargo clippy --no-default-features ${{ matrix.features }} --examples -- -D clippy::pedantic
 
       - name: Build the code
-        run: cargo build --no-default-features --features ${{ matrix.features }}
-      - name: Build the code with all features enabled
-        run: cargo build --all-features
+        run: cargo build --no-default-features ${{ matrix.features }}
 
       - name: Build the docs
-        run: cargo doc --no-deps --no-default-features --features ${{ matrix.features }}
-      - name: Build the docs with all features enabled
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --no-deps --no-default-features ${{ matrix.features }}
 
       - name: Build the examples
-        run: cargo check --examples --no-default-features --features ${{ matrix.features }}
-      - name: Build the examples with all features enabled
-        run: cargo check --examples --all-features
+        run: cargo check --examples --no-default-features ${{ matrix.features }}
 
       - name: Build the examples in release mode
-        run: cargo check --release --examples --no-default-features --features ${{ matrix.features }}
-      - name: Build the examples in release mode with all features enabled
-        run: cargo check --release --examples --all-features
+        run: cargo check --release --examples --no-default-features ${{ matrix.features }}
 
       - name: Test the code
-        run: cargo test --no-default-features --features ${{ matrix.features }}
-      - name: Test the code with all features enabled
-        run: cargo test --all-features
+        run: cargo test --no-default-features ${{ matrix.features }}
 
       - name: Test the code in release mode
-        run: cargo test --release --no-default-features --features ${{ matrix.features }}
-      - name: Test the code in release mode with all features enabled
-        run: cargo test --release --all-features
+        run: cargo test --release --no-default-features ${{ matrix.features }}
 
       - name: Setup headless display for integration tests
         if: runner.os == 'Linux' # The integration tests only work on Linux right now
         uses: ./.github/actions/headless_display
       - name: Run integration tests
-        if: runner.os == 'Linux' # The integration tests only work on Linux right now
-        run: cargo test --all-features -- --include-ignored --nocapture
+        if: runner.os == 'Linux' && matrix.features == 'xdo' # The integration tests only work on Linux and x11 right now
+        run: cargo test --no-default-features ${{ matrix.features }} -- --include-ignored --nocapture
 
       - name: Install Miri
         if: matrix.rust == 'nightly' # Miri only works on Nightly
@@ -94,4 +100,4 @@ jobs:
           cargo miri setup
       - name: Run Miri to check unsafe code
         if: matrix.rust == 'nightly' # Miri only works on Nightly
-        run: cargo miri test --verbose --all-features 
+        run: cargo miri test --verbose --no-default-features ${{ matrix.features }}

@@ -2,7 +2,7 @@
 
 ## Changed
 - All: A new Enigo struct is now always created with some settings
-- Rust: MSRV is 1.71
+- Rust: MSRV is 1.75
 - All held keys are released when Enigo is dropped
 - win: Don't panic if it was not possible to move the mouse
 - All: Never panic! All functions return Results now
@@ -20,6 +20,7 @@
 - DSL: The DSL was removed and replaced with the `Agent` trait. Activate the `serde` feature to use it. Have a look at the `serde` example to get an idea how to use it
 
 ## Added
+- Linux: Partial support for `libei` was added. Use the experimental feature `libei` to test it. This works on GNOME 46 and above. Entering text often simulates the wrong characters.
 - Linux: Support X11 without `xdotools`. Use the experimental feature `x11rb` to test it
 - Linux: Partial support for Wayland was added. Use the experimental feature `wayland` to test it. Only the virtual_keyboard and input_method protocol can be used. This is not going to work on GNOME, but should work for example with phosh
 - Linux: Added `MicMute` key to enter `XF86_AudioMicMute` keysym

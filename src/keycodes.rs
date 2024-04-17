@@ -1028,7 +1028,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Modifier {
@@ -1043,7 +1043,7 @@ pub(crate) enum Modifier {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 impl Modifier {
     /// Returns the bitflag of the modifier that is usually associated with it
     /// on Linux
@@ -1079,7 +1079,7 @@ impl Modifier {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 /// Converts a Key to a modifier
 impl TryFrom<Key> for Modifier {
     type Error = &'static str;
@@ -1101,5 +1101,5 @@ impl TryFrom<Key> for Modifier {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 pub(crate) type ModifierBitflag = u32;
