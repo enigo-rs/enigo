@@ -268,6 +268,8 @@ impl Keyboard for Enigo {
                 input.push(keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
+                    // TODO: Double check if this could also be utf16_surrogate (I think it doesn't
+                    // make a difference)
                     result[0],
                     self.dw_extra_info,
                 ));
