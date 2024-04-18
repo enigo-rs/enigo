@@ -79,10 +79,10 @@ jobs:
         run: cargo check --release --examples --no-default-features ${{ matrix.features }}
 
       - name: Test the code
-        run: cargo test --no-default-features ${{ matrix.features }}
+        run: cargo test --no-default-features ${{ matrix.features }} -- --nocapture
 
       - name: Test the code in release mode
-        run: cargo test --release --no-default-features ${{ matrix.features }}
+        run: cargo test --release --no-default-features ${{ matrix.features }} -- --nocapture
 
       - name: Setup headless display for integration tests
         if: runner.os == 'Linux' # The integration tests only work on Linux right now
