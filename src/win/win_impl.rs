@@ -2,13 +2,17 @@ use std::mem::size_of;
 
 use log::{debug, error, info};
 use windows::Win32::Foundation::POINT;
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
-    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
-    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
-    MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
-    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+use windows::Win32::UI::{
+    Input::KeyboardAndMouse::{
+        GetKeyboardLayout, MapVirtualKeyExW, SendInput, VkKeyScanExW, INPUT, INPUT_0,
+        INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY,
+        KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE,
+        MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+        MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
+        MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
+        MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+    },
+    WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
 
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -426,6 +430,10 @@ impl Enigo {
 
     #[allow(clippy::unused_self)]
     fn get_scancode(&self, c: char) -> InputResult<Vec<ScanCode>> {
+        let current_window_thread_id =
+            unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
+        let layout = unsafe { GetKeyboardLayout(current_window_thread_id) };
+
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
         let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
         let mut scancodes = vec![];
@@ -436,7 +444,8 @@ impl Enigo {
             // be a combination of the following flag bits. If the function finds no key
             // that translates to the passed character code, both the low-order and
             // high-order bytes contain –1
-            let keystate = match u32::try_from(unsafe { VkKeyScanW(utf16_surrogate) }) {
+
+            let keystate = match u32::try_from(unsafe { VkKeyScanExW(utf16_surrogate, layout) }) {
                 // TODO: Double check if u32::MAX is correct here. If I am not
                 // mistaken, -1 is stored as 11111111 meaning u32::MAX should be
                 // correct here
@@ -452,7 +461,8 @@ impl Enigo {
                 }
             };
             // Translate the virtual-key code to a scan code
-            match unsafe { MapVirtualKeyW(keystate, MAP_VIRTUAL_KEY_TYPE(0)) }.try_into() {
+            match unsafe { MapVirtualKeyExW(keystate, MAP_VIRTUAL_KEY_TYPE(0), layout) }.try_into()
+            {
                 // If there is no translation, the return value is zero
                 Ok(0) => {
                     return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
