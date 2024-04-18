@@ -87,6 +87,7 @@ const kCFStringEncodingUTF8: u32 = 0x0800_0100;
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
+    fn TISCopyCurrentASCIICapableKeyboardLayoutInputSource() -> TISInputSourceRef;
 
     #[allow(non_upper_case_globals)]
     static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
@@ -843,6 +844,14 @@ fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
         // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
         // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
         current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
+        layout_data = unsafe {
+            TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
+        };
+        debug_assert!(!layout_data.is_null());
+    }
+    if layout_data.is_null() {
+        debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again");
+        current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
         layout_data = unsafe {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
