@@ -2,6 +2,7 @@
 ## Changed
 
 ## Added
+win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
 
 ## Fixed
 

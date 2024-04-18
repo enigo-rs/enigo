@@ -144,6 +144,7 @@ pub struct Enigo {
     event_source: CGEventSource,
     display: CGDisplay,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
+    event_source_user_data: i64,
     release_keys_when_dropped: bool,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
@@ -183,7 +184,10 @@ impl Mouse for Enigo {
                 ));
             };
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-
+            event.set_integer_value_field(
+                EventField::EVENT_SOURCE_USER_DATA,
+                self.event_source_user_data,
+            );
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
@@ -210,7 +214,10 @@ impl Mouse for Enigo {
             };
 
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-
+            event.set_integer_value_field(
+                EventField::EVENT_SOURCE_USER_DATA,
+                self.event_source_user_data,
+            );
             event.post(CGEventTapLocation::HID);
         }
         Ok(())
@@ -256,6 +263,10 @@ impl Mouse for Enigo {
             relative.1.into(),
         );
 
+        event.set_integer_value_field(
+            EventField::EVENT_SOURCE_USER_DATA,
+            self.event_source_user_data,
+        );
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -279,6 +290,10 @@ impl Mouse for Enigo {
             return Err(InputError::Simulate("failed creating event to scroll"));
         };
 
+        event.set_integer_value_field(
+            EventField::EVENT_SOURCE_USER_DATA,
+            self.event_source_user_data,
+        );
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -355,7 +370,10 @@ impl Keyboard for Enigo {
             }
 
             event.set_string(chunk);
-
+            event.set_integer_value_field(
+                EventField::EVENT_SOURCE_USER_DATA,
+                self.event_source_user_data,
+            );
             event.post(CGEventTapLocation::HID);
         }
         thread::sleep(Duration::from_millis(2));
@@ -372,80 +390,80 @@ impl Keyboard for Enigo {
         match key {
             Key::VolumeUp => {
                 debug!("special case for handling the VolumeUp key");
-                Enigo::special_keys(0, direction)?;
+                self.special_keys(0, direction)?;
             }
             Key::VolumeDown => {
                 debug!("special case for handling the VolumeDown key");
-                Enigo::special_keys(1, direction)?;
+                self.special_keys(1, direction)?;
             }
             Key::BrightnessUp => {
                 debug!("special case for handling the BrightnessUp key");
-                Enigo::special_keys(2, direction)?;
+                self.special_keys(2, direction)?;
             }
             Key::BrightnessDown => {
                 debug!("special case for handling the BrightnessDown key");
-                Enigo::special_keys(3, direction)?;
+                self.special_keys(3, direction)?;
             }
             Key::Power => {
                 debug!("special case for handling the VolumeMute key");
-                Enigo::special_keys(6, direction)?;
+                self.special_keys(6, direction)?;
             }
             Key::VolumeMute => {
                 debug!("special case for handling the VolumeMute key");
-                Enigo::special_keys(7, direction)?;
+                self.special_keys(7, direction)?;
             }
 
             Key::ContrastUp => {
                 debug!("special case for handling the VolumeUp key");
-                Enigo::special_keys(11, direction)?;
+                self.special_keys(11, direction)?;
             }
             Key::ContrastDown => {
                 debug!("special case for handling the VolumeDown key");
-                Enigo::special_keys(12, direction)?;
+                self.special_keys(12, direction)?;
             }
             Key::LaunchPanel => {
                 debug!("special case for handling the MediaPlayPause key");
-                Enigo::special_keys(13, direction)?;
+                self.special_keys(13, direction)?;
             }
             Key::Eject => {
                 debug!("special case for handling the MediaNextTrack key");
-                Enigo::special_keys(14, direction)?;
+                self.special_keys(14, direction)?;
             }
             Key::VidMirror => {
                 debug!("special case for handling the MediaPrevTrack key");
-                Enigo::special_keys(15, direction)?;
+                self.special_keys(15, direction)?;
             }
             Key::MediaPlayPause => {
                 debug!("special case for handling the MediaPlayPause key");
-                Enigo::special_keys(16, direction)?;
+                self.special_keys(16, direction)?;
             }
             Key::MediaNextTrack => {
                 debug!("special case for handling the MediaNextTrack key");
-                Enigo::special_keys(17, direction)?;
+                self.special_keys(17, direction)?;
             }
             Key::MediaPrevTrack => {
                 debug!("special case for handling the MediaPrevTrack key");
-                Enigo::special_keys(18, direction)?;
+                self.special_keys(18, direction)?;
             }
             Key::MediaFast => {
                 debug!("special case for handling the MediaNextTrack key");
-                Enigo::special_keys(19, direction)?;
+                self.special_keys(19, direction)?;
             }
             Key::MediaRewind => {
                 debug!("special case for handling the MediaPrevTrack key");
-                Enigo::special_keys(20, direction)?;
+                self.special_keys(20, direction)?;
             }
             Key::IlluminationUp => {
                 debug!("special case for handling the MediaPrevTrack key");
-                Enigo::special_keys(21, direction)?;
+                self.special_keys(21, direction)?;
             }
             Key::IlluminationDown => {
                 debug!("special case for handling the MediaNextTrack key");
-                Enigo::special_keys(22, direction)?;
+                self.special_keys(22, direction)?;
             }
             Key::IlluminationToggle => {
                 debug!("special case for handling the MediaPrevTrack key");
-                Enigo::special_keys(23, direction)?;
+                self.special_keys(23, direction)?;
             }
             _ => {
                 let Ok(keycode) = CGKeyCode::try_from(key) else {
@@ -486,6 +504,10 @@ impl Keyboard for Enigo {
                 ));
             };
 
+            event.set_integer_value_field(
+                EventField::EVENT_SOURCE_USER_DATA,
+                self.event_source_user_data,
+            );
             event.post(CGEventTapLocation::HID);
         }
 
@@ -498,6 +520,10 @@ impl Keyboard for Enigo {
                 ));
             };
 
+            event.set_integer_value_field(
+                EventField::EVENT_SOURCE_USER_DATA,
+                self.event_source_user_data,
+            );
             event.post(CGEventTapLocation::HID);
         }
 
@@ -528,6 +554,7 @@ impl Enigo {
         let Settings {
             mac_delay: delay,
             release_keys_when_dropped,
+            event_source_user_data,
             ..
         } = settings;
 
@@ -553,6 +580,7 @@ impl Enigo {
             release_keys_when_dropped: *release_keys_when_dropped,
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
+            event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
     }
 
@@ -571,6 +599,12 @@ impl Enigo {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> (Vec<Key>, Vec<CGKeyCode>) {
         self.held.clone()
+    }
+
+    /// Returns the value that enigo's events are marked with
+    #[must_use]
+    pub fn get_marker_value(&self) -> i64 {
+        self.event_source_user_data
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
@@ -594,7 +628,7 @@ impl Enigo {
         nth_button_press
     }
 
-    fn special_keys(code: isize, direction: Direction) -> InputResult<()> {
+    fn special_keys(&self, code: isize, direction: Direction) -> InputResult<()> {
         if direction == Direction::Press || direction == Direction::Click {
             let event = unsafe {
                 AppKit::NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
@@ -612,6 +646,10 @@ impl Enigo {
 
             if let Some(event) = event {
                 let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
+                cg_event.set_integer_value_field(
+                    EventField::EVENT_SOURCE_USER_DATA,
+                    self.event_source_user_data,
+                );
                 cg_event.post(CGEventTapLocation::HID);
             } else {
                 return Err(InputError::Simulate(
@@ -637,6 +675,10 @@ impl Enigo {
 
             if let Some(event) = event {
                 let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
+                cg_event.set_integer_value_field(
+                    EventField::EVENT_SOURCE_USER_DATA,
+                    self.event_source_user_data,
+                );
                 cg_event.post(CGEventTapLocation::HID);
             } else {
                 return Err(InputError::Simulate(
