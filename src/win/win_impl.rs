@@ -27,6 +27,7 @@ pub const EXT: u16 = 0xFF00;
 pub struct Enigo {
     held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
+    dw_extra_info: usize,
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
@@ -51,7 +52,13 @@ fn send_input(input: &[INPUT]) -> InputResult<()> {
     }
 }
 
-fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) -> INPUT {
+fn mouse_event(
+    flags: MOUSE_EVENT_FLAGS,
+    data: i32,
+    dx: i32,
+    dy: i32,
+    dw_extra_info: usize,
+) -> INPUT {
     INPUT {
         r#type: INPUT_MOUSE,
         Anonymous: INPUT_0 {
@@ -62,13 +69,18 @@ fn mouse_event(flags: MOUSE_EVENT_FLAGS, data: i32, dx: i32, dy: i32) -> INPUT {
                                          * though we need negative values as well */
                 dwFlags: flags,
                 time: 0, /* Always set it to 0 (see https://web.archive.org/web/20231004113147/https://devblogs.microsoft.com/oldnewthing/20121101-00/?p=6193) */
-                dwExtraInfo: 0,
+                dwExtraInfo: dw_extra_info,
             },
         },
     }
 }
 
-fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INPUT {
+fn keybd_event(
+    flags: KEYBD_EVENT_FLAGS,
+    vk: VIRTUAL_KEY,
+    scan: ScanCode,
+    dw_extra_info: usize,
+) -> INPUT {
     INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
@@ -77,7 +89,7 @@ fn keybd_event(flags: KEYBD_EVENT_FLAGS, vk: VIRTUAL_KEY, scan: ScanCode) -> INP
                 wScan: scan,
                 dwFlags: flags,
                 time: 0, /* Always set it to 0 (see https://web.archive.org/web/20231004113147/https://devblogs.microsoft.com/oldnewthing/20121101-00/?p=6193) */
-                dwExtraInfo: 0,
+                dwExtraInfo: dw_extra_info,
             },
         },
     }
@@ -104,7 +116,13 @@ impl Mouse for Enigo {
                 Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
                 Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
-            input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
+            input.push(mouse_event(
+                mouse_event_flag,
+                button_no,
+                0,
+                0,
+                self.dw_extra_info,
+            ));
         }
         if direction == Direction::Click || direction == Direction::Release {
             let mouse_event_flag = match button {
@@ -120,7 +138,13 @@ impl Mouse for Enigo {
                     return Ok(());
                 }
             };
-            input.push(mouse_event(mouse_event_flag, button_no, 0, 0));
+            input.push(mouse_event(
+                mouse_event_flag,
+                button_no,
+                0,
+                0,
+                self.dw_extra_info,
+            ));
         }
         send_input(&input)
     }
@@ -132,7 +156,7 @@ impl Mouse for Enigo {
         } else {
             MOUSEEVENTF_MOVE
         };
-        let input = mouse_event(flags, 0, x, y);
+        let input = mouse_event(flags, 0, x, y, self.dw_extra_info);
         send_input(&[input])
     }
 
@@ -140,10 +164,20 @@ impl Mouse for Enigo {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let input = match axis {
-            Axis::Horizontal => {
-                mouse_event(MOUSEEVENTF_HWHEEL, length * (WHEEL_DELTA as i32), 0, 0)
-            }
-            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -length * (WHEEL_DELTA as i32), 0, 0),
+            Axis::Horizontal => mouse_event(
+                MOUSEEVENTF_HWHEEL,
+                length * (WHEEL_DELTA as i32),
+                0,
+                0,
+                self.dw_extra_info,
+            ),
+            Axis::Vertical => mouse_event(
+                MOUSEEVENTF_WHEEL,
+                -length * (WHEEL_DELTA as i32),
+                0,
+                0,
+                self.dw_extra_info,
+            ),
         };
         send_input(&[input])?;
         Ok(())
@@ -215,11 +249,13 @@ impl Keyboard for Enigo {
                     KEYEVENTF_UNICODE,
                     VIRTUAL_KEY(0),
                     utf16_surrogate,
+                    self.dw_extra_info,
                 ));
                 input.push(keybd_event(
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                     VIRTUAL_KEY(0),
                     result[0],
+                    self.dw_extra_info,
                 ));
             }
         }
@@ -247,7 +283,12 @@ impl Keyboard for Enigo {
             let scancodes = self.get_scancode(c)?;
             if direction == Direction::Click || direction == Direction::Press {
                 for scan in &scancodes {
-                    input.push(keybd_event(KEYEVENTF_SCANCODE, VIRTUAL_KEY(0), *scan));
+                    input.push(keybd_event(
+                        KEYEVENTF_SCANCODE,
+                        VIRTUAL_KEY(0),
+                        *scan,
+                        self.dw_extra_info,
+                    ));
                 }
             }
             if direction == Direction::Click || direction == Direction::Release {
@@ -256,6 +297,7 @@ impl Keyboard for Enigo {
                         KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
                         VIRTUAL_KEY(0),
                         *scan,
+                        self.dw_extra_info,
                     ));
                 }
             }
@@ -265,10 +307,15 @@ impl Keyboard for Enigo {
             let keycode = VIRTUAL_KEY::try_from(key).unwrap();
             let keyflags = get_key_flags(keycode);
             if direction == Direction::Click || direction == Direction::Press {
-                input.push(keybd_event(keyflags, keycode, 0u16));
+                input.push(keybd_event(keyflags, keycode, 0u16, self.dw_extra_info));
             }
             if direction == Direction::Click || direction == Direction::Release {
-                input.push(keybd_event(keyflags | KEYEVENTF_KEYUP, keycode, 0u16));
+                input.push(keybd_event(
+                    keyflags | KEYEVENTF_KEYUP,
+                    keycode,
+                    0u16,
+                    self.dw_extra_info,
+                ));
             }
         };
         send_input(&input)?;
@@ -308,13 +355,19 @@ impl Keyboard for Enigo {
             (keycode, KEYEVENTF_SCANCODE)
         };
         if direction == Direction::Click || direction == Direction::Press {
-            input.push(keybd_event(keyflags, VIRTUAL_KEY(0), keycode));
+            input.push(keybd_event(
+                keyflags,
+                VIRTUAL_KEY(0),
+                keycode,
+                self.dw_extra_info,
+            ));
         }
         if direction == Direction::Click || direction == Direction::Release {
             input.push(keybd_event(
                 keyflags | KEYEVENTF_KEYUP,
                 VIRTUAL_KEY(0),
                 keycode,
+                self.dw_extra_info,
             ));
         }
 
@@ -345,6 +398,7 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &Settings) -> Result<Self, NewConError> {
         let Settings {
+            windows_dw_extra_info: dw_extra_info,
             release_keys_when_dropped,
             ..
         } = settings;
@@ -356,6 +410,7 @@ impl Enigo {
         Ok(Self {
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
+            dw_extra_info: dw_extra_info.unwrap_or(crate::EVENT_MARKER as usize),
         })
     }
 
@@ -407,6 +462,12 @@ impl Enigo {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> (Vec<Key>, Vec<ScanCode>) {
         self.held.clone()
+    }
+
+    /// Returns the value that enigo's events are marked with
+    #[must_use]
+    pub fn get_marker_value(&self) -> usize {
+        self.dw_extra_info
     }
 }
 
