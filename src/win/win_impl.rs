@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::{
@@ -12,6 +12,7 @@ use windows::Win32::UI::{
         MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
         MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
     },
+    TextServices::HKL,
     WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
 
@@ -270,6 +271,7 @@ impl Keyboard for Enigo {
     /// Sends a key event to the X11 server via `XTest` extension
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
+        let layout = self.get_keyboard_layout();
         let mut input = vec![];
 
         if let Key::Unicode(c) = key {
@@ -285,23 +287,23 @@ impl Keyboard for Enigo {
                 }
                 _ => (),
             }
-            let scancodes = self.get_scancode(c)?;
+            let vk_and_scan_codes = self.get_vk_and_scan_codes(c, layout)?;
             if direction == Direction::Click || direction == Direction::Press {
-                for scan in &scancodes {
+                for &(vk, scan) in &vk_and_scan_codes {
                     input.push(keybd_event(
                         KEYEVENTF_SCANCODE,
-                        VIRTUAL_KEY(0),
-                        *scan,
+                        vk,
+                        scan,
                         self.dw_extra_info,
                     ));
                 }
             }
             if direction == Direction::Click || direction == Direction::Release {
-                for scan in &scancodes {
+                for &(vk, scan) in &vk_and_scan_codes {
                     input.push(keybd_event(
                         KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
-                        VIRTUAL_KEY(0),
-                        *scan,
+                        vk,
+                        scan,
                         self.dw_extra_info,
                     ));
                 }
@@ -309,16 +311,17 @@ impl Keyboard for Enigo {
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
             // Key::Unicode and we already ensured that is not the case
-            let keycode = VIRTUAL_KEY::try_from(key).unwrap();
-            let keyflags = get_key_flags(keycode);
+            let vk = VIRTUAL_KEY::try_from(key).unwrap();
+            let keyflags = get_key_flags(vk);
+            let scan = self.get_scancode(vk, layout)?;
             if direction == Direction::Click || direction == Direction::Press {
-                input.push(keybd_event(keyflags, keycode, 0u16, self.dw_extra_info));
+                input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 input.push(keybd_event(
                     keyflags | KEYEVENTF_KEYUP,
-                    keycode,
-                    0u16,
+                    vk,
+                    scan,
                     self.dw_extra_info,
                 ));
             }
@@ -420,14 +423,21 @@ impl Enigo {
     }
 
     #[allow(clippy::unused_self)]
-    fn get_scancode(&self, c: char) -> InputResult<Vec<ScanCode>> {
+    fn get_keyboard_layout(&mut self) -> HKL {
         let current_window_thread_id =
             unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
-        let layout = unsafe { GetKeyboardLayout(current_window_thread_id) };
+        unsafe { GetKeyboardLayout(current_window_thread_id) }
+    }
 
+    #[allow(clippy::unused_self)]
+    fn get_vk_and_scan_codes(
+        &self,
+        c: char,
+        layout: HKL,
+    ) -> InputResult<Vec<(VIRTUAL_KEY, ScanCode)>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
         let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
-        let mut scancodes = vec![];
+        let mut results = vec![];
         for &utf16_surrogate in &utf16_surrogates {
             // Translate a character to the corresponding virtual-key code and shift state.
             // If the function succeeds, the low-order byte of the return value contains the
@@ -436,38 +446,35 @@ impl Enigo {
             // that translates to the passed character code, both the low-order and
             // high-order bytes contain –1
 
-            let keystate = match u32::try_from(unsafe { VkKeyScanExW(utf16_surrogate, layout) }) {
-                // TODO: Double check if u32::MAX is correct here. If I am not
-                // mistaken, -1 is stored as 11111111 meaning u32::MAX should be
-                // correct here
-                Ok(u32::MAX) => {
-                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
-                }
-                Ok(keystate) => keystate,
-                Err(e) => {
-                    error!("{e:?}");
-                    return Err(InputError::InvalidInput(
-                        "key state could not be converted to u32",
-                    ));
-                }
-            };
-            // Translate the virtual-key code to a scan code
-            match unsafe { MapVirtualKeyExW(keystate, MAP_VIRTUAL_KEY_TYPE(0), layout) }.try_into()
-            {
-                // If there is no translation, the return value is zero
-                Ok(0) => {
-                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
-                }
-                Ok(scan_code) => {
-                    scancodes.push(scan_code);
-                }
-                Err(e) => {
-                    error!("{e:?}");
-                    return Err(InputError::InvalidInput("scan code did not fit into u16"));
-                }
-            };
+            let virtual_key = unsafe { VkKeyScanExW(utf16_surrogate, layout) };
+            if virtual_key < 0 {
+                return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+            }
+            // unwrapping here is safe because the value is always a positive value of i16
+            // so it must fit
+            let virtual_key = VIRTUAL_KEY(virtual_key as u16);
+            let scan_code = self.get_scancode(virtual_key, layout)?;
+            results.push((virtual_key, scan_code));
         }
-        Ok(scancodes)
+        Ok(results)
+    }
+
+    /// Translate the virtual key to a scan code
+    #[allow(clippy::unused_self)]
+    fn get_scancode(&self, vk: VIRTUAL_KEY, layout: HKL) -> InputResult<ScanCode> {
+        let vk = vk.0 as u32;
+        match unsafe { MapVirtualKeyExW(vk, MAP_VIRTUAL_KEY_TYPE(0), layout) }.try_into() {
+            Ok(scan_code) => {
+                if scan_code == 0 {
+                    warn!("The scan code for the virtual key {:?} is zero", vk);
+                };
+                Ok(scan_code)
+            }
+            Err(e) => {
+                error!("{e:?}");
+                Err(InputError::InvalidInput("scan code did not fit into u16"))
+            }
+        }
     }
 
     /// Returns a list of all currently pressed keys
