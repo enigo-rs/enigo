@@ -77,6 +77,9 @@ mod keycodes;
 /// Contains the available keycodes
 pub use keycodes::Key;
 
+/// Arbitrary value to be able to distinguish events created by enigo
+pub const EVENT_MARKER: u32 = 100;
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Represents a mouse button and is used in e.g
@@ -390,6 +393,13 @@ pub struct Settings {
     pub x11_display: Option<String>,
     /// Display name to connect to when using Linux Wayland
     pub wayland_display: Option<String>,
+    /// Arbitrary value to be able to distinguish events created by enigo
+    /// All events will be marked with this value in the dwExtraInfo field
+    pub windows_dw_extra_info: Option<usize>,
+    /// Arbitrary value to be able to distinguish events created by enigo
+    /// All events will be marked with this value in the
+    /// `EVENT_SOURCE_USER_DATA` field
+    pub event_source_user_data: Option<i64>,
     /// Set this to true if you want all held keys to get released when Enigo
     /// gets dropped
     pub release_keys_when_dropped: bool,
@@ -403,6 +413,8 @@ impl Default for Settings {
             linux_delay: 12,
             x11_display: None,
             wayland_display: None,
+            windows_dw_extra_info: None,
+            event_source_user_data: None,
             release_keys_when_dropped: true,
         }
     }
