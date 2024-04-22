@@ -80,41 +80,59 @@ pub use keycodes::Key;
 /// Arbitrary value to be able to distinguish events created by enigo
 pub const EVENT_MARKER: u32 = 100;
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Represents a mouse button and is used in e.g
 /// [`Mouse::button`].
 
 // Warning! If there are ANY CHANGES to this enum, we
 // need to change the size of the array in the macOS implementation of the Enigo
 // struct that stores the nth click for each Button
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[doc(alias = "MouseButton")]
 pub enum Button {
     /// Left mouse button
+    #[cfg_attr(feature = "serde", serde(alias = "L"))]
+    #[cfg_attr(feature = "serde", serde(alias = "l"))]
     Left,
     /// Middle mouse button
+    #[cfg_attr(feature = "serde", serde(alias = "M"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m"))]
     Middle,
     /// Right mouse button
+    #[cfg_attr(feature = "serde", serde(alias = "R"))]
+    #[cfg_attr(feature = "serde", serde(alias = "r"))]
     Right,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     /// 4th mouse button. Typically performs the same function as `Browser_Back`
-    Back,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    #[cfg_attr(feature = "serde", serde(alias = "B"))]
+    #[cfg_attr(feature = "serde", serde(alias = "b"))]
+    Back,
     /// 5th mouse button. Typically performs the same function as
     /// `Browser_Forward`
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    #[cfg_attr(feature = "serde", serde(alias = "F"))]
+    #[cfg_attr(feature = "serde", serde(alias = "f"))]
     Forward,
 
     /// Scroll up button. It is better to use the
     /// [`Mouse::scroll`] method to scroll.
+    #[cfg_attr(feature = "serde", serde(alias = "SU"))]
+    #[cfg_attr(feature = "serde", serde(alias = "su"))]
     ScrollUp,
     /// Scroll down button. It is better to use the
     /// [`Mouse::scroll`] method to scroll.
+    #[cfg_attr(feature = "serde", serde(alias = "SD"))]
+    #[cfg_attr(feature = "serde", serde(alias = "sd"))]
     ScrollDown,
     /// Scroll left button. It is better to use the
     /// [`Mouse::scroll`] method to scroll.
+    #[cfg_attr(feature = "serde", serde(alias = "SL"))]
+    #[cfg_attr(feature = "serde", serde(alias = "sl"))]
     ScrollLeft,
     /// Scroll right button. It is better to use the
     /// [`Mouse::scroll`] method to scroll.
+    #[cfg_attr(feature = "serde", serde(alias = "SR"))]
+    #[cfg_attr(feature = "serde", serde(alias = "sr"))]
     ScrollRight,
 }
 
@@ -124,13 +142,19 @@ impl fmt::Debug for Enigo {
     }
 }
 
+/// The direction of a key or button
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// The direction of a key or button
 pub enum Direction {
+    #[cfg_attr(feature = "serde", serde(alias = "P"))]
+    #[cfg_attr(feature = "serde", serde(alias = "p"))]
     Press,
+    #[cfg_attr(feature = "serde", serde(alias = "R"))]
+    #[cfg_attr(feature = "serde", serde(alias = "r"))]
     Release,
     /// Equivalent to a press followed by a release
+    #[cfg_attr(feature = "serde", serde(alias = "C"))]
+    #[cfg_attr(feature = "serde", serde(alias = "c"))]
     Click,
 }
 
@@ -138,7 +162,11 @@ pub enum Direction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Specifies the axis for scrolling
 pub enum Axis {
+    #[cfg_attr(feature = "serde", serde(alias = "H"))]
+    #[cfg_attr(feature = "serde", serde(alias = "h"))]
     Horizontal,
+    #[cfg_attr(feature = "serde", serde(alias = "V"))]
+    #[cfg_attr(feature = "serde", serde(alias = "v"))]
     Vertical,
 }
 
@@ -147,8 +175,12 @@ pub enum Axis {
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
     #[doc(alias = "Absolute")]
+    #[cfg_attr(feature = "serde", serde(alias = "A"))]
+    #[cfg_attr(feature = "serde", serde(alias = "a"))]
     Abs,
     #[doc(alias = "Relative")]
+    #[cfg_attr(feature = "serde", serde(alias = "R"))]
+    #[cfg_attr(feature = "serde", serde(alias = "r"))]
     Rel,
 }
 

@@ -7,19 +7,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
     /// Call the [`Keyboard::text`] fn with the string as text
+    #[cfg_attr(feature = "serde", serde(alias = "T"))]
+    #[cfg_attr(feature = "serde", serde(alias = "t"))]
     Text(String),
     /// Call the [`Keyboard::key`] fn with the given key and direction
+    #[cfg_attr(feature = "serde", serde(alias = "K"))]
+    #[cfg_attr(feature = "serde", serde(alias = "k"))]
     Key(Key, Direction),
     /// Call the [`Keyboard::raw`] fn with the given keycode and direction
+    #[cfg_attr(feature = "serde", serde(alias = "R"))]
+    #[cfg_attr(feature = "serde", serde(alias = "r"))]
     Raw(u16, Direction),
     /// Call the [`Mouse::button`] fn with the given mouse button and direction
+    #[cfg_attr(feature = "serde", serde(alias = "B"))]
+    #[cfg_attr(feature = "serde", serde(alias = "b"))]
     Button(Button, Direction),
     /// Call the [`Mouse::move_mouse`] fn. The first i32 is the value to move on
     /// the x-axis and the second i32 is the value to move on the y-axis. The
     /// coordinate defines if the given coordinates are absolute of relative to
     /// the current position of the mouse.
+    #[cfg_attr(feature = "serde", serde(alias = "M"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m"))]
     MoveMouse(i32, i32, Coordinate),
     /// Call the [`Mouse::scroll`] fn.
+    #[cfg_attr(feature = "serde", serde(alias = "S"))]
+    #[cfg_attr(feature = "serde", serde(alias = "s"))]
     Scroll(i32, Axis),
 }
 
