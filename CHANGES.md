@@ -1,5 +1,6 @@
 # Unreleased
 ## Changed
+all: Use serde(default) to make the serialized strings less verbose
 
 ## Added
 all: Serialized tokens can be less verbose because serde aliases were added

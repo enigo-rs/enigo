@@ -24,7 +24,7 @@ fn main() {
 
     // There are serde aliases so you could also deserialize the same tokens from
     // the following string let serialized=r#"[t("Hello World!
-    // ❤\u{fe0f}"),m(10,10,r),s(5,v),b(l,c),k(uni('🔥'),c),k(ctrl,p),k(uni('a'),c),
+    // ❤\u{fe0f}"),m(10,10,r),s(5),b(l),k(uni('🔥')),k(ctrl,p),k(uni('a')),
     // k(ctrl,r)]"#.to_string();
     let serialized = ron::to_string(&tokens).unwrap();
     println!("serialized = {serialized}");
