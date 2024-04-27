@@ -87,12 +87,13 @@ pub const EVENT_MARKER: u32 = 100;
 // need to change the size of the array in the macOS implementation of the Enigo
 // struct that stores the nth click for each Button
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[doc(alias = "MouseButton")]
 pub enum Button {
     /// Left mouse button
     #[cfg_attr(feature = "serde", serde(alias = "L"))]
     #[cfg_attr(feature = "serde", serde(alias = "l"))]
+    #[default]
     Left,
     /// Middle mouse button
     #[cfg_attr(feature = "serde", serde(alias = "M"))]
@@ -144,7 +145,7 @@ impl fmt::Debug for Enigo {
 
 /// The direction of a key or button
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Direction {
     #[cfg_attr(feature = "serde", serde(alias = "P"))]
     #[cfg_attr(feature = "serde", serde(alias = "p"))]
@@ -155,11 +156,12 @@ pub enum Direction {
     /// Equivalent to a press followed by a release
     #[cfg_attr(feature = "serde", serde(alias = "C"))]
     #[cfg_attr(feature = "serde", serde(alias = "c"))]
+    #[default]
     Click,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 /// Specifies the axis for scrolling
 pub enum Axis {
     #[cfg_attr(feature = "serde", serde(alias = "H"))]
@@ -167,16 +169,18 @@ pub enum Axis {
     Horizontal,
     #[cfg_attr(feature = "serde", serde(alias = "V"))]
     #[cfg_attr(feature = "serde", serde(alias = "v"))]
+    #[default]
     Vertical,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 /// Specifies if a coordinate is relative or absolute
 pub enum Coordinate {
     #[doc(alias = "Absolute")]
     #[cfg_attr(feature = "serde", serde(alias = "A"))]
     #[cfg_attr(feature = "serde", serde(alias = "a"))]
+    #[default]
     Abs,
     #[doc(alias = "Relative")]
     #[cfg_attr(feature = "serde", serde(alias = "R"))]
