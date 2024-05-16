@@ -8,6 +8,7 @@ win, macOS: Allow marking events that were created by enigo. Have a look at the 
 all: The enums `Button`, `Direction`, `Axis` and `Coordinate` implement `Default`
 
 ## Fixed
+windows: The `move_mouse` function moves the mouse to the correct absolute coordinates again
 
 # 0.2.0
 
