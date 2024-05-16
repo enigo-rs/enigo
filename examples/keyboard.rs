@@ -11,7 +11,9 @@ fn main() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     // write text
-    enigo.text("Hello World! here is a lot of text  ❤️").unwrap();
+    enigo
+        .text("Hello World! here is a lot of text  ❤️")
+        .unwrap();
 
     // select all
     enigo.key(Key::Control, Press).unwrap();
