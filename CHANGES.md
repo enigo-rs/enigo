@@ -1,5 +1,12 @@
 # Unreleased
 ## Changed
+
+## Added
+
+## Fixed
+
+# 0.2.1
+## Changed
 all: Use serde(default) to make the serialized strings less verbose
 
 ## Added
