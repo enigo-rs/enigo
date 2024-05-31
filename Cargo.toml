@@ -65,7 +65,7 @@ reis = { version = "0.2.0", optional = true }
 ashpd = { version = "0.8.1", optional = true }
 pollster = { version = "0.3.0", optional = true }
 once_cell = { version = "1.19.0", optional = true }
-wayland-protocols-misc = { version = "0.2", features = [
+wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-protocols-wlr = { version = "0.2", features = [
