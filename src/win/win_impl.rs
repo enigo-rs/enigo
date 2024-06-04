@@ -515,13 +515,6 @@ impl Enigo {
     pub fn get_marker_value(&self) -> usize {
         self.dw_extra_info
     }
-}
-
-    /// Returns the value that enigo's events are marked with
-    #[must_use]
-    pub fn get_marker_value(&self) -> usize {
-        self.dw_extra_info
-    }
 
     /// Test if the virtual key is one of the keys that need the
     /// `KEYEVENTF_EXTENDEDKEY` flag to be set
