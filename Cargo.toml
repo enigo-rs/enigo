@@ -71,7 +71,7 @@ wayland-protocols-misc = { version = "0.3", features = [
 wayland-protocols-wlr = { version = "0.2", features = [
     "client",
 ], optional = true }
-wayland-protocols-plasma = { version = "0.2", features = [
+wayland-protocols-plasma = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-client = { version = "0.31", optional = true }
