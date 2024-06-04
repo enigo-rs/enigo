@@ -1,7 +1,9 @@
 # Unreleased
 ## Changed
+- all: The keys Print and Snapshot were deprecated because Print had the wrong virtual key associated with it on Windows. Use Key::PrintScr instead
 
 ## Added
+- all: Key::PrintScr
 
 ## Fixed
 
