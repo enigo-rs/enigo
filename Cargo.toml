@@ -86,7 +86,7 @@ tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"
-tungstenite = "0.21"
+tungstenite = "0.23"
 url = "2"
 webbrowser = "1.0"
 ron = "0.8"
