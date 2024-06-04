@@ -14,7 +14,7 @@
 //! - [`Keyboard`] (trait): used to simulate a key click, enter text or
 //!   something similar
 //! - [`Mouse`] (trait): do something with the mouse or you find out the display
-//! size
+//!   size
 //! - [`Enigo`] (struct): implements the two traits [`Keyboard`] and [`Mouse`]
 //!
 //! This crate previously included a simple DSL. This is no longer the case. In order to simplify the codebase and also allow serializing objects, you can now serialize and deserialize most enums and structs of this crate. You can use this instead of the DSL. This feature is hidden behind the `serde` feature. Have a look at the `serde` example to see how to use it to serialize Tokens in the [RON](https://crates.io/crates/ron) format.
