@@ -526,7 +526,13 @@ pub enum Key {
     #[cfg(target_os = "macos")]
     Power,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    #[deprecated(since = "0.2.2", note = "now renamed to PrintScr")]
     Print,
+    /// Take a screenshot
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    #[doc(alias = "Print")]
+    #[doc(alias = "Snapshot")]
+    PrintScr,
     #[cfg(target_os = "windows")]
     Processkey,
     #[cfg(target_os = "windows")]
@@ -565,6 +571,7 @@ pub enum Key {
     #[cfg(target_os = "windows")]
     Sleep,
     #[cfg(target_os = "windows")]
+    #[deprecated(since = "0.2.2", note = "now renamed to PrintScr")]
     Snapshot,
     /// space key
     Space,
@@ -694,6 +701,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::PageUp => Keysym::Page_Up,
             Key::Pause => Keysym::Pause,
             Key::Print => Keysym::Print,
+            Key::PrintScr => Keysym::Print,
             Key::RControl => Keysym::Control_R,
             Key::Redo => Keysym::Redo,
             Key::Return => Keysym::Return,
@@ -994,6 +1002,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::Pause => VK_PAUSE,
             Key::Play => VK_PLAY,
             Key::Print => VK_PRINT,
+            Key::PrintScr | Key::Snapshot => VK_SNAPSHOT,
             Key::Processkey => VK_PROCESSKEY,
             Key::RButton => VK_RBUTTON,
             Key::RControl => VK_RCONTROL,
@@ -1007,7 +1016,6 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::Separator => VK_SEPARATOR,
             Key::Shift => VK_SHIFT,
             Key::Sleep => VK_SLEEP,
-            Key::Snapshot => VK_SNAPSHOT,
             Key::Space => VK_SPACE,
             Key::Subtract => VK_SUBTRACT,
             Key::Tab => VK_TAB,

@@ -1,21 +1,23 @@
 # Unreleased
 ## Changed
+- all: The keys `Print` and `Snapshot` were deprecated because `Print` had the wrong virtual key associated with it on Windows. Use `Key::PrintScr` instead
 
 ## Added
+- all: `Key::PrintScr`
 
 ## Fixed
 
 # 0.2.1
 ## Changed
-all: Use serde(default) to make the serialized strings less verbose
+- all: Use serde(default) to make the serialized strings less verbose
 
 ## Added
-all: Serialized tokens can be less verbose because serde aliases were added
-win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
-all: The enums `Button`, `Direction`, `Axis` and `Coordinate` implement `Default`
+- all: Serialized tokens can be less verbose because serde aliases were added
+- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
+- all: The enums `Button`, `Direction`, `Axis` and `Coordinate` implement `Default`
 
 ## Fixed
-windows: The `move_mouse` function moves the mouse to the correct absolute coordinates again
+- windows: The `move_mouse` function moves the mouse to the correct absolute coordinates again
 
 # 0.2.0
 
