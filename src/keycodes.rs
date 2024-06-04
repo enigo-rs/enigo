@@ -130,12 +130,14 @@ pub enum Key {
     Clear,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// command key on macOS (super key on Linux, windows key on Windows)
+    #[cfg_attr(feature = "serde", serde(alias = "cmd"))]
     Command,
     #[cfg(target_os = "macos")]
     ContrastUp,
     #[cfg(target_os = "macos")]
     ContrastDown,
     /// control key
+    #[cfg_attr(feature = "serde", serde(alias = "ctrl"))]
     Control,
     #[cfg(target_os = "windows")]
     Convert,
@@ -598,6 +600,10 @@ pub enum Key {
     Zoom,
     /// Unicode character
     #[doc(alias = "Layout")]
+    #[cfg_attr(feature = "serde", serde(alias = "uni"))]
+    #[cfg_attr(feature = "serde", serde(alias = "Uni"))]
+    #[cfg_attr(feature = "serde", serde(alias = "Char"))]
+    #[cfg_attr(feature = "serde", serde(alias = "char"))]
     Unicode(char),
     /// Use this for keys that are not listed here that you know the
     /// value of. Let us know if you think the key should be listed so
@@ -1032,13 +1038,27 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Modifier {
+    #[cfg_attr(feature = "serde", serde(alias = "shift"))]
     Shift,
+    #[cfg_attr(feature = "serde", serde(alias = "lock"))]
     Lock,
+    #[cfg_attr(feature = "serde", serde(alias = "control"))]
+    #[cfg_attr(feature = "serde", serde(alias = "crtl"))]
     Control,
+    #[cfg_attr(feature = "serde", serde(alias = "mod1"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m1"))]
     Mod1,
+    #[cfg_attr(feature = "serde", serde(alias = "mod2"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m2"))]
     Mod2,
+    #[cfg_attr(feature = "serde", serde(alias = "mod3"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m3"))]
     Mod3,
+    #[cfg_attr(feature = "serde", serde(alias = "mod4"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m4"))]
     Mod4,
+    #[cfg_attr(feature = "serde", serde(alias = "mod5"))]
+    #[cfg_attr(feature = "serde", serde(alias = "m5"))]
     Mod5,
 }
 
