@@ -80,7 +80,7 @@ x11rb = { version = "0.13", features = [
     "xinput",
     "xtest",
 ], optional = true }
-xkbcommon = "0.7"
+xkbcommon = "0.8"
 xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
 
