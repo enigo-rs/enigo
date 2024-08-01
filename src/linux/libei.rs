@@ -108,7 +108,14 @@ impl Con {
             // device_bitmask |= DeviceType::Touchscreen;
             let session = remote_desktop.create_session().await.unwrap();
             remote_desktop
-                .select_devices(&session, DeviceType::Keyboard | DeviceType::Pointer) // TODO: Add DeviceType::Touchscreen once we support it in enigo
+                .select_devices(
+                    &session,
+                    DeviceType::Keyboard | DeviceType::Pointer,
+                    None, // TODO: Allow passing the restore_token via the EnigoSettings
+                    ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
+                           * restore_token via the
+                           * EnigoSettings */
+                ) // TODO: Add DeviceType::Touchscreen once we support it in enigo
                 .await
                 .unwrap();
             trace!("new session");

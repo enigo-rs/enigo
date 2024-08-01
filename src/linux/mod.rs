@@ -257,7 +257,7 @@ impl Mouse for Enigo {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
-        #[cfg(feature = "libeii")]
+        #[cfg(feature = "libei")]
         if let Some(con) = self.libei.as_ref() {
             trace!("try getting the dimensions of the display via libei");
             return con.main_display();
