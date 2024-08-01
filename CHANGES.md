@@ -3,9 +3,12 @@
 - all: The keys `Print` and `Snapshot` were deprecated because `Print` had the wrong virtual key associated with it on Windows. Use `Key::PrintScr` instead
 
 ## Added
+- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
 - all: `Key::PrintScr`
 
 ## Fixed
+- win: Respect the language of the current window to determine the which scancodes to send
+- win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 
 # 0.2.1
 ## Changed
