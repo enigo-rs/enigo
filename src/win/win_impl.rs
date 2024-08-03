@@ -5,10 +5,11 @@ use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
-    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
+    KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
     MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
     MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
-    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, SCANCODE_ALT, SCANCODE_CTRL,
+    SCANCODE_LSHIFT, SCANCODE_THAI_LAYOUT_TOGGLE, VIRTUAL_KEY,
 };
 
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -451,8 +452,34 @@ impl Enigo {
                     ));
                 }
             };
+
+            let key_hi = keystate >> 8;
+            let key_lo = keystate & 0xFF;
+
+            // Translate the shift state flags to scancodes
+            if key_hi & 1 != 0 {
+                // "Either SHIFT key is pressed."
+                // "...does not distinguish between left- and right-hand keys,
+                //    the left-hand scan code is returned..."
+                scancodes.push(SCANCODE_LSHIFT as u16);
+            }
+            if key_hi & 2 != 0 {
+                // "Either CTRL key is pressed."
+                scancodes.push(SCANCODE_CTRL as u16);
+            }
+            if key_hi & 4 != 0 {
+                // "Either ALT key is pressed."
+                scancodes.push(SCANCODE_ALT as u16);
+            }
+            if key_hi & 8 != 0 {
+                // Looked it up, seems like "The Hankaku key is pressed" does code 0x29 (41).
+                // This constant matches that value (41u32).
+                scancodes.push(SCANCODE_THAI_LAYOUT_TOGGLE as u16);
+            }
+            // `& 16`, `& 32`: "Reserved (defined by the keyboard layout driver)."
+
             // Translate the virtual-key code to a scan code
-            match unsafe { MapVirtualKeyW(keystate, MAP_VIRTUAL_KEY_TYPE(0)) }.try_into() {
+            match unsafe { MapVirtualKeyW(key_lo, MAPVK_VK_TO_VSC) }.try_into() {
                 // If there is no translation, the return value is zero
                 Ok(0) => {
                     return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
