@@ -52,7 +52,7 @@ windows = { version = "0.58", features = [
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-core-graphics = { version = "0.23", features = ["highsierra"] }
+core-graphics = { version = "0.24", features = ["highsierra"] }
 icrate = { version = "0.1", features = [
     "AppKit_all",
 ] } # AppKit_NSGraphicsContext
