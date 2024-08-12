@@ -1,0 +1,83 @@
+name: Build
+
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - nightly
+          - "1.80.0"
+        platform:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        features:
+          - "libei,wayland,xdo,x11rb"
+          - "default"
+          - "libei"
+          - "wayland"
+          - "xdo"
+          - "x11rb"
+        exclude:
+          - platform: windows-latest
+            features: "libei,wayland,xdo,x11rb"
+          - platform: windows-latest
+            features: "libei"
+          - platform: windows-latest
+            features: "wayland"
+          - platform: windows-latest
+            features: "xdo"
+          - platform: windows-latest
+            features: "x11rb"
+          - platform: macos-latest
+            features: "libei,wayland,xdo,x11rb"
+          - platform: macos-latest
+            features: "libei"
+          - platform: macos-latest
+            features: "wayland"
+          - platform: macos-latest
+            features: "xdo"
+          - platform: macos-latest
+            features: "x11rb"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_deps
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Check the code format
+        if: matrix.rust == 'nightly' # Avoid differences between the versions
+        run: cargo fmt -- --check
+
+      - name: Check clippy lints
+        run: cargo clippy --no-default-features --features ${{ matrix.features }} -- -D clippy::pedantic
+      - name: Check clippy lints for the examples
+        run: cargo clippy --no-default-features --features ${{ matrix.features }} --examples -- -D clippy::pedantic
+
+      - name: Build the code
+        run: cargo build --no-default-features --features ${{ matrix.features }}
+
+      - name: Build the docs
+        run: cargo doc --no-deps --no-default-features --features ${{ matrix.features }}
+
+      - name: Build the examples
+        run: cargo build --examples --no-default-features --features ${{ matrix.features }}
+
+      - name: Build the examples in release mode
+        run: cargo build --release --examples --no-default-features --features ${{ matrix.features }}

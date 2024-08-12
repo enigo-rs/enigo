@@ -6,7 +6,7 @@ authors = [
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.75" # The CI already runs on 1.80 because the tests needed it
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
@@ -86,10 +86,15 @@ tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"
+serde = { version = "1", features = ["derive"] }
 tungstenite = "0.23"
 url = "2"
 webbrowser = "1.0"
 ron = "0.8"
+strum = "0.26"
+strum_macros = "0.26"
+rdev = "0.5"                                     # Test the main_display() function
+mouse_position = "0.1.4"                         # Test the location() function
 
 [[example]]
 name = "serde"

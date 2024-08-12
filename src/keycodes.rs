@@ -3,6 +3,9 @@ use log::trace;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use strum_macros::EnumIter;
+
 // A key on the keyboard.
 /// Use [`Key::Unicode`] to enter arbitrary Unicode chars.
 /// If a key is missing, please open an issue in our repo and we will quickly
@@ -10,6 +13,7 @@ use serde::{Deserialize, Serialize};
 /// or the [`crate::Keyboard::raw`] function. Some of the keys are only
 /// available on a specific platform. Use conditional compilation to use them.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(test, derive(EnumIter))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
     #[cfg(target_os = "windows")]

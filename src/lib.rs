@@ -56,6 +56,9 @@ use log::{debug, error};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use strum_macros::EnumIter;
+
 /// This crate contains the [`crate::agent::Token`] struct and the
 /// [`crate::agent::Agent`] trait. A token is an instruction for the [`Enigo`]
 /// struct to do something. If you want Enigo to simulate input, you then have
@@ -87,6 +90,7 @@ pub const EVENT_MARKER: u32 = 100;
 // need to change the size of the array in the macOS implementation of the Enigo
 // struct that stores the nth click for each Button
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(test, derive(EnumIter))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[doc(alias = "MouseButton")]
 pub enum Button {
@@ -455,3 +459,7 @@ impl Default for Settings {
         }
     }
 }
+
+#[cfg(test)]
+/// Module containing all the platform independent tests for the traits
+mod tests;

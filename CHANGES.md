@@ -4,6 +4,7 @@
 
 ## Added
 - all: `Key::PrintScr`
+- all: There finally are some tests in the CI to increase the development speed and prevent regressions
 
 ## Fixed
 
