@@ -9,6 +9,7 @@
 
 ## Fixed
 win: Respect the language of the current window to determine the which scancodes to send
+win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 
 # 0.2.1
 ## Changed
