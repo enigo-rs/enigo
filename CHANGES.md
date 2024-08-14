@@ -5,8 +5,11 @@
 ## Added
 - all: `Key::PrintScr`
 - all: There finally are some tests in the CI to increase the development speed and prevent regressions
+- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
 
 ## Fixed
+win: Respect the language of the current window to determine the which scancodes to send
+win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 
 # 0.2.1
 ## Changed

@@ -1,14 +1,18 @@
 use std::mem::size_of;
 
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use windows::Win32::Foundation::POINT;
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    MapVirtualKeyW, SendInput, VkKeyScanW, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
-    KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
-    KEYEVENTF_UNICODE, MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL,
-    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
-    MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
-    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+use windows::Win32::UI::{
+    Input::KeyboardAndMouse::{
+        GetKeyboardLayout, MapVirtualKeyExW, SendInput, VkKeyScanExW, HKL, INPUT, INPUT_0,
+        INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY,
+        KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC_EX,
+        MAPVK_VSC_TO_VK_EX, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
+        MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE,
+        MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN,
+        MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+    },
+    WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
 
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -256,14 +260,22 @@ impl Keyboard for Enigo {
             let result = c.encode_utf16(&mut buffer);
             for &utf16_surrogate in &*result {
                 input.push(keybd_event(
+                    // No need to check if it is an extended key because we only enter unicode
+                    // chars here
                     KEYEVENTF_UNICODE,
+                    // Must be zero
                     VIRTUAL_KEY(0),
                     utf16_surrogate,
                     self.dw_extra_info,
                 ));
                 input.push(keybd_event(
+                    // No need to check if it is an extended key because we only enter unicode
+                    // chars here
                     KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                    // Must be zero
                     VIRTUAL_KEY(0),
+                    // TODO: Double check if this could also be utf16_surrogate (I think it doesn't
+                    // make a difference)
                     result[0],
                     self.dw_extra_info,
                 ));
@@ -275,6 +287,7 @@ impl Keyboard for Enigo {
     /// Sends a key event to the X11 server via `XTest` extension
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
+        let layout = Enigo::get_keyboard_layout();
         let mut input = vec![];
 
         if let Key::Unicode(c) = key {
@@ -290,23 +303,27 @@ impl Keyboard for Enigo {
                 }
                 _ => (),
             }
-            let scancodes = self.get_scancode(c)?;
+            let vk_and_scan_codes = Enigo::get_vk_and_scan_codes(c, layout)?;
             if direction == Direction::Click || direction == Direction::Press {
-                for scan in &scancodes {
+                for &(vk, scan) in &vk_and_scan_codes {
                     input.push(keybd_event(
+                        // No need to check if it is an extended key because we only enter unicode
+                        // chars here
                         KEYEVENTF_SCANCODE,
-                        VIRTUAL_KEY(0),
-                        *scan,
+                        vk,
+                        scan,
                         self.dw_extra_info,
                     ));
                 }
             }
             if direction == Direction::Click || direction == Direction::Release {
-                for scan in &scancodes {
+                for &(vk, scan) in &vk_and_scan_codes {
                     input.push(keybd_event(
+                        // No need to check if it is an extended key because we only enter unicode
+                        // chars here
                         KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
-                        VIRTUAL_KEY(0),
-                        *scan,
+                        vk,
+                        scan,
                         self.dw_extra_info,
                     ));
                 }
@@ -314,16 +331,21 @@ impl Keyboard for Enigo {
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
             // Key::Unicode and we already ensured that is not the case
-            let keycode = VIRTUAL_KEY::try_from(key).unwrap();
-            let keyflags = get_key_flags(keycode);
+            let vk = VIRTUAL_KEY::try_from(key).unwrap();
+            let scan = Enigo::get_scancode(vk, layout)?;
+            let mut keyflags = KEYBD_EVENT_FLAGS::default();
+
+            if Enigo::is_extended_key(vk) {
+                keyflags |= KEYEVENTF_EXTENDEDKEY;
+            }
             if direction == Direction::Click || direction == Direction::Press {
-                input.push(keybd_event(keyflags, keycode, 0u16, self.dw_extra_info));
+                input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
             }
             if direction == Direction::Click || direction == Direction::Release {
                 input.push(keybd_event(
                     keyflags | KEYEVENTF_KEYUP,
-                    keycode,
-                    0u16,
+                    vk,
+                    scan,
                     self.dw_extra_info,
                 ));
             }
@@ -334,10 +356,14 @@ impl Keyboard for Enigo {
             Direction::Press => {
                 debug!("added the key {key:?} to the held keys");
                 self.held.0.push(key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
             }
             Direction::Release => {
                 debug!("removed the key {key:?} from the held keys");
                 self.held.0.retain(|&k| k != key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
             }
             Direction::Click => (),
         }
@@ -345,38 +371,27 @@ impl Keyboard for Enigo {
         Ok(())
     }
 
-    fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
+    fn raw(&mut self, scan: u16, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mraw(scan: {scan:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
 
-        // Some keycodes also need to have the KEYEVENTF_EXTENDEDKEY flag set because
-        // the code is used for two different keys. The maximum for a scancode (raw
-        // keycode) is 7F on Windows. Since we use an u16 here, we can use the remaining
-        // bits to allow specifying the user of the library if the flag should get set
-        // or not. It is assumed that all keycodes larger than 7F need the flag to be
-        // set
-        let (keycode, keyflags) = if keycode > 0x7F {
-            (
-                keycode & 0x7F, /* remove the bits used for signaling if the extended flag
-                                 * should get set */
-                KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
-            )
-        } else {
-            (keycode, KEYEVENTF_SCANCODE)
-        };
+        let layout = Enigo::get_keyboard_layout();
+        let vk = Enigo::get_vk(scan, layout)?;
+
+        let mut keyflags = KEYEVENTF_SCANCODE;
+        // TODO: Check if the first bytes need to be truncated if it is an extended key
+        if Enigo::is_extended_key(vk) {
+            keyflags |= KEYEVENTF_EXTENDEDKEY;
+        }
+
         if direction == Direction::Click || direction == Direction::Press {
-            input.push(keybd_event(
-                keyflags,
-                VIRTUAL_KEY(0),
-                keycode,
-                self.dw_extra_info,
-            ));
+            input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
         }
         if direction == Direction::Click || direction == Direction::Release {
             input.push(keybd_event(
                 keyflags | KEYEVENTF_KEYUP,
-                VIRTUAL_KEY(0),
-                keycode,
+                vk,
+                scan,
                 self.dw_extra_info,
             ));
         }
@@ -385,12 +400,16 @@ impl Keyboard for Enigo {
 
         match direction {
             Direction::Press => {
-                debug!("added the key {keycode:?} to the held keys");
-                self.held.1.push(keycode);
+                debug!("added the key {scan:?} to the held keys");
+                self.held.1.push(scan);
+                // TODO: Make it work that they can get released with the key
+                // function as well
             }
             Direction::Release => {
-                debug!("removed the key {keycode:?} from the held keys");
-                self.held.1.retain(|&k| k != keycode);
+                debug!("removed the key {scan:?} from the held keys");
+                self.held.1.retain(|&k| k != scan);
+                // TODO: Make it work that they can get released with the key
+                // function as well
             }
             Direction::Click => (),
         }
@@ -424,11 +443,16 @@ impl Enigo {
         })
     }
 
-    #[allow(clippy::unused_self)]
-    fn get_scancode(&self, c: char) -> InputResult<Vec<ScanCode>> {
+    fn get_keyboard_layout() -> HKL {
+        let current_window_thread_id =
+            unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
+        unsafe { GetKeyboardLayout(current_window_thread_id) }
+    }
+
+    fn get_vk_and_scan_codes(c: char, layout: HKL) -> InputResult<Vec<(VIRTUAL_KEY, ScanCode)>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
         let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
-        let mut scancodes = vec![];
+        let mut results = vec![];
         for &utf16_surrogate in &utf16_surrogates {
             // Translate a character to the corresponding virtual-key code and shift state.
             // If the function succeeds, the low-order byte of the return value contains the
@@ -436,37 +460,49 @@ impl Enigo {
             // be a combination of the following flag bits. If the function finds no key
             // that translates to the passed character code, both the low-order and
             // high-order bytes contain –1
-            let keystate = match u32::try_from(unsafe { VkKeyScanW(utf16_surrogate) }) {
-                // TODO: Double check if u32::MAX is correct here. If I am not
-                // mistaken, -1 is stored as 11111111 meaning u32::MAX should be
-                // correct here
-                Ok(u32::MAX) => {
-                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
-                }
-                Ok(keystate) => keystate,
-                Err(e) => {
-                    error!("{e:?}");
-                    return Err(InputError::InvalidInput(
-                        "key state could not be converted to u32",
-                    ));
-                }
-            };
-            // Translate the virtual-key code to a scan code
-            match unsafe { MapVirtualKeyW(keystate, MAP_VIRTUAL_KEY_TYPE(0)) }.try_into() {
-                // If there is no translation, the return value is zero
-                Ok(0) => {
-                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
-                }
-                Ok(scan_code) => {
-                    scancodes.push(scan_code);
-                }
-                Err(e) => {
-                    error!("{e:?}");
-                    return Err(InputError::InvalidInput("scan code did not fit into u16"));
-                }
-            };
+
+            let virtual_key = unsafe { VkKeyScanExW(utf16_surrogate, layout) };
+            if virtual_key < 0 {
+                return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+            }
+            let virtual_key = VIRTUAL_KEY(virtual_key as u16);
+            let scan_code = Enigo::get_scancode(virtual_key, layout)?;
+            results.push((virtual_key, scan_code));
         }
-        Ok(scancodes)
+        Ok(results)
+    }
+
+    /// Translate the virtual key to a scan code
+    fn get_vk(scan: ScanCode, layout: HKL) -> InputResult<VIRTUAL_KEY> {
+        match unsafe { MapVirtualKeyExW(scan.into(), MAPVK_VSC_TO_VK_EX, layout) }.try_into() {
+            Ok(vk) => {
+                if vk == 0 {
+                    warn!("The virtual key for the virtual key {:?} is zero. This usually means there was no mapping", vk);
+                };
+                Ok(VIRTUAL_KEY(vk))
+            }
+            Err(e) => {
+                error!("{e:?}");
+                Err(InputError::InvalidInput("virtual key did not fit into u16"))
+            }
+        }
+    }
+
+    /// Translate the virtual key to a scan code
+    fn get_scancode(vk: VIRTUAL_KEY, layout: HKL) -> InputResult<ScanCode> {
+        let vk = vk.0 as u32;
+        match unsafe { MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, layout) }.try_into() {
+            Ok(scan_code) => {
+                if scan_code == 0 {
+                    warn!("The scan code for the virtual key {:?} is zero", vk);
+                };
+                Ok(scan_code)
+            }
+            Err(e) => {
+                error!("{e:?}");
+                Err(InputError::InvalidInput("scan code did not fit into u16"))
+            }
+        }
     }
 
     /// Returns a list of all currently pressed keys
@@ -479,27 +515,28 @@ impl Enigo {
     pub fn get_marker_value(&self) -> usize {
         self.dw_extra_info
     }
-}
 
-fn get_key_flags(vk: VIRTUAL_KEY) -> KEYBD_EVENT_FLAGS {
-    use windows::Win32::UI::Input::KeyboardAndMouse::{
-        VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT, VK_NUMLOCK,
-        VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
-    };
+    /// Test if the virtual key is one of the keys that need the
+    /// `KEYEVENTF_EXTENDEDKEY` flag to be set
+    fn is_extended_key(vk: VIRTUAL_KEY) -> bool {
+        use windows::Win32::UI::Input::KeyboardAndMouse::{
+            VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT,
+            VK_NUMLOCK, VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
+        };
 
-    match vk {
-        // Navigation keys should be injected with the extended flag to distinguish
-        // them from the Numpad navigation keys. Otherwise, input Shift+<Navigation key>
-        // may not have the expected result and depends on whether NUMLOCK is enabled/disabled.
-        // A list of the extended keys can be found here:
-        // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag
-        // TODO: The keys "BREAK (CTRL+PAUSE) key" and "ENTER key in the numeric keypad" are missing
-        VK_RMENU | VK_RCONTROL | VK_UP | VK_DOWN | VK_LEFT | VK_RIGHT | VK_INSERT | VK_DELETE
-        | VK_HOME | VK_END | VK_PRIOR | VK_NEXT | VK_NUMLOCK | VK_SNAPSHOT | VK_DIVIDE => {
-            debug!("extended key detected");
-            KEYBD_EVENT_FLAGS::default() | KEYEVENTF_EXTENDEDKEY
+        match vk {
+            // Navigation keys should be injected with the extended flag to distinguish
+            // them from the Numpad navigation keys. Otherwise, input Shift+<Navigation key>
+            // may not have the expected result and depends on whether NUMLOCK is enabled/disabled.
+            // A list of the extended keys can be found here:
+            // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag
+            // TODO: The keys "BREAK (CTRL+PAUSE) key" and "ENTER key in the numeric keypad" are
+            // missing
+            VK_RMENU | VK_RCONTROL | VK_UP | VK_DOWN | VK_LEFT | VK_RIGHT | VK_INSERT
+            | VK_DELETE | VK_HOME | VK_END | VK_PRIOR | VK_NEXT | VK_NUMLOCK | VK_SNAPSHOT
+            | VK_DIVIDE => true,
+            _ => false,
         }
-        _ => KEYBD_EVENT_FLAGS::default(),
     }
 }
 
@@ -521,5 +558,333 @@ impl Drop for Enigo {
             };
         }
         debug!("released all held keys");
+    }
+}
+
+mod test {
+
+    #[test]
+    fn extended_key() {
+        use windows::Win32::UI::Input::KeyboardAndMouse::{
+            VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT,
+            VK_NUMLOCK, VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
+        };
+
+        let known_extended_keys = [
+            VK_RMENU,    // 165
+            VK_RCONTROL, // 163
+            VK_UP,       // 38
+            VK_DOWN,     // 40
+            VK_LEFT,     // 37
+            VK_RIGHT,    // 39
+            VK_INSERT,   // 45
+            VK_DELETE,   // 46
+            VK_HOME,     // 36
+            VK_END,      // 35
+            VK_PRIOR,    // 33
+            VK_NEXT,     // 34
+            VK_NUMLOCK,  // 144
+            VK_SNAPSHOT, // 44
+            VK_DIVIDE,   // 111
+        ];
+
+        for key in known_extended_keys {
+            assert_eq!(
+                true,
+                super::Enigo::is_extended_key(key),
+                "Failed for {key:#?}"
+            )
+        }
+    }
+
+    #[test]
+    fn regular_key() {
+        use windows::Win32::UI::Input::KeyboardAndMouse::{
+            VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A,
+            VK_ABNT_C1, VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK,
+            VK_BROWSER_BACK, VK_BROWSER_FAVORITES, VK_BROWSER_FORWARD, VK_BROWSER_HOME,
+            VK_BROWSER_REFRESH, VK_BROWSER_SEARCH, VK_BROWSER_STOP, VK_C, VK_CANCEL, VK_CAPITAL,
+            VK_CLEAR, VK_CONTROL, VK_CONVERT, VK_CRSEL, VK_D, VK_DBE_ALPHANUMERIC,
+            VK_DBE_CODEINPUT, VK_DBE_DBCSCHAR, VK_DBE_DETERMINESTRING,
+            VK_DBE_ENTERDLGCONVERSIONMODE, VK_DBE_ENTERIMECONFIGMODE, VK_DBE_ENTERWORDREGISTERMODE,
+            VK_DBE_FLUSHSTRING, VK_DBE_HIRAGANA, VK_DBE_KATAKANA, VK_DBE_NOCODEINPUT,
+            VK_DBE_NOROMAN, VK_DBE_ROMAN, VK_DBE_SBCSCHAR, VK_DECIMAL, VK_E, VK_EREOF, VK_ESCAPE,
+            VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F10, VK_F11, VK_F12, VK_F13, VK_F14, VK_F15,
+            VK_F16, VK_F17, VK_F18, VK_F19, VK_F2, VK_F20, VK_F21, VK_F22, VK_F23, VK_F24, VK_F3,
+            VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_FINAL, VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B,
+            VK_GAMEPAD_DPAD_DOWN, VK_GAMEPAD_DPAD_LEFT, VK_GAMEPAD_DPAD_RIGHT, VK_GAMEPAD_DPAD_UP,
+            VK_GAMEPAD_LEFT_SHOULDER, VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
+            VK_GAMEPAD_LEFT_THUMBSTICK_DOWN, VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
+            VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT, VK_GAMEPAD_LEFT_THUMBSTICK_UP,
+            VK_GAMEPAD_LEFT_TRIGGER, VK_GAMEPAD_MENU, VK_GAMEPAD_RIGHT_SHOULDER,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON, VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT, VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_UP, VK_GAMEPAD_RIGHT_TRIGGER, VK_GAMEPAD_VIEW,
+            VK_GAMEPAD_X, VK_GAMEPAD_Y, VK_H, VK_HANGEUL, VK_HANGUL, VK_HANJA, VK_HELP, VK_I,
+            VK_ICO_00, VK_ICO_CLEAR, VK_ICO_HELP, VK_IME_OFF, VK_IME_ON, VK_J, VK_JUNJA, VK_K,
+            VK_KANA, VK_KANJI, VK_L, VK_LAUNCH_APP1, VK_LAUNCH_APP2, VK_LAUNCH_MAIL,
+            VK_LAUNCH_MEDIA_SELECT, VK_LBUTTON, VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_M,
+            VK_MBUTTON, VK_MEDIA_NEXT_TRACK, VK_MEDIA_PLAY_PAUSE, VK_MEDIA_PREV_TRACK,
+            VK_MEDIA_STOP, VK_MENU, VK_MODECHANGE, VK_MULTIPLY, VK_N, VK_NAVIGATION_ACCEPT,
+            VK_NAVIGATION_CANCEL, VK_NAVIGATION_DOWN, VK_NAVIGATION_LEFT, VK_NAVIGATION_MENU,
+            VK_NAVIGATION_RIGHT, VK_NAVIGATION_UP, VK_NAVIGATION_VIEW, VK_NONAME, VK_NONCONVERT,
+            VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6,
+            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_102, VK_OEM_2, VK_OEM_3,
+            VK_OEM_4, VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_ATTN, VK_OEM_AUTO, VK_OEM_AX,
+            VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL, VK_OEM_ENLW,
+            VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU, VK_OEM_FJ_ROYA,
+            VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL, VK_OEM_PA1, VK_OEM_PA2,
+            VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET, VK_OEM_WSCTRL, VK_P, VK_PA1,
+            VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PROCESSKEY, VK_Q, VK_R, VK_RBUTTON,
+            VK_RETURN, VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT, VK_SEPARATOR, VK_SHIFT,
+            VK_SLEEP, VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_V, VK_VOLUME_DOWN,
+            VK_VOLUME_MUTE, VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z,
+            VK_ZOOM,
+        };
+
+        use super::Enigo;
+
+        let known_ordinary_keys = [
+            VK__none_,  // 255
+            VK_0,       // 48
+            VK_1,       // 49
+            VK_2,       // 50
+            VK_3,       // 51
+            VK_4,       // 52
+            VK_5,       // 53
+            VK_6,       // 54
+            VK_7,       // 55
+            VK_8,       // 56
+            VK_9,       // 57
+            VK_A,       // 65
+            VK_ABNT_C1, // 193
+            VK_ABNT_C2, // 194
+            VK_ACCEPT,  // 30
+            VK_ADD,     // 107
+            VK_APPS,    // 93
+            VK_ATTN,
+            VK_B,
+            VK_BACK,
+            VK_BROWSER_BACK,
+            VK_BROWSER_FAVORITES,
+            VK_BROWSER_FORWARD,
+            VK_BROWSER_HOME,
+            VK_BROWSER_REFRESH,
+            VK_BROWSER_SEARCH,
+            VK_BROWSER_STOP,
+            VK_C,
+            VK_CANCEL,
+            VK_CAPITAL,
+            VK_CLEAR,
+            VK_CONTROL,
+            VK_CONVERT,
+            VK_CRSEL,
+            VK_D,
+            VK_DBE_ALPHANUMERIC,
+            VK_DBE_CODEINPUT,
+            VK_DBE_DBCSCHAR,
+            VK_DBE_DETERMINESTRING,
+            VK_DBE_ENTERDLGCONVERSIONMODE,
+            VK_DBE_ENTERIMECONFIGMODE,
+            VK_DBE_ENTERWORDREGISTERMODE,
+            VK_DBE_FLUSHSTRING,
+            VK_DBE_HIRAGANA,
+            VK_DBE_KATAKANA,
+            VK_DBE_NOCODEINPUT,
+            VK_DBE_NOROMAN,
+            VK_DBE_ROMAN,
+            VK_DBE_SBCSCHAR,
+            VK_DECIMAL,
+            VK_E,
+            VK_EREOF,
+            VK_ESCAPE,
+            VK_EXECUTE,
+            VK_EXSEL,
+            VK_F,
+            VK_F1,
+            VK_F10,
+            VK_F11,
+            VK_F12,
+            VK_F13,
+            VK_F14,
+            VK_F15,
+            VK_F16,
+            VK_F17,
+            VK_F18,
+            VK_F19,
+            VK_F2,
+            VK_F20,
+            VK_F21,
+            VK_F22,
+            VK_F23,
+            VK_F24,
+            VK_F3,
+            VK_F4,
+            VK_F5,
+            VK_F6,
+            VK_F7,
+            VK_F8,
+            VK_F9,
+            VK_FINAL,
+            VK_G,
+            VK_GAMEPAD_A,
+            VK_GAMEPAD_B,
+            VK_GAMEPAD_DPAD_DOWN,
+            VK_GAMEPAD_DPAD_LEFT,
+            VK_GAMEPAD_DPAD_RIGHT,
+            VK_GAMEPAD_DPAD_UP,
+            VK_GAMEPAD_LEFT_SHOULDER,
+            VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
+            VK_GAMEPAD_LEFT_THUMBSTICK_DOWN,
+            VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
+            VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT,
+            VK_GAMEPAD_LEFT_THUMBSTICK_UP,
+            VK_GAMEPAD_LEFT_TRIGGER,
+            VK_GAMEPAD_MENU,
+            VK_GAMEPAD_RIGHT_SHOULDER,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT,
+            VK_GAMEPAD_RIGHT_THUMBSTICK_UP,
+            VK_GAMEPAD_RIGHT_TRIGGER,
+            VK_GAMEPAD_VIEW,
+            VK_GAMEPAD_X,
+            VK_GAMEPAD_Y,
+            VK_H,
+            VK_HANGEUL,
+            VK_HANGUL,
+            VK_HANJA,
+            VK_HELP,
+            VK_I,
+            VK_ICO_00,
+            VK_ICO_CLEAR,
+            VK_ICO_HELP,
+            VK_IME_OFF,
+            VK_IME_ON,
+            VK_J,
+            VK_JUNJA,
+            VK_K,
+            VK_KANA,
+            VK_KANJI,
+            VK_L,
+            VK_LAUNCH_APP1,
+            VK_LAUNCH_APP2,
+            VK_LAUNCH_MAIL,
+            VK_LAUNCH_MEDIA_SELECT,
+            VK_LBUTTON,
+            VK_LCONTROL,
+            VK_LMENU,
+            VK_LSHIFT,
+            VK_LWIN,
+            VK_M,
+            VK_MBUTTON,
+            VK_MEDIA_NEXT_TRACK,
+            VK_MEDIA_PLAY_PAUSE,
+            VK_MEDIA_PREV_TRACK,
+            VK_MEDIA_STOP,
+            VK_MENU,
+            VK_MODECHANGE,
+            VK_MULTIPLY,
+            VK_N,
+            VK_NAVIGATION_ACCEPT,
+            VK_NAVIGATION_CANCEL,
+            VK_NAVIGATION_DOWN,
+            VK_NAVIGATION_LEFT,
+            VK_NAVIGATION_MENU,
+            VK_NAVIGATION_RIGHT,
+            VK_NAVIGATION_UP,
+            VK_NAVIGATION_VIEW,
+            VK_NONAME,
+            VK_NONCONVERT,
+            VK_NUMPAD0,
+            VK_NUMPAD1,
+            VK_NUMPAD2,
+            VK_NUMPAD3,
+            VK_NUMPAD4,
+            VK_NUMPAD5,
+            VK_NUMPAD6,
+            VK_NUMPAD7,
+            VK_NUMPAD8,
+            VK_NUMPAD9,
+            VK_O,
+            VK_OEM_1,
+            VK_OEM_102,
+            VK_OEM_2,
+            VK_OEM_3,
+            VK_OEM_4,
+            VK_OEM_5,
+            VK_OEM_6,
+            VK_OEM_7,
+            VK_OEM_8,
+            VK_OEM_ATTN,
+            VK_OEM_AUTO,
+            VK_OEM_AX,
+            VK_OEM_BACKTAB,
+            VK_OEM_CLEAR,
+            VK_OEM_COMMA,
+            VK_OEM_COPY,
+            VK_OEM_CUSEL,
+            VK_OEM_ENLW,
+            VK_OEM_FINISH,
+            VK_OEM_FJ_JISHO,
+            VK_OEM_FJ_LOYA,
+            VK_OEM_FJ_MASSHOU,
+            VK_OEM_FJ_ROYA,
+            VK_OEM_FJ_TOUROKU,
+            VK_OEM_JUMP,
+            VK_OEM_MINUS,
+            VK_OEM_NEC_EQUAL,
+            VK_OEM_PA1,
+            VK_OEM_PA2,
+            VK_OEM_PA3,
+            VK_OEM_PERIOD,
+            VK_OEM_PLUS,
+            VK_OEM_RESET,
+            VK_OEM_WSCTRL,
+            VK_P,
+            VK_PA1,
+            VK_PACKET,
+            VK_PAUSE,
+            VK_PLAY,
+            VK_PRINT,
+            VK_PROCESSKEY,
+            VK_Q,
+            VK_R,
+            VK_RBUTTON,
+            VK_RETURN,
+            VK_RSHIFT,
+            VK_RWIN,
+            VK_S,
+            VK_SCROLL,
+            VK_SELECT,
+            VK_SEPARATOR,
+            VK_SHIFT,
+            VK_SLEEP,
+            VK_SPACE,
+            VK_SUBTRACT,
+            VK_T,
+            VK_TAB,
+            VK_U,
+            VK_V,
+            VK_VOLUME_DOWN,
+            VK_VOLUME_MUTE,
+            VK_VOLUME_UP,
+            VK_W,
+            VK_X,
+            VK_XBUTTON1,
+            VK_XBUTTON2,
+            VK_Y,
+            VK_Z,
+            VK_ZOOM,
+        ];
+
+        for key in known_ordinary_keys {
+            assert_eq!(
+                false,
+                super::Enigo::is_extended_key(key),
+                "Failed for {key:#?}"
+            )
+        }
     }
 }
