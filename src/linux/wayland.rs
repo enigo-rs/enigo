@@ -45,26 +45,23 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: &Option<String>) -> Result<Self, NewConError> {
         // Setup Wayland Connection
-        let connection = match dpy_name {
-            Some(dyp_name) => {
-                debug!(
-                    "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
-                    dyp_name
-                );
-                let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
-                    .map(Into::<PathBuf>::into)
-                    .ok_or(NewConError::EstablishCon(
-                        "no XDG_RUNTIME_DIR env variable found",
-                    ))?;
-                socket_path.push(dyp_name);
-                let stream = UnixStream::connect(socket_path)
-                    .map_err(|_| NewConError::EstablishCon("unable to open unix stream"))?;
-                Connection::from_socket(stream)
-            }
-            None => {
-                debug!("\x1b[93mtrying to establish a connection to $WAYLAND_DISPLAY\x1b[0m");
-                Connection::connect_to_env()
-            }
+        let connection = if let Some(dyp_name) = dpy_name {
+            debug!(
+                "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
+                dyp_name
+            );
+            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+                .map(Into::<PathBuf>::into)
+                .ok_or(NewConError::EstablishCon(
+                    "no XDG_RUNTIME_DIR env variable found",
+                ))?;
+            socket_path.push(dyp_name);
+            let stream = UnixStream::connect(socket_path)
+                .map_err(|_| NewConError::EstablishCon("unable to open unix stream"))?;
+            Connection::from_socket(stream)
+        } else {
+            debug!("\x1b[93mtrying to establish a connection to $WAYLAND_DISPLAY\x1b[0m");
+            Connection::connect_to_env()
         };
 
         let connection = match connection {

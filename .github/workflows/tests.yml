@@ -1,0 +1,82 @@
+name: Test
+
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - nightly
+          - "1.80.0"
+        platform:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        features: 
+          # The tests will fail on Ubuntu for libei and wayland, because the compositor of the Github runner does not support it
+          #- "libei,wayland,xdo,x11rb"
+          - "default"
+          #- "libei"
+          #- "wayland"
+          - "xdo"
+          - "x11rb"
+        exclude:
+          # The implementation on Windows and macOS does not have any features so we can reduce the number of combinations
+          #- platform: windows-latest
+          #  features: "libei,wayland,xdo,x11rb"
+          #- platform: windows-latest
+          #  features: "libei"
+          #- platform: windows-latest
+          #  features: "wayland"
+          - platform: windows-latest
+            features: "xdo"
+          - platform: windows-latest
+            features: "x11rb"
+          #- platform: macos-latest
+          #  features: "libei,wayland,xdo,x11rb"
+          #- platform: macos-latest
+          #  features: "libei"
+          #- platform: macos-latest
+          #  features: "wayland"
+          - platform: macos-latest
+            features: "xdo"
+          - platform: macos-latest
+            features: "x11rb"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_deps
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Setup headless display for tests on Linux
+        if: runner.os == 'Linux' # This step is only needed on Linux. The other OSs don't need to be set up
+        uses: ./.github/actions/headless_display
+
+      - name: Run the unit tests
+        run: cargo test unit --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
+      
+      - name: Run the unit tests in release mode
+        run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
+
+      - name: Take screenshot
+        if: always() && runner.os != 'macOS'
+        uses: ./.github/actions/screenshot
+        with:
+          platform: ${{ matrix.platform }}
+          rust: ${{ matrix.rust }}
+          feature: ${{ matrix.features }}

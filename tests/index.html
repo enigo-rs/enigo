@@ -11,65 +11,86 @@
 <body>
     <h1>Conducted tests</h1>
     <form action="/action_page.php">
-        <input type="checkbox" id="keydown" name="keydown">
-        <label for="keydown"> keydown</label><br>
-        <input type="checkbox" id="keyup" name="keyup">
-        <label for="keyup"> keyup</label><br>
-        <input type="checkbox" id="mousedown" name="mousedown">
-        <label for="mousedown"> mousedown</label><br>
-        <input type="checkbox" id="mouseup" name="mouseup">
-        <label for="mouseup"> mouseup</label><br>
-        <input type="checkbox" id="mousemove" name="mousemove">
-        <label for="mousemove"> mousemove</label><br>
-        <input type="checkbox" id="wheel" name="wheel">
-        <label for="wheel"> wheel</label><br>
+        <input type="checkbox" id="KeyDown" name="KeyDown">
+        <label for="KeyDown"> KeyDown</label><br>
+        <input type="checkbox" id="KeyUp" name="KeyUp">
+        <label for="KeyUp"> KeyUp</label><br>
+        <input type="checkbox" id="MouseDown" name="MouseDown">
+        <label for="MouseDown"> MouseDown</label><br>
+        <input type="checkbox" id="MouseUp" name="MouseUp">
+        <label for="MouseUp"> MouseUp</label><br>
+        <input type="checkbox" id="MouseMove" name="MouseMove">
+        <label for="MouseMove"> MouseMove</label><br>
+        <input type="checkbox" id="MouseScroll" name="MouseScroll">
+        <label for="MouseScroll"> MouseScroll</label><br>
+    </form>
+    <form id="textForm">
+        <label for="text">Enter text:</label>
+        <input type="text" id="text" name="text" />
+        <button type="submit">Submit</button>
     </form>
 
     <p id="output1">Test did not start. Do you have JavaScript enabled?</p>
     <script>
         const ws = new WebSocket('ws://localhost:26541');
-        ws.addEventListener('open', (event) => {
-            console.log('connected');
-            ws.send('open:');
+
+        // Helper function to handle events
+        const handleEvent = (eventType, data = '') => {
+            const message = `${eventType}${data}`;
+            console.log(message);
+            document.getElementById(eventType).checked = true;
+            ws.send(message);
+        };
+
+        document.addEventListener('open', (event) => {
+            handleEvent('Open', event);
             document.getElementById('output1').innerHTML = 'Test was started. Do not close the page.';
         });
-        ws.addEventListener('close', (event) => {
-            console.log('disconnected');
-            ws.send('close:');
+        document.addEventListener('close', (event) => {
+            handleEvent('Close', event);
             document.getElementById('output1').innerHTML = 'Test concluded. Close this page.';
         });
-        document.addEventListener('keydown', (event) => {
-            console.log('keydown', event.key);
-            document.getElementById('keydown').checked = true;
-            ws.send('keydown:' + event.key);
+        document.addEventListener('keydown', (event) => handleEvent('KeyDown', `(\"${event.key}\")`));
+        document.addEventListener('keyup', (event) => handleEvent('KeyUp', `(\"${event.key}\")`));
+        document.addEventListener('mousedown', (event) => handleEvent('MouseDown', `(${event.button})`));
+        document.addEventListener('mouseup', (event) => handleEvent('MouseUp', `(${event.button})`));
+        document.addEventListener('mousemove', (event) => handleEvent('MouseMove', `((${event.movementX},${event.movementY}),(${event.screenX},${event.screenY}))`));
+        document.addEventListener('wheel', (event) => handleEvent('MouseScroll', `(${event.deltaX},${event.deltaY})`));
+
+        // Handle form submission
+        document.getElementById('textForm').addEventListener('submit', (event) => {
+            event.preventDefault();  // Prevent the form from submitting the traditional way
+
+            const text = document.getElementById('text').value;
+
+            // Send the input text via WebSocket
+            ws.send(`Text(${text})`);
+
+            // Clear the input field
+            document.getElementById('text').value = '';
         });
-        document.addEventListener('keyup', (event) => {
-            console.log('keyup', event.key);
-            document.getElementById("keyup").checked = true;
-            ws.send('keyup:' + event.key);
+
+        // Handle incoming WebSocket messages
+        ws.addEventListener('message', (event) => {
+            console.log('Received message:', event.data);
+
+            // Server asks to clear the text and focus on it
+            if (event.data === 'ClearText') {
+                document.getElementById('text').value = '';
+                document.getElementById('text').focus();
+            }
+
+            // Server asks for the form's content
+            if (event.data === 'GetText') {
+                const text = document.getElementById('text').value;
+
+                // Send the form's content via WebSocket
+                ws.send(`Text(\"${text}\")`);
+            }
         });
-        document.addEventListener('mousedown', (event) => {
-            console.log('mousedown', event.button);
-            document.getElementById("mousedown").checked = true;
-            ws.send('mousedown:' + event.button);
-        });
-        document.addEventListener('mouseup', (event) => {
-            console.log('mouseup', event.button);
-            document.getElementById("mouseup").checked = true;
-            ws.send('mouseup:' + event.button);
-        });
-        document.addEventListener('mousemove', (event) => {
-            console.log('mousemoveX', event.movementX, event.screenX);
-            console.log('mousemoveY', event.movementY, event.screenY);
-            document.getElementById("mousemove").checked = true;
-            ws.send('mousemove:' + event.movementX + ',' + event.movementY + '|' + event.screenX + ',' + event.screenY);
-        });
-        document.addEventListener('wheel', (event) => {
-            console.log('wheelY', event.deltaY);
-            console.log('wheelX', event.deltaX);
-            document.getElementById("wheel").checked = true;
-            ws.send('mousewheel:' + event.deltaX + ',' + event.deltaY);
-        });
+
+
+
     </script>
 </body>
 

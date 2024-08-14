@@ -47,7 +47,7 @@ If you do not want your users to have to install any runtime dependencies on Lin
 Linux users may have to install `libxdo-dev` if they are using `X11`. For example, on Debian-based distros:
 
 ```Bash
-apt-get install libxdo-dev
+apt install libxdo-dev
 ```
 
 On Arch:

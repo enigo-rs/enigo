@@ -1,0 +1,33 @@
+name: "screenshot"
+description: "Creates a screenshot"
+inputs:
+  rust:
+    description: 'Name of the Rust version'     
+    required: true
+  platform:
+    description: 'Name of the OS'     
+    required: true
+  feature:
+    description: 'Activated features'     
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Echo inputs
+      shell: bash
+      run: echo "${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}"
+    - uses: OrbitalOwen/desktop-screenshot-action@7f96d072f57e00c3bad73e9f3282f1258262b85d
+      if: runner.os != 'Linux'
+      with:
+        file-name: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+    - name: Take screenshot on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: DISPLAY=$DISPLAY import -window root -quality 90 ./'${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+    - uses: actions/upload-artifact@v4
+      if: runner.os == 'Linux'
+      with:
+        name: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+        path: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+        overwrite: true

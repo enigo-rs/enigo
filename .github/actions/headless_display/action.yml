@@ -4,42 +4,15 @@ description: "Creates a virtual display so e.g Firefox can start"
 runs:
   using: "composite"
   steps:
-    - name: Install mesa3d on Windows
-      if: runner.os == 'Windows'
-      uses: ssciwr/setup-mesa-dist-win@9068b6d8a2838cde12e5d36822a1556d782e1aae
-      with:
-        version: '22.3.4'
-        deployment-choice: '5'
-    - name: Install Cygwin and xvfb on Windows (contained in xorg-server-extra)
-      if: runner.os == 'Windows'
-      uses: cygwin/cygwin-install-action@db475590d56881c6cef7b3f96f6f3dd9532ea1f4
-      with:
-        packages: xorg-server xorg-server-extra
-    - name:  Install xvfb on Linux and macOS
-      if: runner.os != 'Windows'
-      run:   |
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get install xvfb -y
+    - name: Install Xvfb on Linux
+      if: runner.os == 'Linux'
+      run: |
+          sudo apt-get install -y xvfb
           which Xvfb
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          brew install --cask xquartz
-          echo "XQUARTZ was installed"
-          sudo /opt/X11/libexec/privileged_startx || true
-          echo "privileged_startx was executed"
-          echo "/opt/X11/bin" >> $GITHUB_PATH
-        else
-          echo "This Action is only applicable for Linux and macOS. The current runner is $RUNNER_OS, so this does nothing."
-          exit 0
-        fi
-      shell: bash
-    - name:  Set DISPLAY env variable
-      if: runner.os != 'Windows'
-      run: echo "DISPLAY=:99.0" >> $GITHUB_ENV
-      shell: bash
-    - name:  Create virtual display with Xvfb
-      if: runner.os != 'Windows'
-      run:   |
-        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-        # Wait for xvfb to start
-        sleep 3
+          # Set DISPLAY env variable
+          echo "DISPLAY=:99.0" >> $GITHUB_ENV
+          # Create virtual display with Xvfb
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          # Wait for Xvfb to start
+          sleep 3
       shell: bash
