@@ -4,6 +4,7 @@ use tungstenite::Message;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 
 pub enum BrowserEvent {
+    BrowserMaximized,
     ReadyForText,
     Text(String),
     KeyDown(String),

@@ -48,8 +48,12 @@ impl EnigoTest {
             self.button(Button::Left, Click).unwrap();
         };
 
-        // Wait for full screen animation
-        std::thread::sleep(std::time::Duration::from_secs(10));
+        println!("Attempt to maximize the browser");
+        assert_eq!(
+            BrowserEvent::BrowserMaximized,
+            self.read_message(),
+            "Failed to maximize the browser"
+        );
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
@@ -99,11 +103,12 @@ impl Keyboard for EnigoTest {
     // This does not work for all text or the library does not work properly
     fn fast_text(&mut self, text: &str) -> enigo::InputResult<Option<()>> {
         self.send_message("ClearText");
-        if let BrowserEvent::ReadyForText = self.read_message() {
-            println!("Ready for the text");
-        } else {
-            panic!("Failed to get ready for the text");
-        };
+        println!("Attempt to clear the text");
+        assert_eq!(
+            BrowserEvent::ReadyForText,
+            self.read_message(),
+            "Failed to get ready for the text"
+        );
         let res = self.enigo.text(text);
         std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
         self.send_message("GetText");

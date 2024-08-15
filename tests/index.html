@@ -56,6 +56,22 @@
         document.addEventListener('mouseup', (event) => handleEvent('MouseUp', `(${event.button})`));
         document.addEventListener('mousemove', (event) => handleEvent('MouseMove', `((${event.movementX},${event.movementY}),(${event.screenX},${event.screenY}))`));
         document.addEventListener('wheel', (event) => handleEvent('MouseScroll', `(${event.deltaX},${event.deltaY})`));
+        // Listen for resize events to detect window maximize
+        window.addEventListener('resize', (event) => {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const screenWidth = screen.width;
+            const screenHeight = screen.height;
+
+            // If window size matches screen size, it's maximized
+            if (windowWidth === screenWidth && windowHeight === screenHeight) {
+                handleEvent('BrowserMaximized', event);
+            }
+        });
+
+
+        // Check if the window is maximized on page load
+        checkIfMaximized();
 
         // Handle form submission
         document.getElementById('textForm').addEventListener('submit', (event) => {
