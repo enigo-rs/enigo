@@ -62,7 +62,7 @@
         window.addEventListener('resize', (event) => {
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
-            handleEvent('BrowserMaximized', `(${windowWidth},${windowHeight})`);
+            handleEvent('BrowserResized', `(${windowWidth},${windowHeight})`);
         });
         // Handle form submission
         document.getElementById('textForm').addEventListener('submit', (event) => {
