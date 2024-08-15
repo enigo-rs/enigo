@@ -1,4 +1,4 @@
-// Launch Firefox
+// Launch Firefox in kiosk mode (full screen and can't be closed with F11)
 //
 // n.b. static items do not call [`Drop`] on program termination, so this won't
 // be deallocated. this is fine, as the OS can deallocate the terminated program
