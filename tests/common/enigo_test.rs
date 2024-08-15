@@ -49,7 +49,7 @@ impl EnigoTest {
         };
 
         // Wait for full screen animation
-        std::thread::sleep(std::time::Duration::from_millis(3000));
+        std::thread::sleep(std::time::Duration::from_secs(10));
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
