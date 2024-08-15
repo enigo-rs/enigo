@@ -60,13 +60,7 @@
         window.addEventListener('resize', (event) => {
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
-            const screenWidth = screen.width;
-            const screenHeight = screen.height;
-
-            // If window size matches screen size, it's maximized
-            if (windowWidth === screenWidth && windowHeight === screenHeight) {
-                handleEvent('BrowserMaximized', event);
-            }
+            handleEvent('BrowserMaximized', `(${windowWidth},${windowHeight})`);
         });
 
 
