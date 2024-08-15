@@ -44,8 +44,6 @@ impl EnigoTest {
             //  self.key(Key::Control, Release).unwrap();
         } else {
             self.key(Key::F11, Click).unwrap();
-            self.move_mouse(200, 200, Abs).unwrap();
-            self.button(Button::Left, Click).unwrap();
         };
         println!("Attempt to maximize the browser");
         if let BrowserEvent::BrowserResized(x, y) = self.read_message() {
@@ -53,6 +51,8 @@ impl EnigoTest {
         } else {
             println!("Failed to maximize the browser");
         };
+        self.move_mouse(200, 200, Abs).unwrap();
+        self.button(Button::Left, Click).unwrap();
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {

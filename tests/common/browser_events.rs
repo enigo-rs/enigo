@@ -56,8 +56,7 @@ impl TryFrom<Message> for BrowserEvent {
 fn deserialize_browser_events() {
     let messages = vec![
         (
-            Message::Text
-            ("BrowserResized(1920, 960)".to_string()),
+            Message::Text("BrowserResized(1920, 960)".to_string()),
             BrowserEvent::BrowserResized(1920, 960),
         ),
         (

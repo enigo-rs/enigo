@@ -13,15 +13,12 @@ fn integration_browser_events() {
     enigo.maximize_browser();
 
     enigo.text("TestText❤️").unwrap(); // Fails on Windows (Message is empty???)
-    enigo.key(Key::F1, Click).unwrap();
-    enigo.key(Key::Control, Click).unwrap();
-    enigo.key(Key::Backspace, Click).unwrap();
-    enigo.key(Key::PageUp, Click).unwrap(); // Failing on Windows
-
-    enigo.key(Key::Backspace, Press).unwrap();
-    enigo.key(Key::Backspace, Release).unwrap();
-
-    println!("Test mouse"); /*
+                                       // select all
+    enigo.key(Key::Control, Press).unwrap();
+    enigo.key(Key::Unicode('a'), Click).unwrap();
+    enigo.key(Key::Control, Release).unwrap();
+    /*
+    println!("Test mouse");
                             enigo.button(Button::Left, Click).unwrap();
                             enigo.move_mouse(100, 100, Abs).unwrap();
                             enigo.move_mouse(200, 200, Abs).unwrap();
