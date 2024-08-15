@@ -14,9 +14,9 @@ pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
         let child = if cfg!(target_os = "windows") {
             // On Windows, use cmd.exe to run the "start" command
             std::process::Command::new("cmd")
-                .args(["/C", "start", "firefox", &url])
+                .args(["/C", "start", "chrome", &url])
                 .spawn()
-                .expect("Failed to start Firefox on Windows")
+                .expect("Failed to start Chrome on Windows")
         } else if cfg!(target_os = "macos") {
             // On macOS, use the "open" command to run Safari (Firefox is not preinstalled)
             std::process::Command::new("open")
@@ -25,10 +25,10 @@ pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
                 .expect("Failed to start Safari on macOS")
         } else {
             // On Linux, use the "firefox" command
-            std::process::Command::new("firefox")
+            std::process::Command::new("chromium-browser")
                 .arg(&url)
                 .spawn()
-                .expect("Failed to start Firefox on Linux")
+                .expect("Failed to start Chromium on Linux")
         };
         Some(child)
     });
