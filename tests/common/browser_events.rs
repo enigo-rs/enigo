@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use tungstenite::Message;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+
 pub enum BrowserEvent {
+    ReadyForText,
     Text(String),
     KeyDown(String),
     KeyUp(String),

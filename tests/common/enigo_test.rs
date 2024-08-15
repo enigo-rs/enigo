@@ -99,7 +99,11 @@ impl Keyboard for EnigoTest {
     // This does not work for all text or the library does not work properly
     fn fast_text(&mut self, text: &str) -> enigo::InputResult<Option<()>> {
         self.send_message("ClearText");
-        std::thread::sleep(std::time::Duration::from_millis(100)); // Wait for the browser to focus on the text input
+        if let BrowserEvent::ReadyForText = self.read_message() {
+            println!("Ready for the text");
+        } else {
+            panic!("Failed to get ready for the text");
+        };
         let res = self.enigo.text(text);
         std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
         self.send_message("GetText");
