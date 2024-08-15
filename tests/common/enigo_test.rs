@@ -47,7 +47,6 @@ impl EnigoTest {
             self.move_mouse(200, 200, Abs).unwrap();
             self.button(Button::Left, Click).unwrap();
         };
-
         println!("Attempt to maximize the browser");
         if let BrowserEvent::BrowserResized(x, y) = self.read_message() {
             println!("Browser window: {x},{y}");
