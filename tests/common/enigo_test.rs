@@ -34,27 +34,6 @@ impl EnigoTest {
         Self { enigo, websocket }
     }
 
-    // Maximize Firefox by pressing keys or moving the mouse
-    pub fn maximize_browser(&mut self) {
-        if cfg!(target_os = "macos") {
-            //  self.key(Key::Control, Press).unwrap();
-            //  self.key(Key::Meta, Press).unwrap();
-            self.key(Key::Unicode('f'), Click).unwrap();
-            //  self.key(Key::Meta, Release).unwrap();
-            //  self.key(Key::Control, Release).unwrap();
-        } else {
-            self.key(Key::F11, Click).unwrap();
-        };
-        println!("Attempt to maximize the browser");
-        if let BrowserEvent::BrowserResized(x, y) = self.read_message() {
-            println!("Browser window: {x},{y}");
-        } else {
-            println!("Failed to maximize the browser");
-        };
-        self.move_mouse(200, 200, Abs).unwrap();
-        self.button(Button::Left, Click).unwrap();
-    }
-
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
         let listener = TcpListener::bind("127.0.0.1:26541").unwrap();
         println!("TcpListener was created");

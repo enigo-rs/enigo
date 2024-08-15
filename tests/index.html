@@ -10,30 +10,34 @@
 
 <body>
     <h1>Conducted tests</h1>
-    <form action="/action_page.php">
-        <input type="checkbox" id="KeyDown" name="KeyDown">
-        <label for="KeyDown"> KeyDown</label><br>
-        <input type="checkbox" id="KeyUp" name="KeyUp">
-        <label for="KeyUp"> KeyUp</label><br>
-        <input type="checkbox" id="MouseDown" name="MouseDown">
-        <label for="MouseDown"> MouseDown</label><br>
-        <input type="checkbox" id="MouseUp" name="MouseUp">
-        <label for="MouseUp"> MouseUp</label><br>
-        <input type="checkbox" id="MouseMove" name="MouseMove">
-        <label for="MouseMove"> MouseMove</label><br>
-        <input type="checkbox" id="MouseScroll" name="MouseScroll">
-        <label for="MouseScroll"> MouseScroll</label><br>
-        <input type="checkbox" id="BrowserMaximized" name="BrowserMaximized">
-        <label for="BrowserMaximized"> BrowserMaximized</label><br>
-    </form>
-    <form id="textForm">
-        <label for="text">Enter text:</label><br>
-        <textarea id="text" name="text" rows="20" cols="50"></textarea><br>
-        <button type="submit">Submit</button>
-    </form>
+    <input type="checkbox" id="KeyDown" name="KeyDown">
+    <label for="KeyDown"> KeyDown</label><br>
+    <input type="checkbox" id="KeyUp" name="KeyUp">
+    <label for="KeyUp"> KeyUp</label><br>
+    <input type="checkbox" id="MouseDown" name="MouseDown">
+    <label for="MouseDown"> MouseDown</label><br>
+    <input type="checkbox" id="MouseUp" name="MouseUp">
+    <label for="MouseUp"> MouseUp</label><br>
+    <input type="checkbox" id="MouseMove" name="MouseMove">
+    <label for="MouseMove"> MouseMove</label><br>
+    <input type="checkbox" id="MouseScroll" name="MouseScroll">
+    <label for="MouseScroll"> MouseScroll</label><br>
+    <textarea id="text" name="text" rows="20" cols="50"></textarea><br>
 
-    <p id="output1">Test did not start. Do you have JavaScript enabled?</p>
     <script>
+        // Focus on the textarea when the page loads
+        window.onload = () => {
+            textArea.focus();
+        };
+
+        // Prevent other elements from gaining focus
+        document.addEventListener('focusin', (event) => {
+            if (event.target !== textArea) {
+                event.preventDefault();
+                textArea.focus();
+            }
+        });
+
         const ws = new WebSocket('ws://localhost:26541');
 
         // Helper function to handle events
@@ -44,38 +48,14 @@
             ws.send(message);
         };
 
-        document.addEventListener('open', (event) => {
-            handleEvent('Open', event);
-            document.getElementById('output1').innerHTML = 'Test was started. Do not close the page.';
-        });
-        document.addEventListener('close', (event) => {
-            handleEvent('Close', event);
-            document.getElementById('output1').innerHTML = 'Test concluded. Close this page.';
-        });
+        document.addEventListener('open', (event) => handleEvent('Open', event));
+        document.addEventListener('close', (event) => handleEvent('Close', event));
         document.addEventListener('keydown', (event) => handleEvent('KeyDown', `(\"${event.key}\")`));
         document.addEventListener('keyup', (event) => handleEvent('KeyUp', `(\"${event.key}\")`));
         document.addEventListener('mousedown', (event) => handleEvent('MouseDown', `(${event.button})`));
         document.addEventListener('mouseup', (event) => handleEvent('MouseUp', `(${event.button})`));
         document.addEventListener('mousemove', (event) => handleEvent('MouseMove', `((${event.movementX},${event.movementY}),(${event.screenX},${event.screenY}))`));
         document.addEventListener('wheel', (event) => handleEvent('MouseScroll', `(${event.deltaX},${event.deltaY})`));
-        // Listen for resize events to detect window maximize
-        window.addEventListener('resize', (event) => {
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
-            handleEvent('BrowserResized', `(${windowWidth},${windowHeight})`);
-        });
-        // Handle form submission
-        document.getElementById('textForm').addEventListener('submit', (event) => {
-            event.preventDefault();  // Prevent the form from submitting the traditional way
-
-            const text = document.getElementById('text').value;
-
-            // Send the input text via WebSocket
-            ws.send(`Text(${text})`);
-
-            // Clear the input field
-            document.getElementById('text').value = '';
-        });
 
         // Handle incoming WebSocket messages
         ws.addEventListener('message', (event) => {
@@ -97,9 +77,6 @@
                 ws.send(`Text(\"${text}\")`);
             }
         });
-
-
-
     </script>
 </body>
 
