@@ -15,7 +15,7 @@ env:
 
 jobs:
   test:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Only run if the build succeeded
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}  # Only run if the build succeeded
     strategy:
       fail-fast: false
       matrix:
@@ -60,6 +60,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # If manually triggered, use the current commit (GITHUB_SHA), otherwise use the head_sha from the Build workflow
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: ./.github/actions/install_deps
       - uses: dtolnay/rust-toolchain@master
         with:
