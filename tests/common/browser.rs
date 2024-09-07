@@ -20,7 +20,7 @@ pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
         } else if cfg!(target_os = "macos") {
             // On macOS, use the "open" command to run Firefox
             std::process::Command::new("open")
-                .args(["-a", "Firefox", &url])
+                .args(["-a", "Firefox","--args", "--kiosk", &url])
                 .spawn()
                 .expect("Failed to start Firefox on macOS")
         } else {
