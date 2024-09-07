@@ -10,7 +10,7 @@ use common::enigo_test::EnigoTest as Enigo;
 fn integration_browser_events() {
     let mut enigo = Enigo::new(&Settings::default());
 
-    enigo.maximize_browser();
+    // enigo.maximize_browser();
 
     enigo.text("TestText❤️").unwrap(); // Fails on Windows (Message is empty???)
     enigo.key(Key::F1, Click).unwrap();

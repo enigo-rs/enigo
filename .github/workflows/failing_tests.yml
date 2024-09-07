@@ -73,6 +73,10 @@ jobs:
         if: runner.os == 'Linux' # This step is only needed on Linux. The other OSs don't need to be set up
         uses: ./.github/actions/headless_display
 
+      - name: Install Firefox on macOS
+        if: runner.os == 'macOS'
+        run: brew install --cask firefox
+
       - name: Run the ignored unit tests
         run: cargo test unit --no-default-features --features ${{ matrix.features }} -- --ignored --test-threads=1 --nocapture
       
