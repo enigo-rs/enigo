@@ -3,6 +3,7 @@ use tungstenite::Message;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BrowserEvent {
+    ReadyForText,
     Text(String),
     KeyDown(String),
     KeyUp(String),
@@ -52,6 +53,10 @@ impl TryFrom<Message> for BrowserEvent {
 #[test]
 fn deserialize_browser_events() {
     let messages = vec![
+        (
+            Message::Text("ReadyForText".to_string()),
+            BrowserEvent::ReadyForText,
+        ),
         (
             Message::Text("Text(\"Testing\")".to_string()),
             BrowserEvent::Text("Testing".to_string()),
