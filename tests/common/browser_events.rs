@@ -52,7 +52,7 @@ impl TryFrom<Message> for BrowserEvent {
 
 #[test]
 fn deserialize_browser_events() {
-    let messages = vec![ 
+    let messages = vec![
         (
             Message::Text("ReadyForText".to_string()),
             BrowserEvent::ReadyForText,
