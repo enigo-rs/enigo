@@ -4,6 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use core_foundation::base::TCFType;
+use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
 use core_graphics::{
     display::{CFIndex, CGDisplay, CGPoint},
     event::{
@@ -557,8 +559,15 @@ impl Enigo {
             mac_delay: delay,
             release_keys_when_dropped,
             event_source_user_data,
+            open_prompt_to_get_permissions,
             ..
         } = settings;
+
+        if !has_permission(*open_prompt_to_get_permissions) {
+            error!("The application does not have the permission to simulate input!");
+            return Err(NewConError::EstablishCon("the application does not have the permission to simulate input. You need to grant it in the settings"));
+        }
+        info!("The application has the permission to simulate input");
 
         let held = (Vec::new(), Vec::new());
 
@@ -884,6 +893,34 @@ fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
     }
 
     unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+}
+
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    pub fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
+    static kAXTrustedCheckOptionPrompt: core_foundation::string::CFStringRef;
+}
+
+/// Check if the currently running application has the permissions to simulate input
+///
+/// Returns true if the application has the permission and is allowed to simulate input
+pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
+    use core_foundation::string::CFString;
+
+    let key = unsafe { kAXTrustedCheckOptionPrompt };
+    let key = unsafe { CFString::wrap_under_create_rule(key) };
+
+    let value = if open_prompt_to_get_permissions {
+        debug!("Open the system prompt if the permissions are missing.");
+        core_foundation::boolean::CFBoolean::true_value()
+    } else {
+        debug!("Do not open the system prompt if the permissions are missing.");
+        core_foundation::boolean::CFBoolean::false_value()
+    };
+
+    let options = CFDictionary::from_CFType_pairs(&[(key, value)]);
+    let options = options.as_concrete_TypeRef();
+    unsafe { AXIsProcessTrustedWithOptions(options) }
 }
 
 impl Drop for Enigo {

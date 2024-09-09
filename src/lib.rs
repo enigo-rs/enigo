@@ -441,8 +441,10 @@ pub struct Settings {
     /// `EVENT_SOURCE_USER_DATA` field
     pub event_source_user_data: Option<i64>,
     /// Set this to true if you want all held keys to get released when Enigo
-    /// gets dropped
+    /// gets dropped. The default is true.
     pub release_keys_when_dropped: bool,
+    /// Open a prompt to ask the user for the permission to simulate input if they are missing. This only works on macOSss. The default is true.
+    pub open_prompt_to_get_permissions: bool,
 }
 
 impl Default for Settings {
@@ -456,6 +458,7 @@ impl Default for Settings {
             windows_dw_extra_info: None,
             event_source_user_data: None,
             release_keys_when_dropped: true,
+            open_prompt_to_get_permissions: true,
         }
     }
 }
