@@ -408,7 +408,9 @@ impl Display for NewConError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let string = match self {
             NewConError::EstablishCon(e) => format!("no connection could be established: ({e})"),
-            NewConError::NoPermission => format!("the application does not have the permission to simulate input"),
+            NewConError::NoPermission => {
+                format!("the application does not have the permission to simulate input")
+            }
             NewConError::Reply => {
                 "there was an error with the reply from the display server. this should not happen"
                     .to_string()
