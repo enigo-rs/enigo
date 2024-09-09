@@ -5,8 +5,9 @@
 ## Added
 - all: `Key::PrintScr`
 - all: There finally are some tests in the CI to increase the development speed and prevent regressions
-- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
+- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `Enigo` struct (only available on Windows and macOS)
 - macOS: Fallback to ASCII-capable keyboard layout for handling non-standard input sources
+- macOS: Check if the application has the neccessary permissions. If they are missing, `enigo` will ask the user to grant them. You can change this default behavior with the `Settings` when constructing an `Enigo` struct.
 
 ## Fixed
 win: Respect the language of the current window to determine the which scancodes to send
@@ -18,7 +19,7 @@ win: Send the virtual key and its scan code in the events to work with programs 
 
 ## Added
 - all: Serialized tokens can be less verbose because serde aliases were added
-- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `enigo` struct (only available on Windows and macOS)
+- win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `Enigo` struct (only available on Windows and macOS)
 - all: The enums `Button`, `Direction`, `Axis` and `Coordinate` implement `Default`
 
 ## Fixed

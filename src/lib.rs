@@ -396,6 +396,8 @@ impl Error for InputError {}
 pub enum NewConError {
     /// Error while creating the connection
     EstablishCon(&'static str),
+    /// The application does not have the permission to simulate input
+    NoPermission,
     /// Error when receiving a reply
     Reply,
     /// The keymap is full, so there was no space to map any keycodes to keysyms
@@ -406,6 +408,9 @@ impl Display for NewConError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let string = match self {
             NewConError::EstablishCon(e) => format!("no connection could be established: ({e})"),
+            NewConError::NoPermission => {
+                format!("the application does not have the permission to simulate input")
+            }
             NewConError::Reply => {
                 "there was an error with the reply from the display server. this should not happen"
                     .to_string()
@@ -441,8 +446,11 @@ pub struct Settings {
     /// `EVENT_SOURCE_USER_DATA` field
     pub event_source_user_data: Option<i64>,
     /// Set this to true if you want all held keys to get released when Enigo
-    /// gets dropped
+    /// gets dropped. The default is true.
     pub release_keys_when_dropped: bool,
+    /// Open a prompt to ask the user for the permission to simulate input if
+    /// they are missing. This only works on macOS. The default is true.
+    pub open_prompt_to_get_permissions: bool,
 }
 
 impl Default for Settings {
@@ -456,6 +464,7 @@ impl Default for Settings {
             windows_dw_extra_info: None,
             event_source_user_data: None,
             release_keys_when_dropped: true,
+            open_prompt_to_get_permissions: true,
         }
     }
 }
