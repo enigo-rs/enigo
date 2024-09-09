@@ -25,6 +25,8 @@
     <textarea id="text" name="text" rows="20" cols="50"></textarea><br>
 
     <script>
+        let ignoreKeyEvents = false; // Flag to ignore key events
+
         // Focus on the textarea when the page loads
         window.onload = () => {
             const textArea = document.getElementById('text');
@@ -52,8 +54,21 @@
 
         document.addEventListener('open', (event) => handleEvent('Open', event));
         document.addEventListener('close', (event) => handleEvent('Close', event));
-        document.addEventListener('keydown', (event) => handleEvent('KeyDown', `(\"${event.key}\")`));
-        document.addEventListener('keyup', (event) => handleEvent('KeyUp', `(\"${event.key}\")`));
+        
+        // Handle keydown events but ignore if flag is set
+        document.addEventListener('keydown', (event) => {
+            if (!ignoreKeyEvents) {
+                handleEvent('KeyDown', `(\"${event.key}\")`);
+            }
+        });
+
+        // Handle keyup events but ignore if flag is set
+        document.addEventListener('keyup', (event) => {
+            if (!ignoreKeyEvents) {
+                handleEvent('KeyUp', `(\"${event.key}\")`);
+            }
+        });
+
         document.addEventListener('mousedown', (event) => handleEvent('MouseDown', `(${event.button})`));
         document.addEventListener('mouseup', (event) => handleEvent('MouseUp', `(${event.button})`));
         document.addEventListener('mousemove', (event) => handleEvent('MouseMove', `((${event.movementX},${event.movementY}),(${event.screenX},${event.screenY}))`));
@@ -67,6 +82,8 @@
             if (event.data === 'ClearText') {
                 document.getElementById('text').value = '';
                 document.getElementById('text').focus();
+                // Set flag to ignore key events
+                ignoreKeyEvents = true;
                 // Send the input text via WebSocket
                 ws.send(`ReadyForText`);
             }
@@ -77,6 +94,9 @@
 
                 // Send the form's content via WebSocket
                 ws.send(`Text(\"${text}\")`);
+
+                // Reset flag after sending text, allowing key events again
+                ignoreKeyEvents = false;
             }
         });
     </script>
