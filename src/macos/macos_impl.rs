@@ -13,9 +13,10 @@ use core_graphics::{
     event_source::{CGEventSource, CGEventSourceStateID},
 };
 use foreign_types_shared::ForeignTypeRef as _;
-use icrate::{AppKit, AppKit::NSEvent, Foundation::NSPoint};
 use log::{debug, error, info};
 use objc2::msg_send;
+use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
+use objc2_foundation::NSPoint;
 
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
@@ -226,7 +227,7 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let pressed = unsafe { AppKit::NSEvent::pressedMouseButtons() };
+        let pressed = unsafe { NSEvent::pressedMouseButtons() };
         let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
@@ -309,7 +310,7 @@ impl Mouse for Enigo {
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        let pt = unsafe { AppKit::NSEvent::mouseLocation() };
+        let pt = unsafe { NSEvent::mouseLocation() };
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
         Ok((x, self.display.pixels_high() as i32 - y_inv))
     }
@@ -562,7 +563,7 @@ impl Enigo {
         let held = (Vec::new(), Vec::new());
 
         let double_click_delay = Duration::from_secs(1);
-        let double_click_delay_setting = unsafe { AppKit::NSEvent::doubleClickInterval() };
+        let double_click_delay_setting = unsafe { NSEvent::doubleClickInterval() };
         // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
         let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
 
@@ -630,12 +631,14 @@ impl Enigo {
     }
 
     fn special_keys(&self, code: isize, direction: Direction) -> InputResult<()> {
+        let flags = NSEventModifierFlags::NSEventModifierFlagCapsLock
+            .union(NSEventModifierFlags::NSEventModifierFlagOption);
         if direction == Direction::Press || direction == Direction::Click {
             let event = unsafe {
-                AppKit::NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
-                AppKit::NSEventTypeSystemDefined, // 14
+                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+                NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
-                0xa00, // NSEventModifierFlagCapsLock and NSEventModifierFlagOption
+                flags,
                 0.0,
                 0,
                 None,
@@ -660,11 +663,12 @@ impl Enigo {
         }
 
         if direction == Direction::Release || direction == Direction::Click {
+            let flags = flags.union(NSEventModifierFlags::NSEventModifierFlagShift);
             let event = unsafe {
-                AppKit::NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
-                AppKit::NSEventTypeSystemDefined, // 14
+                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+                    NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
-                0xb00, // NSEventModifierFlagCapsLock, NSEventModifierFlagOptionNSEventModifier and FlagShift
+                flags,
                 0.0,
                 0,
                 None,
@@ -822,7 +826,7 @@ fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
 fn keycode_to_string(keycode: u16, modifier: u32) -> Option<String> {
     let cf_string = create_string_for_key(keycode, modifier);
     let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
-    let mut buffer: i8 = std::i8::MAX;
+    let mut buffer: i8 = i8::MAX;
     let success =
         unsafe { CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8) };
     if success == TRUE as u8 {
