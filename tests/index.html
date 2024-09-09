@@ -27,11 +27,13 @@
     <script>
         // Focus on the textarea when the page loads
         window.onload = () => {
+            const textArea = document.getElementById('text');
             textArea.focus();
         };
 
         // Prevent other elements from gaining focus
         document.addEventListener('focusin', (event) => {
+            const textArea = document.getElementById('text');
             if (event.target !== textArea) {
                 event.preventDefault();
                 textArea.focus();
