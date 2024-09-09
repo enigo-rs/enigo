@@ -91,11 +91,12 @@ impl Keyboard for EnigoTest {
         std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
         self.send_message("GetText");
 
-        if let BrowserEvent::Text(received_text) = self.read_message() {
+        let ev = self.read_message();
+        if let BrowserEvent::Text(received_text) = ev {
             println!("received text: {received_text}");
             assert_eq!(text, received_text);
         } else {
-            panic!("BrowserEvent was not a Text: {received_text:?}");
+            panic!("BrowserEvent was not a Text: {ev:?}");
         }
 
         res.map(Some) // TODO: Check if this is always correct
