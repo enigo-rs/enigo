@@ -4,10 +4,10 @@ permissions:
   contents: read
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Integration"]
-    types:
-      - completed
+  # workflow_run:
+  #   workflows: ["Integration"]
+  #   types:
+  #     - completed
 
 env:
   CARGO_TERM_COLOR: always
