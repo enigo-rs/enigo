@@ -565,7 +565,7 @@ impl Enigo {
 
         if !has_permission(*open_prompt_to_get_permissions) {
             error!("The application does not have the permission to simulate input!");
-            return Err(NewConError::EstablishCon("the application does not have the permission to simulate input. You need to grant it in the settings"));
+            return Err(NewConError::NoPermission);
         }
         info!("The application has the permission to simulate input");
 
@@ -901,9 +901,11 @@ extern "C" {
     static kAXTrustedCheckOptionPrompt: core_foundation::string::CFStringRef;
 }
 
-/// Check if the currently running application has the permissions to simulate input
+/// Check if the currently running application has the permissions to simulate
+/// input
 ///
-/// Returns true if the application has the permission and is allowed to simulate input
+/// Returns true if the application has the permission and is allowed to
+/// simulate input
 pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
     use core_foundation::string::CFString;
 

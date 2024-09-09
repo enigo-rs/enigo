@@ -396,6 +396,8 @@ impl Error for InputError {}
 pub enum NewConError {
     /// Error while creating the connection
     EstablishCon(&'static str),
+    /// The application does not have the permission to simulate input
+    NoPermission,
     /// Error when receiving a reply
     Reply,
     /// The keymap is full, so there was no space to map any keycodes to keysyms
@@ -443,7 +445,8 @@ pub struct Settings {
     /// Set this to true if you want all held keys to get released when Enigo
     /// gets dropped. The default is true.
     pub release_keys_when_dropped: bool,
-    /// Open a prompt to ask the user for the permission to simulate input if they are missing. This only works on macOSss. The default is true.
+    /// Open a prompt to ask the user for the permission to simulate input if
+    /// they are missing. This only works on macOS. The default is true.
     pub open_prompt_to_get_permissions: bool,
 }
 
