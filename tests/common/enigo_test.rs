@@ -3,8 +3,7 @@ use std::net::{TcpListener, TcpStream};
 use tungstenite::accept;
 
 use enigo::{
-    Axis, Button,
-    Coordinate::{self, Abs},
+    Axis, Coordinate,
     Direction::{self, Click, Press, Release},
     Enigo, Key, Keyboard, Mouse, Settings,
 };
