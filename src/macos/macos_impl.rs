@@ -14,8 +14,8 @@ use core_foundation::{
 use core_graphics::{
     display::{CGDisplay, CGPoint},
     event::{
-        CGEvent, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
-        KeyCode, ScrollEventUnit,
+        CGEvent, CGEventFlags, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode,
+        CGMouseButton, EventField, KeyCode, ScrollEventUnit,
     },
     event_source::{CGEventSource, CGEventSourceStateID},
 };
@@ -120,6 +120,7 @@ impl Mouse for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
+            event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
@@ -150,6 +151,7 @@ impl Mouse for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
+            event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
             event.post(CGEventTapLocation::HID);
         }
         Ok(())
@@ -199,6 +201,7 @@ impl Mouse for Enigo {
             EventField::EVENT_SOURCE_USER_DATA,
             self.event_source_user_data,
         );
+        event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -226,6 +229,7 @@ impl Mouse for Enigo {
             EventField::EVENT_SOURCE_USER_DATA,
             self.event_source_user_data,
         );
+        event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
