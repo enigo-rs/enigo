@@ -488,6 +488,7 @@ impl Enigo {
             release_keys_when_dropped,
             event_source_user_data,
             open_prompt_to_get_permissions,
+            independent_of_keyboard_state,
             ..
         } = settings;
 
@@ -504,8 +505,12 @@ impl Enigo {
         // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
         let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
 
-        let Ok(event_source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
-        else {
+        let event_source_state = if *independent_of_keyboard_state {
+            CGEventSourceStateID::Private
+        } else {
+            CGEventSourceStateID::CombinedSessionState
+        };
+        let Ok(event_source) = CGEventSource::new(event_source_state) else {
             return Err(NewConError::EstablishCon("failed creating event source"));
         };
 
