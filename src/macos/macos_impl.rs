@@ -1,13 +1,21 @@
-use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ulong, c_ushort, c_void};
+use core::panic;
+use std::os::raw::{c_uint, c_void};
 use std::{
     thread,
     time::{Duration, Instant},
 };
 
-use core_foundation::base::TCFType;
-use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
+use core_foundation::array::CFIndex; // TODO: Double check this (should be Int)
+use core_foundation::{
+    base::{kCFAllocatorDefault, OSStatus, TCFType, UInt16, UInt32, UInt8},
+    dictionary::{CFDictionary, CFDictionaryRef},
+    string::{
+        kCFStringEncodingUTF8, CFStringCreateWithCharacters, CFStringGetCString, CFStringGetLength,
+        CFStringRef, UniChar,
+    },
+};
 use core_graphics::{
-    display::{CFIndex, CGDisplay, CGPoint},
+    display::{CGDisplay, CGPoint},
     event::{
         CGEvent, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton, EventField,
         KeyCode, ScrollEventUnit,
@@ -31,59 +39,12 @@ type CFDataRef = *const c_void;
 struct __TISInputSource;
 type TISInputSourceRef = *const __TISInputSource;
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct __CFString([u8; 0]);
-type CFStringRef = *const __CFString;
-type Boolean = c_uchar;
-type UInt8 = c_uchar;
-type SInt32 = c_int;
-type UInt16 = c_ushort;
-type UInt32 = c_uint;
-type UniChar = UInt16;
-type UniCharCount = c_ulong;
-
 type OptionBits = UInt32;
-type OSStatus = SInt32;
-
-type CFStringEncoding = UInt32;
 
 const TRUE: c_uint = 1;
 
-#[allow(non_snake_case)]
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct UCKeyboardTypeHeader {
-    keyboardTypeFirst: UInt32,
-    keyboardTypeLast: UInt32,
-    keyModifiersToTableNumOffset: UInt32,
-    keyToCharTableIndexOffset: UInt32,
-    keyStateRecordsIndexOffset: UInt32,
-    keyStateTerminatorsOffset: UInt32,
-    keySequenceDataIndexOffset: UInt32,
-}
-
-#[allow(non_snake_case)]
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct UCKeyboardLayout {
-    keyLayoutHeaderFormat: UInt16,
-    keyLayoutDataVersion: UInt16,
-    keyLayoutFeatureInfoOffset: UInt32,
-    keyboardTypeCount: UInt32,
-    keyboardTypeList: [UCKeyboardTypeHeader; 1usize],
-}
-
 #[allow(non_upper_case_globals)]
 const kUCKeyTranslateNoDeadKeysBit: u32 = 0;
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct __CFAllocator([u8; 0]);
-type CFAllocatorRef = *const __CFAllocator;
-
-#[allow(non_upper_case_globals)]
-const kCFStringEncodingUTF8: u32 = 0x0800_0100;
 
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
@@ -113,33 +74,12 @@ extern "C" {
         keyboardType: UInt32,
         keyTranslateOptions: OptionBits,
         deadKeyState: *mut UInt32,
-        maxStringLength: UniCharCount,
-        actualStringLength: *mut UniCharCount,
+        maxStringLength: CFIndex,
+        actualStringLength: *mut CFIndex,
         unicodeString: *mut UniChar,
     ) -> OSStatus;
 
     fn LMGetKbdType() -> UInt8;
-
-    #[allow(non_snake_case)]
-    fn CFStringCreateWithCharacters(
-        alloc: CFAllocatorRef,
-        chars: *const UniChar,
-        numChars: CFIndex,
-    ) -> CFStringRef;
-
-    #[allow(non_upper_case_globals)]
-    static kCFAllocatorDefault: CFAllocatorRef;
-
-    #[allow(non_snake_case)]
-    fn CFStringGetLength(theString: CFStringRef) -> CFIndex;
-
-    #[allow(non_snake_case)]
-    fn CFStringGetCString(
-        theString: CFStringRef,
-        buffer: *mut c_char,
-        bufferSize: CFIndex,
-        encoding: CFStringEncoding,
-    ) -> Boolean;
 }
 
 /// The main struct for handling the event emitting
@@ -876,8 +816,8 @@ fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
     let mut keys_down: UInt32 = 0;
     // let mut chars: *mut c_void;//[UniChar; 4];
     let mut chars: u16 = 0;
-    let mut real_length: UniCharCount = 0;
-    unsafe {
+    let mut real_length = 0;
+    let status = unsafe {
         UCKeyTranslate(
             keyboard_layout,
             keycode,
@@ -889,7 +829,12 @@ fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
             8, // sizeof(chars) / sizeof(chars[0]),
             &mut real_length,
             &mut chars,
-        );
+        )
+    };
+
+    if status != 0 {
+        error!("UCKeyTranslate failed with status: {status}");
+        panic!("Jo"); // TODO: Don't panic
     }
 
     unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
