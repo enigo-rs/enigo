@@ -409,7 +409,7 @@ impl Display for NewConError {
         let string = match self {
             NewConError::EstablishCon(e) => format!("no connection could be established: ({e})"),
             NewConError::NoPermission => {
-                format!("the application does not have the permission to simulate input")
+                "the application does not have the permission to simulate input".to_string()
             }
             NewConError::Reply => {
                 "there was an error with the reply from the display server. this should not happen"
