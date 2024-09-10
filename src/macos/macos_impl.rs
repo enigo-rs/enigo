@@ -1,5 +1,4 @@
-use core::panic;
-use std::os::raw::{c_uint, c_void};
+use std::os::raw::c_void;
 use std::{
     thread,
     time::{Duration, Instant},
@@ -9,10 +8,7 @@ use core_foundation::array::CFIndex; // TODO: Double check this (should be Int)
 use core_foundation::{
     base::{kCFAllocatorDefault, OSStatus, TCFType, UInt16, UInt32, UInt8},
     dictionary::{CFDictionary, CFDictionaryRef},
-    string::{
-        kCFStringEncodingUTF8, CFStringCreateWithCharacters, CFStringGetCString, CFStringGetLength,
-        CFStringRef, UniChar,
-    },
+    string::{CFString, CFStringCreateWithCharacters, CFStringRef, UniChar},
 };
 use core_graphics::{
     display::{CGDisplay, CGPoint},
@@ -40,8 +36,6 @@ struct __TISInputSource;
 type TISInputSourceRef = *const __TISInputSource;
 
 type OptionBits = UInt32;
-
-const TRUE: c_uint = 1;
 
 #[allow(non_upper_case_globals)]
 const kUCKeyTranslateNoDeadKeysBit: u32 = 0;
@@ -773,21 +767,13 @@ fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
 }
 
 fn keycode_to_string(keycode: u16, modifier: u32) -> Option<String> {
-    let cf_string = create_string_for_key(keycode, modifier);
-    let buffer_size = unsafe { CFStringGetLength(cf_string) + 1 };
-    let mut buffer: i8 = i8::MAX;
-    let success =
-        unsafe { CFStringGetCString(cf_string, &mut buffer, buffer_size, kCFStringEncodingUTF8) };
-    if success == TRUE as u8 {
-        let rust_string = String::from_utf8(vec![buffer as u8]).unwrap();
-        Some(rust_string)
-    } else {
-        None
-    }
+    let cf_string_ref = create_string_for_key(keycode, modifier)?;
+    let cf_string = unsafe { CFString::wrap_under_create_rule(cf_string_ref) };
+    Some(cf_string.to_string())
 }
 
 #[allow(clippy::unused_self)]
-fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
+fn create_string_for_key(keycode: u16, modifier: u32) -> Option<CFStringRef> {
     let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
     let mut layout_data =
         unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
@@ -834,16 +820,16 @@ fn create_string_for_key(keycode: u16, modifier: u32) -> CFStringRef {
 
     if status != 0 {
         error!("UCKeyTranslate failed with status: {status}");
-        panic!("Jo"); // TODO: Don't panic
+        return None;
     }
 
-    unsafe { CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1) }
+    unsafe { Some(CFStringCreateWithCharacters(kCFAllocatorDefault, &chars, 1)) }
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     pub fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
-    static kAXTrustedCheckOptionPrompt: core_foundation::string::CFStringRef;
+    static kAXTrustedCheckOptionPrompt: CFStringRef;
 }
 
 /// Check if the currently running application has the permissions to simulate
@@ -852,8 +838,6 @@ extern "C" {
 /// Returns true if the application has the permission and is allowed to
 /// simulate input
 pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
-    use core_foundation::string::CFString;
-
     let key = unsafe { kAXTrustedCheckOptionPrompt };
     let key = unsafe { CFString::wrap_under_create_rule(key) };
 
