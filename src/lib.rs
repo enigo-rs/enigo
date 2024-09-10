@@ -451,6 +451,11 @@ pub struct Settings {
     /// Open a prompt to ask the user for the permission to simulate input if
     /// they are missing. This only works on macOS. The default is true.
     pub open_prompt_to_get_permissions: bool,
+    /// The simulated input is independent from the pressed keys on the
+    /// physical keyboard. This only works on macOS.
+    /// The default is true. If the Shift key for example is pressed,
+    /// following simulated input will not be capitalized.
+    pub independent_of_keyboard_state: bool,
 }
 
 impl Default for Settings {
@@ -465,6 +470,7 @@ impl Default for Settings {
             event_source_user_data: None,
             release_keys_when_dropped: true,
             open_prompt_to_get_permissions: true,
+            independent_of_keyboard_state: true,
         }
     }
 }

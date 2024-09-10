@@ -1,6 +1,7 @@
 # Unreleased
 ## Changed
 - all: The keys `Print` and `Snapshot` were deprecated because `Print` had the wrong virtual key associated with it on Windows. Use `Key::PrintScr` instead
+- macOS: The simulated input is no longer effected by the state of the physical keyboard. This default behavior can be changed via the Settings (`independent_of_keyboard_state`)
 
 ## Added
 - all: `Key::PrintScr`
