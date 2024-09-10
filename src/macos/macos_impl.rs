@@ -577,14 +577,12 @@ impl Enigo {
     }
 
     fn special_keys(&self, code: isize, direction: Direction) -> InputResult<()> {
-        let flags = NSEventModifierFlags::NSEventModifierFlagCapsLock
-            .union(NSEventModifierFlags::NSEventModifierFlagOption);
         if direction == Direction::Press || direction == Direction::Click {
             let event = unsafe {
                 NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
                 NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
-                flags,
+                NSEventModifierFlags::empty(),
                 0.0,
                 0,
                 None,
@@ -609,12 +607,11 @@ impl Enigo {
         }
 
         if direction == Direction::Release || direction == Direction::Click {
-            let flags = flags.union(NSEventModifierFlags::NSEventModifierFlagShift);
             let event = unsafe {
                 NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
                     NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
-                flags,
+                NSEventModifierFlags::empty(),
                 0.0,
                 0,
                 None,
