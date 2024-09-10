@@ -11,8 +11,9 @@
 - macOS: Check if the application has the neccessary permissions. If they are missing, `enigo` will ask the user to grant them. You can change this default behavior with the `Settings` when constructing an `Enigo` struct.
 
 ## Fixed
-win: Respect the language of the current window to determine the which scancodes to send
-win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
+- win: Respect the language of the current window to determine the which scancodes to send
+- win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
+- macOS: Moving the mouse no longer breaks simulating input
 
 # 0.2.1
 ## Changed
