@@ -72,12 +72,12 @@ extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    delay: u64,
     event_source: CGEventSource,
     display: CGDisplay,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     event_source_user_data: i64,
     release_keys_when_dropped: bool,
+    event_flags: CGEventFlags,
     double_click_delay: Duration,
     // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
@@ -120,7 +120,7 @@ impl Mouse for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
-            event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
+            event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
         }
         if direction == Direction::Click || direction == Direction::Release {
@@ -151,7 +151,7 @@ impl Mouse for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
-            event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
+            event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
         }
         Ok(())
@@ -201,7 +201,7 @@ impl Mouse for Enigo {
             EventField::EVENT_SOURCE_USER_DATA,
             self.event_source_user_data,
         );
-        event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
+        event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -229,7 +229,7 @@ impl Mouse for Enigo {
             EventField::EVENT_SOURCE_USER_DATA,
             self.event_source_user_data,
         );
-        event.set_flags(CGEventFlags::CGEventFlagNonCoalesced);
+        event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -310,9 +310,10 @@ impl Keyboard for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
+            // We want to ignore all modifiers when entering text
+            event.set_flags(CGEventFlags::CGEventFlagNull);
             event.post(CGEventTapLocation::HID);
         }
-        thread::sleep(Duration::from_millis(2));
         Ok(Some(()))
     }
 
@@ -432,7 +433,6 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
         if direction == Direction::Click || direction == Direction::Press {
-            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
             else {
                 return Err(InputError::Simulate(
@@ -444,11 +444,12 @@ impl Keyboard for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
+            self.add_event_flag(keycode, Direction::Press);
+            event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
         }
 
         if direction == Direction::Click || direction == Direction::Release {
-            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
             else {
                 return Err(InputError::Simulate(
@@ -460,6 +461,8 @@ impl Keyboard for Enigo {
                 EventField::EVENT_SOURCE_USER_DATA,
                 self.event_source_user_data,
             );
+            self.add_event_flag(keycode, Direction::Release);
+            event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
         }
 
@@ -488,7 +491,6 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &Settings) -> Result<Self, NewConError> {
         let Settings {
-            mac_delay: delay,
             release_keys_when_dropped,
             event_source_user_data,
             open_prompt_to_get_permissions,
@@ -503,6 +505,10 @@ impl Enigo {
         info!("The application has the permission to simulate input");
 
         let held = (Vec::new(), Vec::new());
+
+        let mut event_flags = CGEventFlags::CGEventFlagNonCoalesced;
+        event_flags.set(CGEventFlags::from_bits_retain(0x2000_0000), true); // I don't know if this is needed or what this flag does. Correct events have it
+                                                                            // set so we also do it (until we know it is wrong)
 
         let double_click_delay = Duration::from_secs(1);
         let double_click_delay_setting = unsafe { NSEvent::doubleClickInterval() };
@@ -521,27 +527,15 @@ impl Enigo {
         debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
         Ok(Enigo {
-            delay: (*delay).into(),
             event_source,
             display: CGDisplay::main(),
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
+            event_flags,
             double_click_delay,
             last_mouse_click: [(0, Instant::now()); 7],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
-    }
-
-    /// Get the delay per keypress in milliseconds
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)] // It never panics
-    pub fn delay(&self) -> u32 {
-        self.delay.try_into().unwrap_or(u32::MAX)
-    }
-
-    /// Set the delay per keypress in milliseconds
-    pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay.into();
     }
 
     /// Returns a list of all currently pressed keys
@@ -598,6 +592,7 @@ impl Enigo {
                     EventField::EVENT_SOURCE_USER_DATA,
                     self.event_source_user_data,
                 );
+                cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
             } else {
                 return Err(InputError::Simulate(
@@ -627,6 +622,7 @@ impl Enigo {
                     EventField::EVENT_SOURCE_USER_DATA,
                     self.event_source_user_data,
                 );
+                cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
             } else {
                 return Err(InputError::Simulate(
@@ -641,6 +637,229 @@ impl Enigo {
     unsafe fn ns_event_cg_event(event: &NSEvent) -> &CGEventRef {
         let ptr: *mut c_void = unsafe { msg_send![event, CGEvent] };
         unsafe { CGEventRef::from_ptr(ptr.cast()) }
+    }
+
+    // TODO: Remove this once the values for KeyCode were upstreamed: https://github.com/servo/core-foundation-rs/pull/712
+    #[allow(clippy::match_same_arms)]
+    #[allow(clippy::too_many_lines)]
+    /// Adds or removes `KeyFlags` as needed by the keycode
+    ///
+    /// This function can never get called with `Direction::Click`!
+    fn add_event_flag(&mut self, keycode: CGKeyCode, direction: Direction) {
+        // Upstream these to https://github.com/servo/core-foundation-rs
+        const NX_DEVICELCTLKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0001);
+        const NX_DEVICELSHIFTKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0002);
+        const NX_DEVICERSHIFTKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0004);
+        const NX_DEVICELCMDKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0008);
+        const NX_DEVICERCMDKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0010);
+        const NX_DEVICELALTKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0020);
+        const NX_DEVICERALTKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_0040);
+        const NX_DEVICE_ALPHASHIFT_STATELESS_MASK: CGEventFlags =
+            CGEventFlags::from_bits_retain(0x0000_0080);
+        const NX_DEVICERCTLKEYMASK: CGEventFlags = CGEventFlags::from_bits_retain(0x0000_2000);
+
+        type FlagOp = fn(&mut CGEventFlags, CGEventFlags);
+
+        fn no_op(_: &mut CGEventFlags, _: CGEventFlags) {}
+
+        // These flags have been determined by entering all keys with the previous
+        // implementation that does not set the flags manually and checking the
+        // resulting flags in their events. Some of the keys set the EventFlag even when
+        // they are released. It's a bit weird, but for now we just copy the behavior
+        // here
+        let (press_fn, release_fn, event_flag): (FlagOp, FlagOp, CGEventFlags) = match keycode {
+            KeyCode::RIGHT_COMMAND => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagCommand | NX_DEVICERCMDKEYMASK,
+            ),
+            KeyCode::COMMAND => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagCommand | NX_DEVICELCMDKEYMASK,
+            ),
+            KeyCode::SHIFT => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagShift | NX_DEVICELSHIFTKEYMASK,
+            ),
+            KeyCode::CAPS_LOCK => (
+                CGEventFlags::toggle,
+                no_op,
+                CGEventFlags::CGEventFlagAlphaShift | NX_DEVICE_ALPHASHIFT_STATELESS_MASK, /* TODO: The NX_DEVICE_ALPHASHIFT_STATELESS_MASK did not get set when simulating CapsLock with the old implementation, but I'll go out on a limb and set it anyway. */
+            ),
+            KeyCode::OPTION => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagAlternate | NX_DEVICELALTKEYMASK,
+            ),
+            KeyCode::CONTROL => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagControl | NX_DEVICELCTLKEYMASK,
+            ),
+            KeyCode::RIGHT_SHIFT => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagShift | NX_DEVICERSHIFTKEYMASK,
+            ),
+            KeyCode::RIGHT_OPTION => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagAlternate | NX_DEVICERALTKEYMASK,
+            ),
+            KeyCode::RIGHT_CONTROL => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagControl | NX_DEVICERCTLKEYMASK,
+            ),
+            KeyCode::FUNCTION => (
+                CGEventFlags::insert,
+                CGEventFlags::remove,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            KeyCode::F17 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x41 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x43 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x45 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x47 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x4b => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x4c => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x4e => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x4f => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x50 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x51..=0x59 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x5b..=0x5c => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x60..=0x65 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x67 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x69..=0x6b => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x6d => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x6f => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x71 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x72 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagHelp,
+            ),
+            0x73..0x7b => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x7b..0x7f => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagNumericPad,
+            ),
+            0x81..0x84 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x90 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0x91 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0xa0 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            0xb0..0xb3 => (
+                CGEventFlags::insert,
+                CGEventFlags::insert,
+                CGEventFlags::CGEventFlagSecondaryFn,
+            ),
+            _ => (no_op, no_op, CGEventFlags::CGEventFlagNull),
+        };
+
+        let flag_fn = match direction {
+            Direction::Click => {
+                unreachable!("The function should never get called with Direction::Click. If it was, it's an implementation error");
+            }
+            Direction::Press => press_fn,
+            Direction::Release => release_fn,
+        };
+
+        flag_fn(&mut self.event_flags, event_flag);
     }
 }
 
@@ -870,5 +1089,12 @@ impl Drop for Enigo {
             };
         }
         debug!("released all held keys");
+        // DO NOT REMOVE THE SLEEP
+        // This sleep is needed because all events that have not been
+        // processed until this point would just get ignored when the
+        // struct is dropped
+        // TODO: Reduce the sleep, calculate how long the sleep should
+        // be or somehow check if all events have been handled
+        thread::sleep(Duration::from_secs(2));
     }
 }
