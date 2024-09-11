@@ -72,7 +72,6 @@ extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    delay: u64,
     event_source: CGEventSource,
     display: CGDisplay,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
@@ -312,7 +311,6 @@ impl Keyboard for Enigo {
             );
             event.post(CGEventTapLocation::HID);
         }
-        thread::sleep(Duration::from_millis(2));
         Ok(Some(()))
     }
 
@@ -432,7 +430,6 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
         if direction == Direction::Click || direction == Direction::Press {
-            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
             else {
                 return Err(InputError::Simulate(
@@ -448,7 +445,6 @@ impl Keyboard for Enigo {
         }
 
         if direction == Direction::Click || direction == Direction::Release {
-            thread::sleep(Duration::from_millis(self.delay));
             let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
             else {
                 return Err(InputError::Simulate(
@@ -488,7 +484,6 @@ impl Enigo {
     /// conditions an error will be returned.
     pub fn new(settings: &Settings) -> Result<Self, NewConError> {
         let Settings {
-            mac_delay: delay,
             release_keys_when_dropped,
             event_source_user_data,
             open_prompt_to_get_permissions,
@@ -521,7 +516,6 @@ impl Enigo {
         debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
         Ok(Enigo {
-            delay: (*delay).into(),
             event_source,
             display: CGDisplay::main(),
             held,
@@ -530,18 +524,6 @@ impl Enigo {
             last_mouse_click: [(0, Instant::now()); 7],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
-    }
-
-    /// Get the delay per keypress in milliseconds
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)] // It never panics
-    pub fn delay(&self) -> u32 {
-        self.delay.try_into().unwrap_or(u32::MAX)
-    }
-
-    /// Set the delay per keypress in milliseconds
-    pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay.into();
     }
 
     /// Returns a list of all currently pressed keys
@@ -870,5 +852,12 @@ impl Drop for Enigo {
             };
         }
         debug!("released all held keys");
+        // DO NOT REMOVE THE SLEEP
+        // This sleep is needed because all events that have not been
+        // processed until this point would just get ignored when the
+        // struct is dropped
+        // TODO: Reduce the sleep, calculate how long the sleep should
+        // be or somehow check if all events have been handled
+        thread::sleep(Duration::from_secs(2));
     }
 }
