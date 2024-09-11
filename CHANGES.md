@@ -4,21 +4,25 @@
 - macOS: The simulated input is no longer effected by the state of the physical keyboard. This default behavior can be changed via the Settings (`independent_of_keyboard_state`)
 - macOS: Do not coalesce mouse events to allow precise control
 - win: Fallback to entering a `Key::Unicode` as unicode if there is no key with that character
+- macOS: Removed setting and functions related to the delay on macOS because a sleep is no longer necessary
 
 ## Added
 - all: `Key::PrintScr`
 - all: There finally are some tests in the CI to increase the development speed and prevent regressions
 - win, macOS: Allow marking events that were created by enigo. Have a look at the additional field of the `Settings` struct and the new method `get_marker_value` of the `Enigo` struct (only available on Windows and macOS)
 - macOS: Fallback to ASCII-capable keyboard layout for handling non-standard input sources
-- macOS: Check if the application has the neccessary permissions. If they are missing, `enigo` will ask the user to grant them. You can change this default behavior with the `Settings` when constructing an `Enigo` struct.
+- macOS: Check if the application has the necessary permissions. If they are missing, `enigo` will ask the user to grant them. You can change this default behavior with the `Settings` when constructing an `Enigo` struct.
 - all: Added `Token::Location` and `Token::MainDisplay` mostly for debugging purposes. They allow you to check if your expectations are correct
 
 ## Fixed
+- macOS: No more sleeps!! (Only when the `Enigo` struct is dropped) ([#105](https://github.com/enigo-rs/enigo/issues/105))
 - win: Respect the language of the current window to determine which scancodes to send
 - win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 - macOS: Moving the mouse no longer breaks simulating input
 - win: Fix being unable to enter text containing multiple newline chars
 - macOS: Switched keycodes of `Key::Launchpad` and `Key::MissionControl`
+- macOS: `CapsLock` works ([#163](https://github.com/enigo-rs/enigo/issues/163))
+- macOS: Moving the mouse works also if it is the only function ([#182](https://github.com/enigo-rs/enigo/issues/182))
 
 # 0.2.1
 ## Changed
