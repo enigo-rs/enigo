@@ -153,13 +153,19 @@ impl fmt::Debug for Enigo {
 pub enum Direction {
     #[cfg_attr(feature = "serde", serde(alias = "P"))]
     #[cfg_attr(feature = "serde", serde(alias = "p"))]
+    #[cfg_attr(feature = "serde", serde(alias = "Pressed"))]
+    #[cfg_attr(feature = "serde", serde(alias = "pressed"))]
     Press,
     #[cfg_attr(feature = "serde", serde(alias = "R"))]
     #[cfg_attr(feature = "serde", serde(alias = "r"))]
+    #[cfg_attr(feature = "serde", serde(alias = "Released"))]
+    #[cfg_attr(feature = "serde", serde(alias = "released"))]
     Release,
     /// Equivalent to a press followed by a release
     #[cfg_attr(feature = "serde", serde(alias = "C"))]
     #[cfg_attr(feature = "serde", serde(alias = "c"))]
+    #[cfg_attr(feature = "serde", serde(alias = "Clicked"))]
+    #[cfg_attr(feature = "serde", serde(alias = "clicked"))]
     #[default]
     Click,
 }
