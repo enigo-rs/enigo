@@ -1,5 +1,6 @@
 use crate::{Axis, Button, Coordinate, Direction, Enigo, InputResult, Key, Keyboard, Mouse};
 
+use log::error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +47,18 @@ pub enum Token {
     #[cfg_attr(feature = "serde", serde(alias = "S"))]
     #[cfg_attr(feature = "serde", serde(alias = "s"))]
     Scroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
+    /// Call the [`Mouse::location`] fn and compare the return values with
+    /// the values of this enum. Log an error if they are not equal.
+    /// This variant contains the EXPECTED location of the mouse
+    #[cfg_attr(feature = "serde", serde(alias = "L"))]
+    #[cfg_attr(feature = "serde", serde(alias = "l"))]
+    Location(i32, i32),
+    /// Call the [`Mouse::main_display`] fn and compare the return values with
+    /// the values of this enum. Log an error if they are not equal.
+    /// This variant contains the EXPECTED size of the main display
+    #[cfg_attr(feature = "serde", serde(alias = "D"))]
+    #[cfg_attr(feature = "serde", serde(alias = "d"))]
+    MainDisplay(i32, i32),
 }
 
 pub trait Agent
@@ -69,6 +82,30 @@ where
             Token::Button(button, direction) => self.button(*button, *direction),
             Token::MoveMouse(x, y, coordinate) => self.move_mouse(*x, *y, *coordinate),
             Token::Scroll(length, axis) => self.scroll(*length, *axis),
+            Token::Location(expected_x, expected_y) => match self.location() {
+                Ok((actual_x, actual_y)) => {
+                    if actual_x != *expected_x || actual_y != *expected_y {
+                        error!("The mouse is not at the expected location");
+                    }
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("There was an error getting the location of the mouse");
+                    Err(e)
+                }
+            },
+            Token::MainDisplay(expected_width, expected_height) => match self.main_display() {
+                Ok((actual_x, actual_y)) => {
+                    if actual_x != *expected_width || actual_y != *expected_height {
+                        error!("The size of the main display is not what was expected");
+                    }
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("There was an error getting the size of the main display");
+                    Err(e)
+                }
+            },
         }
     }
 }
