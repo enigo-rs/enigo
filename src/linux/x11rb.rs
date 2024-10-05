@@ -63,7 +63,7 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new(dpy_name: &Option<String>, delay: u32) -> Result<Con, NewConError> {
+    pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
         let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
         let setup = connection.setup();

@@ -97,7 +97,7 @@ impl Con {
     /// Create a new Enigo instance
     /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
-    pub fn new(dyp_name: &Option<String>, delay: u32) -> Result<Self, NewConError> {
+    pub fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
         debug!("using xdo");
         let xdo = match dyp_name {
             Some(name) => {

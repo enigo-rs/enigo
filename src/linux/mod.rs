@@ -65,7 +65,7 @@ impl Enigo {
 
         let held = (Vec::new(), Vec::new());
         #[cfg(feature = "wayland")]
-        let wayland = match wayland::Con::new(wayland_display) {
+        let wayland = match wayland::Con::new(wayland_display.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("wayland connection established");
@@ -89,7 +89,7 @@ impl Enigo {
             }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        let x11 = match x11::Con::new(x11_display, *linux_delay) {
+        let x11 = match x11::Con::new(x11_display.as_deref(), *linux_delay) {
             Ok(con) => {
                 connection_established = true;
                 debug!("x11 connection established");

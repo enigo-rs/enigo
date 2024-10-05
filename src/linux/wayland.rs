@@ -43,7 +43,7 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    pub fn new(dpy_name: &Option<String>) -> Result<Self, NewConError> {
+    pub fn new(dpy_name: Option<&str>) -> Result<Self, NewConError> {
         // Setup Wayland Connection
         let connection = if let Some(dyp_name) = dpy_name {
             debug!(
