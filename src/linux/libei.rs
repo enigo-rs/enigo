@@ -157,7 +157,6 @@ impl Con {
             &context,
             libei_name,
             ei::handshake::ContextType::Sender,
-            &INTERFACES,
         )
         .unwrap();
 
