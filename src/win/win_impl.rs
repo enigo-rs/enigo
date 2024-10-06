@@ -35,6 +35,9 @@ pub struct Enigo {
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
+    if input.len() == 0 {
+        return Ok(());
+    }
     let Ok(input_size): Result<i32, _> = size_of::<INPUT>().try_into() else {
         return Err(InputError::InvalidInput(
             "the size of the INPUT was so large, the size exceeded i32::MAX",
@@ -240,15 +243,32 @@ impl Keyboard for Enigo {
         }
         let mut buffer = [0; 2];
 
-        let mut input = vec![];
+        let mut input = Vec::with_capacity(2 * text.len()); // Each char needs one event to press and one to release it
         for c in text.chars() {
             // Handle special characters separately
             match c {
-                '\n' => return self.key(Key::Return, Direction::Click),
-                '\r' => { // TODO: What is the correct key to type here?
+                '\n' => {
+                    send_input(&input)?;
+                    input.clear();
+                    self.key(Key::Return, Direction::Click)?
                 }
-                '\t' => return self.key(Key::Tab, Direction::Click),
-                '\0' => return Err(InputError::InvalidInput("the text contained a null byte")),
+                '\r' => {
+                    /*
+                        send_input(&input)?;
+                        input.clear();
+                        self.key(Key::, Direction::Click)? // TODO: What is the correct key to type here?
+                    */
+                }
+                '\t' => {
+                    send_input(&input)?;
+                    input.clear();
+                    self.key(Key::Tab, Direction::Click)?
+                }
+                '\0' => {
+                    send_input(&input)?;
+                    input.clear();
+                    return Err(InputError::InvalidInput("the text contained a null byte"));
+                }
                 _ => (),
             }
             // Windows uses uft-16 encoding. We need to check

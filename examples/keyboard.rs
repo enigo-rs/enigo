@@ -9,14 +9,12 @@ fn main() {
     env_logger::init();
     thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-
     // write text
     enigo
-        .text("Hello World! here is a lot of text  ❤️")
+        // .text("Test with lots of newlines")
+        .text("Test\nwith \nlots \nof \nnewlines")
         .unwrap();
 
-    // select all
-    enigo.key(Key::Control, Press).unwrap();
     enigo.key(Key::Unicode('a'), Click).unwrap();
-    enigo.key(Key::Control, Release).unwrap();
+    //enigo.key(Key::Unicode('🔥'), Click).unwrap();
 }
