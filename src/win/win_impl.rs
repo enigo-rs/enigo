@@ -32,7 +32,8 @@ pub struct Enigo {
     held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
     dw_extra_info: usize,
-    utf16_encoding_buffer: [u16; 2], // A buffer of length 2 is large enough to encode any char in utf16
+    utf16_encoding_buffer: [u16; 2], /* A buffer of length 2 is large enough to encode any char
+                                      * in utf16 */
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
@@ -448,7 +449,8 @@ impl Enigo {
                 keyflags |= KEYEVENTF_SCANCODE;
             }
 
-            // Windows uses uft-16 encoding. With UTF-16, a character can be encoded as one or two u16
+            // Windows uses uft-16 encoding. With UTF-16, a character can be encoded as one
+            // or two u16
             let utf16_surrogates = c.encode_utf16(&mut self.utf16_encoding_buffer);
 
             Enigo::surrogates_to_vk_scans(simulate_as_unicode, utf16_surrogates)?
@@ -491,7 +493,8 @@ impl Enigo {
         };
 
         for (vk, scan) in virtual_keys {
-            // TODO: Get rid of this check for Key::Unicode because none of them can be an extended key
+            // TODO: Get rid of this check for Key::Unicode because none of them can be an
+            // extended key
             if Enigo::is_extended_key(vk) {
                 keyflags |= KEYEVENTF_EXTENDEDKEY;
             }
