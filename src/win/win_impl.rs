@@ -35,6 +35,7 @@ pub struct Enigo {
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
+    println!("SEND INPUT");
     if input.len() == 0 {
         return Ok(());
     }
@@ -247,26 +248,15 @@ impl Keyboard for Enigo {
         for c in text.chars() {
             // Handle special characters separately
             match c {
-                '\n' => {
-                    send_input(&input)?;
-                    input.clear();
-                    self.key(Key::Return, Direction::Click)?
-                }
+                '\n' => self.send_key(Key::Return, Direction::Click, &mut input)?,
                 '\r' => {
                     /*
-                        send_input(&input)?;
-                        input.clear();
-                        self.key(Key::, Direction::Click)? // TODO: What is the correct key to type here?
+
+                        self.send_key(Key::, Direction::Click, &mut input)? // TODO: What is the correct key to type here?
                     */
                 }
-                '\t' => {
-                    send_input(&input)?;
-                    input.clear();
-                    self.key(Key::Tab, Direction::Click)?
-                }
+                '\t' => self.send_key(Key::Tab, Direction::Click, &mut input)?,
                 '\0' => {
-                    send_input(&input)?;
-                    input.clear();
                     return Err(InputError::InvalidInput("the text contained a null byte"));
                 }
                 _ => (),
@@ -476,10 +466,10 @@ impl Enigo {
         if let Key::Unicode(c) = key {
             // Handle special characters separately
             match c {
-                '\n' => return self.key(Key::Return, direction),
+                '\n' => self.send_key(Key::Return, direction, input_queue)?,
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.key(Key::Tab, direction),
+                '\t' => self.send_key(Key::Tab, direction, input_queue)?,
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
