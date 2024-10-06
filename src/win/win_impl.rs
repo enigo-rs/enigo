@@ -307,7 +307,7 @@ impl Keyboard for Enigo {
     /// Sends a key event to the X11 server via `XTest` extension
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
-        let mut input = vec![];
+        let mut input = Vec::with_capacity(2);
 
         self.send_key(key, direction, &mut input)?;
         send_input(&input)?;
