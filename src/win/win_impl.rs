@@ -462,8 +462,11 @@ impl Enigo {
         input_queue: &mut Vec<INPUT>,
     ) -> InputResult<()> {
         let layout = Enigo::get_keyboard_layout();
+        let mut keyflags = KEYBD_EVENT_FLAGS::default();
 
         if let Key::Unicode(c) = key {
+            keyflags |= KEYEVENTF_SCANCODE;
+
             // Handle special characters separately
             match c {
                 '\n' => self.push_input_queue(Key::Return, direction, input_queue)?,
@@ -482,7 +485,7 @@ impl Enigo {
                     input_queue.push(keybd_event(
                         // No need to check if it is an extended key because we only enter unicode
                         // chars here
-                        KEYEVENTF_SCANCODE,
+                        keyflags,
                         vk,
                         scan,
                         self.dw_extra_info,
@@ -494,7 +497,7 @@ impl Enigo {
                     input_queue.push(keybd_event(
                         // No need to check if it is an extended key because we only enter unicode
                         // chars here
-                        KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+                        keyflags | KEYEVENTF_KEYUP,
                         vk,
                         scan,
                         self.dw_extra_info,
@@ -506,7 +509,6 @@ impl Enigo {
             // Key::Unicode and we already ensured that is not the case
             let vk = VIRTUAL_KEY::try_from(key).unwrap();
             let scan = Enigo::get_scancode(vk, layout)?;
-            let mut keyflags = KEYBD_EVENT_FLAGS::default();
 
             if Enigo::is_extended_key(vk) {
                 keyflags |= KEYEVENTF_EXTENDEDKEY;
