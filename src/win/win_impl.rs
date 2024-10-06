@@ -32,6 +32,7 @@ pub struct Enigo {
     held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
     dw_extra_info: usize,
+    utf16_encoding_buffer: [u16; 2], // A buffer of length 2 is large enough to encode any char in utf16
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
@@ -242,54 +243,10 @@ impl Keyboard for Enigo {
         if text.is_empty() {
             return Ok(()); // Nothing to simulate.
         }
-        let mut buffer = [0; 2];
 
         let mut input = Vec::with_capacity(2 * text.len()); // Each char needs one event to press and one to release it
         for c in text.chars() {
-            // Handle special characters separately
-            match c {
-                '\n' => self.push_input_queue(&mut input, Key::Return, false, Direction::Click)?,
-                '\r' => {
-                    /*
-
-                        self.send_key(&mut input, Key::, false, Direction::Click)? // TODO: What is the correct key to type here?
-                    */
-                }
-                '\t' => self.push_input_queue(&mut input, Key::Tab, false, Direction::Click)?,
-                '\0' => {
-                    return Err(InputError::InvalidInput("the text contained a null byte"));
-                }
-                _ => (),
-            }
-            // Windows uses uft-16 encoding. We need to check
-            // for variable length characters. As such some
-            // characters can be 32 bit long and those are
-            // encoded in what is called high and low surrogates.
-            // Each are 16 bit wide and need to be sent after
-            // another to the SendInput function
-            let result = c.encode_utf16(&mut buffer);
-            for &utf16_surrogate in &*result {
-                input.push(keybd_event(
-                    // No need to check if it is an extended key because we only enter unicode
-                    // chars here
-                    KEYEVENTF_UNICODE,
-                    // Must be zero
-                    VIRTUAL_KEY(0),
-                    utf16_surrogate,
-                    self.dw_extra_info,
-                ));
-                input.push(keybd_event(
-                    // No need to check if it is an extended key because we only enter unicode
-                    // chars here
-                    KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                    // Must be zero
-                    VIRTUAL_KEY(0),
-                    // TODO: Double check if this could also be utf16_surrogate (I think it doesn't
-                    // make a difference)
-                    result[0],
-                    self.dw_extra_info,
-                ));
-            }
+            self.add_key_to_queue(&mut input, Key::Unicode(c), true, Direction::Click)?;
         }
         send_input(&input)
     }
@@ -299,7 +256,7 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = Vec::with_capacity(2);
 
-        self.push_input_queue(&mut input, key, false, direction)?;
+        self.add_key_to_queue(&mut input, key, false, direction)?;
         send_input(&input)?;
 
         match direction {
@@ -383,6 +340,7 @@ impl Enigo {
         } = settings;
 
         let held = (vec![], vec![]);
+        let utf16_encoding_buffer = [0; 2];
 
         debug!("\x1b[93mconnection established on windows\x1b[0m");
 
@@ -390,6 +348,7 @@ impl Enigo {
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
             dw_extra_info: dw_extra_info.unwrap_or(crate::EVENT_MARKER as usize),
+            utf16_encoding_buffer,
         })
     }
 
@@ -399,24 +358,31 @@ impl Enigo {
         unsafe { GetKeyboardLayout(current_window_thread_id) }
     }
 
-    fn char_to_virtual_keys(c: char, layout: HKL) -> InputResult<Vec<VIRTUAL_KEY>> {
-        let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
-        let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
+    fn surrogates_to_vk_scans(
+        simulate_as_unicode: bool,
+        utf16_surrogates: &mut [u16],
+    ) -> InputResult<Vec<(VIRTUAL_KEY, ScanCode)>> {
         let mut results = Vec::with_capacity(2);
-        for &utf16_surrogate in &utf16_surrogates {
-            // Translate a character to the corresponding virtual-key code and shift state.
-            // If the function succeeds, the low-order byte of the return value contains the
-            // virtual-key code and the high-order byte contains the shift state, which can
-            // be a combination of the following flag bits. If the function finds no key
-            // that translates to the passed character code, both the low-order and
-            // high-order bytes contain –1
+        for utf16_surrogate in utf16_surrogates {
+            if simulate_as_unicode {
+                results.push((VIRTUAL_KEY(0), *utf16_surrogate));
+            } else {
+                // Translate a character to the corresponding virtual-key code and shift state.
+                // If the function succeeds, the low-order byte of the return value contains the
+                // virtual-key code and the high-order byte contains the shift state, which can
+                // be a combination of the following flag bits. If the function finds no key
+                // that translates to the passed character code, both the low-order and
+                // high-order bytes contain –1
+                let layout = Enigo::get_keyboard_layout();
+                let virtual_key = unsafe { VkKeyScanExW(*utf16_surrogate, layout) };
+                if virtual_key < 0 {
+                    return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+                }
+                let virtual_key = VIRTUAL_KEY(virtual_key as u16);
+                let scancode = Enigo::get_scancode(virtual_key, layout)?;
 
-            let virtual_key = unsafe { VkKeyScanExW(utf16_surrogate, layout) };
-            if virtual_key < 0 {
-                return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
+                results.push((virtual_key, scancode));
             }
-            let virtual_key = VIRTUAL_KEY(virtual_key as u16);
-            results.push(virtual_key);
         }
         Ok(results)
     }
@@ -454,32 +420,39 @@ impl Enigo {
         }
     }
 
-    fn push_input_queue(
+    fn add_key_to_queue(
         &mut self,
         input_queue: &mut Vec<INPUT>,
         key: Key,
-        simulate_as_unicode: bool,
+        simulate_as_unicode: bool, // If it is a char, enter it as a KEYEVENTF_UNICODE
         direction: Direction,
     ) -> InputResult<()> {
-        let layout = Enigo::get_keyboard_layout();
         let mut keyflags = KEYBD_EVENT_FLAGS::default();
 
         let virtual_keys = if let Key::Unicode(c) = key {
-            keyflags |= KEYEVENTF_SCANCODE;
-
             // Handle special characters separately
             match c {
-                '\n' => return self.push_input_queue(input_queue, Key::Return, false, direction),
+                '\n' => return self.add_key_to_queue(input_queue, Key::Return, false, direction),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.push_input_queue(input_queue, Key::Tab, false, direction),
+                '\t' => return self.add_key_to_queue(input_queue, Key::Tab, false, direction),
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
                 }
                 _ => (),
             }
-            Enigo::char_to_virtual_keys(c, layout)?
+
+            if simulate_as_unicode {
+                keyflags |= KEYEVENTF_UNICODE;
+            } else {
+                keyflags |= KEYEVENTF_SCANCODE;
+            }
+
+            // Windows uses uft-16 encoding. With UTF-16, a character can be encoded as one or two u16
+            let utf16_surrogates = c.encode_utf16(&mut self.utf16_encoding_buffer);
+
+            Enigo::surrogates_to_vk_scans(simulate_as_unicode, utf16_surrogates)?
 
             /*
             if direction == Direction::Click || direction == Direction::Press {
@@ -509,12 +482,16 @@ impl Enigo {
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
             // Key::Unicode and we already ensured that is not the case
-            vec![VIRTUAL_KEY::try_from(key).unwrap()]
-        };
 
-        for vk in virtual_keys {
+            let layout = Enigo::get_keyboard_layout();
+
+            let vk = VIRTUAL_KEY::try_from(key).unwrap();
             let scan = Enigo::get_scancode(vk, layout)?;
 
+            vec![(vk, scan)]
+        };
+
+        for (vk, scan) in virtual_keys {
             // TODO: Get rid of this check for Key::Unicode because none of them can be an extended key
             if Enigo::is_extended_key(vk) {
                 keyflags |= KEYEVENTF_EXTENDEDKEY;
