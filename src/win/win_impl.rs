@@ -306,7 +306,29 @@ impl Keyboard for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        self.send_key(key, direction)
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
+        let mut input = vec![];
+
+        self.send_key(key, direction, &mut input)?;
+        send_input(&input)?;
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.0.push(key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.0.retain(|&k| k != key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
     }
 
     fn raw(&mut self, scan: u16, direction: Direction) -> InputResult<()> {
@@ -443,10 +465,13 @@ impl Enigo {
         }
     }
 
-    fn send_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
+    fn send_key(
+        &mut self,
+        key: Key,
+        direction: Direction,
+        input_queue: &mut Vec<INPUT>,
+    ) -> InputResult<()> {
         let layout = Enigo::get_keyboard_layout();
-        let mut input = vec![];
 
         if let Key::Unicode(c) = key {
             // Handle special characters separately
@@ -464,7 +489,7 @@ impl Enigo {
             let vk_and_scan_codes = Enigo::get_vk_and_scan_codes(c, layout)?;
             if direction == Direction::Click || direction == Direction::Press {
                 for &(vk, scan) in &vk_and_scan_codes {
-                    input.push(keybd_event(
+                    input_queue.push(keybd_event(
                         // No need to check if it is an extended key because we only enter unicode
                         // chars here
                         KEYEVENTF_SCANCODE,
@@ -476,7 +501,7 @@ impl Enigo {
             }
             if direction == Direction::Click || direction == Direction::Release {
                 for &(vk, scan) in &vk_and_scan_codes {
-                    input.push(keybd_event(
+                    input_queue.push(keybd_event(
                         // No need to check if it is an extended key because we only enter unicode
                         // chars here
                         KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
@@ -497,10 +522,10 @@ impl Enigo {
                 keyflags |= KEYEVENTF_EXTENDEDKEY;
             }
             if direction == Direction::Click || direction == Direction::Press {
-                input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
+                input_queue.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
             }
             if direction == Direction::Click || direction == Direction::Release {
-                input.push(keybd_event(
+                input_queue.push(keybd_event(
                     keyflags | KEYEVENTF_KEYUP,
                     vk,
                     scan,
@@ -508,24 +533,6 @@ impl Enigo {
                 ));
             }
         };
-        send_input(&input)?;
-
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.0.push(key);
-                // TODO: Make it work that they can get released with the raw
-                // function as well
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.0.retain(|&k| k != key);
-                // TODO: Make it work that they can get released with the raw
-                // function as well
-            }
-            Direction::Click => (),
-        }
-
         Ok(())
     }
 
