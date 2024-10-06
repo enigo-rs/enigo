@@ -662,8 +662,6 @@ mod test {
             VK_ZOOM,
         };
 
-        use super::Enigo;
-
         let known_ordinary_keys = [
             VK__none_,  // 255
             VK_0,       // 48
