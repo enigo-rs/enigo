@@ -306,89 +306,7 @@ impl Keyboard for Enigo {
 
     /// Sends a key event to the X11 server via `XTest` extension
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
-        let layout = Enigo::get_keyboard_layout();
-        let mut input = vec![];
-
-        if let Key::Unicode(c) = key {
-            // Handle special characters separately
-            match c {
-                '\n' => return self.key(Key::Return, direction),
-                '\r' => { // TODO: What is the correct key to type here?
-                }
-                '\t' => return self.key(Key::Tab, direction),
-                '\0' => {
-                    debug!("entering Key::Unicode('\\0') is a noop");
-                    return Ok(());
-                }
-                _ => (),
-            }
-            let vk_and_scan_codes = Enigo::get_vk_and_scan_codes(c, layout)?;
-            if direction == Direction::Click || direction == Direction::Press {
-                for &(vk, scan) in &vk_and_scan_codes {
-                    input.push(keybd_event(
-                        // No need to check if it is an extended key because we only enter unicode
-                        // chars here
-                        KEYEVENTF_SCANCODE,
-                        vk,
-                        scan,
-                        self.dw_extra_info,
-                    ));
-                }
-            }
-            if direction == Direction::Click || direction == Direction::Release {
-                for &(vk, scan) in &vk_and_scan_codes {
-                    input.push(keybd_event(
-                        // No need to check if it is an extended key because we only enter unicode
-                        // chars here
-                        KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
-                        vk,
-                        scan,
-                        self.dw_extra_info,
-                    ));
-                }
-            }
-        } else {
-            // It is okay to unwrap here because key_to_keycode only returns a None for
-            // Key::Unicode and we already ensured that is not the case
-            let vk = VIRTUAL_KEY::try_from(key).unwrap();
-            let scan = Enigo::get_scancode(vk, layout)?;
-            let mut keyflags = KEYBD_EVENT_FLAGS::default();
-
-            if Enigo::is_extended_key(vk) {
-                keyflags |= KEYEVENTF_EXTENDEDKEY;
-            }
-            if direction == Direction::Click || direction == Direction::Press {
-                input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
-            }
-            if direction == Direction::Click || direction == Direction::Release {
-                input.push(keybd_event(
-                    keyflags | KEYEVENTF_KEYUP,
-                    vk,
-                    scan,
-                    self.dw_extra_info,
-                ));
-            }
-        };
-        send_input(&input)?;
-
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.0.push(key);
-                // TODO: Make it work that they can get released with the raw
-                // function as well
-            }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.0.retain(|&k| k != key);
-                // TODO: Make it work that they can get released with the raw
-                // function as well
-            }
-            Direction::Click => (),
-        }
-
-        Ok(())
+        self.send_key(key, direction)
     }
 
     fn raw(&mut self, scan: u16, direction: Direction) -> InputResult<()> {
@@ -523,6 +441,92 @@ impl Enigo {
                 Err(InputError::InvalidInput("scan code did not fit into u16"))
             }
         }
+    }
+
+    fn send_key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
+        let layout = Enigo::get_keyboard_layout();
+        let mut input = vec![];
+
+        if let Key::Unicode(c) = key {
+            // Handle special characters separately
+            match c {
+                '\n' => return self.key(Key::Return, direction),
+                '\r' => { // TODO: What is the correct key to type here?
+                }
+                '\t' => return self.key(Key::Tab, direction),
+                '\0' => {
+                    debug!("entering Key::Unicode('\\0') is a noop");
+                    return Ok(());
+                }
+                _ => (),
+            }
+            let vk_and_scan_codes = Enigo::get_vk_and_scan_codes(c, layout)?;
+            if direction == Direction::Click || direction == Direction::Press {
+                for &(vk, scan) in &vk_and_scan_codes {
+                    input.push(keybd_event(
+                        // No need to check if it is an extended key because we only enter unicode
+                        // chars here
+                        KEYEVENTF_SCANCODE,
+                        vk,
+                        scan,
+                        self.dw_extra_info,
+                    ));
+                }
+            }
+            if direction == Direction::Click || direction == Direction::Release {
+                for &(vk, scan) in &vk_and_scan_codes {
+                    input.push(keybd_event(
+                        // No need to check if it is an extended key because we only enter unicode
+                        // chars here
+                        KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+                        vk,
+                        scan,
+                        self.dw_extra_info,
+                    ));
+                }
+            }
+        } else {
+            // It is okay to unwrap here because key_to_keycode only returns a None for
+            // Key::Unicode and we already ensured that is not the case
+            let vk = VIRTUAL_KEY::try_from(key).unwrap();
+            let scan = Enigo::get_scancode(vk, layout)?;
+            let mut keyflags = KEYBD_EVENT_FLAGS::default();
+
+            if Enigo::is_extended_key(vk) {
+                keyflags |= KEYEVENTF_EXTENDEDKEY;
+            }
+            if direction == Direction::Click || direction == Direction::Press {
+                input.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
+            }
+            if direction == Direction::Click || direction == Direction::Release {
+                input.push(keybd_event(
+                    keyflags | KEYEVENTF_KEYUP,
+                    vk,
+                    scan,
+                    self.dw_extra_info,
+                ));
+            }
+        };
+        send_input(&input)?;
+
+        match direction {
+            Direction::Press => {
+                debug!("added the key {key:?} to the held keys");
+                self.held.0.push(key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
+            }
+            Direction::Release => {
+                debug!("removed the key {key:?} from the held keys");
+                self.held.0.retain(|&k| k != key);
+                // TODO: Make it work that they can get released with the raw
+                // function as well
+            }
+            Direction::Click => (),
+        }
+
+        Ok(())
     }
 
     /// Returns a list of all currently pressed keys
