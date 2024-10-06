@@ -3,6 +3,7 @@
 - all: The keys `Print` and `Snapshot` were deprecated because `Print` had the wrong virtual key associated with it on Windows. Use `Key::PrintScr` instead
 - macOS: The simulated input is no longer effected by the state of the physical keyboard. This default behavior can be changed via the Settings (`independent_of_keyboard_state`)
 - macOS: Do not coalesce mouse events to allow precise control
+- win: Fallback to entering a `Key::Unicode` as unicode if there is no key with that character
 
 ## Added
 - all: `Key::PrintScr`
@@ -16,6 +17,7 @@
 - win: Respect the language of the current window to determine which scancodes to send
 - win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 - macOS: Moving the mouse no longer breaks simulating input
+- win: Fix being unable to enter text containing multiple newline chars
 
 # 0.2.1
 ## Changed

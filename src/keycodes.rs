@@ -1030,7 +1030,46 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::XButton1 => VK_XBUTTON1,
             Key::XButton2 => VK_XBUTTON2,
             Key::Zoom => VK_ZOOM,
-            Key::Unicode(_) => return Err("Unicode must be entered via scancodes"),
+            Key::Unicode(c) => 'unicode_handling: {
+                // Handle special characters separately
+                match c {
+                    '\n' => break 'unicode_handling VK_RETURN,
+
+                    '\r' => { // TODO: What is the correct key to type here?
+                         // break 'unicode_handling VK_,
+                    }
+                    '\t' => break 'unicode_handling VK_TAB,
+                    '\0' => {
+                        return Err("Invalid mapping");
+                    }
+                    _ => (),
+                }
+
+                let layout = crate::Enigo::get_keyboard_layout();
+
+                let mut buffer = [0; 2];
+                let utf16_surrogates = c.encode_utf16(&mut buffer);
+                if utf16_surrogates.len() != 1 {
+                    return Err("Character can't be mapped to only one virtual key");
+                }
+                // Translate a character to the corresponding virtual-key code and shift state.
+                // If the function succeeds, the low-order byte of the return value contains the
+                // virtual-key code and the high-order byte contains the shift state, which can
+                // be a combination of the following flag bits. If the function finds no key
+                // that translates to the passed character code, both the low-order and
+                // high-order bytes contain –1
+                let vk = unsafe {
+                    windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanExW(
+                        utf16_surrogates[0],
+                        layout,
+                    )
+                };
+                // TODO: Check if the condition should be <=
+                if vk < 0 {
+                    return Err("Character can't be mapped to virtual key");
+                }
+                VIRTUAL_KEY(vk as u16)
+            }
             Key::Other(v) => {
                 let Ok(v) = u16::try_from(v) else {
                     return Err("virtual keycodes on Windows have to fit into u16");
