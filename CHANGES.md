@@ -16,6 +16,7 @@
 - win: Respect the language of the current window to determine which scancodes to send
 - win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 - macOS: Moving the mouse no longer breaks simulating input
+- win: Fix being unable to enter text containing multiple newline chars
 
 # 0.2.1
 ## Changed

@@ -7,15 +7,16 @@ use std::time::Duration;
 
 fn main() {
     env_logger::init();
-    thread::sleep(Duration::from_secs(1));
+    thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
+
     // write text
     enigo
-        // .text("Test with lots of newlines")
-        .text("Test\nwith \nlots \nof \nnewlines🔥")
+        .text("Hello World! here is a lot of text  ❤️")
         .unwrap();
 
+    // select all
+    enigo.key(Key::Control, Press).unwrap();
     enigo.key(Key::Unicode('a'), Click).unwrap();
-    enigo.key(Key::Return, Click).unwrap();
-    // enigo.key(Key::Unicode('🔥'), Click).unwrap();
+    enigo.key(Key::Control, Release).unwrap();
 }
