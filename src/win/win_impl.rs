@@ -469,10 +469,10 @@ impl Enigo {
 
             // Handle special characters separately
             match c {
-                '\n' => self.push_input_queue(Key::Return, direction, input_queue)?,
+                '\n' => return self.push_input_queue(Key::Return, direction, input_queue),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => self.push_input_queue(Key::Tab, direction, input_queue)?,
+                '\t' => return self.push_input_queue(Key::Tab, direction, input_queue),
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
