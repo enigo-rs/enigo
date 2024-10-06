@@ -36,7 +36,6 @@ pub struct Enigo {
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
-    println!("SEND INPUT");
     if input.len() == 0 {
         return Ok(());
     }
