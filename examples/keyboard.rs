@@ -7,7 +7,7 @@ use std::time::Duration;
 
 fn main() {
     env_logger::init();
-    thread::sleep(Duration::from_secs(2));
+    thread::sleep(Duration::from_secs(1));
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
     // write text
     enigo
@@ -16,5 +16,6 @@ fn main() {
         .unwrap();
 
     enigo.key(Key::Unicode('a'), Click).unwrap();
-    //enigo.key(Key::Unicode('🔥'), Click).unwrap();
+    enigo.key(Key::Return, Click).unwrap();
+    enigo.key(Key::Unicode('🔥'), Click).unwrap();
 }

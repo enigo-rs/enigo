@@ -399,7 +399,7 @@ impl Enigo {
         unsafe { GetKeyboardLayout(current_window_thread_id) }
     }
 
-    fn get_vk_and_scan_codes(c: char, layout: HKL) -> InputResult<Vec<(VIRTUAL_KEY, ScanCode)>> {
+    fn char_to_virtual_keys(c: char, layout: HKL) -> InputResult<Vec<VIRTUAL_KEY>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
         let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
         let mut results = Vec::with_capacity(2);
@@ -416,8 +416,7 @@ impl Enigo {
                 return Err(InputError::Mapping("Could not translate the character to the corresponding virtual-key code and shift state for the current keyboard".to_string()));
             }
             let virtual_key = VIRTUAL_KEY(virtual_key as u16);
-            let scan_code = Enigo::get_scancode(virtual_key, layout)?;
-            results.push((virtual_key, scan_code));
+            results.push(virtual_key);
         }
         Ok(results)
     }
@@ -464,7 +463,7 @@ impl Enigo {
         let layout = Enigo::get_keyboard_layout();
         let mut keyflags = KEYBD_EVENT_FLAGS::default();
 
-        if let Key::Unicode(c) = key {
+        let virtual_keys = if let Key::Unicode(c) = key {
             keyflags |= KEYEVENTF_SCANCODE;
 
             // Handle special characters separately
@@ -479,7 +478,9 @@ impl Enigo {
                 }
                 _ => (),
             }
-            let vk_and_scan_codes = Enigo::get_vk_and_scan_codes(c, layout)?;
+            Enigo::char_to_virtual_keys(c, layout)?
+
+            /*
             if direction == Direction::Click || direction == Direction::Press {
                 for &(vk, scan) in &vk_and_scan_codes {
                     input_queue.push(keybd_event(
@@ -503,16 +504,21 @@ impl Enigo {
                         self.dw_extra_info,
                     ));
                 }
-            }
+            }*/
         } else {
             // It is okay to unwrap here because key_to_keycode only returns a None for
             // Key::Unicode and we already ensured that is not the case
-            let vk = VIRTUAL_KEY::try_from(key).unwrap();
+            vec![VIRTUAL_KEY::try_from(key).unwrap()]
+        };
+
+        for vk in virtual_keys {
             let scan = Enigo::get_scancode(vk, layout)?;
 
+            // TODO: Get rid of this check for Key::Unicode because none of them can be an extended key
             if Enigo::is_extended_key(vk) {
                 keyflags |= KEYEVENTF_EXTENDEDKEY;
             }
+
             if direction == Direction::Click || direction == Direction::Press {
                 input_queue.push(keybd_event(keyflags, vk, scan, self.dw_extra_info));
             }
@@ -524,7 +530,8 @@ impl Enigo {
                     self.dw_extra_info,
                 ));
             }
-        };
+        }
+
         Ok(())
     }
 
