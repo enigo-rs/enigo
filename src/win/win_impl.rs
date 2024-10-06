@@ -248,14 +248,14 @@ impl Keyboard for Enigo {
         for c in text.chars() {
             // Handle special characters separately
             match c {
-                '\n' => self.push_input_queue(Key::Return, Direction::Click, &mut input)?,
+                '\n' => self.push_input_queue(&mut input, Key::Return, false, Direction::Click)?,
                 '\r' => {
                     /*
 
-                        self.send_key(Key::, Direction::Click, &mut input)? // TODO: What is the correct key to type here?
+                        self.send_key(&mut input, Key::, false, Direction::Click)? // TODO: What is the correct key to type here?
                     */
                 }
-                '\t' => self.push_input_queue(Key::Tab, Direction::Click, &mut input)?,
+                '\t' => self.push_input_queue(&mut input, Key::Tab, false, Direction::Click)?,
                 '\0' => {
                     return Err(InputError::InvalidInput("the text contained a null byte"));
                 }
@@ -299,7 +299,7 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = Vec::with_capacity(2);
 
-        self.push_input_queue(key, direction, &mut input)?;
+        self.push_input_queue(&mut input, key, false, direction)?;
         send_input(&input)?;
 
         match direction {
@@ -456,9 +456,10 @@ impl Enigo {
 
     fn push_input_queue(
         &mut self,
-        key: Key,
-        direction: Direction,
         input_queue: &mut Vec<INPUT>,
+        key: Key,
+        simulate_as_unicode: bool,
+        direction: Direction,
     ) -> InputResult<()> {
         let layout = Enigo::get_keyboard_layout();
         let mut keyflags = KEYBD_EVENT_FLAGS::default();
@@ -468,10 +469,10 @@ impl Enigo {
 
             // Handle special characters separately
             match c {
-                '\n' => return self.push_input_queue(Key::Return, direction, input_queue),
+                '\n' => return self.push_input_queue(input_queue, Key::Return, false, direction),
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.push_input_queue(Key::Tab, direction, input_queue),
+                '\t' => return self.push_input_queue(input_queue, Key::Tab, false, direction),
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
