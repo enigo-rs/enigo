@@ -248,14 +248,14 @@ impl Keyboard for Enigo {
         for c in text.chars() {
             // Handle special characters separately
             match c {
-                '\n' => self.send_key(Key::Return, Direction::Click, &mut input)?,
+                '\n' => self.push_input_queue(Key::Return, Direction::Click, &mut input)?,
                 '\r' => {
                     /*
 
                         self.send_key(Key::, Direction::Click, &mut input)? // TODO: What is the correct key to type here?
                     */
                 }
-                '\t' => self.send_key(Key::Tab, Direction::Click, &mut input)?,
+                '\t' => self.push_input_queue(Key::Tab, Direction::Click, &mut input)?,
                 '\0' => {
                     return Err(InputError::InvalidInput("the text contained a null byte"));
                 }
@@ -299,7 +299,7 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let mut input = Vec::with_capacity(2);
 
-        self.send_key(key, direction, &mut input)?;
+        self.push_input_queue(key, direction, &mut input)?;
         send_input(&input)?;
 
         match direction {
@@ -402,7 +402,7 @@ impl Enigo {
     fn get_vk_and_scan_codes(c: char, layout: HKL) -> InputResult<Vec<(VIRTUAL_KEY, ScanCode)>> {
         let mut buffer = [0; 2]; // A buffer of length 2 is large enough to encode any char
         let utf16_surrogates: Vec<u16> = c.encode_utf16(&mut buffer).into();
-        let mut results = vec![];
+        let mut results = Vec::with_capacity(2);
         for &utf16_surrogate in &utf16_surrogates {
             // Translate a character to the corresponding virtual-key code and shift state.
             // If the function succeeds, the low-order byte of the return value contains the
@@ -455,7 +455,7 @@ impl Enigo {
         }
     }
 
-    fn send_key(
+    fn push_input_queue(
         &mut self,
         key: Key,
         direction: Direction,
@@ -466,10 +466,10 @@ impl Enigo {
         if let Key::Unicode(c) = key {
             // Handle special characters separately
             match c {
-                '\n' => self.send_key(Key::Return, direction, input_queue)?,
+                '\n' => self.push_input_queue(Key::Return, direction, input_queue)?,
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => self.send_key(Key::Tab, direction, input_queue)?,
+                '\t' => self.push_input_queue(Key::Tab, direction, input_queue)?,
                 '\0' => {
                     debug!("entering Key::Unicode('\\0') is a noop");
                     return Ok(());
