@@ -7,10 +7,10 @@ use windows::Win32::UI::{
         GetKeyboardLayout, MapVirtualKeyExW, SendInput, HKL, INPUT, INPUT_0, INPUT_KEYBOARD,
         INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
         KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC_EX, MAPVK_VSC_TO_VK_EX,
-        MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-        MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
-        MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
-        MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+        MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
+        MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE,
+        MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN,
+        MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
     },
     WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
@@ -247,11 +247,11 @@ impl Keyboard for Enigo {
         for c in text.chars() {
             // Enter special characters as keys
             match c {
-                '\n' => return self.queue_key(&mut input, Key::Return, Direction::Click),
+                '\n' => self.queue_key(&mut input, Key::Return, Direction::Click)?,
                 '\r' => { // TODO: What is the correct key to type here?
                 }
-                '\t' => return self.queue_key(&mut input, Key::Tab, Direction::Click),
-                '\0' => return Err(InputError::InvalidInput("the text contained a null byte")),
+                '\t' => self.queue_key(&mut input, Key::Tab, Direction::Click)?,
+                '\0' => Err(InputError::InvalidInput("the text contained a null byte"))?,
                 _ => (),
             }
 
@@ -291,7 +291,7 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mraw(scan: {scan:?}, direction: {direction:?})\x1b[0m");
         let mut input = vec![];
 
-        let vk = Enigo::get_vk(scan)?;
+        let vk = VIRTUAL_KEY(Enigo::translate_key(scan, MAPVK_VSC_TO_VK_EX)?); // translate scan code to virtual key
 
         let mut keyflags = KEYEVENTF_SCANCODE;
         // TODO: Check if the first bytes need to be truncated if it is an extended key
@@ -364,37 +364,21 @@ impl Enigo {
         unsafe { GetKeyboardLayout(current_window_thread_id) }
     }
 
-    /// Translate the virtual key to a scan code
-    fn get_vk(scan: ScanCode) -> InputResult<VIRTUAL_KEY> {
+    /// Generic function to translate between virtual keys and scan codes
+    fn translate_key(input: u16, map_type: MAP_VIRTUAL_KEY_TYPE) -> InputResult<u16> {
         let layout = Enigo::get_keyboard_layout();
-        match unsafe { MapVirtualKeyExW(scan.into(), MAPVK_VSC_TO_VK_EX, layout) }.try_into() {
-            Ok(vk) => {
-                if vk == 0 {
-                    warn!("The virtual key for the virtual key {:?} is zero. This usually means there was no mapping", vk);
-                };
-                Ok(VIRTUAL_KEY(vk))
-            }
-            Err(e) => {
-                error!("{e:?}");
-                Err(InputError::InvalidInput("virtual key did not fit into u16"))
-            }
-        }
-    }
 
-    /// Translate the virtual key to a scan code
-    fn get_scancode(vk: VIRTUAL_KEY) -> InputResult<ScanCode> {
-        let layout = Enigo::get_keyboard_layout();
-        let vk = vk.0 as u32;
-        match unsafe { MapVirtualKeyExW(vk, MAPVK_VK_TO_VSC_EX, layout) }.try_into() {
-            Ok(scan_code) => {
-                if scan_code == 0 {
-                    warn!("The scan code for the virtual key {:?} is zero", vk);
-                };
-                Ok(scan_code)
+        // Call MapVirtualKeyExW using the provided map_type and input
+        match unsafe { MapVirtualKeyExW(input.into(), map_type, layout) }.try_into() {
+            Ok(output) => {
+                if output == 0 {
+                    warn!("The result for the input {:?} is zero. This usually means there was no mapping", input);
+                }
+                Ok(output)
             }
             Err(e) => {
                 error!("{e:?}");
-                Err(InputError::InvalidInput("scan code did not fit into u16"))
+                Err(InputError::InvalidInput("result did not fit into u16"))
             }
         }
     }
@@ -417,7 +401,7 @@ impl Enigo {
                 "This should never happen. There is a bug in the implementation".to_string(),
             ));
         };
-        let scan = Enigo::get_scancode(vk)?;
+        let scan = Enigo::translate_key(vk.0, MAPVK_VK_TO_VSC_EX)?; // Translate virtual key to scan code
 
         let mut keyflags = KEYBD_EVENT_FLAGS::default();
 
