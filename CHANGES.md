@@ -18,6 +18,7 @@
 - win: Send the virtual key and its scan code in the events to work with programs that only look at one of the two
 - macOS: Moving the mouse no longer breaks simulating input
 - win: Fix being unable to enter text containing multiple newline chars
+- macOS: Switched keycodes of `Key::Launchpad` and `Key::MissionControl`
 
 # 0.2.1
 ## Changed
