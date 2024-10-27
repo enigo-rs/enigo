@@ -79,6 +79,9 @@ pub struct Enigo {
     release_keys_when_dropped: bool,
     event_flags: CGEventFlags,
     double_click_delay: Duration,
+    // Instant when the last event was sent and the duration that needs to be waited for after that
+    // instant to make sure all events were handled by the OS
+    last_event: (Instant, Duration),
     // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
     last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
                                             * store the last time the button was clicked and
@@ -122,6 +125,7 @@ impl Mouse for Enigo {
             );
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
+            self.update_wait_time();
         }
         if direction == Direction::Click || direction == Direction::Release {
             let click_count = self.nth_button_press(button, Direction::Release);
@@ -153,6 +157,7 @@ impl Mouse for Enigo {
             );
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
+            self.update_wait_time();
         }
         Ok(())
     }
@@ -203,6 +208,7 @@ impl Mouse for Enigo {
         );
         event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
+        self.update_wait_time();
         Ok(())
     }
 
@@ -231,6 +237,7 @@ impl Mouse for Enigo {
         );
         event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
+        self.update_wait_time();
         Ok(())
     }
 
@@ -313,6 +320,7 @@ impl Keyboard for Enigo {
             // We want to ignore all modifiers when entering text
             event.set_flags(CGEventFlags::CGEventFlagNull);
             event.post(CGEventTapLocation::HID);
+            self.update_wait_time();
         }
         Ok(Some(()))
     }
@@ -447,6 +455,7 @@ impl Keyboard for Enigo {
             self.add_event_flag(keycode, Direction::Press);
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
+            self.update_wait_time();
         }
 
         if direction == Direction::Click || direction == Direction::Release {
@@ -464,6 +473,7 @@ impl Keyboard for Enigo {
             self.add_event_flag(keycode, Direction::Release);
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
+            self.update_wait_time();
         }
 
         match direction {
@@ -526,6 +536,7 @@ impl Enigo {
 
         debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
+        let last_event = (Instant::now(), Duration::from_secs(0));
         Ok(Enigo {
             event_source,
             display: CGDisplay::main(),
@@ -533,6 +544,7 @@ impl Enigo {
             release_keys_when_dropped: *release_keys_when_dropped,
             event_flags,
             double_click_delay,
+            last_event,
             last_mouse_click: [(0, Instant::now()); 7],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
@@ -570,7 +582,7 @@ impl Enigo {
         nth_button_press
     }
 
-    fn special_keys(&self, code: isize, direction: Direction) -> InputResult<()> {
+    fn special_keys(&mut self, code: isize, direction: Direction) -> InputResult<()> {
         if direction == Direction::Press || direction == Direction::Click {
             let event = unsafe {
                 NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
@@ -594,6 +606,7 @@ impl Enigo {
                 );
                 cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
+                self.update_wait_time();
             } else {
                 return Err(InputError::Simulate(
                     "failed creating event to press special key",
@@ -624,6 +637,7 @@ impl Enigo {
                 );
                 cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
+                self.update_wait_time();
             } else {
                 return Err(InputError::Simulate(
                     "failed creating event to release special key",
@@ -861,6 +875,21 @@ impl Enigo {
 
         flag_fn(&mut self.event_flags, event_flag);
     }
+
+    /// Save the current Instant and calculate the remaining waiting time
+    /// We assume we need to wait for 20 ms for each event to make sure the OS
+    /// has time to handle it. Instead of simply adding 20 ms for each event, we
+    /// assume that the OS handled events between us sending events. That's why
+    /// we subtract the time we already waited between events.
+    fn update_wait_time(&mut self) {
+        let now = Instant::now();
+        let wait_time = self
+            .last_event
+            .1
+            .saturating_sub(self.last_event.0.elapsed())
+            + Duration::from_millis(20);
+        self.last_event = (now, wait_time);
+    }
 }
 
 /// Converts a `Key` to a `CGKeyCode`
@@ -1072,29 +1101,27 @@ pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
-        if !self.release_keys_when_dropped {
-            return;
+        if self.release_keys_when_dropped {
+            let (held_keys, held_keycodes) = self.held();
+            for key in held_keys {
+                if self.key(key, Direction::Release).is_err() {
+                    error!("unable to release {key:?}");
+                };
+            }
+
+            for keycode in held_keycodes {
+                if self.raw(keycode, Direction::Release).is_err() {
+                    error!("unable to release {keycode:?}");
+                };
+            }
+            debug!("released all held keys");
         }
 
-        let (held_keys, held_keycodes) = self.held();
-        for key in held_keys {
-            if self.key(key, Direction::Release).is_err() {
-                error!("unable to release {key:?}");
-            };
-        }
-
-        for keycode in held_keycodes {
-            if self.raw(keycode, Direction::Release).is_err() {
-                error!("unable to release {keycode:?}");
-            };
-        }
-        debug!("released all held keys");
         // DO NOT REMOVE THE SLEEP
         // This sleep is needed because all events that have not been
         // processed until this point would just get ignored when the
         // struct is dropped
-        // TODO: Reduce the sleep, calculate how long the sleep should
-        // be or somehow check if all events have been handled
-        thread::sleep(Duration::from_secs(2));
+        self.update_wait_time();
+        thread::sleep(self.last_event.1.saturating_sub(Duration::from_millis(20)));
     }
 }
