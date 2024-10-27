@@ -293,12 +293,12 @@ impl Keyboard for Enigo {
                     continue;
                 }
                 if chunk.starts_with('\r') {
-                    self.text("\u{200B}\r")?;
+                    self.fast_text("\u{200B}\r")?;
                     chunk = &chunk[1..];
                     continue;
                 }
                 if chunk.starts_with('\n') {
-                    self.text("\u{200B}\n")?;
+                    self.fast_text("\u{200B}\n")?;
                     chunk = &chunk[1..];
                     continue;
                 }
