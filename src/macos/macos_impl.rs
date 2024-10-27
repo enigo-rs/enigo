@@ -342,7 +342,7 @@ impl Keyboard for Enigo {
                 self.special_keys(3, direction)?;
             }
             Key::Power => {
-                debug!("special case for handling the VolumeMute key");
+                debug!("special case for handling the Power key");
                 self.special_keys(6, direction)?;
             }
             Key::VolumeMute => {
@@ -351,23 +351,23 @@ impl Keyboard for Enigo {
             }
 
             Key::ContrastUp => {
-                debug!("special case for handling the VolumeUp key");
+                debug!("special case for handling the ContrastUp key");
                 self.special_keys(11, direction)?;
             }
             Key::ContrastDown => {
-                debug!("special case for handling the VolumeDown key");
+                debug!("special case for handling the ContrastDown key");
                 self.special_keys(12, direction)?;
             }
             Key::LaunchPanel => {
-                debug!("special case for handling the MediaPlayPause key");
+                debug!("special case for handling the LaunchPanel key");
                 self.special_keys(13, direction)?;
             }
             Key::Eject => {
-                debug!("special case for handling the MediaNextTrack key");
+                debug!("special case for handling the Eject key");
                 self.special_keys(14, direction)?;
             }
             Key::VidMirror => {
-                debug!("special case for handling the MediaPrevTrack key");
+                debug!("special case for handling the VidMirror key");
                 self.special_keys(15, direction)?;
             }
             Key::MediaPlayPause => {
@@ -383,23 +383,23 @@ impl Keyboard for Enigo {
                 self.special_keys(18, direction)?;
             }
             Key::MediaFast => {
-                debug!("special case for handling the MediaNextTrack key");
+                debug!("special case for handling the MediaFast key");
                 self.special_keys(19, direction)?;
             }
             Key::MediaRewind => {
-                debug!("special case for handling the MediaPrevTrack key");
+                debug!("special case for handling the MediaRewind key");
                 self.special_keys(20, direction)?;
             }
             Key::IlluminationUp => {
-                debug!("special case for handling the MediaPrevTrack key");
+                debug!("special case for handling the IlluminationUp key");
                 self.special_keys(21, direction)?;
             }
             Key::IlluminationDown => {
-                debug!("special case for handling the MediaNextTrack key");
+                debug!("special case for handling the IlluminationDown key");
                 self.special_keys(22, direction)?;
             }
             Key::IlluminationToggle => {
-                debug!("special case for handling the MediaPrevTrack key");
+                debug!("special case for handling the IlluminationToggle key");
                 self.special_keys(23, direction)?;
             }
             _ => {
