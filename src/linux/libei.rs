@@ -119,10 +119,7 @@ impl Con {
                 .await
                 .unwrap();
             trace!("new session");
-            remote_desktop
-                .start(&session, &ashpd::WindowIdentifier::default())
-                .await
-                .unwrap();
+            remote_desktop.start(&session, None).await.unwrap();
             trace!("start session");
             // This is needed so there is no zbus error
             std::thread::sleep(std::time::Duration::from_millis(10));
