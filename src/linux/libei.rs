@@ -1,6 +1,5 @@
 use ashpd::desktop::remote_desktop::RemoteDesktop;
 use log::{debug, error, trace, warn};
-use pollster::FutureExt as _;
 use reis::{
     ei::{self, Connection},
     handshake::HandshakeResp,
@@ -121,8 +120,6 @@ impl Con {
             trace!("new session");
             remote_desktop.start(&session, None).await.unwrap();
             trace!("start session");
-            // This is needed so there is no zbus error
-            std::thread::sleep(std::time::Duration::from_millis(10));
             let fd = remote_desktop.connect_to_eis(&session).await.unwrap();
             let stream = UnixStream::from(fd);
             stream.set_nonblocking(true).unwrap(); // TODO: Check if this is a good idea
@@ -145,7 +142,13 @@ impl Con {
         let sequence = 0;
         let time_created = Instant::now();
 
-        let context = Self::open_connection().block_on();
+        // Initialize a Tokio runtime
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?;
+
+        // Block on an async function within this runtime
+        let context = runtime.block_on(async { Self::open_connection().await });
+
         let HandshakeResp {
             connection,
             serial,
