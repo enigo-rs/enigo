@@ -23,6 +23,7 @@
 - macOS: Switched keycodes of `Key::Launchpad` and `Key::MissionControl`
 - macOS: `CapsLock` works ([#163](https://github.com/enigo-rs/enigo/issues/163))
 - macOS: Moving the mouse works also if it is the only function ([#182](https://github.com/enigo-rs/enigo/issues/182))
+- linux: libei: Typing is much faster now
 
 # 0.2.1
 ## Changed
