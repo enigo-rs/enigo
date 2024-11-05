@@ -202,8 +202,9 @@ impl Con {
 
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, libei_name: &str) -> InputResult<()> {
-        // TODO: Don't blindly do it 50 times but check if it is needed
-        for _ in 0..50 {
+        let mut had_pending_events = true;
+
+        loop {
             debug!("update");
             if self.context.read().is_err() {
                 error!("err reading");
@@ -211,6 +212,7 @@ impl Con {
             }
 
             while let Some(result) = self.context.pending_event() {
+                had_pending_events = true;
                 trace!("found pending_event");
 
                 let request = match result {
@@ -449,7 +451,7 @@ impl Con {
 
             trace!("devices: {:?}", self.devices);
 
-            if let Ok(()) = self.context.flush() {
+            if self.context.flush().is_ok() {
                 trace!("flush success");
             } else {
                 error!("flush fail");
@@ -459,6 +461,13 @@ impl Con {
             std::thread::sleep(std::time::Duration::from_millis(10));
             trace!("update flush");
             trace!("update done");
+
+            // We can stop looking for updates if there was no event to be handled
+            // previously
+            if !had_pending_events {
+                break;
+            }
+            had_pending_events = false;
         }
         Ok(())
     }
