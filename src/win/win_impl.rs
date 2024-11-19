@@ -32,6 +32,7 @@ pub struct Enigo {
     held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
     dw_extra_info: usize,
+    windows_subject_to_mouse_speed_and_acceleration_level: bool,
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
@@ -169,9 +170,39 @@ impl Mouse for Enigo {
             let y = y as i64;
             let x = (x * 65535 + w / 2 * x.signum()) / w;
             let y = (y * 65535 + h / 2 * y.signum()) / h;
+            // TODO: Check if we should use MOUSEEVENTF_VIRTUALDESK too
             (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, x as i32, y as i32)
-        } else {
+        } else if self.windows_subject_to_mouse_speed_and_acceleration_level {
+            // Quote from documentation (http://web.archive.org/web/20241118235853/https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event):
+            // Relative mouse motion is subject to the settings for mouse speed and
+            // acceleration level. An end user sets these values using the Mouse application
+            // in Control Panel. An application obtains and sets these values with the
+            // SystemParametersInfo function.
+            //
+            // The system applies two tests to the specified relative mouse motion when
+            // applying acceleration. If the specified distance along either the x or y axis
+            // is greater than the first mouse threshold value, and the mouse acceleration
+            // level is not zero, the operating system doubles the distance. If the
+            // specified distance along either the x- or y-axis is greater than the second
+            // mouse threshold value, and the mouse acceleration level is equal to two, the
+            // operating system doubles the distance that resulted from applying the first
+            // threshold test. It is thus possible for the operating system to multiply
+            // relatively-specified mouse motion along the x- or y-axis by up to four times.
+            //
+            // Once acceleration has been applied, the system scales the resultant value by
+            // the desired mouse speed. Mouse speed can range from 1 (slowest) to 20
+            // (fastest) and represents how much the pointer moves based on the distance the
+            // mouse moves. The default value is 10, which results in no additional
+            // modification to the mouse motion.
+            debug!("\x1b[93mRelative mouse move is subject to mouse speed and acceleration level\x1b[0m");
             (MOUSEEVENTF_MOVE, x, y)
+        } else {
+            // Instead of moving the mouse by a relative amount, we calculate the resulting
+            // location and move it to the absolute location so it is not subject to mouse
+            // speed and acceleration levels
+            debug!("\x1b[93mRelative mouse move is NOT subject to mouse speed and acceleration level\x1b[0m");
+            let (current_x, current_y) = self.location()?;
+            return self.move_mouse(current_x + x, current_y + y, Coordinate::Abs);
         };
         let input = mouse_event(flags, 0, x, y, self.dw_extra_info);
         send_input(&[input])
@@ -344,6 +375,7 @@ impl Enigo {
         let Settings {
             windows_dw_extra_info: dw_extra_info,
             release_keys_when_dropped,
+            windows_subject_to_mouse_speed_and_acceleration_level,
             ..
         } = settings;
 
@@ -355,6 +387,8 @@ impl Enigo {
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
             dw_extra_info: dw_extra_info.unwrap_or(crate::EVENT_MARKER as usize),
+            windows_subject_to_mouse_speed_and_acceleration_level:
+                *windows_subject_to_mouse_speed_and_acceleration_level,
         })
     }
 
