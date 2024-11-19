@@ -433,6 +433,7 @@ impl Error for NewConError {}
 
 /// Settings for creating the Enigo struct and it's behavior
 #[allow(dead_code)] // It is not dead code on other platforms
+#[allow(clippy::struct_excessive_bools)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Settings {
@@ -460,6 +461,13 @@ pub struct Settings {
     /// The default is true. If the Shift key for example is pressed,
     /// following simulated input will not be capitalized.
     pub independent_of_keyboard_state: bool,
+    /// If this is set to true, the relative mouse motion will be subject to the
+    /// settings for mouse speed and acceleration level. An end user sets
+    /// these values using the Mouse application in Control Panel. An
+    /// application obtains and sets these values with the
+    /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoA`
+    /// function. The default value is false.
+    pub windows_subject_to_mouse_speed_and_acceleration_level: bool,
 }
 
 impl Default for Settings {
@@ -474,6 +482,7 @@ impl Default for Settings {
             release_keys_when_dropped: true,
             open_prompt_to_get_permissions: true,
             independent_of_keyboard_state: true,
+            windows_subject_to_mouse_speed_and_acceleration_level: false,
         }
     }
 }
