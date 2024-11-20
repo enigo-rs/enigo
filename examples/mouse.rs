@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    env_logger::init();
+    env_logger::try_init().ok();
     let wait_time = Duration::from_secs(2);
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 

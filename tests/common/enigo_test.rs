@@ -23,7 +23,7 @@ pub struct EnigoTest {
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
-        env_logger::init();
+        env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
         let enigo = Enigo::new(settings).unwrap();
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
