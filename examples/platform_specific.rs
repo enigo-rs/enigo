@@ -4,7 +4,7 @@ use std::time::Duration;
 
 // This example will do different things depending on the platform
 fn main() {
-    env_logger::init();
+    env_logger::try_init().ok();
     thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
