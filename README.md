@@ -12,10 +12,10 @@ Cross platform input simulation in Rust!
 - [x] Serialize/Deserialize
 - [x] Linux (X11) mouse
 - [x] Linux (X11) text
-- [x] Linux (Wayland) mouse
-- [x] Linux (Wayland) text
-- [x] Linux (libei) mouse
-- [x] Linux (libei) text
+- [x] Linux (Wayland) mouse (Experimental)
+- [x] Linux (Wayland) text (Experimental)
+- [x] Linux (libei) mouse (Experimental)
+- [x] Linux (libei) text (Experimental)
 - [x] MacOS mouse
 - [x] MacOS text
 - [x] Windows mouse

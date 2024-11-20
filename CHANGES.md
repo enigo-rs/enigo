@@ -1,5 +1,11 @@
 # Unreleased
 ## Changed
+## Added
+## Removed
+## Fixed
+
+# 0.3.0
+## Changed
 - all: The keys `Print` and `Snapshot` were deprecated because `Print` had the wrong virtual key associated with it on Windows. Use `Key::PrintScr` instead
 - macOS: The simulated input is no longer effected by the state of the physical keyboard. This default behavior can be changed via the Settings (`independent_of_keyboard_state`)
 - macOS: Do not coalesce mouse events to allow precise control
@@ -14,6 +20,8 @@
 - macOS: Check if the application has the necessary permissions. If they are missing, `enigo` will ask the user to grant them. You can change this default behavior with the `Settings` when constructing an `Enigo` struct.
 - all: Added `Token::Location` and `Token::MainDisplay` mostly for debugging purposes. They allow you to check if your expectations are correct
 - win: Added a setting to take the mouse speed and acceleration level into account for relative mouse movement or reliably move the mouse to the expected location.
+
+## Removed
 
 ## Fixed
 - macOS: No more sleeps!! (Only when the `Enigo` struct is dropped) ([#105](https://github.com/enigo-rs/enigo/issues/105))
