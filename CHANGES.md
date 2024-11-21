@@ -1,7 +1,11 @@
 # Unreleased
 ## Changed
+- Rust: MSRV is 1.82
+
 ## Added
+
 ## Removed
+
 ## Fixed
 
 # 0.3.0
