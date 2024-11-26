@@ -19,18 +19,41 @@ const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
+    #[cfg(target_os = "windows")]
+    old_params: (i32, i32, i32), /* Stores the old values of threshold1, threshold2 and acceleration_level so they can be restored after the test (needed because we disable the enhanced pointer precision) */
 }
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
+
         let enigo = Enigo::new(settings).unwrap();
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
 
+        // the tests don't work on Windows if the mouse is subject to mouse speed and
+        // acceleration level
+        #[cfg(target_os = "windows")]
+        let (threshold1, threshold2, acceleration_level) =
+            enigo::mouse_thresholds_and_acceleration().expect("Unable to get the mouse threshold");
+
+        #[cfg(target_os = "windows")]
+        if acceleration_level != 0 {
+            enigo::set_mouse_thresholds_and_acceleration(threshold1, threshold2, 0)
+                .expect("Unable to set the mouse threshold");
+        }
+
+        #[cfg(target_os = "windows")]
+        let old_params = (threshold1, threshold2, acceleration_level);
+
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
-        Self { enigo, websocket }
+        Self {
+            enigo,
+            websocket,
+            #[cfg(target_os = "windows")]
+            old_params,
+        }
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
@@ -172,6 +195,16 @@ impl Mouse for EnigoTest {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
         let res = self.enigo.move_mouse(x, y, coordinate);
         println!("Executed enigo.move_mouse");
+        // On Windows the OS either ignores relative mouse moves by 0 or Firefox doesn't
+        // create events for them We need to return here so not wait forever for
+        // the browser to send a message via websocket
+        #[cfg(target_os = "windows")]
+        {
+            if coordinate == Coordinate::Rel && x == 0 && y == 0 {
+                println!("Relative mouse move by (0, 0) detected. We are not waiting for a response, because the OS ignores these calls");
+                return res;
+            }
+        }
         std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
 
         let ev = self.read_message();
@@ -253,6 +286,24 @@ impl Mouse for EnigoTest {
             Err(_) => todo!(),
         }
         res
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for EnigoTest {
+    fn drop(&mut self) {
+        // Restore the old parameters
+        // We can get rid of this if we find a way to calculate the next mouse move even
+        // if the SmoothMouseCurve is used
+        enigo::set_mouse_thresholds_and_acceleration(
+            self.old_params.0,
+            self.old_params.1,
+            self.old_params.2,
+        )
+        .expect(&format!(
+            "unable to restore the old parameters: {:?}",
+            self.old_params
+        ));
     }
 }
 

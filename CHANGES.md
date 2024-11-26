@@ -3,7 +3,8 @@
 - Rust: MSRV is 1.82
 
 ## Added
-- macOS: Add to support Mouse special key(Back, Forward)
+- macOS: Add support for the mouse special key `Back` and `Forward`
+- win: Added functions to get and set the mouse speed, acceleration level and smooth mouse curves (`get_mouse_thresholds_and_acceleration`, `set_mouse_thresholds_and_acceleration`, `get_mouse_speed`, `set_mouse_speed`, `mouse_curve`, `set_mouse_curve`)
 
 ## Removed
 

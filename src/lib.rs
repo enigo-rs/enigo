@@ -74,7 +74,10 @@ mod platform;
 pub use platform::Enigo;
 
 #[cfg(target_os = "windows")]
-pub use platform::EXT;
+pub use platform::{
+    mouse_curve, mouse_speed, mouse_thresholds_and_acceleration, set_mouse_curve, set_mouse_speed,
+    set_mouse_thresholds_and_acceleration, EXT,
+};
 
 mod keycodes;
 /// Contains the available keycodes
@@ -463,7 +466,7 @@ pub struct Settings {
     /// settings for mouse speed and acceleration level. An end user sets
     /// these values using the Mouse application in Control Panel. An
     /// application obtains and sets these values with the
-    /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoA`
+    /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW`
     /// function. The default value is false.
     pub windows_subject_to_mouse_speed_and_acceleration_level: bool,
 }

@@ -392,7 +392,7 @@ impl Enigo {
         })
     }
 
-    pub(crate) fn get_keyboard_layout() -> HKL {
+    pub(crate) fn keyboard_layout() -> HKL {
         let current_window_thread_id =
             unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
         unsafe { GetKeyboardLayout(current_window_thread_id) }
@@ -400,7 +400,7 @@ impl Enigo {
 
     /// Generic function to translate between virtual keys and scan codes
     fn translate_key(input: u16, map_type: MAP_VIRTUAL_KEY_TYPE) -> InputResult<u16> {
-        let layout = Enigo::get_keyboard_layout();
+        let layout = Enigo::keyboard_layout();
 
         // Call MapVirtualKeyExW using the provided map_type and input
         match unsafe { MapVirtualKeyExW(input.into(), map_type, layout) }.try_into() {
@@ -531,6 +531,360 @@ impl Enigo {
     }
 }
 
+/// Returns the currently set threshold1, threshold2 and acceleration level of
+/// the mouse
+///
+/// The default values on my system were (6, 10, 1)
+// This is needed to calculate the location after a relative mouse move
+#[must_use]
+pub fn mouse_thresholds_and_acceleration() -> Option<(i32, i32, i32)> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SystemParametersInfoW, SPI_GETMOUSE, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
+    };
+    // Retrieve mouse acceleration thresholds and level
+    let mut mouse_params = [0i32; 3];
+    unsafe {
+        if SystemParametersInfoW(
+            SPI_GETMOUSE,
+            0, // Not used
+            Some(mouse_params.as_mut_ptr().cast()),
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0), /* We are not setting a parameter so it can
+                                                     * be zero */
+        )
+        .is_err()
+        {
+            error!("unable to get the mouse params");
+            let last_err = std::io::Error::last_os_error();
+            error!("{last_err}");
+            return None;
+        }
+    }
+    debug!("mouse_params: {mouse_params:?}");
+    let [threshold1, threshold2, acceleration_level] = mouse_params;
+    Some((threshold1, threshold2, acceleration_level))
+}
+
+/// Set the threshold1, threshold2 and acceleration level of
+/// the mouse
+/// The documentation says that the acceleration level can be 0, 1 or 2
+/// However nowadays only 0 and 1 seem to be allowd as on my system I am unable
+/// to set it to 2
+///
+/// The default values on my system were (6, 10, 1)
+///
+/// # Errors
+/// Returns an error if the OS was unable to set the value or if the parameters
+/// were invalid
+pub fn set_mouse_thresholds_and_acceleration(
+    threshold1: i32,
+    threshold2: i32,
+    acceleration_level: i32,
+) -> Result<(), std::io::Error> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SystemParametersInfoW, SPIF_SENDCHANGE, SPI_SETMOUSE,
+    };
+
+    if acceleration_level != 0 && acceleration_level != 1 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid acceleration level",
+        ));
+    }
+
+    let mut mouse_params = [threshold1, threshold2, acceleration_level];
+    unsafe {
+        if SystemParametersInfoW(
+            SPI_SETMOUSE,
+            0, // Not used
+            Some(mouse_params.as_mut_ptr().cast()),
+            SPIF_SENDCHANGE, /* Broadcasts the WM_SETTINGCHANGE message after updating the user
+                              * profile, update Win.ini */
+        )
+        .is_err()
+        {
+            error!("unable to set the mouse params");
+            let last_err = std::io::Error::last_os_error();
+            error!("{last_err}");
+            return Err(last_err);
+        }
+    }
+    Ok(())
+}
+
+/// Returns the currently set scaling factor "`mouse_speed`". This is not the
+/// actual speed of the mouse but a setting.
+///
+/// Default value of the mouse speed is 10
+/// The returned value ranges between 1 (slowest) and 20 (fastest)
+/// (Source: <https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa>)
+// This is needed to calculate the location after a relative mouse move
+#[must_use]
+pub fn mouse_speed() -> Option<i32> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SystemParametersInfoW, SPI_GETMOUSESPEED, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
+    };
+
+    // Retrieve mouse speed
+    let mut mouse_speed = 0i32;
+
+    unsafe {
+        if SystemParametersInfoW(
+            SPI_GETMOUSESPEED,
+            0, // Not used
+            Some((&raw mut mouse_speed).cast()),
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0), /* We are not setting a parameter so it can
+                                                     * be zero */
+        )
+        .is_err()
+        {
+            error!("unable to get the mouse params");
+            let last_err = std::io::Error::last_os_error();
+            error!("{last_err}");
+            return None;
+        }
+    }
+    Some(mouse_speed)
+}
+
+/// Sets the scaling factor "`mouse_speed`". This is not the
+/// actual speed of the mouse but a setting.
+/// Must be between 1 (slowest) and 20 (fastest) (1 <= `mouse_speed` <= 20)
+///
+/// Default value of the mouse speed is 10
+/// (Source: <https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa>)
+///
+/// # Errors
+/// Returns an error if the OS was unable to set the value or if the parameters
+/// were invalid
+pub fn set_mouse_speed(mouse_speed: i32) -> Result<(), std::io::Error> {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SystemParametersInfoW, SPIF_SENDCHANGE, SPIF_UPDATEINIFILE, SPI_SETMOUSESPEED,
+    };
+
+    if !(1..=20).contains(&mouse_speed) {
+        error!("Not a valid mouse speed");
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid mouse speed",
+        ));
+    }
+
+    unsafe {
+        if SystemParametersInfoW(
+            SPI_SETMOUSESPEED,
+            0, // Not used
+            Some((mouse_speed as *mut usize).cast()),
+            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE, /* Broadcasts the WM_SETTINGCHANGE message
+                                                   * after updating the user
+                                                   * profile, update Win.ini */
+        )
+        .is_err()
+        {
+            error!("unable to set the mouse params");
+            let last_err = std::io::Error::last_os_error();
+            error!("{last_err}");
+            // If the output was "The operation completed successfully. (os error 0)", then
+            // the problem might be that the value to set the system parameter to was not
+            // valid
+            return Err(last_err);
+        }
+    }
+    Ok(())
+}
+
+/// Get the values of the `SmoothMouseXCurve` and the `SmoothMouseYCurve` values
+/// from the registry If the first parameter is true, `SmoothMouseXCurve` will
+/// be fetched. If the second parameter is true, `SmoothMouseYCurve` will be
+/// fetched. They each hold five f16.16 values in binary form (little endian)
+///
+/// # Errors
+/// An error will be thrown if the application does not have the permissions to
+/// read the values or the values do not contain exactly the expected amount of
+/// data. . For
+/// some reason there is also the same amount of empty data after each value.
+/// That means in total 2 * 4 * 5 = 40 bytes are expected
+/// There might be more cases when an error is thrown. Check the Microsoft
+/// Windows documentation if you need to know more
+#[allow(clippy::similar_names)] // smooth_mouse_curve_x_key and smooth_mouse_curve_y_key are too similar
+pub fn mouse_curve(
+    get_x: bool,
+    get_y: bool,
+) -> Result<[Option<[[u8; 4]; 5]>; 2], windows::core::Error> {
+    use windows::{
+        core::PCWSTR,
+        Win32::System::Registry::HKEY,
+        Win32::System::Registry::{RegGetValueW, RegOpenCurrentUser, KEY_READ, RRF_RT_REG_BINARY},
+    };
+
+    let smooth_mouse_curve_x_key: Vec<u16> = "SmoothMouseXCurve\0".encode_utf16().collect();
+    let smooth_mouse_curve_y_key: Vec<u16> = "SmoothMouseYCurve\0".encode_utf16().collect();
+
+    let tasks = [
+        (get_x, smooth_mouse_curve_x_key),
+        (get_y, smooth_mouse_curve_y_key),
+    ];
+
+    let mut curve = [None, None];
+
+    // Define the registry key and value names
+    let path: Vec<u16> = "Control Panel\\Mouse\0".encode_utf16().collect();
+
+    // Open the current user registry key
+    let mut hkey_current_user: HKEY = HKEY::default();
+    let res = unsafe { RegOpenCurrentUser(KEY_READ.0, &mut hkey_current_user) };
+    if res.is_err() {
+        println!("Failed to open current user registry key. Error: {res:?}");
+        return Err(res.into());
+    }
+
+    for (idx, (get_it, key)) in tasks.iter().enumerate() {
+        if *get_it {
+            let mut return_data = [0u8; 2 * 5 * 4];
+            let mut return_data_len = return_data.len() as u32;
+            let result = unsafe {
+                RegGetValueW(
+                    hkey_current_user,
+                    PCWSTR(path.as_ptr()),
+                    PCWSTR(key.as_ptr()),
+                    RRF_RT_REG_BINARY,
+                    None,
+                    Some(return_data.as_mut_ptr().cast()),
+                    Some(&mut return_data_len),
+                )
+            };
+
+            if result.is_err() {
+                println!("Error getting the mouse curve {key:?}: {result:?}");
+                return Err(result.into());
+            }
+
+            // Fixed Point Math and Number Bounds
+            //
+            // The ballistic Windows XP pointer algorithm resides between ring0 and ring3.
+            // Therefore, floating point math is not readily available, and because the
+            // Windows XP ballistics required the use of division with a remainder,
+            // fixed-point (16.16) integer math was used. This is important for the
+            // subpixilation and the increased smoothness of the pointer movement.
+            // Therefore, the maximum resultant number from two products is 2^16 (65536).
+            // While an overflow is possible, it is very unlikely. If an overflow ever
+            // becomes a problem in the future, the fixed point constants in the ballistics
+            // code are easily changed to support a 20.12 fixed-point format.
+            // source https://web.archive.org/web/20100315061825/http://www.microsoft.com/whdc/archive/pointer-bal.mspx
+            let return_data: Vec<[u8; 4]> = return_data
+                .chunks_exact(4)
+                .step_by(2)
+                // We use chunks_exact, so all chunks have a length of 4. Hence it is impossible for
+                // try_into to fail
+                .map(|c: &[u8]| c.try_into().unwrap_or([0, 0, 0, 0]))
+                .collect();
+            let return_data: [[u8; 4]; 5] = return_data
+                .try_into()
+                .map_err(|_| windows::core::Error::empty())?;
+            curve[idx] = Some(return_data);
+        }
+    }
+
+    Ok(curve)
+}
+
+/// Set the values of the `SmoothMouseXCurve` and the `SmoothMouseYCurve` values
+/// from the registry. Theymust each hold five f16.16 values in binary form
+/// (little endian)
+///
+/// # Errors
+/// An error will be thrown if the application does not have the permissions to
+/// write the values.
+/// There might be more cases when an error is thrown. Check the Microsoft
+/// Windows documentation if you need to know more
+pub fn set_mouse_curve(
+    mouse_curve_x: Option<[[u8; 4]; 5]>,
+    mouse_curve_y: Option<[[u8; 4]; 5]>,
+) -> Result<(), windows::core::Error> {
+    use windows::{
+        core::PCWSTR,
+        Win32::System::Registry::HKEY,
+        Win32::System::Registry::{
+            RegCloseKey, RegOpenCurrentUser, RegOpenKeyExW, RegSetValueExW, KEY_READ, KEY_WRITE,
+            REG_BINARY,
+        },
+    };
+    // Check if there is anything to do
+    if mouse_curve_x.is_none() && mouse_curve_y.is_none() {
+        return Ok(());
+    }
+
+    let key_x: Vec<_> = "SmoothMouseXCurve\0".encode_utf16().collect();
+    let key_y = "SmoothMouseYCurve\0".encode_utf16().collect();
+
+    // Define the registry key and value names
+    let path: Vec<u16> = "Control Panel\\Mouse\0".encode_utf16().collect();
+
+    // Open the current user registry key
+    let mut hkey_current_user: HKEY = HKEY::default();
+    let res = unsafe { RegOpenCurrentUser(KEY_READ.0, &mut hkey_current_user) };
+    if res.is_err() {
+        error!("Failed to open current user registry key. Error: {:?}", res);
+        return Err(res.into());
+    }
+
+    // Open the registry key at the given path
+    let mut hkey: HKEY = HKEY::default();
+    let res = unsafe {
+        RegOpenKeyExW(
+            hkey_current_user,
+            PCWSTR(path.as_ptr()),
+            0,                    // Reserved, must be zero
+            KEY_READ | KEY_WRITE, // Open with read and write permissions
+            &mut hkey,
+        )
+    };
+
+    if res.is_err() {
+        error!("Failed to open registry key at path. Error: {:?}", res);
+        return Err(res.into());
+    }
+
+    let mut tasks = Vec::with_capacity(2);
+    if let Some(mouse_curve) = mouse_curve_x {
+        tasks.push((mouse_curve, key_x));
+    }
+    if let Some(mouse_curve) = mouse_curve_y {
+        tasks.push((mouse_curve, key_y));
+    }
+
+    for (mouse_curve, key) in tasks {
+        let mut interspersed_curve = [0u8; 8 * 5];
+        for (i, &value) in mouse_curve.iter().enumerate() {
+            let start = i * 8; // Each block is 8 bytes: 4 for value, 4 for zero
+            interspersed_curve[start..start + 4].copy_from_slice(&value);
+        }
+
+        let result = unsafe {
+            RegSetValueExW(
+                hkey,
+                PCWSTR(key.as_ptr()),
+                0, // Reserved, must be zero
+                REG_BINARY,
+                Some(&interspersed_curve),
+            )
+        };
+
+        if result.is_err() {
+            error!("Error getting the mouse curve x: {:?}", result);
+            return Err(result.into());
+        }
+    }
+
+    // Close the opened registry key
+    let res = unsafe { RegCloseKey(hkey) };
+    if res.is_err() {
+        error!("Failed to close registry key. Error: {:?}", res);
+        return Err(res.into());
+    }
+
+    Ok(())
+}
+
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
@@ -553,6 +907,212 @@ impl Drop for Enigo {
 }
 
 mod test {
+
+    #[test]
+    fn unit_set_mouse_thresholds_and_acceleration() {
+        use super::{mouse_thresholds_and_acceleration, set_mouse_thresholds_and_acceleration};
+
+        // The acceleration level can only be 0 or 1. Previously 2 was allowed as well,
+        // but apparently that was changed
+        let valid_acceleration_levels = vec![0, 1];
+        let valid_thresholds = vec![
+            (6, 10),
+            (-1, 0),
+            (0, -1),
+            (-1, -1),
+            (-1000, -1000),
+            (i32::MIN, 0),
+            (0, i32::MIN),
+            (i32::MIN, i32::MIN),
+            (100, 1),
+            (1, 100),
+            (1, 100),
+            (1, 10000),
+            (1000000, 10000),
+            (453, 5673),
+            (-4532, 856),
+            (436, -5783),
+            (994974, 0),
+        ];
+
+        let invalid_test_cases = vec![
+            (0, 0, i32::MIN), // Negative acceleration level
+            (0, 0, -1000),    // Negative acceleration level
+            (0, 0, -1),       // Negative acceleration level
+            (0, 0, 2),        // acceleration level > 1
+            (0, 0, 3),        // acceleration level > 1
+            (0, 0, 4),        // acceleration level > 1
+            (0, 0, 10),       // acceleration level > 1
+            (0, 0, 5435674),  // acceleration level > 1
+            (0, 0, i32::MAX), // acceleration level > 1
+            (0, 0, i32::MIN), // Negative acceleration level
+            (6, 10, -1000),   // Negative acceleration level
+            (6, 10, -1),      // Negative acceleration level
+            (6, 10, 2),       // acceleration level > 1
+            (6, 10, 3),       // acceleration level > 1
+            (6, 10, 4),       // acceleration level > 1
+            (6, 10, 10),      // acceleration level > 1
+            (6, 10, 5435674), // acceleration level > 1
+        ];
+
+        // Store current setting
+        let (old_threshold1, old_threshold2, old_acceleration_level) =
+            mouse_thresholds_and_acceleration().unwrap();
+        println!("old_threshold1: {old_threshold1}");
+        println!("old_threshold2: {old_threshold2}");
+        println!("old_acceleration_level: {old_acceleration_level}");
+        println!();
+        println!();
+
+        for valid_acceleration_level in valid_acceleration_levels {
+            for (valid_threshold1, valid_threshold2) in &valid_thresholds {
+                println!("old_threshold1: {valid_threshold1}");
+                println!("old_threshold2: {valid_threshold2}");
+                println!("old_acceleration_level: {valid_acceleration_level}");
+                println!();
+                set_mouse_thresholds_and_acceleration(
+                    *valid_threshold1,
+                    *valid_threshold2,
+                    valid_acceleration_level,
+                )
+                .unwrap();
+                let actual_params = mouse_thresholds_and_acceleration().unwrap();
+                assert_eq!(
+                    (
+                        *valid_threshold1,
+                        *valid_threshold2,
+                        valid_acceleration_level
+                    ),
+                    actual_params
+                );
+            }
+        }
+
+        // Restore old setting
+        set_mouse_thresholds_and_acceleration(
+            old_threshold1,
+            old_threshold2,
+            old_acceleration_level,
+        )
+        .unwrap();
+
+        for (invalid_threshold1, invalid_threshold2, invalid_acceleration_level) in
+            invalid_test_cases
+        {
+            println!("old_threshold1: {invalid_threshold1}");
+            println!("old_threshold2: {invalid_threshold2}");
+            println!("old_acceleration_level: {invalid_acceleration_level}");
+            println!();
+            if set_mouse_thresholds_and_acceleration(
+                invalid_threshold1,
+                invalid_threshold2,
+                invalid_acceleration_level,
+            )
+            .is_ok()
+            {
+                // Restore old setting ()
+                set_mouse_thresholds_and_acceleration(
+                    old_threshold1,
+                    old_threshold2,
+                    old_acceleration_level,
+                )
+                .unwrap();
+                panic!("Successfully set an invalid mouse speed");
+            };
+            let actual_params = mouse_thresholds_and_acceleration().unwrap();
+            assert_eq!(
+                (old_threshold1, old_threshold2, old_acceleration_level),
+                actual_params
+            );
+        }
+    }
+
+    #[test]
+    fn unit_get_set_mouse_speed() {
+        use super::{mouse_speed, set_mouse_speed};
+
+        let valid_speeds = 1..=20;
+        let invalid_speeds = vec![i32::MIN, -1000, -1, 0, 21, 22, 1000, i32::MAX];
+
+        // Store current setting
+        let old_mouse_speed = mouse_speed().unwrap();
+        println!("old_mouse_speed: {old_mouse_speed}");
+
+        for valid_mouse_speed in valid_speeds {
+            println!("valid mouse speed: {valid_mouse_speed}");
+            set_mouse_speed(valid_mouse_speed).unwrap();
+            let actual_mouse_speed = mouse_speed().unwrap();
+            assert_eq!(valid_mouse_speed, actual_mouse_speed);
+        }
+        // Restore old setting
+        set_mouse_speed(old_mouse_speed).unwrap();
+
+        for invalid_mouse_speed in invalid_speeds {
+            println!("invalid mouse speed: {invalid_mouse_speed}");
+            if set_mouse_speed(invalid_mouse_speed).is_ok() {
+                // Restore old setting ()
+                set_mouse_speed(old_mouse_speed).unwrap();
+                panic!("Successfully set an invalid mouse speed");
+            };
+            let actual_mouse_speed = mouse_speed().unwrap();
+            assert_eq!(old_mouse_speed, actual_mouse_speed);
+        }
+    }
+
+    #[test]
+    fn unit_get_set_mouse_curve() {
+        let [old_mouse_curve_x, old_mouse_curve_y] = crate::mouse_curve(true, true).unwrap();
+
+        let test_cases = vec![
+            (
+                [
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                ],
+                [0.0, 0.0, 0.0, 0.0, 0.0],
+            ),
+            (
+                [
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0x15, 0x6e, 0x00, 0x00], // 0.43
+                    [0x00, 0x40, 0x01, 0x00], // 1.25
+                    [0x29, 0xdc, 0x03, 0x00], // 3.86
+                    [0x00, 0x00, 0x28, 0x00], // 40.0
+                ],
+                [0.0, 0.43001, 1.25, 3.86001, 40.0],
+            ),
+            (
+                [
+                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    [0xb8, 0x5e, 0x01, 0x00], // 1.37
+                    [0xcd, 0x4c, 0x05, 0x00], // 5.3
+                    [0xcd, 0x4c, 0x18, 0x00], // 24.3
+                    [0x00, 0x00, 0x38, 0x02], // 568.0
+                ],
+                [0.0, 1.37, 5.30001, 24.30001, 568.0],
+            ),
+        ];
+        for (mouse_curve, floats) in test_cases {
+            mouse_curve
+                .iter()
+                .zip(floats.iter())
+                .for_each(|(fixed, float)| {
+                    println!("fixed: {fixed:?}, float: {float}");
+                });
+
+            crate::set_mouse_curve(Some(mouse_curve), None).unwrap();
+            let mouse_curve_actual = crate::mouse_curve(true, false).unwrap();
+            assert_eq!([Some(mouse_curve), None], mouse_curve_actual);
+            crate::set_mouse_curve(None, Some(mouse_curve)).unwrap();
+            let mouse_curve_actual = crate::mouse_curve(false, true).unwrap();
+            assert_eq!([None, Some(mouse_curve)], mouse_curve_actual);
+        }
+
+        crate::set_mouse_curve(old_mouse_curve_x, old_mouse_curve_y).unwrap();
+    }
 
     #[test]
     fn extended_key() {
@@ -580,15 +1140,12 @@ mod test {
         ];
 
         for key in known_extended_keys {
-            assert_eq!(
-                true,
-                super::Enigo::is_extended_key(key),
-                "Failed for {key:#?}"
-            )
+            assert!(super::Enigo::is_extended_key(key), "Failed for {key:#?}");
         }
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn regular_key() {
         use windows::Win32::UI::Input::KeyboardAndMouse::{
             VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A,
@@ -869,11 +1426,7 @@ mod test {
         ];
 
         for key in known_ordinary_keys {
-            assert_eq!(
-                false,
-                super::Enigo::is_extended_key(key),
-                "Failed for {key:#?}"
-            )
+            assert!(!super::Enigo::is_extended_key(key), "Failed for {key:#?}");
         }
     }
 }
