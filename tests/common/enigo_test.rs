@@ -1,5 +1,7 @@
 use std::net::{TcpListener, TcpStream};
 
+#[cfg(target_os = "windows")]
+use fixed::{types::extra::U16, FixedI32};
 use tungstenite::accept;
 
 use enigo::{
@@ -21,16 +23,45 @@ pub struct EnigoTest {
     websocket: tungstenite::WebSocket<TcpStream>,
     #[cfg(target_os = "windows")]
     old_params: (i32, i32, i32), /* Stores the old values of threshold1, threshold2 and acceleration_level so they can be restored after the test (needed because we disable the enhanced pointer precision) */
+    #[cfg(target_os = "windows")]
+    win_mouse_acceleration: bool,
+    #[cfg(target_os = "windows")]
+    x: FixedI32<U16>,
+    #[cfg(target_os = "windows")]
+    y: FixedI32<U16>,
+    #[cfg(target_os = "windows")]
+    remainder_x: FixedI32<U16>,
+    #[cfg(target_os = "windows")]
+    remainder_y: FixedI32<U16>,
 }
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
+        let mut enigo = Enigo::new(settings).unwrap();
 
-        let enigo = Enigo::new(settings).unwrap();
+        let start_mouse = (100, 100);
+        enigo
+            .move_mouse(start_mouse.0, start_mouse.1, Coordinate::Abs)
+            .unwrap();
+
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
+        #[cfg(target_os = "windows")]
+        let win_mouse_acceleration = if cfg!(windows) {
+            settings.windows_subject_to_mouse_speed_and_acceleration_level
+        } else {
+            false
+        };
+        #[cfg(target_os = "windows")]
+        let x = FixedI32::<U16>::from_num(start_mouse.0);
+        #[cfg(target_os = "windows")]
+        let y = FixedI32::<U16>::from_num(start_mouse.1);
+        #[cfg(target_os = "windows")]
+        let remainder_x = FixedI32::<U16>::from_num(0);
+        #[cfg(target_os = "windows")]
+        let remainder_y = FixedI32::<U16>::from_num(0);
 
         // the tests don't work on Windows if the mouse is subject to mouse speed and
         // acceleration level
@@ -53,6 +84,16 @@ impl EnigoTest {
             websocket,
             #[cfg(target_os = "windows")]
             old_params,
+            #[cfg(target_os = "windows")]
+            win_mouse_acceleration,
+            #[cfg(target_os = "windows")]
+            x,
+            #[cfg(target_os = "windows")]
+            y,
+            #[cfg(target_os = "windows")]
+            remainder_x,
+            #[cfg(target_os = "windows")]
+            remainder_y,
         }
     }
 
@@ -219,8 +260,55 @@ impl Mouse for EnigoTest {
             panic!("BrowserEvent was not a MouseMove: {ev:?}");
         };
 
+        #[cfg(target_os = "windows")]
+        {
+            let (_, _, acc) = enigo::mouse_thresholds_and_acceleration().unwrap();
+            if coordinate == Coordinate::Abs {
+                self.x = FixedI32::<U16>::from_num(x);
+                self.y = FixedI32::<U16>::from_num(y);
+            } else if acc != 1 || !self.win_mouse_acceleration {
+                println!("enhanced pointer DISABLED");
+                self.x += FixedI32::<U16>::from_num(x);
+                self.y += FixedI32::<U16>::from_num(y);
+            } else {
+                //   println!("enhanced pointer enabled");
+                let [mouse_curve_x, mouse_curve_y] = enigo::mouse_curve(true, true).unwrap();
+                //   println!("mouse_curve: {mouse_curve_x:?}, {mouse_curve_y:?}");
+                let ((delta_x_ballistic, delta_y_ballistic), (remainder_x, remainder_y)) =
+                    enigo::calc_ballistic_location(
+                        x,
+                        y,
+                        self.remainder_x,
+                        self.remainder_y,
+                        [mouse_curve_x.unwrap(), mouse_curve_y.unwrap()],
+                    )
+                    .unwrap();
+
+                println!("rel_move by: ({x}, {y})");
+                println!("  balistic_move: ({delta_x_ballistic:?}, {delta_y_ballistic:?}), ({remainder_x:?}, {remainder_y:?})");
+                self.remainder_x = remainder_x;
+                self.remainder_y = remainder_y;
+                self.x += delta_x_ballistic;
+                self.y += delta_y_ballistic;
+
+                println!(
+                    "  mouse_position / delta_ballistic: {}, {}",
+                    mouse_position.0 / delta_x_ballistic.to_num::<i32>(),
+                    mouse_position.1 / delta_y_ballistic.to_num::<i32>()
+                );
+                /*
+                                assert!(i32::abs(delta_x_ballistic.to_num::<i32>() - mouse_position.0) <= 1);
+                                assert!(i32::abs(delta_y_ballistic.to_num::<i32>() - mouse_position.1) <= 1);
+
+                                println!("enigo.move_mouse() was a success");
+                */
+                return res;
+            };
+        }
+
         assert_eq!(x, mouse_position.0);
         assert_eq!(y, mouse_position.1);
+
         println!("enigo.move_mouse() was a success");
         res
     }

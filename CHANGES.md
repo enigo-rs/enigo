@@ -5,6 +5,7 @@
 ## Added
 - macOS: Add support for the mouse special key `Back` and `Forward`
 - win: Added functions to get and set the mouse speed, acceleration level and smooth mouse curves (`get_mouse_thresholds_and_acceleration`, `set_mouse_thresholds_and_acceleration`, `get_mouse_speed`, `set_mouse_speed`, `mouse_curve`, `set_mouse_curve`)
+- all: The function `win_future_rel_mouse_location` can calculate the next mouse position on a Windows OS, before a relative mouse move happens that is subject to mouse speed and acceleration level
 
 ## Removed
 

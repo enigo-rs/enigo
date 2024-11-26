@@ -52,6 +52,9 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
+#[cfg(target_os = "windows")]
+use fixed::{types::extra::U16, FixedI32};
+
 use log::{debug, error};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -486,6 +489,223 @@ impl Default for Settings {
             windows_subject_to_mouse_speed_and_acceleration_level: false,
         }
     }
+}
+
+/// IMPORTANT: This function does NOT simulate a relative mouse movement.
+///
+/// Windows: If `windows_subject_to_mouse_speed_and_acceleration_level` is set
+/// to `false`, relative mouse movement is influenced by the system's mouse
+/// speed and acceleration settings. This function calculates the new location
+/// based on the relative movement but does not guarantee the exact future
+/// location. It is intended to estimate the expected location and is useful for
+/// testing relative mouse movement.
+//
+// Quote from documentation (http://web.archive.org/web/20241118235853/https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event):
+// Relative mouse motion is subject to the settings for mouse speed and
+// acceleration level. An end user sets these values using the Mouse application
+// in Control Panel. An application obtains and sets these values with the
+// SystemParametersInfo function.
+//
+// The system applies two tests to the specified relative mouse motion when
+// applying acceleration. If the specified distance along either the x or y axis
+// is greater than the first mouse threshold value, and the mouse acceleration
+// level is not zero, the operating system doubles the distance. If the
+// specified distance along either the x- or y-axis is greater than the second
+// mouse threshold value, and the mouse acceleration level is equal to two, the
+// operating system doubles the distance that resulted from applying the first
+// threshold test. It is thus possible for the operating system to multiply
+// relatively-specified mouse motion along the x- or y-axis by up to four times.
+//
+// Once acceleration has been applied, the system scales the resultant value by
+// the desired mouse speed. Mouse speed can range from 1 (slowest) to 20
+// (fastest) and represents how much the pointer moves based on the distance the
+// mouse moves. The default value is 10, which results in no additional
+// modification to the mouse motion.
+//
+// TODO: Improve the calculation of the new mouse location so that we can
+// predict it exeactly. Right now there seem to be rounding errors and the
+// location sometimes is off by 1
+#[must_use]
+pub fn win_future_rel_mouse_location(
+    x: i32,
+    y: i32,
+    threshold1: i32,
+    threshold2: i32,
+    acceleration_level: i32,
+    mouse_speed: i32,
+) -> (i32, i32) {
+    let mouse_speed = mouse_speed as f64;
+
+    let mut multiplier = 1;
+    if acceleration_level != 0 && (x.abs() > threshold1 || y.abs() > threshold1) {
+        multiplier = 2;
+    }
+    if acceleration_level == 2 && (x.abs() > threshold2 || y.abs() > threshold2) {
+        multiplier *= 2;
+    }
+    debug!("multiplier: {multiplier}");
+
+    let accelerated_x = (multiplier * x) as f64;
+    let accelerated_y = (multiplier * y) as f64;
+    debug!("accelerated_x: {accelerated_x}, accelerated_y: {accelerated_y}");
+
+    let scaled_x = (accelerated_x * (mouse_speed / 10.0)).round() as i32;
+    let scaled_y = (accelerated_y * (mouse_speed / 10.0)).round() as i32;
+
+    (scaled_x, scaled_y)
+}
+
+/// Get the scaling multipliers associated with the pointer speed slider
+/// (sensitivity)
+// Source https://web.archive.org/web/20241123143225/https://www.esreality.com/index.php?a=post&id=1945096
+fn update_mouse_speed(
+    mouse_sensitivity: i32,
+    enhanced_pointer_precision: i32,
+) -> Result<f32, InputError> {
+    let speed = match mouse_sensitivity {
+        i32::MIN..1 | 21..=i32::MAX => {
+            return Err(InputError::InvalidInput(
+                "Mouse sensitivity must be between 1 and 20.",
+            ));
+        }
+        1 => (0.03125, 0.1),
+        2 => (0.0625, 0.2),
+        3 => (0.125, 0.3), // Guessed value
+        4 => (0.25, 0.4),
+        5 => (0.375, 0.5), // Guessed value
+        6 => (0.5, 0.6),
+        7 => (0.625, 0.7), // Guessed value
+        8 => (0.75, 0.8),
+        9 => (0.875, 0.9), // Guessed value
+        10 => (1.0, 1.0),
+        11 => (1.25, 1.1), // Guessed value
+        12 => (1.5, 1.2),
+        13 => (1.75, 1.3), // Guessed value
+        14 => (2.0, 1.4),
+        15 => (2.25, 1.5), // Guessed value
+        16 => (2.5, 1.6),
+        17 => (2.75, 1.7), // Guessed value
+        18 => (3.0, 1.8),
+        19 => (3.25, 1.9), // Guessed value
+        20 => (3.5, 2.0),
+    };
+    if enhanced_pointer_precision == 1 {
+        Ok(speed.1)
+    } else {
+        Ok(speed.0)
+    }
+}
+
+/// Calculate the next location of the mouse using the smooth mouse curve and
+/// the remaining subpixels
+#[cfg(target_os = "windows")]
+#[must_use]
+pub fn calc_ballistic_location(
+    x: i32,
+    y: i32,
+    remainder_x: FixedI32<U16>,
+    remainder_y: FixedI32<U16>,
+    smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
+) -> Option<(
+    (FixedI32<U16>, FixedI32<U16>),
+    (FixedI32<U16>, FixedI32<U16>),
+)> {
+    // The following list summarizes the ballistic algorithm used in Windows XP, in
+    // sequence and was taken unchanged from https://web.archive.org/web/20100315061825/http://www.microsoft.com/whdc/archive/pointer-bal.mspx
+
+    // Summary of the Ballistic Algorithm for Windows XP
+    //
+    // 1. When the system is started or the mouse speed setting is changed, the
+    //    translation table is recalculated and stored. The parent values are stored
+    //    in the registry and in physical units that are now converted to virtual
+    //    units by scaling them based on system parameters: screen refresh rate,
+    //    screen resolution, default values of the mouse refresh rate (USB 125 Hz),
+    //    and default mouse resolution (400 dpi). (This may change in the future to
+    //    actually reflect the pointer parameters.) Then the curves are speed-scaled
+    //    based on the pointer slider speed setting in the Mouse Properties dialog
+    //    box (Pointer Options tab).
+
+    let (_, _, enhanced_pointer_precision) = mouse_thresholds_and_acceleration().unwrap();
+    let mouse_sensitivity = mouse_speed().unwrap();
+    let mouse_speed_setting =
+        update_mouse_speed(mouse_sensitivity, enhanced_pointer_precision).unwrap();
+    let mouse_speed_setting = FixedI32::<U16>::checked_from_num(mouse_speed_setting)?;
+
+    // 2. Incoming mouse X and Y values are first converted to fixed-point 16.16
+    //    format.
+    let mut x = FixedI32::<U16>::checked_from_num(x)?;
+    let mut y = FixedI32::<U16>::checked_from_num(y)?;
+
+    // 3. The magnitude of the X and Y values is calculated and used to look up the
+    //    acceleration value in the lookup table.
+    let magnitude = FixedI32::<U16>::checked_sqrt(x.checked_mul(x)? + y.checked_mul(y)?)?;
+    println!("magnitude: {magnitude:?}");
+
+    // 4. The lookup table consists of six points (the first is [0,0]). Each point
+    //    represents an inflection point, and the lookup value typically resides
+    //    between the inflection points, so the acceleration multiplier value is
+    //    interpolated.
+    let acceleration = get_acceleration(magnitude, smooth_mouse_curve)?;
+    println!("acceleration: {acceleration:?}");
+    let acceleration = mouse_speed_setting.checked_mul(acceleration)?;
+    println!("acceleration_mul: {acceleration:?}");
+
+    // TODO: Shouldnt this be done after the multiplication with the acceleration?
+    // 5. The remainder from the previous calculation is added to both X and Y, and
+    //    then the acceleration multiplier is applied to transform the values. The
+    //    remainder is stored to be added to the next incoming values, which is how
+    //    subpixilation is enabled.
+    x = x.checked_add(remainder_x)?;
+    y = y.checked_add(remainder_y)?;
+
+    x = x.checked_mul(acceleration)?;
+    y = y.checked_mul(acceleration)?;
+
+    let remainder_x = x.frac();
+    let remainder_y = remainder_y.frac();
+
+    // 6. The values are sent on to move the pointer.
+    Some(((x, y), (remainder_x, remainder_y)))
+
+    // 7. If the feature is turned off (by clearing the Enhance pointer
+    //    precision check box underneath the mouse speed slider in the Mouse
+    //    Properties dialog box [Pointer Options tab]), the system works as it
+    //    did before without acceleration. All these functions are bypassed, and
+    //    the system takes the raw mouse values and multiplies them by a scalar
+    //    set based on the speed slider setting.
+}
+
+#[cfg(target_os = "windows")]
+fn get_acceleration(
+    magnitude: FixedI32<U16>,
+    smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
+) -> Option<FixedI32<U16>> {
+    // The first point is implicitly at (0, 0) and does not need to get provided
+    let (mut x1, mut y1) = (FixedI32::<U16>::from_num(0), FixedI32::<U16>::from_num(0));
+    let (mut x2, mut y2) = (smooth_mouse_curve[0][0], smooth_mouse_curve[1][0]);
+
+    // For each of the points except for the last one...
+    for i in 0..4 {
+        // Check if x is within the range of the current segment
+        if magnitude < x2 && magnitude >= x1 {
+            // Linear interpolation
+            let gain_factor = (y1.checked_add(
+                (magnitude.checked_sub(x1)?)
+                    .checked_mul(y2.checked_sub(y1)?)?
+                    .checked_div(x2.checked_sub(x1)?)?,
+            )?)
+            .checked_div(magnitude)?;
+            let gain_factor2 = (y1 + (magnitude - x1) * (y2 - y1) / (x2 - x1)) / magnitude;
+            assert_eq!(gain_factor, gain_factor2);
+            return Some(gain_factor);
+        }
+
+        (x1, y1) = (smooth_mouse_curve[0][i], smooth_mouse_curve[1][i]);
+        (x2, y2) = (smooth_mouse_curve[0][i + 1], smooth_mouse_curve[1][i + 1]);
+    }
+    // We do linear extrapolation after the last point
+    let gain_factor = (y1 + (magnitude - x1) * (y2 - y1) / (x2 - x1)) / magnitude;
+    return Some(gain_factor);
 }
 
 #[cfg(test)]

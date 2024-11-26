@@ -1,5 +1,6 @@
 use std::mem::size_of;
 
+use fixed::{types::extra::U16, FixedI32};
 use log::{debug, error, info, warn};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::{
@@ -44,7 +45,7 @@ fn send_input(input: &[INPUT]) -> InputResult<()> {
             "the size of the INPUT was so large, the size exceeded i32::MAX",
         ));
     };
-    let Ok(input_len) = input.len().try_into() else {
+    let Ok(input_len): Result<u32, _> = input.len().try_into() else {
         return Err(InputError::InvalidInput(
             "the number of INPUT was so large, the length of the Vec exceeded i32::MAX",
         ));
@@ -709,7 +710,7 @@ pub fn set_mouse_speed(mouse_speed: i32) -> Result<(), std::io::Error> {
 pub fn mouse_curve(
     get_x: bool,
     get_y: bool,
-) -> Result<[Option<[[u8; 4]; 5]>; 2], windows::core::Error> {
+) -> Result<[Option<[FixedI32<U16>; 5]>; 2], windows::core::Error> {
     use windows::{
         core::PCWSTR,
         Win32::System::Registry::HKEY,
@@ -770,14 +771,15 @@ pub fn mouse_curve(
             // becomes a problem in the future, the fixed point constants in the ballistics
             // code are easily changed to support a 20.12 fixed-point format.
             // source https://web.archive.org/web/20100315061825/http://www.microsoft.com/whdc/archive/pointer-bal.mspx
-            let return_data: Vec<[u8; 4]> = return_data
+            let return_data: Vec<FixedI32<U16>> = return_data
                 .chunks_exact(4)
                 .step_by(2)
                 // We use chunks_exact, so all chunks have a length of 4. Hence it is impossible for
                 // try_into to fail
-                .map(|c: &[u8]| c.try_into().unwrap_or([0, 0, 0, 0]))
+                .map(|chunk| chunk.try_into().unwrap_or([0, 0, 0, 0]))
+                .map(FixedI32::from_le_bytes)
                 .collect();
-            let return_data: [[u8; 4]; 5] = return_data
+            let return_data: [FixedI32<U16>; 5] = return_data
                 .try_into()
                 .map_err(|_| windows::core::Error::empty())?;
             curve[idx] = Some(return_data);
@@ -797,8 +799,8 @@ pub fn mouse_curve(
 /// There might be more cases when an error is thrown. Check the Microsoft
 /// Windows documentation if you need to know more
 pub fn set_mouse_curve(
-    mouse_curve_x: Option<[[u8; 4]; 5]>,
-    mouse_curve_y: Option<[[u8; 4]; 5]>,
+    mouse_curve_x: Option<[FixedI32<U16>; 5]>,
+    mouse_curve_y: Option<[FixedI32<U16>; 5]>,
 ) -> Result<(), windows::core::Error> {
     use windows::{
         core::PCWSTR,
@@ -856,7 +858,7 @@ pub fn set_mouse_curve(
         let mut interspersed_curve = [0u8; 8 * 5];
         for (i, &value) in mouse_curve.iter().enumerate() {
             let start = i * 8; // Each block is 8 bytes: 4 for value, 4 for zero
-            interspersed_curve[start..start + 4].copy_from_slice(&value);
+            interspersed_curve[start..start + 4].copy_from_slice(&value.to_le_bytes());
         }
 
         let result = unsafe {
@@ -907,6 +909,7 @@ impl Drop for Enigo {
 }
 
 mod test {
+    use fixed::FixedI32;
 
     #[test]
     fn unit_set_mouse_thresholds_and_acceleration() {
@@ -1066,31 +1069,31 @@ mod test {
         let test_cases = vec![
             (
                 [
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
                 ],
                 [0.0, 0.0, 0.0, 0.0, 0.0],
             ),
             (
                 [
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0x15, 0x6e, 0x00, 0x00], // 0.43
-                    [0x00, 0x40, 0x01, 0x00], // 1.25
-                    [0x29, 0xdc, 0x03, 0x00], // 3.86
-                    [0x00, 0x00, 0x28, 0x00], // 40.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0x15, 0x6e, 0x00, 0x00]), // 0.43
+                    FixedI32::from_le_bytes([0x00, 0x40, 0x01, 0x00]), // 1.25
+                    FixedI32::from_le_bytes([0x29, 0xdc, 0x03, 0x00]), // 3.86
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x28, 0x00]), // 40.0
                 ],
                 [0.0, 0.43001, 1.25, 3.86001, 40.0],
             ),
             (
                 [
-                    [0x00, 0x00, 0x00, 0x00], // 0.0
-                    [0xb8, 0x5e, 0x01, 0x00], // 1.37
-                    [0xcd, 0x4c, 0x05, 0x00], // 5.3
-                    [0xcd, 0x4c, 0x18, 0x00], // 24.3
-                    [0x00, 0x00, 0x38, 0x02], // 568.0
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                    FixedI32::from_le_bytes([0xb8, 0x5e, 0x01, 0x00]), // 1.37
+                    FixedI32::from_le_bytes([0xcd, 0x4c, 0x05, 0x00]), // 5.3
+                    FixedI32::from_le_bytes([0xcd, 0x4c, 0x18, 0x00]), // 24.3
+                    FixedI32::from_le_bytes([0x00, 0x00, 0x38, 0x02]), // 568.0
                 ],
                 [0.0, 1.37, 5.30001, 24.30001, 568.0],
             ),
