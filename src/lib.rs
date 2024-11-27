@@ -108,13 +108,11 @@ pub enum Button {
     #[cfg_attr(feature = "serde", serde(alias = "r"))]
     Right,
     /// 4th mouse button. Typically performs the same function as `Browser_Back`
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     #[cfg_attr(feature = "serde", serde(alias = "B"))]
     #[cfg_attr(feature = "serde", serde(alias = "b"))]
     Back,
     /// 5th mouse button. Typically performs the same function as
     /// `Browser_Forward`
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     #[cfg_attr(feature = "serde", serde(alias = "F"))]
     #[cfg_attr(feature = "serde", serde(alias = "f"))]
     Forward,

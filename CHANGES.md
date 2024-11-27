@@ -3,6 +3,7 @@
 - Rust: MSRV is 1.82
 
 ## Added
+- macOS: Add to support Mouse special key(Back, Forward)
 
 ## Removed
 

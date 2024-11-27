@@ -82,8 +82,8 @@ pub struct Enigo {
     // Instant when the last event was sent and the duration that needs to be waited for after that
     // instant to make sure all events were handled by the OS
     last_event: (Instant, Duration),
-    // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
-    last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
+    // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is stabilized
+    last_mouse_click: [(i64, Instant); 9], /* For each of the nine Button variants, we
                                             * store the last time the button was clicked and
                                             * the nth click that was
                                             * This information is needed to
@@ -100,10 +100,12 @@ impl Mouse for Enigo {
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
-            let (button, event_type) = match button {
-                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
-                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
-                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+            let (button, event_type, button_number) = match button {
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown, None),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(2)),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseDown, None),
+                Button::Back => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(3)),
+                Button::Forward => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(4)),
                 Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
                 Button::ScrollDown => return self.scroll(1, Axis::Vertical),
                 Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
@@ -118,6 +120,10 @@ impl Mouse for Enigo {
                     "failed creating event to enter mouse button",
                 ));
             };
+
+            if let Some(button_number) = button_number {
+                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+            }
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.set_integer_value_field(
                 EventField::EVENT_SOURCE_USER_DATA,
@@ -129,10 +135,12 @@ impl Mouse for Enigo {
         }
         if direction == Direction::Click || direction == Direction::Release {
             let click_count = self.nth_button_press(button, Direction::Release);
-            let (button, event_type) = match button {
-                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
-                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
-                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+            let (button, event_type, button_number) = match button {
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp, None),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(2)),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseUp, None),
+                Button::Back => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(3)),
+                Button::Forward => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(4)),
                 Button::ScrollUp
                 | Button::ScrollDown
                 | Button::ScrollLeft
@@ -150,6 +158,9 @@ impl Mouse for Enigo {
                 ));
             };
 
+            if let Some(button_number) = button_number {
+                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+            }
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.set_integer_value_field(
                 EventField::EVENT_SOURCE_USER_DATA,
@@ -545,7 +556,7 @@ impl Enigo {
             event_flags,
             double_click_delay,
             last_event,
-            last_mouse_click: [(0, Instant::now()); 7],
+            last_mouse_click: [(0, Instant::now()); 9],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
     }
