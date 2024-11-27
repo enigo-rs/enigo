@@ -293,8 +293,8 @@ impl Mouse for EnigoTest {
 
                 println!(
                     "  mouse_position / delta_ballistic: {}, {}",
-                    mouse_position.0 / delta_x_ballistic.to_num::<i32>(),
-                    mouse_position.1 / delta_y_ballistic.to_num::<i32>()
+                    mouse_position.0 as f64 / delta_x_ballistic.to_num::<f64>(),
+                    mouse_position.1 as f64 / delta_y_ballistic.to_num::<f64>()
                 );
                 /*
                                 assert!(i32::abs(delta_x_ballistic.to_num::<i32>() - mouse_position.0) <= 1);

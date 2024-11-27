@@ -47,6 +47,11 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(deprecated)]
 
+const DEFAULT_BUS_UPDATE_RATE: i32 = 125; // in HZ
+const DEFAULT_POINTER_RESOLUTION: i32 = 400; // in mickey/inch
+const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
+const DEFAULT_SCREEN_RESOLUTION: i32 = 80; // in DPI
+
 use std::{
     error::Error,
     fmt::{self, Display, Formatter},
@@ -79,7 +84,7 @@ pub use platform::Enigo;
 #[cfg(target_os = "windows")]
 pub use platform::{
     mouse_curve, mouse_speed, mouse_thresholds_and_acceleration, set_mouse_curve, set_mouse_speed,
-    set_mouse_thresholds_and_acceleration, EXT,
+    set_mouse_thresholds_and_acceleration, system_dpi, EXT,
 };
 
 mod keycodes;
@@ -610,6 +615,13 @@ pub fn calc_ballistic_location(
     (FixedI32<U16>, FixedI32<U16>),
     (FixedI32<U16>, FixedI32<U16>),
 )> {
+    if x == 0 && y == 0 {
+        return Some((
+            (FixedI32::<U16>::from_num(0), FixedI32::<U16>::from_num(0)),
+            (remainder_x, remainder_y),
+        ));
+    }
+
     // The following list summarizes the ballistic algorithm used in Windows XP, in
     // sequence and was taken unchanged from https://web.archive.org/web/20100315061825/http://www.microsoft.com/whdc/archive/pointer-bal.mspx
 
@@ -625,6 +637,33 @@ pub fn calc_ballistic_location(
     //    based on the pointer slider speed setting in the Mouse Properties dialog
     //    box (Pointer Options tab).
 
+    let bus_update_rate = FixedI32::<U16>::from_num(DEFAULT_BUS_UPDATE_RATE);
+    let pointer_resolution = FixedI32::<U16>::from_num(DEFAULT_POINTER_RESOLUTION);
+    let p_mouse_factor = bus_update_rate.checked_div(pointer_resolution)?;
+    // let p_mouse_factor = FixedI32::<U16>::from_num(3.5);
+
+    let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
+    //let screen_resolution = system_dpi();
+    //println!("DPI: {screen_resolution}");
+    // let screen_resolution = FixedI32::<U16>::from_num(screen_resolution);
+    let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
+    let v_pointer_factor = screen_update_rate.checked_div(screen_resolution)?;
+    // let v_pointer_factor = FixedI32::<U16>::from_num(150 as f32 / 96 as f32);
+
+    let scaled_smooth_mouse_curve_x: Vec<_> = smooth_mouse_curve[0]
+        .iter()
+        .map(|&v| v.checked_div(p_mouse_factor).unwrap())
+        .collect();
+    let scaled_smooth_mouse_curve_y: Vec<_> = smooth_mouse_curve[1]
+        .iter()
+        .map(|&v| v.checked_div(v_pointer_factor).unwrap())
+        .collect();
+
+    let smooth_mouse_curve = [
+        scaled_smooth_mouse_curve_x.try_into().unwrap(),
+        scaled_smooth_mouse_curve_y.try_into().unwrap(),
+    ];
+
     let (_, _, enhanced_pointer_precision) = mouse_thresholds_and_acceleration().unwrap();
     let mouse_sensitivity = mouse_speed().unwrap();
     let mouse_speed_setting =
@@ -639,27 +678,37 @@ pub fn calc_ballistic_location(
     // 3. The magnitude of the X and Y values is calculated and used to look up the
     //    acceleration value in the lookup table.
     let magnitude = FixedI32::<U16>::checked_sqrt(x.checked_mul(x)? + y.checked_mul(y)?)?;
-    println!("magnitude: {magnitude:?}");
+    println!(" magnitude: {:?}", magnitude.to_num::<f64>());
 
     // 4. The lookup table consists of six points (the first is [0,0]). Each point
     //    represents an inflection point, and the lookup value typically resides
     //    between the inflection points, so the acceleration multiplier value is
     //    interpolated.
     let acceleration = get_acceleration(magnitude, smooth_mouse_curve)?;
-    println!("acceleration: {acceleration:?}");
+    println!(" acceleration: {:?}", acceleration.to_num::<f64>());
     let acceleration = mouse_speed_setting.checked_mul(acceleration)?;
-    println!("acceleration_mul: {acceleration:?}");
+    println!(" acceleration_mul: {:?}", acceleration.to_num::<f64>());
 
-    // TODO: Shouldnt this be done after the multiplication with the acceleration?
+    /*
+    if acceleration == 0 {
+        return Some((
+            (FixedI32::<U16>::from_num(0), FixedI32::<U16>::from_num(0)),
+            (remainder_x, remainder_y),
+        ));
+    }*/
+
     // 5. The remainder from the previous calculation is added to both X and Y, and
     //    then the acceleration multiplier is applied to transform the values. The
     //    remainder is stored to be added to the next incoming values, which is how
     //    subpixilation is enabled.
-    x = x.checked_add(remainder_x)?;
-    y = y.checked_add(remainder_y)?;
 
+    // TODO: I interpret the doc to say that the multiplication should be done AFTER
+    // adding the remainder. Doesnt make sense to me. Double check this
     x = x.checked_mul(acceleration)?;
     y = y.checked_mul(acceleration)?;
+
+    x = x.checked_add(remainder_x)?;
+    y = y.checked_add(remainder_y)?;
 
     let remainder_x = x.frac();
     let remainder_y = remainder_y.frac();
@@ -705,7 +754,27 @@ fn get_acceleration(
     }
     // We do linear extrapolation after the last point
     let gain_factor = (y1 + (magnitude - x1) * (y2 - y1) / (x2 - x1)) / magnitude;
-    return Some(gain_factor);
+    Some(gain_factor)
+}
+
+fn physical_mouse_speed(mickey: i32) -> Option<FixedI32<U16>> {
+    let mickey = FixedI32::<U16>::from_num(mickey);
+    let bus_update_rate = FixedI32::<U16>::from_num(DEFAULT_BUS_UPDATE_RATE);
+    let pointer_resolution = FixedI32::<U16>::from_num(DEFAULT_POINTER_RESOLUTION);
+
+    let factor = bus_update_rate.checked_div(pointer_resolution)?;
+    let speed = mickey.checked_mul(factor)?;
+    Some(speed)
+}
+
+fn virtual_pointer_speed(mickey: i32) -> Option<FixedI32<U16>> {
+    let mickey = FixedI32::<U16>::from_num(mickey);
+    let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
+    let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
+
+    let factor = screen_update_rate.checked_div(screen_resolution)?;
+    let speed = mickey.checked_mul(factor)?;
+    Some(speed)
 }
 
 #[cfg(test)]

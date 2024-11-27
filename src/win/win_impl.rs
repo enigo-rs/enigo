@@ -887,6 +887,10 @@ pub fn set_mouse_curve(
     Ok(())
 }
 
+pub fn system_dpi() -> u32 {
+    unsafe { windows::Win32::UI::HiDpi::GetDpiForSystem() }
+}
+
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
@@ -909,7 +913,6 @@ impl Drop for Enigo {
 }
 
 mod test {
-    use fixed::FixedI32;
 
     #[test]
     fn unit_set_mouse_thresholds_and_acceleration() {
@@ -1064,6 +1067,7 @@ mod test {
 
     #[test]
     fn unit_get_set_mouse_curve() {
+        use fixed::FixedI32;
         let [old_mouse_curve_x, old_mouse_curve_y] = crate::mouse_curve(true, true).unwrap();
 
         let test_cases = vec![
