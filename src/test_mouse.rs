@@ -36,8 +36,8 @@ impl Default for TestMouse {
         #[cfg(not(target_os = "windows"))]
         let mouse_speed = FixedI32::<U16>::from_num(1.0);
         #[cfg(target_os = "windows")]
-        let mouse_speed: i32 = {
-            let mouse_speed = enigo::mouse_speed().unwrap();
+        let mouse_speed = {
+            let mouse_speed = crate::mouse_speed().unwrap();
             let mouse_speed = TestMouse::mouse_sensitivity_to_speed(mouse_speed).unwrap();
             FixedI32::<U16>::checked_from_num(mouse_speed).unwrap()
         };
@@ -74,7 +74,7 @@ impl Default for TestMouse {
         ];
         #[cfg(target_os = "windows")]
         let mouse_curve = {
-            let [curve_x, curve_y] = enigo::mouse_curve(true, true).unwrap();
+            let [curve_x, curve_y] = crate::mouse_curve(true, true).unwrap();
             [curve_x.unwrap(), curve_y.unwrap()]
         };
 
