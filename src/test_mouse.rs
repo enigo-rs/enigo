@@ -12,9 +12,9 @@ pub const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
 /// NOT simulate a mouse move. It's pretty much only useful for testing or if
 /// you want the mouse to behave similar to on Windows on other platforms
 pub struct TestMouse {
-    pub(crate) ballistic: bool,
-    pub(crate) x_abs_fix: FixedI32<U16>,
-    pub(crate) y_abs_fix: FixedI32<U16>,
+    pub ballistic: bool,
+    pub x_abs_fix: FixedI32<U16>,
+    pub y_abs_fix: FixedI32<U16>,
     remainder_x: FixedI32<U16>,
     remainder_y: FixedI32<U16>,
     mouse_speed: FixedI32<U16>,

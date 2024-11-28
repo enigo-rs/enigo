@@ -40,46 +40,16 @@ impl EnigoTest {
 
         #[cfg(all(feature = "test_mouse", target_os = "windows"))]
         let test_mouse = {
-            let mut ballistic = false;
-            if settings.windows_subject_to_mouse_speed_and_acceleration_level {
-                let (_, _, acceleration_level) = enigo::mouse_thresholds_and_acceleration()
-                    .expect("Unable to get the mouse threshold");
-                // We only have to do a ballistic calculation if the acceleration level is 1
-                ballistic = acceleration_level == 1;
-            }
+            let mut test_mouse = TestMouse::default();
+            test_mouse.ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
 
             let start_mouse = enigo.location().unwrap();
-
             let x = start_mouse.0;
             let y = start_mouse.1;
 
-            let x_abs_fix = FixedI32::<U16>::from_num(x);
-            let y_abs_fix = FixedI32::<U16>::from_num(y);
+            test_mouse.x_abs_fix = FixedI32::<U16>::from_num(x);
+            test_mouse.y_abs_fix = FixedI32::<U16>::from_num(y);
 
-            let remainder_x = FixedI32::<U16>::from_num(0);
-            let remainder_y = FixedI32::<U16>::from_num(0);
-
-            let mouse_speed: i32 = enigo::mouse_speed().unwrap();
-            let mouse_speed = TestMouse::mouse_sensitivity_to_speed(mouse_speed).unwrap();
-            let mouse_speed = FixedI32::<U16>::checked_from_num(mouse_speed).unwrap();
-
-            let p_mouse_factor = TestMouse::physical_mouse_factor();
-            let v_pointer_factor = TestMouse::virtual_pointer_factor();
-
-            let [curve_x, curve_y] = enigo::mouse_curve(true, true).unwrap();
-            let mouse_curve = [curve_x.unwrap(), curve_y.unwrap()];
-
-            let test_mouse = TestMouse::new(
-                ballistic,
-                x_abs_fix,
-                y_abs_fix,
-                remainder_x,
-                remainder_y,
-                mouse_speed,
-                p_mouse_factor,
-                v_pointer_factor,
-                mouse_curve,
-            );
             Some(test_mouse)
         };
 
