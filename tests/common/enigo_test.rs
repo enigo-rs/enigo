@@ -45,10 +45,14 @@ impl EnigoTest {
 
         #[cfg(all(feature = "test_mouse", target_os = "windows"))]
         let test_mouse = {
-            let (_, _, acceleration_level) = enigo::mouse_thresholds_and_acceleration()
-                .expect("Unable to get the mouse threshold");
-            // We only have to do a ballistic calculation if the acceleration level is 1
-            let ballistic = acceleration_level == 1;
+            let mut ballistic = false;
+            if settings.windows_subject_to_mouse_speed_and_acceleration_level {
+                let (_, _, acceleration_level) = enigo::mouse_thresholds_and_acceleration()
+                    .expect("Unable to get the mouse threshold");
+                // We only have to do a ballistic calculation if the acceleration level is 1
+                ballistic = acceleration_level == 1;
+            }
+
             let x = start_mouse.0;
             let y = start_mouse.1;
 
