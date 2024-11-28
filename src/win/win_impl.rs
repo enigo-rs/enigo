@@ -761,6 +761,8 @@ pub fn mouse_curve(
                 return Err(result.into());
             }
 
+            println!("mouse curve raw: {return_data}");
+
             // Fixed Point Math and Number Bounds
             //
             // The ballistic Windows XP pointer algorithm resides between ring0 and ring3.
