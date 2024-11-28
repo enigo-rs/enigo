@@ -120,12 +120,14 @@ impl TestMouse {
         }
     }
 
+    #[must_use]
     pub fn new_simple(ballistic: bool, x_start: i32, y_start: i32) -> Self {
-        let mut test_mouse = TestMouse::default();
-        test_mouse.ballistic = ballistic;
-        test_mouse.x_abs_fix = FixedI32::<U16>::from_num(x_start);
-        test_mouse.y_abs_fix = FixedI32::<U16>::from_num(y_start);
-        test_mouse
+        TestMouse {
+            ballistic,
+            x_abs_fix: FixedI32::<U16>::from_num(x_start),
+            y_abs_fix: FixedI32::<U16>::from_num(y_start),
+            ..Default::default()
+        }
     }
 
     /// Get the scaling multipliers associated with the pointer speed slider
