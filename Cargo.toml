@@ -39,11 +39,14 @@ wayland = [
 ]
 xdo = []
 x11rb = ["dep:x11rb"]
+# test_mouse: Calculate the resulting next mouse position
+# Pretty much only useful on Windows to run tests, but it is available on all platforms
+test_mouse = ["dep:fixed"]
 
 [dependencies]
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
-fixed = "1.28"
+fixed = { version = "1.28", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = [

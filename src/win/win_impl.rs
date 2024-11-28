@@ -1,6 +1,5 @@
 use std::mem::size_of;
 
-use fixed::{types::extra::U16, FixedI32};
 use log::{debug, error, info, warn};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::{
@@ -13,12 +12,14 @@ use windows::Win32::UI::{
         MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN,
         MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
     },
-    WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
+    WindowsAndMessaging::{
+        GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowThreadProcessId, SM_CXSCREEN,
+        SM_CYSCREEN, WHEEL_DELTA,
+    },
 };
 
-use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
-};
+#[cfg(feature = "test_mouse")]
+use fixed::{types::extra::U16, FixedI32};
 
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
@@ -707,6 +708,7 @@ pub fn set_mouse_speed(mouse_speed: i32) -> Result<(), std::io::Error> {
 /// There might be more cases when an error is thrown. Check the Microsoft
 /// Windows documentation if you need to know more
 #[allow(clippy::similar_names)] // smooth_mouse_curve_x_key and smooth_mouse_curve_y_key are too similar
+#[cfg(feature = "test_mouse")]
 pub fn mouse_curve(
     get_x: bool,
     get_y: bool,
@@ -798,6 +800,7 @@ pub fn mouse_curve(
 /// write the values.
 /// There might be more cases when an error is thrown. Check the Microsoft
 /// Windows documentation if you need to know more
+#[cfg(feature = "test_mouse")]
 pub fn set_mouse_curve(
     mouse_curve_x: Option<[FixedI32<U16>; 5]>,
     mouse_curve_y: Option<[FixedI32<U16>; 5]>,
@@ -887,6 +890,7 @@ pub fn set_mouse_curve(
     Ok(())
 }
 
+#[must_use]
 pub fn system_dpi() -> u32 {
     unsafe { windows::Win32::UI::HiDpi::GetDpiForSystem() }
 }
@@ -915,6 +919,7 @@ impl Drop for Enigo {
 mod test {
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn unit_set_mouse_thresholds_and_acceleration() {
         use super::{mouse_thresholds_and_acceleration, set_mouse_thresholds_and_acceleration};
 
@@ -1066,6 +1071,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "test_mouse")]
     fn unit_get_set_mouse_curve() {
         use fixed::FixedI32;
         let [old_mouse_curve_x, old_mouse_curve_y] = crate::mouse_curve(true, true).unwrap();

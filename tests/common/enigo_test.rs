@@ -1,6 +1,6 @@
 use std::net::{TcpListener, TcpStream};
 
-#[cfg(target_os = "windows")]
+#[cfg(feature = "test_mouse")]
 use fixed::{types::extra::U16, FixedI32};
 use tungstenite::accept;
 
@@ -9,6 +9,9 @@ use enigo::{
     Direction::{self, Click, Press, Release},
     Enigo, Key, Keyboard, Mouse, Settings,
 };
+
+#[cfg(feature = "test_mouse")]
+use enigo::test_mouse::TestMouse;
 
 use super::browser_events::BrowserEvent;
 
@@ -21,18 +24,8 @@ const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
-    #[cfg(target_os = "windows")]
-    old_params: (i32, i32, i32), /* Stores the old values of threshold1, threshold2 and acceleration_level so they can be restored after the test (needed because we disable the enhanced pointer precision) */
-    #[cfg(target_os = "windows")]
-    win_mouse_acceleration: bool,
-    #[cfg(target_os = "windows")]
-    x: FixedI32<U16>,
-    #[cfg(target_os = "windows")]
-    y: FixedI32<U16>,
-    #[cfg(target_os = "windows")]
-    remainder_x: FixedI32<U16>,
-    #[cfg(target_os = "windows")]
-    remainder_y: FixedI32<U16>,
+    #[cfg(feature = "test_mouse")]
+    test_mouse: Option<TestMouse>,
 }
 
 impl EnigoTest {
@@ -48,52 +41,54 @@ impl EnigoTest {
 
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
-        #[cfg(target_os = "windows")]
-        let win_mouse_acceleration = if cfg!(windows) {
-            settings.windows_subject_to_mouse_speed_and_acceleration_level
+
+        #[cfg(feature = "test_mouse")]
+        let test_mouse = if cfg!(target_os = "windows") {
+            let (_, _, acceleration_level) = enigo::mouse_thresholds_and_acceleration()
+                .expect("Unable to get the mouse threshold");
+            // We only have to do a ballistic calculation if the acceleration level is 1
+            let ballistic = acceleration_level == 1;
+            let x = start_mouse.0;
+            let y = start_mouse.1;
+
+            let x_abs_fix = FixedI32::<U16>::from_num(x);
+            let y_abs_fix = FixedI32::<U16>::from_num(y);
+
+            let remainder_x = FixedI32::<U16>::from_num(0);
+            let remainder_y = FixedI32::<U16>::from_num(0);
+
+            let mouse_speed: i32 = enigo::mouse_speed().unwrap();
+            let mouse_speed = TestMouse::mouse_sensitivity_to_speed(mouse_speed).unwrap();
+            let mouse_speed = FixedI32::<U16>::checked_from_num(mouse_speed).unwrap();
+
+            let p_mouse_factor = TestMouse::physical_mouse_factor();
+            let v_pointer_factor = TestMouse::virtual_pointer_factor();
+
+            let [curve_x, curve_y] = enigo::mouse_curve(true, true).unwrap();
+            let mouse_curve = [curve_x.unwrap(), curve_y.unwrap()];
+
+            let test_mouse = TestMouse::new(
+                ballistic,
+                x_abs_fix,
+                y_abs_fix,
+                remainder_x,
+                remainder_y,
+                mouse_speed,
+                p_mouse_factor,
+                v_pointer_factor,
+                mouse_curve,
+            );
+            Some(test_mouse)
         } else {
-            false
+            None
         };
-        #[cfg(target_os = "windows")]
-        let x = FixedI32::<U16>::from_num(start_mouse.0);
-        #[cfg(target_os = "windows")]
-        let y = FixedI32::<U16>::from_num(start_mouse.1);
-        #[cfg(target_os = "windows")]
-        let remainder_x = FixedI32::<U16>::from_num(0);
-        #[cfg(target_os = "windows")]
-        let remainder_y = FixedI32::<U16>::from_num(0);
-
-        // the tests don't work on Windows if the mouse is subject to mouse speed and
-        // acceleration level
-        #[cfg(target_os = "windows")]
-        let (threshold1, threshold2, acceleration_level) =
-            enigo::mouse_thresholds_and_acceleration().expect("Unable to get the mouse threshold");
-
-        #[cfg(target_os = "windows")]
-        if acceleration_level != 0 {
-            enigo::set_mouse_thresholds_and_acceleration(threshold1, threshold2, 0)
-                .expect("Unable to set the mouse threshold");
-        }
-
-        #[cfg(target_os = "windows")]
-        let old_params = (threshold1, threshold2, acceleration_level);
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
         Self {
             enigo,
             websocket,
-            #[cfg(target_os = "windows")]
-            old_params,
-            #[cfg(target_os = "windows")]
-            win_mouse_acceleration,
-            #[cfg(target_os = "windows")]
-            x,
-            #[cfg(target_os = "windows")]
-            y,
-            #[cfg(target_os = "windows")]
-            remainder_x,
-            #[cfg(target_os = "windows")]
-            remainder_y,
+            #[cfg(feature = "test_mouse")]
+            test_mouse,
         }
     }
 
@@ -234,6 +229,11 @@ impl Mouse for EnigoTest {
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
+        // We only change the expected variable on Windows when the ballistic mouse is
+        // checked, so it is only needed on Windows
+        #[cfg(all(target_os = "windows", feature = "test_mouse"))]
+        let (mut x, mut y) = (x, y);
+
         let res = self.enigo.move_mouse(x, y, coordinate);
         println!("Executed enigo.move_mouse");
         // On Windows the OS either ignores relative mouse moves by 0 or Firefox doesn't
@@ -262,48 +262,22 @@ impl Mouse for EnigoTest {
 
         #[cfg(target_os = "windows")]
         {
-            let (_, _, acc) = enigo::mouse_thresholds_and_acceleration().unwrap();
-            if coordinate == Coordinate::Abs {
-                self.x = FixedI32::<U16>::from_num(x);
-                self.y = FixedI32::<U16>::from_num(y);
-            } else if acc != 1 || !self.win_mouse_acceleration {
-                println!("enhanced pointer DISABLED");
-                self.x += FixedI32::<U16>::from_num(x);
-                self.y += FixedI32::<U16>::from_num(y);
-            } else {
-                //   println!("enhanced pointer enabled");
-                let [mouse_curve_x, mouse_curve_y] = enigo::mouse_curve(true, true).unwrap();
-                //   println!("mouse_curve: {mouse_curve_x:?}, {mouse_curve_y:?}");
-                let ((delta_x_ballistic, delta_y_ballistic), (remainder_x, remainder_y)) =
-                    enigo::calc_ballistic_location(
-                        x,
-                        y,
-                        self.remainder_x,
-                        self.remainder_y,
-                        [mouse_curve_x.unwrap(), mouse_curve_y.unwrap()],
-                    )
-                    .unwrap();
-
-                println!("rel_move by: ({x}, {y})");
-                println!("  balistic_move: ({delta_x_ballistic:?}, {delta_y_ballistic:?}), ({remainder_x:?}, {remainder_y:?})");
-                self.remainder_x = remainder_x;
-                self.remainder_y = remainder_y;
-                self.x += delta_x_ballistic;
-                self.y += delta_y_ballistic;
-
-                println!(
-                    "  mouse_position / delta_ballistic: {}, {}",
-                    mouse_position.0 as f64 / delta_x_ballistic.to_num::<f64>(),
-                    mouse_position.1 as f64 / delta_y_ballistic.to_num::<f64>()
-                );
-                /*
-                                assert!(i32::abs(delta_x_ballistic.to_num::<i32>() - mouse_position.0) <= 1);
-                                assert!(i32::abs(delta_y_ballistic.to_num::<i32>() - mouse_position.1) <= 1);
-
-                                println!("enigo.move_mouse() was a success");
-                */
-                return res;
-            };
+            #[cfg(not(feature = "test_mouse"))]
+            {
+                if coordinate == Coordinate::Rel {
+                    panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
+                }
+            }
+            #[cfg(feature = "test_mouse")]
+            {
+                if let Some(test_mouse) = &mut self.test_mouse {
+                    let (x_delta, y_delta) = test_mouse
+                        .predict_pixel_delta(x, y, coordinate)
+                        .expect("Unable to calculate the next position");
+                    x = x_delta;
+                    y = y_delta;
+                };
+            }
         }
 
         assert_eq!(x, mouse_position.0);
@@ -374,24 +348,6 @@ impl Mouse for EnigoTest {
             Err(_) => todo!(),
         }
         res
-    }
-}
-
-#[cfg(target_os = "windows")]
-impl Drop for EnigoTest {
-    fn drop(&mut self) {
-        // Restore the old parameters
-        // We can get rid of this if we find a way to calculate the next mouse move even
-        // if the SmoothMouseCurve is used
-        enigo::set_mouse_thresholds_and_acceleration(
-            self.old_params.0,
-            self.old_params.1,
-            self.old_params.2,
-        )
-        .expect(&format!(
-            "unable to restore the old parameters: {:?}",
-            self.old_params
-        ));
     }
 }
 
