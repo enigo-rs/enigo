@@ -42,7 +42,7 @@ fn main() {
         }
 
         //thread::sleep(wait_time);
-        println!("{i}, {:?},", enigo.location().unwrap().0);
+        println!("{i}, {:?},", enigo.location().unwrap().1);
         for _ in 0..detail {
             enigo.move_mouse(0, -i, Rel).unwrap();
         }
