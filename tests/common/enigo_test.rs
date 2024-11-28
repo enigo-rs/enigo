@@ -23,7 +23,7 @@ pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
     #[cfg(all(feature = "test_mouse", target_os = "windows"))]
-    test_mouse: Option<TestMouse>,
+    test_mouse: TestMouse,
     #[cfg(target_os = "windows")]
     is_ballistic: bool,
 }
@@ -45,9 +45,7 @@ impl EnigoTest {
             let x = start_mouse.0;
             let y = start_mouse.1;
 
-            let test_mouse = TestMouse::new_simple(is_ballistic, x, y);
-
-            Some(test_mouse)
+            TestMouse::new_simple(is_ballistic, x, y)
         };
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
@@ -229,22 +227,21 @@ impl Mouse for EnigoTest {
             panic!("BrowserEvent was not a MouseMove: {ev:?}");
         };
 
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", not(feature = "test_mouse")))]
+        if coordinate == Coordinate::Rel && self.is_ballistic {
+            println!("ballistic? {}", self.is_ballistic);
+            panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
+        }
+
+        #[cfg(all(target_os = "windows", feature = "test_mouse"))]
         {
-            #[cfg(not(feature = "test_mouse"))]
-            if coordinate == Coordinate::Rel && self.is_ballistic {
-                println!("ballistic? {}", self.is_ballistic);
-                panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
-            }
-            #[cfg(feature = "test_mouse")]
-            {
-                if let Some(test_mouse) = &mut self.test_mouse {
-                    let (x_delta, y_delta) = test_mouse
-                        .predict_pixel_delta(x, y, coordinate)
-                        .expect("Unable to calculate the next position");
-                    x = x_delta;
-                    y = y_delta;
-                };
+            let (x_delta, y_delta) = self
+                .test_mouse
+                .predict_pixel_delta(x, y, coordinate)
+                .expect("Unable to calculate the next position");
+            if coordinate == Coordinate::Rel {
+                x = x_delta;
+                y = y_delta;
             }
         }
 
