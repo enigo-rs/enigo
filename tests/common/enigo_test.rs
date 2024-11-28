@@ -1,7 +1,5 @@
 use std::net::{TcpListener, TcpStream};
 
-#[cfg(feature = "test_mouse")]
-use fixed::{types::extra::U16, FixedI32};
 use tungstenite::accept;
 
 use enigo::{
@@ -10,7 +8,7 @@ use enigo::{
     Enigo, Key, Keyboard, Mouse, Settings,
 };
 
-#[cfg(feature = "test_mouse")]
+#[cfg(all(feature = "test_mouse", target_os = "windows"))]
 use enigo::test_mouse::TestMouse;
 
 use super::browser_events::BrowserEvent;
@@ -24,12 +22,15 @@ const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
-    #[cfg(feature = "test_mouse")]
+    #[cfg(all(feature = "test_mouse", target_os = "windows"))]
     test_mouse: Option<TestMouse>,
 }
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
+        #[cfg(all(feature = "test_mouse", target_os = "windows"))]
+        use fixed::{types::extra::U16, FixedI32};
+
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
         let mut enigo = Enigo::new(settings).unwrap();
@@ -42,8 +43,8 @@ impl EnigoTest {
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
 
-        #[cfg(feature = "test_mouse")]
-        let test_mouse = if cfg!(target_os = "windows") {
+        #[cfg(all(feature = "test_mouse", target_os = "windows"))]
+        let test_mouse = {
             let (_, _, acceleration_level) = enigo::mouse_thresholds_and_acceleration()
                 .expect("Unable to get the mouse threshold");
             // We only have to do a ballistic calculation if the acceleration level is 1
@@ -79,15 +80,13 @@ impl EnigoTest {
                 mouse_curve,
             );
             Some(test_mouse)
-        } else {
-            None
         };
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
         Self {
             enigo,
             websocket,
-            #[cfg(feature = "test_mouse")]
+            #[cfg(all(feature = "test_mouse", target_os = "windows"))]
             test_mouse,
         }
     }

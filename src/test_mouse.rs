@@ -6,7 +6,7 @@ use crate::{Coordinate, InputError};
 // const DEFAULT_BUS_UPDATE_RATE: i32 = 125; // in HZ
 // const DEFAULT_POINTER_RESOLUTION: i32 = 400; // in mickey/inch
 // const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
-const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
+pub const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
 
 /// Struct that will calculate the resulting position of the mouse. This will
 /// NOT simulate a mouse move. It's pretty much only useful for testing or if
@@ -85,6 +85,7 @@ impl TestMouse {
             19 => 1.9, // Guessed value
             20 => 2.0,
         };
+        debug!("mouse speed: {speed}");
         Ok(speed)
     }
 
@@ -146,14 +147,13 @@ impl TestMouse {
         let magnitude = i32::isqrt(x.checked_mul(x)? + y.checked_mul(y)?);
         // println!(" magnitude: {:?}", magnitude);
         let magnitude = FixedI32::<U16>::checked_from_num(magnitude)?;
-        println!(" magnitude: {:?}", magnitude.to_num::<f64>());
+        debug!(" magnitude: {:?}", magnitude.to_num::<f64>());
 
         // 4. The lookup table consists of six points (the first is [0,0]). Each point
         //    represents an inflection point, and the lookup value typically resides
         //    between the inflection points, so the acceleration multiplier value is
         //    interpolated.
         let acceleration = Self::get_acceleration(magnitude, scaled_mouse_curve)?;
-        println!(" acceleration: {:?}", acceleration.to_num::<f64>());
 
         if acceleration == 0 {
             return Some((
@@ -223,6 +223,7 @@ impl TestMouse {
             }
         }
         gain_factor /= magnitude;
+        debug!(" acceleration: {:?}", gain_factor.to_num::<f64>());
         Some(gain_factor)
     }
 
@@ -242,6 +243,7 @@ impl TestMouse {
     }
 
     #[must_use]
+    #[cfg(target_os = "windows")]
     pub fn virtual_pointer_factor() -> FixedI32<U16> {
         let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
         // TODO: Apparently this function doesn't always return the correct results
@@ -273,7 +275,7 @@ impl TestMouse {
                 .saturating_mul(mouse_speed);
         }
 
-        println!("Scaled smooth mouse: {smooth_mouse_curve:?}");
+        debug!("Scaled smooth mouse: {smooth_mouse_curve:?}");
         smooth_mouse_curve
     }
 
@@ -317,6 +319,11 @@ impl TestMouse {
         self.remainder_y = r_y;
         self.x_abs_fix += ballistic_x;
         self.y_abs_fix += ballistic_y;
+        debug!(
+            "ballistic move: {}, {}",
+            ballistic_x.to_num::<i32>(),
+            ballistic_y.to_num::<i32>()
+        );
         Some((ballistic_x.to_num::<i32>(), ballistic_y.to_num::<i32>()))
     }
 }
