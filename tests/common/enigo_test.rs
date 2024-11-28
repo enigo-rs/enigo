@@ -24,6 +24,8 @@ pub struct EnigoTest {
     websocket: tungstenite::WebSocket<TcpStream>,
     #[cfg(all(feature = "test_mouse", target_os = "windows"))]
     test_mouse: Option<TestMouse>,
+    #[cfg(target_os = "windows")]
+    is_ballistic: bool,
 }
 
 impl EnigoTest {
@@ -34,15 +36,16 @@ impl EnigoTest {
 
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
+        #[cfg(target_os = "windows")]
+        let is_ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
 
         #[cfg(all(feature = "test_mouse", target_os = "windows"))]
         let test_mouse = {
             let start_mouse = enigo.location().unwrap();
             let x = start_mouse.0;
             let y = start_mouse.1;
-            let ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
 
-            let test_mouse = TestMouse::new_simple(ballistic, x, y);
+            let test_mouse = TestMouse::new_simple(is_ballistic, x, y);
 
             Some(test_mouse)
         };
@@ -53,6 +56,8 @@ impl EnigoTest {
             websocket,
             #[cfg(all(feature = "test_mouse", target_os = "windows"))]
             test_mouse,
+            #[cfg(target_os = "windows")]
+            is_ballistic,
         }
     }
 
@@ -227,10 +232,8 @@ impl Mouse for EnigoTest {
         #[cfg(target_os = "windows")]
         {
             #[cfg(not(feature = "test_mouse"))]
-            {
-                if coordinate == Coordinate::Rel {
-                    panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
-                }
+            if coordinate == Coordinate::Rel && self.is_ballistic {
+                panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
             }
             #[cfg(feature = "test_mouse")]
             {
