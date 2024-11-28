@@ -40,11 +40,10 @@ fn integration_browser_events() {
 }
 
 #[test]
-#[cfg(target_os = "windows")]
 // The relative mouse move is affected by mouse speed and acceleration level on
 // Windows if the setting windows_subject_to_mouse_speed_and_acceleration_level
 // is true
-fn integration_browser_win_rel_mouse_move() {
+fn integration_browser_rel_mouse_move() {
     let mut enigo = Enigo::new(&Settings {
         windows_subject_to_mouse_speed_and_acceleration_level: true,
         ..Default::default()
