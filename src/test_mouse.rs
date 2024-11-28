@@ -224,7 +224,8 @@ impl TestMouse {
 
         // 3. The magnitude of the X and Y values is calculated and used to look up the
         //    acceleration value in the lookup table.
-        let magnitude = i32::isqrt(x.checked_mul(x)? + y.checked_mul(y)?);
+
+        let magnitude = ((x.checked_mul(x)? + y.checked_mul(y)?) as f64).sqrt() as i32;
         // println!(" magnitude: {:?}", magnitude);
         let magnitude = FixedI32::<U16>::checked_from_num(magnitude)?;
         debug!(" magnitude: {:?}", magnitude.to_num::<f64>());
