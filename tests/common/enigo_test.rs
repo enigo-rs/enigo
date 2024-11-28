@@ -40,15 +40,12 @@ impl EnigoTest {
 
         #[cfg(all(feature = "test_mouse", target_os = "windows"))]
         let test_mouse = {
-            let mut test_mouse = TestMouse::default();
-            test_mouse.ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
-
             let start_mouse = enigo.location().unwrap();
             let x = start_mouse.0;
             let y = start_mouse.1;
+            let ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
 
-            test_mouse.x_abs_fix = FixedI32::<U16>::from_num(x);
-            test_mouse.y_abs_fix = FixedI32::<U16>::from_num(y);
+            let mut test_mouse = TestMouse::new_simple(ballistic, x, y);
 
             Some(test_mouse)
         };

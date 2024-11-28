@@ -12,9 +12,9 @@ pub const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
 /// NOT simulate a mouse move. It's pretty much only useful for testing or if
 /// you want the mouse to behave similar to on Windows on other platforms
 pub struct TestMouse {
-    pub ballistic: bool,
-    pub x_abs_fix: FixedI32<U16>,
-    pub y_abs_fix: FixedI32<U16>,
+    ballistic: bool,
+    x_abs_fix: FixedI32<U16>,
+    y_abs_fix: FixedI32<U16>,
     remainder_x: FixedI32<U16>,
     remainder_y: FixedI32<U16>,
     mouse_speed: FixedI32<U16>,
@@ -118,6 +118,14 @@ impl TestMouse {
             v_pointer_factor,
             smooth_mouse_curve,
         }
+    }
+
+    pub fn new_simple(ballistic: bool, x_start: i32, y_start: i32) -> Self {
+        let mut test_mouse = TestMouse::default();
+        test_mouse.ballistic = ballistic;
+        test_mouse.x_abs_fix = FixedI32::<U16>::from_num(x_start);
+        test_mouse.y_abs_fix = FixedI32::<U16>::from_num(y_start);
+        test_mouse
     }
 
     /// Get the scaling multipliers associated with the pointer speed slider
