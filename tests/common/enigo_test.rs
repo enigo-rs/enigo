@@ -28,9 +28,6 @@ pub struct EnigoTest {
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
-        #[cfg(all(feature = "test_mouse", target_os = "windows"))]
-        use fixed::{types::extra::U16, FixedI32};
-
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
         let enigo = Enigo::new(settings).unwrap();
@@ -45,7 +42,7 @@ impl EnigoTest {
             let y = start_mouse.1;
             let ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
 
-            let mut test_mouse = TestMouse::new_simple(ballistic, x, y);
+            let test_mouse = TestMouse::new_simple(ballistic, x, y);
 
             Some(test_mouse)
         };
