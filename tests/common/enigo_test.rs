@@ -33,12 +33,7 @@ impl EnigoTest {
 
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
-        let mut enigo = Enigo::new(settings).unwrap();
-
-        let start_mouse = (100, 100);
-        enigo
-            .move_mouse(start_mouse.0, start_mouse.1, Coordinate::Abs)
-            .unwrap();
+        let enigo = Enigo::new(settings).unwrap();
 
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
@@ -52,6 +47,8 @@ impl EnigoTest {
                 // We only have to do a ballistic calculation if the acceleration level is 1
                 ballistic = acceleration_level == 1;
             }
+
+            let start_mouse = enigo.location().unwrap();
 
             let x = start_mouse.0;
             let y = start_mouse.1;

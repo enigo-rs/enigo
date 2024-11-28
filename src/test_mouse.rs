@@ -5,22 +5,91 @@ use crate::{Coordinate, InputError};
 
 // const DEFAULT_BUS_UPDATE_RATE: i32 = 125; // in HZ
 // const DEFAULT_POINTER_RESOLUTION: i32 = 400; // in mickey/inch
-// const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
+const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
 pub const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
 
 /// Struct that will calculate the resulting position of the mouse. This will
 /// NOT simulate a mouse move. It's pretty much only useful for testing or if
 /// you want the mouse to behave similar to on Windows on other platforms
 pub struct TestMouse {
-    ballistic: bool,
-    x_abs_fix: FixedI32<U16>,
-    y_abs_fix: FixedI32<U16>,
+    pub(crate) ballistic: bool,
+    pub(crate) x_abs_fix: FixedI32<U16>,
+    pub(crate) y_abs_fix: FixedI32<U16>,
     remainder_x: FixedI32<U16>,
     remainder_y: FixedI32<U16>,
     mouse_speed: FixedI32<U16>,
     p_mouse_factor: FixedI32<U16>,
     v_pointer_factor: FixedI32<U16>,
     smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
+}
+
+impl Default for TestMouse {
+    fn default() -> Self {
+        #[cfg(not(target_os = "windows"))]
+        let acceleration_level = 0;
+        #[cfg(target_os = "windows")]
+        let (_, _, acceleration_level) =
+            crate::mouse_thresholds_and_acceleration().expect("Unable to get the mouse threshold");
+        // We only have to do a ballistic calculation if the acceleration level is 1
+        let ballistic = acceleration_level == 1;
+
+        #[cfg(not(target_os = "windows"))]
+        let mouse_speed = FixedI32::<U16>::from_num(1.0);
+        #[cfg(target_os = "windows")]
+        let mouse_speed: i32 = {
+            let mouse_speed = enigo::mouse_speed().unwrap();
+            let mouse_speed = TestMouse::mouse_sensitivity_to_speed(mouse_speed).unwrap();
+            FixedI32::<U16>::checked_from_num(mouse_speed).unwrap()
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let p_mouse_factor = FixedI32::<U16>::from_num(3.5);
+        #[cfg(target_os = "windows")]
+        let p_mouse_factor = TestMouse::physical_mouse_factor();
+
+        #[cfg(not(target_os = "windows"))]
+        let v_pointer_factor = {
+            let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
+            let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
+            screen_update_rate.saturating_div(screen_resolution)
+        };
+        #[cfg(target_os = "windows")]
+        let v_pointer_factor = TestMouse::virtual_pointer_factor();
+
+        let smooth_mouse_curve = [
+            [
+                FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                FixedI32::from_le_bytes([0x00, 0x00, 0x64, 0x00]), // 0.43
+                FixedI32::from_le_bytes([0x00, 0x00, 0x96, 0x00]), // 1.25
+                FixedI32::from_le_bytes([0x00, 0x00, 0xC8, 0x00]), // 3.86
+                FixedI32::from_le_bytes([0x00, 0x00, 0xFA, 0x00]), // 40.0
+            ],
+            [
+                FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+                FixedI32::from_le_bytes([0xFD, 0x11, 0x01, 0x00]), // 1.07027
+                FixedI32::from_le_bytes([0x00, 0x24, 0x04, 0x00]), // 4.14062
+                FixedI32::from_le_bytes([0x00, 0xFC, 0x12, 0x00]), // 18.98438
+                FixedI32::from_le_bytes([0x00, 0xC0, 0xBB, 0x01]), // 443.75
+            ],
+        ];
+        #[cfg(target_os = "windows")]
+        let mouse_curve = {
+            let [curve_x, curve_y] = enigo::mouse_curve(true, true).unwrap();
+            [curve_x.unwrap(), curve_y.unwrap()]
+        };
+
+        Self {
+            ballistic,
+            x_abs_fix: Default::default(),
+            y_abs_fix: Default::default(),
+            remainder_x: Default::default(),
+            remainder_y: Default::default(),
+            mouse_speed,
+            p_mouse_factor,
+            v_pointer_factor,
+            smooth_mouse_curve,
+        }
+    }
 }
 
 impl TestMouse {
