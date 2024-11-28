@@ -56,6 +56,7 @@ impl Default for TestMouse {
         #[cfg(target_os = "windows")]
         let v_pointer_factor = TestMouse::virtual_pointer_factor();
 
+        #[cfg(not(target_os = "windows"))]
         let smooth_mouse_curve = [
             [
                 FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
@@ -73,17 +74,17 @@ impl Default for TestMouse {
             ],
         ];
         #[cfg(target_os = "windows")]
-        let mouse_curve = {
+        let smooth_mouse_curve = {
             let [curve_x, curve_y] = crate::mouse_curve(true, true).unwrap();
             [curve_x.unwrap(), curve_y.unwrap()]
         };
 
         Self {
             ballistic,
-            x_abs_fix: Default::default(),
-            y_abs_fix: Default::default(),
-            remainder_x: Default::default(),
-            remainder_y: Default::default(),
+            x_abs_fix: FixedI32::default(),
+            y_abs_fix: FixedI32::default(),
+            remainder_x: FixedI32::default(),
+            remainder_y: FixedI32::default(),
             mouse_speed,
             p_mouse_factor,
             v_pointer_factor,
