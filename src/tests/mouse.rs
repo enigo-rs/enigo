@@ -1,9 +1,13 @@
+use fixed::{types::extra::U16, FixedI32};
+
 use crate::{
+    calc_ballistic_location, get_acceleration,
+    tests::mouse,
+    Axis::{Horizontal, Vertical},
     Button,
+    Coordinate::{Abs, Rel},
     Direction::{Click, Press, Release},
     Enigo, Mouse, Settings,
-    {Axis::Horizontal, Axis::Vertical},
-    {Coordinate::Abs, Coordinate::Rel},
 };
 use std::thread;
 
@@ -357,4 +361,113 @@ fn unit_rel_mouse_move() {
     // restore the previous setting
     set_mouse_thresholds_and_acceleration(threshold1, threshold2, acceleration_level)
         .expect("Unable to restore the old mouse threshold");
+}
+
+#[test]
+// Test the calculation of the ballistic mouse
+fn unit_ballistic_calc() {
+    use fixed::FixedI32;
+    let mouse_curves = vec![[
+        [
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+            FixedI32::from_le_bytes([0x00, 0x00, 0x64, 0x00]), // 0.43
+            FixedI32::from_le_bytes([0x00, 0x00, 0x96, 0x00]), // 1.25
+            FixedI32::from_le_bytes([0x00, 0x00, 0xC8, 0x00]), // 3.86
+            FixedI32::from_le_bytes([0x00, 0x00, 0xFA, 0x00]), // 40.0
+        ],
+        [
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+            FixedI32::from_le_bytes([0xCD, 0x4C, 0x18, 0x00]), // 0.43
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 1.25
+            FixedI32::from_le_bytes([0xCD, 0x4C, 0x18, 0x00]), // 3.86
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 40.0
+        ],
+    ]];
+    let test_case = [
+        (1, 0),
+        (120, 6),
+        (350, 19),
+        (430, 10),
+        (530, 0),
+        (640, 12),
+        (700, 19),
+        (835, 4),
+    ];
+
+    let remainder_x = FixedI32::from_num(0);
+    let remainder_y = FixedI32::from_num(0);
+
+    let mouse_speed = crate::mouse_speed().unwrap();
+    let mouse_speed = crate::update_mouse_speed(mouse_speed).unwrap();
+    let mouse_speed = FixedI32::<U16>::checked_from_num(mouse_speed).unwrap();
+
+    for curve in mouse_curves {
+        for (x, correct_x) in test_case {
+            println!("\n{x}");
+            let ((new_x, _), _) =
+                calc_ballistic_location(x, 0, remainder_x, remainder_y, mouse_speed, curve)
+                    .unwrap();
+            assert!(i32::abs(correct_x - new_x.to_num::<i32>()) <= 1, "i: {x}");
+        }
+    }
+}
+
+#[test]
+fn unit_acceleration() {
+    const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
+    const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
+
+    let mouse_curves = [
+        [
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+            FixedI32::from_le_bytes([0x00, 0x00, 0x64, 0x00]), // 0.43
+            FixedI32::from_le_bytes([0x00, 0x00, 0x96, 0x00]), // 1.25
+            FixedI32::from_le_bytes([0x00, 0x00, 0xC8, 0x00]), // 3.86
+            FixedI32::from_le_bytes([0x00, 0x00, 0xFA, 0x00]), // 40.0
+        ],
+        [
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 0.0
+            FixedI32::from_le_bytes([0xCD, 0x4C, 0x18, 0x00]), // 0.43
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 1.25
+            FixedI32::from_le_bytes([0xCD, 0x4C, 0x18, 0x00]), // 3.86
+            FixedI32::from_le_bytes([0x00, 0x00, 0x00, 0x00]), // 40.0
+        ],
+    ];
+
+    let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
+    //let screen_resolution = system_dpi();
+    //println!("DPI: {screen_resolution}");
+    // let screen_resolution = FixedI32::<U16>::from_num(screen_resolution);
+    let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
+    let v_pointer_factor = screen_update_rate.checked_div(screen_resolution).unwrap();
+
+    let scaled_smooth_mouse_curve_x: Vec<_> = mouse_curves[0]
+        .iter()
+        .map(|&v| v.checked_mul(FixedI32::<U16>::from_num(3.5)).unwrap())
+        .collect();
+    let scaled_smooth_mouse_curve_y: Vec<_> = mouse_curves[1]
+        .iter()
+        .map(|&v| v.checked_div(v_pointer_factor).unwrap())
+        .collect();
+
+    let mouse_curves = [
+        scaled_smooth_mouse_curve_x.try_into().unwrap(),
+        scaled_smooth_mouse_curve_y.try_into().unwrap(),
+    ];
+
+    let test_case = [
+        (1, 0),
+        (120, 6),
+        (350, 19),
+        (430, 10),
+        (530, 0),
+        (640, 12),
+        (700, 19),
+        (835, 4),
+    ];
+    for test in test_case {
+        let magnitude = FixedI32::from_num(test.0);
+        let acceleration = get_acceleration(magnitude, mouse_curves).unwrap();
+        assert_eq!(acceleration.to_num::<i32>(), test.1, "x: {}", test.0);
+    }
 }

@@ -50,7 +50,7 @@
 const DEFAULT_BUS_UPDATE_RATE: i32 = 125; // in HZ
 const DEFAULT_POINTER_RESOLUTION: i32 = 400; // in mickey/inch
 const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
-const DEFAULT_SCREEN_RESOLUTION: i32 = 80; // in DPI
+const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
 
 use std::{
     error::Error,
@@ -563,9 +563,9 @@ pub fn win_future_rel_mouse_location(
 /// Get the scaling multipliers associated with the pointer speed slider
 /// (sensitivity)
 // Source https://web.archive.org/web/20241123143225/https://www.esreality.com/index.php?a=post&id=1945096
-fn update_mouse_speed(
+pub fn update_mouse_speed(
     mouse_sensitivity: i32,
-    enhanced_pointer_precision: i32,
+    // enhanced_pointer_precision: i32,
 ) -> Result<f32, InputError> {
     let speed = match mouse_sensitivity {
         i32::MIN..1 | 21..=i32::MAX => {
@@ -594,7 +594,7 @@ fn update_mouse_speed(
         19 => (3.25, 1.9), // Guessed value
         20 => (3.5, 2.0),
     };
-    if enhanced_pointer_precision == 1 {
+    if true {
         Ok(speed.1)
     } else {
         Ok(speed.0)
@@ -610,6 +610,7 @@ pub fn calc_ballistic_location(
     y: i32,
     remainder_x: FixedI32<U16>,
     remainder_y: FixedI32<U16>,
+    mouse_speed: FixedI32<U16>,
     smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
 ) -> Option<(
     (FixedI32<U16>, FixedI32<U16>),
@@ -636,66 +637,33 @@ pub fn calc_ballistic_location(
     //    actually reflect the pointer parameters.) Then the curves are speed-scaled
     //    based on the pointer slider speed setting in the Mouse Properties dialog
     //    box (Pointer Options tab).
-
-    let bus_update_rate = FixedI32::<U16>::from_num(DEFAULT_BUS_UPDATE_RATE);
-    let pointer_resolution = FixedI32::<U16>::from_num(DEFAULT_POINTER_RESOLUTION);
-    let p_mouse_factor = bus_update_rate.checked_div(pointer_resolution)?;
-    // let p_mouse_factor = FixedI32::<U16>::from_num(3.5);
-
-    let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
-    //let screen_resolution = system_dpi();
-    //println!("DPI: {screen_resolution}");
-    // let screen_resolution = FixedI32::<U16>::from_num(screen_resolution);
-    let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
-    let v_pointer_factor = screen_update_rate.checked_div(screen_resolution)?;
-    // let v_pointer_factor = FixedI32::<U16>::from_num(150 as f32 / 96 as f32);
-
-    let scaled_smooth_mouse_curve_x: Vec<_> = smooth_mouse_curve[0]
-        .iter()
-        .map(|&v| v.checked_div(p_mouse_factor).unwrap())
-        .collect();
-    let scaled_smooth_mouse_curve_y: Vec<_> = smooth_mouse_curve[1]
-        .iter()
-        .map(|&v| v.checked_div(v_pointer_factor).unwrap())
-        .collect();
-
-    let smooth_mouse_curve = [
-        scaled_smooth_mouse_curve_x.try_into().unwrap(),
-        scaled_smooth_mouse_curve_y.try_into().unwrap(),
-    ];
-
-    let (_, _, enhanced_pointer_precision) = mouse_thresholds_and_acceleration().unwrap();
-    let mouse_sensitivity = mouse_speed().unwrap();
-    let mouse_speed_setting =
-        update_mouse_speed(mouse_sensitivity, enhanced_pointer_precision).unwrap();
-    let mouse_speed_setting = FixedI32::<U16>::checked_from_num(mouse_speed_setting)?;
+    let scaled_mouse_curve = scale_mouse_curve(smooth_mouse_curve, mouse_speed);
 
     // 2. Incoming mouse X and Y values are first converted to fixed-point 16.16
     //    format.
-    let mut x = FixedI32::<U16>::checked_from_num(x)?;
-    let mut y = FixedI32::<U16>::checked_from_num(y)?;
+    let mut x_fix = FixedI32::<U16>::checked_from_num(x).unwrap();
+    let mut y_fix = FixedI32::<U16>::checked_from_num(y).unwrap();
 
     // 3. The magnitude of the X and Y values is calculated and used to look up the
     //    acceleration value in the lookup table.
-    let magnitude = FixedI32::<U16>::checked_sqrt(x.checked_mul(x)? + y.checked_mul(y)?)?;
+    let magnitude = i32::isqrt(x.checked_mul(x).unwrap() + y.checked_mul(y).unwrap());
+    // println!(" magnitude: {:?}", magnitude);
+    let magnitude = FixedI32::<U16>::checked_from_num(magnitude).unwrap();
     println!(" magnitude: {:?}", magnitude.to_num::<f64>());
 
     // 4. The lookup table consists of six points (the first is [0,0]). Each point
     //    represents an inflection point, and the lookup value typically resides
     //    between the inflection points, so the acceleration multiplier value is
     //    interpolated.
-    let acceleration = get_acceleration(magnitude, smooth_mouse_curve)?;
+    let acceleration = get_acceleration(magnitude, scaled_mouse_curve).unwrap();
     println!(" acceleration: {:?}", acceleration.to_num::<f64>());
-    let acceleration = mouse_speed_setting.checked_mul(acceleration)?;
-    println!(" acceleration_mul: {:?}", acceleration.to_num::<f64>());
 
-    /*
     if acceleration == 0 {
         return Some((
             (FixedI32::<U16>::from_num(0), FixedI32::<U16>::from_num(0)),
             (remainder_x, remainder_y),
         ));
-    }*/
+    }
 
     // 5. The remainder from the previous calculation is added to both X and Y, and
     //    then the acceleration multiplier is applied to transform the values. The
@@ -704,17 +672,17 @@ pub fn calc_ballistic_location(
 
     // TODO: I interpret the doc to say that the multiplication should be done AFTER
     // adding the remainder. Doesnt make sense to me. Double check this
-    x = x.checked_mul(acceleration)?;
-    y = y.checked_mul(acceleration)?;
+    x_fix = x_fix.checked_mul(acceleration).unwrap();
+    y_fix = y_fix.checked_mul(acceleration).unwrap();
 
-    x = x.checked_add(remainder_x)?;
-    y = y.checked_add(remainder_y)?;
+    x_fix = x_fix.checked_add(remainder_x).unwrap();
+    y_fix = y_fix.checked_add(remainder_y).unwrap();
 
-    let remainder_x = x.frac();
-    let remainder_y = remainder_y.frac();
+    let remainder_x = x_fix.frac();
+    let remainder_y = y_fix.frac();
 
     // 6. The values are sent on to move the pointer.
-    Some(((x, y), (remainder_x, remainder_y)))
+    Some(((x_fix, y_fix), (remainder_x, remainder_y)))
 
     // 7. If the feature is turned off (by clearing the Enhance pointer
     //    precision check box underneath the mouse speed slider in the Mouse
@@ -729,31 +697,34 @@ fn get_acceleration(
     magnitude: FixedI32<U16>,
     smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
 ) -> Option<FixedI32<U16>> {
-    // The first point is implicitly at (0, 0) and does not need to get provided
-    let (mut x1, mut y1) = (FixedI32::<U16>::from_num(0), FixedI32::<U16>::from_num(0));
-    let (mut x2, mut y2) = (smooth_mouse_curve[0][0], smooth_mouse_curve[1][0]);
+    if magnitude == FixedI32::<U16>::from_num(0) {
+        return Some(FixedI32::<U16>::from_num(0));
+    }
 
-    // For each of the points except for the last one...
-    for i in 0..4 {
-        // Check if x is within the range of the current segment
-        if magnitude < x2 && magnitude >= x1 {
-            // Linear interpolation
-            let gain_factor = (y1.checked_add(
-                (magnitude.checked_sub(x1)?)
-                    .checked_mul(y2.checked_sub(y1)?)?
-                    .checked_div(x2.checked_sub(x1)?)?,
-            )?)
-            .checked_div(magnitude)?;
-            let gain_factor2 = (y1 + (magnitude - x1) * (y2 - y1) / (x2 - x1)) / magnitude;
-            assert_eq!(gain_factor, gain_factor2);
-            return Some(gain_factor);
-        }
+    let mut gain_factor = FixedI32::<U16>::from_num(0);
 
+    let (mut x1, mut y1);
+    let (mut x2, mut y2);
+
+    // For each pair of points...
+    for i in 0..5 {
         (x1, y1) = (smooth_mouse_curve[0][i], smooth_mouse_curve[1][i]);
         (x2, y2) = (smooth_mouse_curve[0][i + 1], smooth_mouse_curve[1][i + 1]);
+
+        if x1 == x2 {
+            continue;
+        }
+
+        let x = std::cmp::min(magnitude, x2);
+        // Linear interpolation
+        gain_factor += (x - x1) * ((y2 - y1) / (x2 - x1));
+
+        // Check if x is within the range of the current segment
+        if magnitude <= x2 {
+            break;
+        }
     }
-    // We do linear extrapolation after the last point
-    let gain_factor = (y1 + (magnitude - x1) * (y2 - y1) / (x2 - x1)) / magnitude;
+    gain_factor /= magnitude;
     Some(gain_factor)
 }
 
@@ -775,6 +746,46 @@ fn virtual_pointer_speed(mickey: i32) -> Option<FixedI32<U16>> {
     let factor = screen_update_rate.checked_div(screen_resolution)?;
     let speed = mickey.checked_mul(factor)?;
     Some(speed)
+}
+
+fn scale_mouse_curve(
+    smooth_mouse_curve: [[FixedI32<U16>; 5]; 2],
+    mouse_speed: FixedI32<U16>,
+) -> [[FixedI32<U16>; 5]; 2] {
+    // let bus_update_rate = FixedI32::<U16>::from_num(DEFAULT_BUS_UPDATE_RATE);
+    // let pointer_resolution =
+    // FixedI32::<U16>::from_num(DEFAULT_POINTER_RESOLUTION); let p_mouse_factor
+    // = bus_update_rate.checked_div(pointer_resolution)?;
+    let p_mouse_factor = FixedI32::<U16>::from_num(3.5);
+    let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
+    //let screen_resolution = system_dpi();
+    //println!("DPI: {screen_resolution}");
+    // let screen_resolution = FixedI32::<U16>::from_num(screen_resolution);
+    let screen_resolution = FixedI32::<U16>::from_num(DEFAULT_SCREEN_RESOLUTION);
+    let v_pointer_factor = screen_update_rate.checked_div(screen_resolution).unwrap();
+    // let v_pointer_factor = FixedI32::<U16>::from_num(150 as f32 / 96 as f32);
+
+    let scaled_smooth_mouse_curve_x: Vec<_> = smooth_mouse_curve[0]
+        .iter()
+        .map(|&v| v.checked_mul(p_mouse_factor).unwrap())
+        .collect();
+    let scaled_smooth_mouse_curve_y: Vec<_> = smooth_mouse_curve[1]
+        .iter()
+        .map(|&v| {
+            v.checked_mul(v_pointer_factor)
+                .unwrap()
+                .checked_mul(mouse_speed)
+                .unwrap()
+        })
+        .collect();
+
+    let smooth_mouse_curve = [
+        scaled_smooth_mouse_curve_x.try_into().unwrap(),
+        scaled_smooth_mouse_curve_y.try_into().unwrap(),
+    ];
+
+    println!("Scaled smooth mouse: {smooth_mouse_curve:?}");
+    smooth_mouse_curve
 }
 
 #[cfg(test)]
