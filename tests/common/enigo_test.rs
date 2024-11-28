@@ -233,6 +233,7 @@ impl Mouse for EnigoTest {
         {
             #[cfg(not(feature = "test_mouse"))]
             if coordinate == Coordinate::Rel && self.is_ballistic {
+                println!("ballistic? {}", self.is_ballistic);
                 panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
             }
             #[cfg(feature = "test_mouse")]
