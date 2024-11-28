@@ -493,3 +493,7 @@ impl Default for Settings {
         }
     }
 }
+
+#[cfg(test)]
+/// Module containing all the platform independent tests for the traits
+mod tests;
