@@ -165,7 +165,7 @@ impl TestMouse {
             19 => 1.9, // Guessed value
             20 => 2.0,
         };
-        debug!("mouse speed: {speed}");
+        println!("mouse speed: {speed}");
         Ok(speed)
     }
 
@@ -228,7 +228,7 @@ impl TestMouse {
         let magnitude = ((x.checked_mul(x)? + y.checked_mul(y)?) as f64).sqrt() as i32;
         // println!(" magnitude: {:?}", magnitude);
         let magnitude = FixedI32::<U16>::checked_from_num(magnitude)?;
-        debug!(" magnitude: {:?}", magnitude.to_num::<f64>());
+        println!(" magnitude: {:?}", magnitude.to_num::<f64>());
 
         // 4. The lookup table consists of six points (the first is [0,0]). Each point
         //    represents an inflection point, and the lookup value typically resides
@@ -304,7 +304,7 @@ impl TestMouse {
             }
         }
         gain_factor /= magnitude;
-        debug!(" acceleration: {:?}", gain_factor.to_num::<f64>());
+        println!(" acceleration: {:?}", gain_factor.to_num::<f64>());
         Some(gain_factor)
     }
 
@@ -329,7 +329,7 @@ impl TestMouse {
         let screen_update_rate = FixedI32::<U16>::from_num(DEFAULT_SCREEN_UPDATE_RATE);
         // TODO: Apparently this function doesn't always return the correct results
         let screen_resolution = crate::system_dpi(); // Default is 96
-        debug!("DPI: {screen_resolution}");
+        println!("DPI: {screen_resolution}");
         let screen_resolution = FixedI32::<U16>::from_num(screen_resolution);
         screen_update_rate.saturating_div(screen_resolution)
     }
@@ -356,7 +356,7 @@ impl TestMouse {
                 .saturating_mul(mouse_speed);
         }
 
-        debug!("Scaled smooth mouse: {smooth_mouse_curve:?}");
+        println!("Scaled smooth mouse: {smooth_mouse_curve:?}");
         smooth_mouse_curve
     }
 
@@ -400,7 +400,7 @@ impl TestMouse {
         self.remainder_y = r_y;
         self.x_abs_fix += ballistic_x;
         self.y_abs_fix += ballistic_y;
-        debug!(
+        println!(
             "ballistic move: {}, {}",
             ballistic_x.to_num::<i32>(),
             ballistic_y.to_num::<i32>()
