@@ -5,7 +5,7 @@ use crate::{Coordinate, InputError};
 
 // const DEFAULT_BUS_UPDATE_RATE: i32 = 125; // in HZ
 // const DEFAULT_POINTER_RESOLUTION: i32 = 400; // in mickey/inch
-const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
+pub const DEFAULT_SCREEN_RESOLUTION: i32 = 96; // in DPI
 pub const DEFAULT_SCREEN_UPDATE_RATE: i32 = 75; // in HZ
 
 /// Struct that will calculate the resulting position of the mouse. This will
