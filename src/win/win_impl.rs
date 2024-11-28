@@ -761,7 +761,7 @@ pub fn mouse_curve(
                 return Err(result.into());
             }
 
-            println!("mouse curve raw: {return_data}");
+            println!("mouse curve raw: {return_data:?}");
 
             // Fixed Point Math and Number Bounds
             //
