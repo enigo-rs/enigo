@@ -75,9 +75,9 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install --cask firefox
 
-      - name: Run mouse example in release mode
+      - name: Run integration tests in release mode
         if: matrix.features != 'wayland' && matrix.features != 'libei' && matrix.features != 'libei,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
-        run: cargo run --example mouse --release --no-default-features --features ${{ matrix.features }} 
+        run: cargo test integration --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture --include-ignored
 
       - name: Take screenshot
         if: always() && runner.os != 'macOS'
