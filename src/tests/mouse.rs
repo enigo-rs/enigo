@@ -1,20 +1,22 @@
 use crate::{
+    Axis::{Horizontal, Vertical},
     Button,
+    Coordinate::{Abs, Rel},
     Direction::{Click, Press, Release},
     Enigo, Mouse, Settings,
-    {Axis::Horizontal, Axis::Vertical},
-    {Coordinate::Abs, Coordinate::Rel},
 };
 use std::thread;
 
 use super::is_ci;
 
 // TODO: Mouse acceleration on Windows will result in the wrong coordinates when
-// doing a relative mouse move The Github runner has the following settings:
-//   MouseSpeed       1
-//   MouseThreshold1  6
-//   MouseThreshold2 10
-// Maybe they can be used to calculate the resulting location even with enabled
+// doing a relative mouse move. The Github runner has the following settings:
+//   MouseSpeed         1
+//   MouseThreshold1    6
+//   MouseThreshold2   10
+//   SmoothMouseCurveX [0, 0.43001, 1.25, 3.86, 40]
+//   SmoothMouseCurveY [0, 1.07027, 4.14062, 18.98438, 443.75]
+// They can be used to calculate the resulting location even with enabled
 // mouse acceleration
 fn test_mouse_move(
     enigo: &mut Enigo,
@@ -278,4 +280,81 @@ fn unit_mouse_drag() {
     enigo.move_mouse(100, 100, Rel).unwrap();
     thread::sleep(delay);
     enigo.button(Button::Left, Release).unwrap();
+}
+
+#[test]
+fn unit_rel_mouse_move() {
+    #[cfg(target_os = "windows")]
+    use crate::{mouse_thresholds_and_acceleration, set_mouse_thresholds_and_acceleration};
+    use crate::{
+        Coordinate::{Abs, Rel},
+        Enigo, Mouse as _, Settings,
+    };
+
+    let delay = super::get_delay();
+
+    // the tests don't work if the mouse is subject to mouse speed and acceleration
+    // level
+    #[cfg(target_os = "windows")]
+    let (threshold1, threshold2, acceleration_level) = {
+        let (threshold1, threshold2, acceleration_level) =
+            mouse_thresholds_and_acceleration().expect("Unable to get the mouse threshold");
+
+        if acceleration_level != 0 {
+            set_mouse_thresholds_and_acceleration(threshold1, threshold2, 0)
+                .expect("Unable to set the mouse threshold");
+        }
+        (threshold1, threshold2, acceleration_level)
+    };
+
+    let mut enigo = Enigo::new(&Settings {
+        windows_subject_to_mouse_speed_and_acceleration_level: true,
+        ..Default::default()
+    })
+    .unwrap();
+
+    let test_cases = vec![
+        ((100, 100), Abs),
+        ((0, 0), Rel),
+        ((-0, 0), Rel),
+        ((0, -0), Rel),
+        ((-0, -0), Rel),
+        ((1, 0), Rel),
+        ((0, 1), Rel),
+        ((-1, -1), Rel),
+        ((4, 6), Rel),
+        ((-42, 63), Rel),
+        ((12, -20), Rel),
+        ((-43, -1), Rel),
+        ((200, 200), Rel),
+        ((-200, 200), Rel),
+        ((200, -200), Rel),
+        ((-200, -200), Rel),
+    ];
+
+    let mut expected_location = (0, 0);
+    for ((x, y), coord) in test_cases {
+        match coord {
+            Abs => {
+                expected_location = (x, y);
+            }
+            Rel => {
+                expected_location.0 += x;
+                expected_location.1 += y;
+            }
+        };
+
+        enigo.move_mouse(x, y, coord).unwrap();
+        thread::sleep(delay);
+        let actual_location = enigo.location().unwrap();
+        assert_eq!(
+            expected_location, actual_location,
+            "test case: ({x},{y}) {coord:?}\n expected_location: {expected_location:?}\n actual_location: {actual_location:?}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    // restore the previous setting
+    set_mouse_thresholds_and_acceleration(threshold1, threshold2, acceleration_level)
+        .expect("Unable to restore the old mouse threshold");
 }

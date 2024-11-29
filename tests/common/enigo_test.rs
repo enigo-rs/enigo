@@ -8,6 +8,9 @@ use enigo::{
     Enigo, Key, Keyboard, Mouse, Settings,
 };
 
+#[cfg(all(feature = "test_mouse", target_os = "windows"))]
+use enigo::test_mouse::TestMouse;
+
 use super::browser_events::BrowserEvent;
 
 const TIMEOUT: u64 = 5; // Number of minutes the test is allowed to run before timing out
@@ -19,6 +22,10 @@ const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
+    #[cfg(all(feature = "test_mouse", target_os = "windows"))]
+    test_mouse: TestMouse,
+    #[cfg(target_os = "windows")]
+    is_ballistic: bool,
 }
 
 impl EnigoTest {
@@ -26,11 +33,30 @@ impl EnigoTest {
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
         let enigo = Enigo::new(settings).unwrap();
+
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
+        #[cfg(target_os = "windows")]
+        let is_ballistic = settings.windows_subject_to_mouse_speed_and_acceleration_level;
+
+        #[cfg(all(feature = "test_mouse", target_os = "windows"))]
+        let test_mouse = {
+            let start_mouse = enigo.location().unwrap();
+            let x = start_mouse.0;
+            let y = start_mouse.1;
+
+            TestMouse::new_simple(is_ballistic, x, y)
+        };
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
-        Self { enigo, websocket }
+        Self {
+            enigo,
+            websocket,
+            #[cfg(all(feature = "test_mouse", target_os = "windows"))]
+            test_mouse,
+            #[cfg(target_os = "windows")]
+            is_ballistic,
+        }
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
@@ -170,8 +196,23 @@ impl Mouse for EnigoTest {
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
+        // We only change the expected variable on Windows when the ballistic mouse is
+        // checked, so it is only needed on Windows
+        #[cfg(all(target_os = "windows", feature = "test_mouse"))]
+        let (mut x, mut y) = (x, y);
+
         let res = self.enigo.move_mouse(x, y, coordinate);
         println!("Executed enigo.move_mouse");
+        // On Windows the OS either ignores relative mouse moves by 0 or Firefox doesn't
+        // create events for them We need to return here so not wait forever for
+        // the browser to send a message via websocket
+        #[cfg(target_os = "windows")]
+        {
+            if coordinate == Coordinate::Rel && x == 0 && y == 0 {
+                println!("Relative mouse move by (0, 0) detected. We are not waiting for a response, because the OS ignores these calls");
+                return res;
+            }
+        }
         std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
 
         let ev = self.read_message();
@@ -186,8 +227,28 @@ impl Mouse for EnigoTest {
             panic!("BrowserEvent was not a MouseMove: {ev:?}");
         };
 
+        #[cfg(all(target_os = "windows", not(feature = "test_mouse")))]
+        if coordinate == Coordinate::Rel && self.is_ballistic {
+            println!("ballistic? {}", self.is_ballistic);
+            panic!("If you are testing a relative mouse move on Windows and the mouse is subject to the mouse smoothing curve, the \"test_mouse\" feature must be active");
+        }
+
+        #[cfg(all(target_os = "windows", feature = "test_mouse"))]
+        {
+            let (x_delta, y_delta) = self
+                .test_mouse
+                .predict_pixel_delta(x, y, coordinate)
+                .expect("Unable to calculate the next position");
+            if coordinate == Coordinate::Rel {
+                x = x_delta;
+                y = y_delta;
+            }
+        }
+
+        println!("Location: {:?}", self.enigo.location().unwrap());
         assert_eq!(x, mouse_position.0);
         assert_eq!(y, mouse_position.1);
+
         println!("enigo.move_mouse() was a success");
         res
     }

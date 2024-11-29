@@ -1045,7 +1045,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                     _ => (),
                 }
 
-                let layout = crate::Enigo::get_keyboard_layout();
+                let layout = crate::Enigo::keyboard_layout();
 
                 let mut buffer = [0; 2];
                 let utf16_surrogates = c.encode_utf16(&mut buffer);
@@ -1057,7 +1057,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                 // virtual-key code and the high-order byte contains the shift state, which can
                 // be a combination of the following flag bits. If the function finds no key
                 // that translates to the passed character code, both the low-order and
-                // high-order bytes contain –1
+                // high-order bytes contain -1
                 let vk = unsafe {
                     windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanExW(
                         utf16_surrogates[0],

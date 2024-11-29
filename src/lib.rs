@@ -67,6 +67,9 @@ use strum_macros::EnumIter;
 /// works.
 pub mod agent;
 
+#[cfg(feature = "test_mouse")]
+pub mod test_mouse;
+
 #[cfg_attr(all(unix, not(target_os = "macos")), path = "linux/mod.rs")]
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
 #[cfg_attr(target_os = "windows", path = "win/mod.rs")]
@@ -74,7 +77,13 @@ mod platform;
 pub use platform::Enigo;
 
 #[cfg(target_os = "windows")]
-pub use platform::EXT;
+pub use platform::{
+    mouse_speed, mouse_thresholds_and_acceleration, set_mouse_speed,
+    set_mouse_thresholds_and_acceleration, system_dpi, EXT,
+};
+
+#[cfg(all(target_os = "windows", feature = "test_mouse"))]
+pub use platform::{mouse_curve, set_mouse_curve};
 
 mod keycodes;
 /// Contains the available keycodes
@@ -463,7 +472,7 @@ pub struct Settings {
     /// settings for mouse speed and acceleration level. An end user sets
     /// these values using the Mouse application in Control Panel. An
     /// application obtains and sets these values with the
-    /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoA`
+    /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW`
     /// function. The default value is false.
     pub windows_subject_to_mouse_speed_and_acceleration_level: bool,
 }
