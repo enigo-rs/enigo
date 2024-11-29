@@ -9,13 +9,6 @@ use std::thread;
 
 use super::is_ci;
 
-// TODO: Mouse acceleration on Windows will result in the wrong coordinates when
-// doing a relative mouse move The Github runner has the following settings:
-//   MouseSpeed       1
-//   MouseThreshold1  6
-//   MouseThreshold2 10
-// Maybe they can be used to calculate the resulting location even with enabled
-// mouse acceleration
 fn test_mouse_move(
     enigo: &mut Enigo,
     test_cases: Vec<Vec<((i32, i32), (i32, i32))>>,
@@ -31,6 +24,7 @@ fn test_mouse_move(
     };
 
     enigo.move_mouse(start.0, start.1, Abs).unwrap(); // Move to absolute start position
+    thread::sleep(delay);
 
     for test_case in test_cases {
         for mouse_action in test_case {
@@ -71,7 +65,6 @@ fn unit_move_mouse_to() {
     test_mouse_move(&mut enigo, test_cases, Abs, (0, 0));
 }
 
-#[ignore]
 #[test]
 // Test the move_mouse function and check it with the mouse_location
 // function
@@ -105,7 +98,7 @@ fn unit_move_mouse_to_boundaries() {
     let screen_boundaries = vec![
         ((-3, 8), (0, 8)),                             // Negative x coordinate
         ((8, -3), (8, 0)),                             // Negative y coordinate
-        ((-30, -3), (0, 0)),                           // Try to go to negative x and y coordinates
+        ((-30, -3), (0, 0)),                           // Negative x and y coordinates
         ((567_546_546, 20), (display_size.0 - 1, 20)), // Huge x coordinate > screen width
         ((20, 567_546_546), (20, display_size.1 - 1)), // Huge y coordinate > screen heigth
         (
@@ -129,7 +122,7 @@ fn unit_move_mouse_to_boundaries() {
     test_mouse_move(&mut enigo, test_cases, Abs, (0, 0));
 }
 
-#[ignore] // TODO: Mouse acceleration on Windows will result in the wrong coordinates
+#[ignore]
 #[test]
 // Test the move_mouse function and check it with the mouse_location
 // function
@@ -143,7 +136,7 @@ fn unit_move_mouse_rel_boundaries() {
     let screen_boundaries = vec![
         ((-3, 8), (0, 8)),                             // Negative x coordinate
         ((8, -10), (8, 0)),                            // Negative y coordinate
-        ((-30, -3), (0, 0)),                           // Try to go to negative x and y coordinates
+        ((-30, -3), (0, 0)),                           // Negative x and y coordinates
         ((567_546_546, 20), (display_size.0 - 1, 20)), // Huge x coordinate > screen width
         ((20, 567_546_546), (display_size.0 - 1, display_size.1 - 1)), /* Huge y coordinate >
                                                         * screen heigth */
@@ -240,7 +233,7 @@ fn unit_10th_click() {
     }
 }
 
-#[ignore] // Hangs with x11rb
+#[cfg(not(feature = "x11rb"))] // For some reason it stalls
 #[test]
 fn unit_scroll() {
     let delay = super::get_delay();
@@ -266,7 +259,6 @@ fn unit_scroll() {
     }
 }
 
-#[ignore] // Contains a relative mouse move so it does not work on Windows
 #[test]
 // Press down and drag the mouse
 fn unit_mouse_drag() {
