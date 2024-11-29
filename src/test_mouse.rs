@@ -1447,6 +1447,7 @@ mod test {
         };
 
         for (curve, test_moves) in tests {
+            println!("curve in test {curve:?}");
             for (x, correct_x) in test_moves {
                 println!("\n{x}");
                 let ((new_x, _), _) = TestMouse::calc_ballistic_location(

@@ -245,6 +245,7 @@ impl Mouse for EnigoTest {
             }
         }
 
+        println!("Location: {:?}", self.enigo.location().unwrap());
         assert_eq!(x, mouse_position.0);
         assert_eq!(y, mouse_position.1);
 
