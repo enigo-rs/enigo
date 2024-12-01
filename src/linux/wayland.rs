@@ -95,9 +95,9 @@ impl Con {
 
         // Setup WaylandState and dispatch events
         let mut state = WaylandState::new();
-        if event_queue.roundtrip(&mut state).is_err() {
-            return Err(NewConError::EstablishCon("wayland roundtrip not possible"));
-        };
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
 
         let (virtual_keyboard, input_method, virtual_pointer) = (None, None, None);
 
@@ -195,17 +195,17 @@ impl Con {
                 trace!("vk.key({time}, {keycode}, 1)");
                 vk.key(time, keycode, 1);
                 // TODO: Change to flush()
-                if self.event_queue.roundtrip(&mut self.state).is_err() {
-                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
-                }
+                self.event_queue
+                    .roundtrip(&mut self.state)
+                    .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
             }
             if direction == Direction::Release || direction == Direction::Click {
                 trace!("vk.key({time}, {keycode}, 0)");
                 vk.key(time, keycode, 0);
                 // TODO: Change to flush()
-                if self.event_queue.roundtrip(&mut self.state).is_err() {
-                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
-                }
+                self.event_queue
+                    .roundtrip(&mut self.state)
+                    .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
             }
             return Ok(());
         }
@@ -220,9 +220,10 @@ impl Con {
             trace!("vk.modifiers({modifiers}, 0, 0, 0)");
             vk.modifiers(modifiers, 0, 0, 0);
             // TODO: Change to flush()
-            if self.event_queue.roundtrip(&mut self.state).is_err() {
-                return Err(InputError::Simulate("The roundtrip on Wayland failed"));
-            }
+            self.event_queue
+                .roundtrip(&mut self.state)
+                .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+
             return Ok(());
         }
         Err(InputError::Simulate("no way to enter modifier"))
@@ -248,9 +249,9 @@ impl Con {
                 trace!("update wayland keymap");
                 vk.keymap(1, self.keymap.file.as_ref().unwrap().as_fd(), keymap_size);
                 // TODO: Change to flush()
-                if self.event_queue.roundtrip(&mut self.state).is_err() {
-                    return Err(InputError::Simulate("The roundtrip on Wayland failed"));
-                }
+                self.event_queue
+                    .roundtrip(&mut self.state)
+                    .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
             }
             return Ok(());
         }
@@ -547,9 +548,10 @@ impl Keyboard for Con {
             im.commit(*serial);
             *serial = serial.wrapping_add(1);
             // TODO: Change to flush()
-            if self.event_queue.roundtrip(&mut self.state).is_err() {
-                return Err(InputError::Simulate("The roundtrip on Wayland failed"));
-            }
+            self.event_queue
+                .roundtrip(&mut self.state)
+                .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+
             return Ok(Some(()));
         }
         Ok(None)
@@ -630,10 +632,10 @@ impl Mouse for Con {
             }
         }
         // TODO: Change to flush()
-        match self.event_queue.roundtrip(&mut self.state) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
-        }
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
+            .map(|_| ())
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
@@ -668,10 +670,10 @@ impl Mouse for Con {
             vp.frame(); // TODO: Check if this is needed
         }
         // TODO: Change to flush()
-        match self.event_queue.roundtrip(&mut self.state) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
-        }
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
+            .map(|_| ())
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
@@ -688,10 +690,10 @@ impl Mouse for Con {
             vp.frame(); // TODO: Check if this is needed
         }
         // TODO: Change to flush()
-        match self.event_queue.roundtrip(&mut self.state) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(InputError::Simulate("The roundtrip on Wayland failed")),
-        }
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
+            .map(|_| ())
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
