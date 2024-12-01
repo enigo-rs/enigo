@@ -68,7 +68,7 @@ impl Con {
             Err(e) => {
                 error!("{:?}", e);
                 return Err(NewConError::EstablishCon(
-                    "failed to connect to wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0': {e}",
+                    "failed to connect to wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0'",
                 ));
             }
         };
@@ -99,33 +99,31 @@ impl Con {
             .roundtrip(&mut state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
 
-        let (virtual_keyboard, input_method, virtual_pointer) = (None, None, None);
-
-        let base_time = Instant::now();
-
-        let mut unused_keycodes = VecDeque::with_capacity(255 - 8 + 1); // All keycodes are unused when initialized
-        for n in 8..=255 {
-            unused_keycodes.push_back(n as Keycode);
-        }
-
-        let (keysyms_per_keycode, keysyms) = (0, vec![]);
-        let keymap = KeyMap::new(8, 255, unused_keycodes, keysyms_per_keycode, keysyms);
+        let keymap = KeyMap::new(
+            8,
+            255,
+            // All keycodes are unused when initialized
+            (8..=255).collect::<VecDeque<Keycode>>(),
+            0,
+            Vec::new(),
+        );
 
         let mut connection = Self {
             keymap,
             event_queue,
             state,
-            virtual_keyboard,
-            input_method,
-            virtual_pointer,
-            base_time,
+            virtual_keyboard: None,
+            input_method: None,
+            virtual_pointer: None,
+            base_time: Instant::now(),
         };
 
         connection.init_protocols()?;
 
-        if connection.apply_keymap().is_err() {
-            return Err(NewConError::EstablishCon("unable to apply the keymap"));
-        };
+        connection
+            .apply_keymap()
+            .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
+
         Ok(connection)
     }
 
