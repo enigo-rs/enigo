@@ -43,35 +43,8 @@ impl Con {
     /// # Errors
     /// TODO
     pub fn new(dpy_name: Option<&str>) -> Result<Self, NewConError> {
-        // Setup Wayland Connection
-        let connection = if let Some(dyp_name) = dpy_name {
-            debug!(
-                "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
-                dyp_name
-            );
-            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
-                .map(Into::<PathBuf>::into)
-                .ok_or(NewConError::EstablishCon(
-                    "no XDG_RUNTIME_DIR env variable found",
-                ))?;
-            socket_path.push(dyp_name);
-            let stream = UnixStream::connect(socket_path)
-                .map_err(|_| NewConError::EstablishCon("unable to open unix stream"))?;
-            Connection::from_socket(stream)
-        } else {
-            debug!("\x1b[93mtrying to establish a connection to $WAYLAND_DISPLAY\x1b[0m");
-            Connection::connect_to_env()
-        };
-
-        let connection = match connection {
-            Ok(connection) => connection,
-            Err(e) => {
-                error!("{:?}", e);
-                return Err(NewConError::EstablishCon(
-                    "failed to connect to wayland. Try setting 'export WAYLAND_DISPLAY=wayland-0'",
-                ));
-            }
-        };
+        // Setup Wayland connection
+        let connection = Self::setup_connection(dpy_name)?;
 
         // Check to see if there was an error trying to connect
         if let Some(e) = connection.protocol_error() {
@@ -125,6 +98,30 @@ impl Con {
             .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
 
         Ok(connection)
+    }
+
+    // Helper function for setting up the Wayland connection
+    fn setup_connection(dyp_name: Option<&str>) -> Result<Connection, NewConError> {
+        let connection = if let Some(dyp_name) = dyp_name {
+            debug!(
+                "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
+                dyp_name
+            );
+            let socket_path = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).ok_or(
+                NewConError::EstablishCon("Missing XDG_RUNTIME_DIR env variable"),
+            )?;
+            let stream = UnixStream::connect(socket_path.join(dyp_name))
+                .map_err(|_| NewConError::EstablishCon("Failed to open Unix stream"))?;
+            Connection::from_socket(stream)
+        } else {
+            debug!("\x1b[93mtrying to establish a connection to $WAYLAND_DISPLAY\x1b[0m");
+            Connection::connect_to_env()
+        };
+
+        connection.map_err(|_| {
+            error!("Failed to connect to Wayland. Try setting 'WAYLAND_DISPLAY=wayland-0'.");
+            NewConError::EstablishCon("Wayland connection failed.")
+        })
     }
 
     /// Try to set up all the protocols. An error is returned, if no protocol is
