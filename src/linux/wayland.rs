@@ -302,24 +302,6 @@ impl Bind<Keycode> for Con {
     // On Wayland only the whole keymap can be applied
 }
 
-impl Drop for Con {
-    // Destroy the Wayland objects we created
-    fn drop(&mut self) {
-        self.virtual_keyboard.take().map(|vk| vk.destroy());
-        self.input_method.take().map(|im| im.destroy());
-        self.state.im_manager.take().map(|mgr| mgr.destroy());
-        self.virtual_pointer.take().map(|vp| vp.destroy());
-        self.state.pointer_manager.take().map(|mgr| mgr.destroy());
-
-        if self.flush().is_err() {
-            error!("could not flush wayland queue");
-        }
-        trace!("wayland objects were destroyed");
-
-        let _ = self.event_queue.roundtrip(&mut self.state);
-    }
-}
-
 #[derive(Clone, Debug, Default)]
 /// Stores the manager for the various protocols
 struct WaylandState {
