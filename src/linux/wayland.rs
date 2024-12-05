@@ -98,11 +98,10 @@ impl Con {
 
         connection.init_protocols()?;
 
-        /*
-                connection
-                    .apply_keymap()
-                    .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
-        */
+        connection
+            .apply_keymap()
+            .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
+
         Ok(connection)
     }
 
