@@ -104,6 +104,7 @@ impl Con {
 
         let base_time = Instant::now();
 
+        // All keycodes are unused when initialized
         let mut unused_keycodes = VecDeque::with_capacity(255 - 8 + 1); // All keycodes are unused when initialized
         for n in 8..=255 {
             unused_keycodes.push_back(n as Keycode);
