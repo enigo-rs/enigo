@@ -11,7 +11,11 @@ use std::{
 
 use log::{debug, error, trace, warn};
 use wayland_client::{
-    protocol::{wl_pointer, wl_registry, wl_seat},
+    protocol::{
+        wl_keyboard::{self, WlKeyboard},
+        wl_pointer::{self, WlPointer},
+        wl_registry, wl_seat,
+    },
     Connection, Dispatch, EventQueue, QueueHandle,
 };
 use wayland_protocols_misc::{
@@ -146,13 +150,33 @@ impl Con {
         self.event_queue
             .flush()
             .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
-        self.state.seat = Some(seat);
 
         // Wait for compositor to handle the request and send back the capabilities of
         // the seat
         thread::sleep(Duration::from_millis(40));
 
         // Get the capabilities
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+
+        // Create a WlPointer and WlKeyboard for the seat
+        let seat_keyboard = seat.get_keyboard(&qh, ());
+        let seat_pointer = seat.get_pointer(&qh, ());
+
+        self.event_queue
+            .flush()
+            .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+
+        self.state.seat = Some(seat);
+        self.state.seat_keyboard = Some(seat_keyboard);
+        self.state.seat_pointer = Some(seat_pointer);
+
+        // Wait for compositor to handle the request and send back the capabilities of
+        // the seat
+        thread::sleep(Duration::from_millis(40));
+
+        // Get the keymap of the WlKeyboard
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
@@ -407,6 +431,8 @@ struct WaylandState {
     im_serial: Wrapping<u32>,
     pointer_manager: Option<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1>,
     seat: Option<wl_seat::WlSeat>,
+    seat_keyboard: Option<WlKeyboard>,
+    seat_pointer: Option<WlPointer>,
     /*  output: Option<wl_output::WlOutput>,
     width: i32,
     height: i32,*/
@@ -508,6 +534,32 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _qh: &QueueHandle<Self>,
     ) {
         warn!("Got a seat event {:?}", event);
+    }
+}
+
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
+    fn event(
+        _state: &mut Self,
+        _seat: &wl_keyboard::WlKeyboard,
+        event: wl_keyboard::Event,
+        (): &(),
+        _: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        warn!("Got a keyboard event {:?}", event);
+    }
+}
+
+impl Dispatch<wl_pointer::WlPointer, ()> for WaylandState {
+    fn event(
+        _state: &mut Self,
+        _seat: &wl_pointer::WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        warn!("Got a pointer event {:?}", event);
     }
 }
 
