@@ -5,7 +5,8 @@ use std::{
     num::Wrapping,
     os::unix::{io::AsFd, net::UnixStream},
     path::PathBuf,
-    time::Instant,
+    thread,
+    time::{Duration, Instant},
 };
 
 use log::{debug, error, trace, warn};
@@ -67,6 +68,7 @@ impl Con {
         // Start registry
         let display = connection.display();
         display.get_registry(&qh, ());
+        thread::sleep(Duration::from_secs(2));
 
         // Setup WaylandState and dispatch events
         let mut state = WaylandState::default();
