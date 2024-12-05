@@ -68,9 +68,8 @@ impl Con {
         // Start registry
         let display = connection.display();
         let registry = display.get_registry(&qh, ());
-        thread::sleep(Duration::from_secs(2));
 
-        // Setup WaylandState and dispatch events
+        // Setup WaylandState and get globals
         let mut state = WaylandState::default();
         event_queue
             .roundtrip(&mut state)
@@ -156,7 +155,11 @@ impl Con {
                     &qh,
                     (),
                 );
+                 self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
             self.state.keyboard_manager = Some(manager);
+
         }*/
 
         // Bind to zwp_input_method_manager_v2
@@ -168,6 +171,9 @@ impl Con {
                     &qh,
                     (),
                 );
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
             self.state.im_manager = Some(manager);
         }
 
@@ -184,18 +190,26 @@ impl Con {
         let qh = self.event_queue.handle();
 
         if let Some(seat) = self.state.seat.as_ref() {
-            // Setup virtual keyboard
-            self.virtual_keyboard = self
-                .state
-                .keyboard_manager
-                .as_ref()
-                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
             // Setup input method
             self.input_method = self
                 .state
                 .im_manager
                 .as_ref()
                 .map(|im_mgr| im_mgr.get_input_method(seat, &qh, ()));
+            // Flush queue because it might take the compositor some time to handle it
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+
+            // Setup virtual keyboard
+            self.virtual_keyboard = self
+                .state
+                .keyboard_manager
+                .as_ref()
+                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
         };
 
         // Setup virtual pointer
@@ -204,6 +218,10 @@ impl Con {
             .pointer_manager
             .as_ref()
             .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
+
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
 
         trace!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
