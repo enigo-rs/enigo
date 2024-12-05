@@ -5,8 +5,7 @@ use std::{
     num::Wrapping,
     os::unix::{io::AsFd, net::UnixStream},
     path::PathBuf,
-    thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use log::{debug, error, trace, warn};
@@ -155,26 +154,22 @@ impl Con {
 
         // Wait for compositor to handle the request and send back the capabilities of
         // the seat
-        thread::sleep(Duration::from_millis(40));
-
-        // Get the capabilities and create a WlPointer and/or WlKeyboard if it has the
+        // The WlPointer and/or WlKeyboard get created now if the seat has the
         // capabilities for it
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+            .blocking_dispatch(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
 
         // Send the events to the compositor to handle them
         self.event_queue
             .flush()
             .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
 
-        // Wait for compositor to create the WlPointer and WlKeyboard
-        thread::sleep(Duration::from_millis(40));
-
-        // Get the keymap of the WlKeyboard
+        // Wait for compositor to create the WlPointer and WlKeyboard and get the keymap
+        // of the WlKeyboard
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+            .blocking_dispatch(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
 
         // Ask compositor to create VirtualKeyboardManager
         if let Some(&(name, version)) = self.state.globals.get("zwp_virtual_keyboard_manager_v1") {
@@ -207,12 +202,9 @@ impl Con {
         }
 
         // Wait for compositor to create the requested managers
-        thread::sleep(Duration::from_millis(40));
-
-        // Process all events sent from the compositor
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+            .blocking_dispatch(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("Wayland blocking_dispatch failed"))?;
 
         Ok(())
     }
@@ -226,24 +218,15 @@ impl Con {
             // Setup input method
             self.input_method = self.state.im_manager.as_ref().map(|im_mgr| {
                 let input_method = im_mgr.get_input_method(seat, &qh, ());
-                // Flush queue and sleep a few milliseconds to give the compositor time to
-                // create the input_method. It needs to send a Done event before the
-                // input_method can be used
-                // TODO: Only sleep if it is needed
-                // (Done increases serial by 1, so it needs to be >0 before
-                // being used)
                 let _ = self.event_queue.flush();
-                thread::sleep(Duration::from_millis(40));
+
                 input_method
             });
 
             // Setup virtual keyboard
             self.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
                 let virtual_keyboard = vk_mgr.create_virtual_keyboard(seat, &qh, ());
-                // Flush queue and sleep a few milliseconds to give the compositor time to
-                // create the virtual_keyboard
                 let _ = self.event_queue.flush();
-                thread::sleep(Duration::from_millis(40));
                 virtual_keyboard
             });
         };
@@ -251,10 +234,7 @@ impl Con {
         // Setup virtual pointer
         self.virtual_pointer = self.state.pointer_manager.as_ref().map(|vp_mgr| {
             let virtual_pointer = vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ());
-            // Flush queue and sleep a few milliseconds to give the compositor time to
-            // create the virtual_pointer
             let _ = self.event_queue.flush();
-            thread::sleep(Duration::from_millis(40));
             virtual_pointer
         });
 
@@ -378,12 +358,11 @@ impl Con {
 
         // Send the keymap and wait a bit for it to be applied
         let _ = self.event_queue.flush();
-        thread::sleep(Duration::from_millis(40));
 
-        // TODO: Change to flush()
+        // TODO: Change to flush()event_queue
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+            .blocking_dispatch(&mut self.state)
+            .map_err(|_| InputError::Simulate("Wayland blocking_dispatch failed"))?;
 
         Ok(())
     }
@@ -525,7 +504,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         (): &(),
-        con: &Connection,
+        _con: &Connection,
         qh: &QueueHandle<Self>,
     ) {
         match event {
