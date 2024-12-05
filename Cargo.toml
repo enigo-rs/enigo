@@ -34,7 +34,6 @@ wayland = [
     "dep:wayland-client",
     "dep:wayland-protocols-misc",
     "dep:wayland-protocols-wlr",
-    "dep:wayland-protocols-plasma",
     "dep:tempfile",
 ]
 xdo = []
@@ -79,9 +78,6 @@ wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-protocols-wlr = { version = "0.3", features = [
-    "client",
-], optional = true }
-wayland-protocols-plasma = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-client = { version = "0.31", optional = true }
