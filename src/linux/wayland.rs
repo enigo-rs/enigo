@@ -14,7 +14,8 @@ use wayland_client::{
     protocol::{
         wl_keyboard::{self, WlKeyboard},
         wl_pointer::{self, WlPointer},
-        wl_registry, wl_seat,
+        wl_registry,
+        wl_seat::{self, Capability},
     },
     Connection, Dispatch, EventQueue, QueueHandle,
 };
@@ -150,30 +151,24 @@ impl Con {
         self.event_queue
             .flush()
             .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+        self.state.seat = Some(seat);
 
         // Wait for compositor to handle the request and send back the capabilities of
         // the seat
         thread::sleep(Duration::from_millis(40));
 
-        // Get the capabilities
+        // Get the capabilities and create a WlPointer and/or WlKeyboard if it has the
+        // capabilities for it
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
 
-        // Create a WlPointer and WlKeyboard for the seat
-        let seat_keyboard = seat.get_keyboard(&qh, ());
-        let seat_pointer = seat.get_pointer(&qh, ());
-
+        // Send the events to the compositor to handle them
         self.event_queue
             .flush()
             .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
 
-        self.state.seat = Some(seat);
-        self.state.seat_keyboard = Some(seat_keyboard);
-        self.state.seat_pointer = Some(seat_pointer);
-
-        // Wait for compositor to handle the request and send back the capabilities of
-        // the seat
+        // Wait for compositor to create the WlPointer and WlKeyboard
         thread::sleep(Duration::from_millis(40));
 
         // Get the keymap of the WlKeyboard
@@ -526,14 +521,40 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
 
 impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
     fn event(
-        _state: &mut Self,
-        _seat: &wl_seat::WlSeat,
+        state: &mut Self,
+        seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         (): &(),
-        _: &Connection,
-        _qh: &QueueHandle<Self>,
+        con: &Connection,
+        qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a seat event {:?}", event);
+        match event {
+            wl_seat::Event::Capabilities { capabilities } => {
+                let capabilities = match capabilities {
+                    wayland_client::WEnum::Value(capabilities) => capabilities,
+                    wayland_client::WEnum::Unknown(v) => {
+                        warn!("Unknown value for the capabilities of the wl_seat: {v}");
+                        return;
+                    }
+                };
+
+                // Create a WlKeyboard if the seat has the capability
+                if state.seat_keyboard.is_none() && capabilities.contains(Capability::Keyboard) {
+                    let seat_keyboard = seat.get_keyboard(qh, ());
+                    state.seat_keyboard = Some(seat_keyboard);
+                }
+
+                // Create a WlPointer if the seat has the capability
+                if state.seat_pointer.is_none() && capabilities.contains(Capability::Pointer) {
+                    let seat_pointer = seat.get_pointer(qh, ());
+                    state.seat_pointer = Some(seat_pointer);
+                }
+
+                // TODO: Handle the case of removed capabilities
+            }
+
+            _ => warn!("Got an unhandled seat event {:?}", event), // TODO
+        }
     }
 }
 
