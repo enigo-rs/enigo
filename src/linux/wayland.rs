@@ -357,6 +357,10 @@ impl Con {
         let keymap_file = self.keymap.file.as_ref().unwrap(); // Safe here, assuming file is always present
         vk.keymap(1, keymap_file.as_fd(), size);
 
+        // Send the keymap and wait a bit for it to be applied
+        let _ = self.event_queue.flush();
+        thread::sleep(Duration::from_millis(40));
+
         // TODO: Change to flush()
         self.event_queue
             .roundtrip(&mut self.state)
