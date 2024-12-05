@@ -219,6 +219,7 @@ impl Con {
             .as_ref()
             .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
 
+        thread::sleep(Duration::from_millis(40));
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
