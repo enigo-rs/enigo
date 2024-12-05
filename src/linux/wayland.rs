@@ -437,6 +437,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 version
             );
             state.globals.insert(interface, (name, version));
+        } else {
+            warn!("Got a virtual keyboard event {:?}", event);
         }
     }
 }
