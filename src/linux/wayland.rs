@@ -213,33 +213,43 @@ impl Con {
 
         if let Some(seat) = self.state.seat.as_ref() {
             // Setup input method
-            self.input_method = self.state.im_manager.as_ref().map(|im_mgr| {
-                let input_method = im_mgr.get_input_method(seat, &qh, ());
-                let _ = self.event_queue.flush();
-
-                input_method
-            });
+            self.input_method = self
+                .state
+                .im_manager
+                .as_ref()
+                .map(|im_mgr| im_mgr.get_input_method(seat, &qh, ()));
+            if self.input_method.is_some() {
+                self.event_queue
+                    .flush()
+                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            }
 
             // Setup virtual keyboard
-            self.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
-                let virtual_keyboard = vk_mgr.create_virtual_keyboard(seat, &qh, ());
-                let _ = self.event_queue.flush();
-                virtual_keyboard
-            });
+            self.virtual_keyboard = self
+                .state
+                .keyboard_manager
+                .as_ref()
+                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
+            if self.virtual_keyboard.is_some() {
+                self.event_queue
+                    .flush()
+                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            }
         };
 
         // Setup virtual pointer
-        self.virtual_pointer = self.state.pointer_manager.as_ref().map(|vp_mgr| {
-            let virtual_pointer = vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ());
-            let _ = self.event_queue.flush();
-            virtual_pointer
-        });
+        self.virtual_pointer = self
+            .state
+            .pointer_manager
+            .as_ref()
+            .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
+        if self.virtual_pointer.is_some() {
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+        }
 
         debug!("create virtual keyboard is done");
-        // Get all events from the compositor and process them
-        self.event_queue
-            .dispatch_pending(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
         // Get all events from the compositor and process them
         self.event_queue
             .dispatch_pending(&mut self.state)
