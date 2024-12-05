@@ -336,13 +336,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         {
             match &interface[..] {
                 "wl_seat" => {
-                    let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
+                    let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, 5, qh, ());
                     state.seat = Some(seat);
                 }
                 /*"wl_output" => {
                     let output = registry.bind::<wl_output::WlOutput, _, _>(name, 1, qh, ());
                     state.output = Some(output);
-                }*/
+                }
                 "zwp_input_method_manager_v2" => {
                     let manager = registry
                         .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
@@ -352,7 +352,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             (),
                         );
                     state.im_manager = Some(manager);
-                }
+                }*/
                 "zwp_virtual_keyboard_manager_v1" => {
                     let manager = registry
                         .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
