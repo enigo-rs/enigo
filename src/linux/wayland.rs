@@ -221,7 +221,7 @@ impl Con {
 
         self.event_queue
             .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+            .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
 
         trace!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
