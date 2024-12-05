@@ -136,7 +136,7 @@ impl Con {
         // Bind to wl_seat if it exists
         // MUST be done before doing any bindings relevant to the input_method
         // protocol, otherwise e.g. labwc crashes
-        let Some(&(name, version)) = self
+        let &(name, version) = self
             .state
             .globals
             .get("wl_seat")
@@ -214,9 +214,7 @@ impl Con {
                 // TODO: Only sleep if it is needed
                 // (Done increases serial by 1, so it needs to be >0 before
                 // being used)
-                self.event_queue
-                    .flush()
-                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                let _ = self.event_queue.flush();
                 thread::sleep(Duration::from_millis(40));
                 input_method
             });
@@ -226,9 +224,7 @@ impl Con {
                 let virtual_keyboard = vk_mgr.create_virtual_keyboard(seat, &qh, ());
                 // Flush queue and sleep a few milliseconds to give the compositor time to
                 // create the virtual_keyboard
-                self.event_queue
-                    .flush()
-                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                let _ = self.event_queue.flush();
                 thread::sleep(Duration::from_millis(40));
                 virtual_keyboard
             });
@@ -239,9 +235,7 @@ impl Con {
             let virtual_pointer = vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ());
             // Flush queue and sleep a few milliseconds to give the compositor time to
             // create the virtual_pointer
-            self.event_queue
-                .flush()
-                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            let _ = self.event_queue.flush();
             thread::sleep(Duration::from_millis(40));
             virtual_pointer
         });
