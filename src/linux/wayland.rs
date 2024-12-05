@@ -67,7 +67,7 @@ impl Con {
         display.get_registry(&qh, ());
 
         // Setup WaylandState and dispatch events
-        let mut state = WaylandState::new();
+        let mut state = WaylandState::default();
         event_queue
             .roundtrip(&mut state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
@@ -322,6 +322,7 @@ impl Drop for Con {
     }
 }
 
+#[derive(Clone, Debug, Default)]
 /// Stores the manager for the various protocols
 struct WaylandState {
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
@@ -333,19 +334,7 @@ struct WaylandState {
     height: i32,*/
 }
 
-impl WaylandState {
-    fn new() -> Self {
-        Self {
-            keyboard_manager: None,
-            im_manager: None,
-            pointer_manager: None,
-            seat: None,
-            /*  output: None,
-            width: 0,
-            height: 0,*/
-        }
-    }
-}
+impl WaylandState {}
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
     fn event(
