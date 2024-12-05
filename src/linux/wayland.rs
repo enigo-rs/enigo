@@ -156,6 +156,7 @@ impl Con {
         // the seat
         // The WlPointer and/or WlKeyboard get created now if the seat has the
         // capabilities for it
+        debug!("waiting for response of request to bind to seat");
         self.event_queue
             .blocking_dispatch(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
@@ -167,6 +168,7 @@ impl Con {
 
         // Wait for compositor to create the WlPointer and WlKeyboard and get the keymap
         // of the WlKeyboard
+        debug!("asked to create keyboard and pointer");
         self.event_queue
             .blocking_dispatch(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
@@ -235,6 +237,7 @@ impl Con {
             virtual_pointer
         });
 
+        debug!("create virtual keyboard is done");
         // Get all events from the compositor and process them
         self.event_queue
             .dispatch_pending(&mut self.state)
@@ -353,6 +356,8 @@ impl Con {
         let _ = self.event_queue.flush();
 
         // TODO: Change to flush()event_queue
+
+        debug!("wait for response after keymap call");
         self.event_queue
             .blocking_dispatch(&mut self.state)
             .map_err(|_| InputError::Simulate("Wayland blocking_dispatch failed"))?;
