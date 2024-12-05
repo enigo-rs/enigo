@@ -69,7 +69,7 @@ impl Con {
         let display = connection.display();
         let registry = display.get_registry(&qh, ());
 
-        // Setup WaylandState and get globals
+        // Setup WaylandState and store the globals in it
         let mut state = WaylandState::default();
         event_queue
             .roundtrip(&mut state)
@@ -136,17 +136,29 @@ impl Con {
         // Bind to wl_seat if it exists
         // MUST be done before doing any bindings relevant to the input_method
         // protocol, otherwise e.g. labwc crashes
-        if let Some(&(name, version)) = self.state.globals.get("wl_seat") {
-            let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version.min(1), &qh, ());
-            self.state.seat = Some(seat);
+        let Some(&(name, version)) = self
+            .state
+            .globals
+            .get("wl_seat")
+            .ok_or_else(|| NewConError::EstablishCon("No seat available"))?;
 
-            self.event_queue
-                .roundtrip(&mut self.state)
-                .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
-        }
+        // Bind to seat
+        let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version.min(1), &qh, ());
+        self.event_queue
+            .flush()
+            .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+        self.state.seat = Some(seat);
 
-        /*
-        // Bind to zwp_virtual_keyboard_manager_v1
+        // Wait for compositor to handle the request and send back the capabilities of
+        // the seat
+        thread::sleep(Duration::from_millis(40));
+
+        // Get the capabilities
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+
+        // Ask compositor to create VirtualKeyboardManager
         if let Some(&(name, version)) = self.state.globals.get("zwp_virtual_keyboard_manager_v1") {
             let manager = registry
                 .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -155,14 +167,13 @@ impl Con {
                     &qh,
                     (),
                 );
-                 self.event_queue
+            self.event_queue
                 .flush()
                 .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
             self.state.keyboard_manager = Some(manager);
+        }
 
-        }*/
-
-        // Bind to zwp_input_method_manager_v2
+        // Ask compositor to create InputMethodManager
         if let Some(&(name, version)) = self.state.globals.get("zwp_input_method_manager_v2") {
             let manager = registry
                 .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
@@ -177,6 +188,10 @@ impl Con {
             self.state.im_manager = Some(manager);
         }
 
+        // Wait for compositor to create the requested managers
+        thread::sleep(Duration::from_millis(40));
+
+        // Process all events sent from the compositor
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
@@ -191,35 +206,47 @@ impl Con {
 
         if let Some(seat) = self.state.seat.as_ref() {
             // Setup input method
-            self.input_method = self
-                .state
-                .im_manager
-                .as_ref()
-                .map(|im_mgr| im_mgr.get_input_method(seat, &qh, ()));
-            // Flush queue because it might take the compositor some time to handle it
-            self.event_queue
-                .flush()
-                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            self.input_method = self.state.im_manager.as_ref().map(|im_mgr| {
+                let input_method = im_mgr.get_input_method(seat, &qh, ());
+                // Flush queue and sleep a few milliseconds to give the compositor time to
+                // create the input_method. It needs to send a Done event before the
+                // input_method can be used
+                // TODO: Only sleep if it is needed
+                // (Done increases serial by 1, so it needs to be >0 before
+                // being used)
+                self.event_queue
+                    .flush()
+                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                thread::sleep(Duration::from_millis(40));
+                input_method
+            });
 
             // Setup virtual keyboard
-            self.virtual_keyboard = self
-                .state
-                .keyboard_manager
-                .as_ref()
-                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
-            self.event_queue
-                .flush()
-                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            self.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
+                let virtual_keyboard = vk_mgr.create_virtual_keyboard(seat, &qh, ());
+                // Flush queue and sleep a few milliseconds to give the compositor time to
+                // create the virtual_keyboard
+                self.event_queue
+                    .flush()
+                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                thread::sleep(Duration::from_millis(40));
+                virtual_keyboard
+            });
         };
 
         // Setup virtual pointer
-        self.virtual_pointer = self
-            .state
-            .pointer_manager
-            .as_ref()
-            .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
+        self.virtual_pointer = self.state.pointer_manager.as_ref().map(|vp_mgr| {
+            let virtual_pointer = vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ());
+            // Flush queue and sleep a few milliseconds to give the compositor time to
+            // create the virtual_pointer
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            thread::sleep(Duration::from_millis(40));
+            virtual_pointer
+        });
 
-        thread::sleep(Duration::from_millis(40));
+        // Get all events from the compositor and process them
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
