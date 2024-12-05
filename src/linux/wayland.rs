@@ -237,8 +237,8 @@ impl Con {
 
         // Get all events from the compositor and process them
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
+            .dispatch_pending(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
 
         trace!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
@@ -281,18 +281,16 @@ impl Con {
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vk.key({time}, {keycode}, 1)");
             vk.key(time, keycode, 1);
-            // TODO: Change to flush()
             self.event_queue
-                .roundtrip(&mut self.state)
-                .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+                .flush()
+                .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
         }
         if direction == Direction::Release || direction == Direction::Click {
             trace!("vk.key({time}, {keycode}, 0)");
             vk.key(time, keycode, 0);
-            // TODO: Change to flush()
             self.event_queue
-                .roundtrip(&mut self.state)
-                .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+                .flush()
+                .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
         }
         Ok(())
     }
@@ -315,11 +313,9 @@ impl Con {
         // Send the modifier event
         vk.modifiers(modifiers, 0, 0, 0);
 
-        // TODO: Change to flush()
-        // Perform a roundtrip to send the event
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+            .flush()
+            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
 
         Ok(())
     }
@@ -639,10 +635,9 @@ impl Keyboard for Con {
         im.commit_string(text.to_string());
         im.commit(self.state.im_serial.0);
 
-        // TODO: Change to flush()
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+            .flush()
+            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
 
         Ok(Some(()))
     }
@@ -720,10 +715,9 @@ impl Mouse for Con {
             vp.button(time, button, wl_pointer::ButtonState::Released);
             vp.frame(); // TODO: Check if this is needed
         }
-        // TODO: Change to flush()
         self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
+            .flush()
+            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))
             .map(|_| ())
     }
 
