@@ -203,8 +203,6 @@ impl Con {
             self.state.im_manager = Some(manager);
         }
 
-        // Wait for compositor to create the requested managers
-
         Ok(())
     }
 
@@ -243,7 +241,7 @@ impl Con {
             .dispatch_pending(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
 
-        trace!(
+        debug!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
             self.virtual_keyboard.is_some(),
             self.input_method.is_some(),
@@ -335,6 +333,8 @@ impl Con {
             .ok_or(InputError::Simulate("no way to apply keymap"))?;
         is_alive(vk)?;
 
+        debug!("is alive");
+
         // Regenerate keymap and handle failure
         let keymap_size = self
             .keymap
@@ -351,11 +351,6 @@ impl Con {
 
         let keymap_file = self.keymap.file.as_ref().unwrap(); // Safe here, assuming file is always present
         vk.keymap(1, keymap_file.as_fd(), size);
-
-        // Send the keymap and wait a bit for it to be applied
-        let _ = self.event_queue.flush();
-
-        // TODO: Change to flush()event_queue
 
         debug!("wait for response after keymap call");
         self.event_queue
