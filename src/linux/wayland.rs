@@ -240,6 +240,10 @@ impl Con {
         self.event_queue
             .dispatch_pending(&mut self.state)
             .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
+        // Get all events from the compositor and process them
+        self.event_queue
+            .dispatch_pending(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
 
         debug!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
@@ -416,6 +420,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        warn!("Got a registry event {:?}", event);
         // When receiving events from the wl_registry, we are only interested in the
         // `global` event, which signals a new available global and then store it to
         // later bind to them
@@ -432,8 +437,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 version
             );
             state.globals.insert(interface, (name, version));
-        } else {
-            warn!("Got a virtual keyboard event {:?}", event);
         }
     }
 }
@@ -485,11 +488,11 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
+        warn!("Got a input method event {:?}", event);
         match event {
             zwp_input_method_v2::Event::Done => state.im_serial += Wrapping(1u32),
             _ => (), // TODO
         }
-        warn!("Got a input method event {:?}", event);
     }
 }
 
@@ -541,7 +544,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a keyboard event {:?}", event);
+        warn!("Got a wl_keyboard event {:?}", event);
     }
 }
 
@@ -554,7 +557,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a pointer event {:?}", event);
+        warn!("Got a wl_pointer event {:?}", event);
     }
 }
 
