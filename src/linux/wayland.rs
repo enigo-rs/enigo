@@ -99,10 +99,11 @@ impl Con {
 
         connection.init_protocols()?;
 
-        connection
-            .apply_keymap()
-            .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
-
+        /*
+                connection
+                    .apply_keymap()
+                    .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
+        */
         Ok(connection)
     }
 
@@ -145,6 +146,7 @@ impl Con {
                 .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
         }
 
+        /*
         // Bind to zwp_virtual_keyboard_manager_v1
         if let Some(&(name, version)) = self.state.globals.get("zwp_virtual_keyboard_manager_v1") {
             let manager = registry
@@ -155,7 +157,7 @@ impl Con {
                     (),
                 );
             self.state.keyboard_manager = Some(manager);
-        }
+        }*/
 
         // Bind to zwp_input_method_manager_v2
         if let Some(&(name, version)) = self.state.globals.get("zwp_input_method_manager_v2") {
