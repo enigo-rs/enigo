@@ -502,6 +502,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _con: &Connection,
         qh: &QueueHandle<Self>,
     ) {
+        warn!("Received a seat event {:?}", event);
         match event {
             wl_seat::Event::Capabilities { capabilities } => {
                 let capabilities = match capabilities {
@@ -526,8 +527,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
 
                 // TODO: Handle the case of removed capabilities
             }
-
-            _ => warn!("Got an unhandled seat event {:?}", event), // TODO
+            _ => warn!("Event was not handled"),
         }
     }
 }
