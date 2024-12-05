@@ -202,9 +202,6 @@ impl Con {
         }
 
         // Wait for compositor to create the requested managers
-        self.event_queue
-            .blocking_dispatch(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("Wayland blocking_dispatch failed"))?;
 
         Ok(())
     }
