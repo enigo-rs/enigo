@@ -293,4 +293,5 @@ xkb_symbols \"enigo\" {";
 pub const KEYMAP_END: &[u8; 7] = b"
 };
 
-};";
+};
+";
