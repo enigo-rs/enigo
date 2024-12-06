@@ -1,4 +1,4 @@
-pub const KEYMAP_BEGINNING: &[u8; 7319] = b"xkb_keymap \"enigo\" {
+pub const KEYMAP_BEGINNING: &[u8; 8961] = b"xkb_keymap \"enigo\" {
     xkb_keycodes {
     	minimum = 8;
     	maximum = 255;
@@ -289,7 +289,7 @@ pub const KEYMAP_BEGINNING: &[u8; 7319] = b"xkb_keymap \"enigo\" {
     
     xkb_symbols \"enigo\" {";
 
-pub const KEYMAP_END: &[u8; 27] = b"
+pub const KEYMAP_END: &[u8; 19] = b"
     };
     
     };";
