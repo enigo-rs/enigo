@@ -400,7 +400,7 @@ impl Con {
         let mut reader = file.try_clone()?; // Clone the file handle to safely read it
         reader.seek(io::SeekFrom::Start(0))?; // Reset to the beginning of the file
         reader.read_to_string(&mut buf)?;
-        println!("Keymap file contents:\n{}", buf);
+        debug!("Keymap (sent) file contents:\n{}", buf);
         Ok(())
     }
 
@@ -616,7 +616,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     .expect("Failed to read tempfile");
 
                 // Print the content of the keymap
-                debug!("Keymap content: {}", content);
+                debug!("Keymap (received) content: {}", content);
 
                 debug!("Keymap raw data (size {})", size);
             }
