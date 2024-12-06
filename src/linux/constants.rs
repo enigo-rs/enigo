@@ -290,7 +290,7 @@ xkb_compatibility \"enigo\" {
 
 xkb_symbols \"enigo\" {";
 
-pub const KEYMAP_END: &[u8; 7] = b"
+pub const KEYMAP_END: &[u8; 8] = b"
 };
 
 };
