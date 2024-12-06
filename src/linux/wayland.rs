@@ -204,6 +204,21 @@ impl Con {
             self.state.im_manager = Some(manager);
         }
 
+        // Ask compositor to create VirtualPointerManager
+        if let Some(&(name, version)) = self.state.globals.get("zwlr_virtual_pointer_manager_v1") {
+            let manager = registry
+                .bind::<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, _, _>(
+                    name,
+                    version.min(1),
+                    &qh,
+                    (),
+                );
+            self.event_queue
+                .flush()
+                .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+            self.state.pointer_manager = Some(manager);
+        }
+
         Ok(())
     }
 
@@ -252,11 +267,10 @@ impl Con {
 
         debug!("create virtual keyboard is done");
 
-        thread::sleep(Duration::from_secs(4));
         // Get all events from the compositor and process them
         self.event_queue
-            .dispatch_pending(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("The dispatch_pending on Wayland failed"))?;
+            .roundtrip(&mut self.state)
+            .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
 
         debug!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
