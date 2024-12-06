@@ -375,6 +375,12 @@ impl Con {
         trace!("update wayland keymap");
 
         let keymap_file = self.keymap.file.as_ref().unwrap(); // Safe here, assuming file is always present
+
+        // Print the contents of the file
+        if let Err(err) = Self::print_keymap_file_contents(keymap_file) {
+            error!("Failed to print keymap file contents: {}", err);
+        }
+
         vk.keymap(1, keymap_file.as_fd(), size);
 
         debug!("wait for response after keymap call");
@@ -382,6 +388,19 @@ impl Con {
             .blocking_dispatch(&mut self.state)
             .map_err(|_| InputError::Simulate("Wayland blocking_dispatch failed"))?;
 
+        Ok(())
+    }
+
+    fn print_keymap_file_contents(file: &std::fs::File) -> std::io::Result<()> {
+        use std::io;
+        use std::io::Read as _;
+        use std::io::Seek as _;
+
+        let mut buf = String::new();
+        let mut reader = file.try_clone()?; // Clone the file handle to safely read it
+        reader.seek(io::SeekFrom::Start(0))?; // Reset to the beginning of the file
+        reader.read_to_string(&mut buf)?;
+        println!("Keymap file contents:\n{}", buf);
         Ok(())
     }
 
@@ -565,7 +584,45 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
+        use std::fs::File;
+        use std::io;
+        use std::io::Read;
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        use tempfile::tempfile;
+
         warn!("Got a wl_keyboard event {:?}", event);
+        match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                // Open the file descriptor as a file
+                let mut file = File::from(fd);
+
+                // Create a temporary file
+                let mut temp_file = tempfile().expect("Failed to create tempfile");
+
+                // Copy the contents from the keymap file descriptor into the temporary file
+                io::copy(&mut file, &mut temp_file)
+                    .expect("Failed to copy keymap data to tempfile");
+
+                // Rewind the temporary file to read from it
+                temp_file
+                    .seek(io::SeekFrom::Start(0))
+                    .expect("Failed to seek to the start of tempfile");
+
+                // Read the content of the temporary file into a string or buffer
+                let mut content = String::new();
+                temp_file
+                    .read_to_string(&mut content)
+                    .expect("Failed to read tempfile");
+
+                // Print the content of the keymap
+                debug!("Keymap content: {}", content);
+
+                debug!("Keymap raw data (size {})", size);
+            }
+
+            _ => todo!(),
+        }
     }
 }
 
