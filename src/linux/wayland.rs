@@ -266,11 +266,6 @@ impl Con {
 
         debug!("create virtual keyboard is done");
 
-        // Get all events from the compositor and process them
-        self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| NewConError::EstablishCon("The roundtrip on Wayland failed"))?;
-
         debug!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
             self.virtual_keyboard.is_some(),
