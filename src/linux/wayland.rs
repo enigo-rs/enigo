@@ -235,9 +235,10 @@ impl Con {
                 .as_ref()
                 .map(|im_mgr| im_mgr.get_input_method(seat, &qh, ()));
             if self.input_method.is_some() {
+                // Wait for Activate respons
                 self.event_queue
-                    .flush()
-                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                    .blocking_dispatch(&mut self.state)
+                    .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
             }
 
             // Setup virtual keyboard
@@ -247,9 +248,10 @@ impl Con {
                 .as_ref()
                 .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
             if self.virtual_keyboard.is_some() {
+                // Wait for KeyMap response
                 self.event_queue
-                    .flush()
-                    .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+                    .blocking_dispatch(&mut self.state)
+                    .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
             }
         };
 
