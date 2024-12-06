@@ -5,7 +5,8 @@ use std::{
     num::Wrapping,
     os::unix::{io::AsFd, net::UnixStream},
     path::PathBuf,
-    time::Instant,
+    thread,
+    time::{Duration, Instant},
 };
 
 use log::{debug, error, trace, warn};
