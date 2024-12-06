@@ -15,46 +15,9 @@ warning: unused import: `std::io::SeekFrom`
 591 |         use std::io::SeekFrom;
     |             ^^^^^^^^^^^^^^^^^
 
-warning: unused variable: `format`
-   --> src/linux/wayland.rs:596:42
-    |
-596 |             wl_keyboard::Event::Keymap { format, fd, size } => {
-    |                                          ^^^^^^ help: try ignoring the field: `format: _`
-    |
-    = note: `#[warn(unused_variables)]` on by default
+warning: `enigo` (lib) generated 2 warnings (run `cargo fix --lib -p enigo` to apply 2 suggestions)
+warning: corrupt incremental compilation artifact found at `/home/pentamassiv/enigo/target/debug/incremental/keyboard-3t3m7tf612t5n/s-h2gikrnfwb-0kpzdzb-working/dep-graph.bin`. This file will automatically be ignored and deleted. If you see this message repeatedly or can provoke it without manually manipulating the compiler's artifacts, please file an issue. The incremental compilation system relies on hardlinks and filesystem locks behaving correctly, and may not deal well with OS crashes, so whatever information you can provide about your filesystem or other state may be very relevant.
 
-warning: method `flush` is never used
-   --> src/linux/wayland.rs:420:8
-    |
-48  | impl Con {
-    | -------- method in this implementation
-...
-420 |     fn flush(&self) -> InputResult<()> {
-    |        ^^^^^
-    |
-    = note: `#[warn(dead_code)]` on by default
-
-warning: variant `Mod3` is never constructed
-    --> src/keycodes.rs:1107:5
-     |
-1091 | pub(crate) enum Modifier {
-     |                 -------- variant in this enum
-...
-1107 |     Mod3,
-     |     ^^^^
-     |
-     = note: `Modifier` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
-
-warning: method `no` is never used
-    --> src/keycodes.rs:1138:19
-     |
-1118 | impl Modifier {
-     | ------------- method in this implementation
-...
-1138 |     pub(crate) fn no(self) -> usize {
-     |                   ^^
-
-warning: `enigo` (lib) generated 6 warnings (run `cargo fix --lib -p enigo` to apply 2 suggestions)
 warning: unused imports: `Press` and `Release`
  --> examples/keyboard.rs:2:24
   |
@@ -63,67 +26,67 @@ warning: unused imports: `Press` and `Release`
   |
   = note: `#[warn(unused_imports)]` on by default
 
-warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --example "keyboard"` to apply 1 suggestion)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 42.22s
+warning: `enigo` (example "keyboard") generated 2 warnings (run `cargo fix --example "keyboard"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 41.30s
      Running `target/debug/examples/keyboard`
-[2024-12-06T03:17:39Z DEBUG enigo] using default settings
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] trying to establish a connection to $WAYLAND_DISPLAY
-[1963600.290][rs] -> wl_display@1.get_registry(wl_registry@2)
-[1963600.665][rs] -> wl_display@1.sync(wl_callback@3)
-[1963629.148][rs] <- wl_registry@2.global, (1, Some("wl_shm"), 1)
-[1963629.557][rs] <- wl_registry@2.global, (2, Some("wl_drm"), 2)
-[1963629.813][rs] <- wl_registry@2.global, (3, Some("zwp_linux_dmabuf_v1"), 4)
-[1963630.072][rs] <- wl_registry@2.global, (4, Some("zwlr_gamma_control_manager_v1"), 1)
-[1963630.336][rs] <- wl_registry@2.global, (5, Some("zxdg_output_manager_v1"), 3)
-[1963630.597][rs] <- wl_registry@2.global, (6, Some("zwlr_output_manager_v1"), 4)
-[1963630.851][rs] <- wl_registry@2.global, (7, Some("wl_compositor"), 5)
-[1963631.108][rs] <- wl_registry@2.global, (8, Some("wl_subcompositor"), 1)
-[1963631.392][rs] <- wl_registry@2.global, (9, Some("wl_data_device_manager"), 3)
-[1963631.715][rs] <- wl_registry@2.global, (10, Some("zwp_primary_selection_device_manager_v1"), 1)
-[1963631.970][rs] <- wl_registry@2.global, (11, Some("zwp_input_method_manager_v2"), 1)
-[1963632.229][rs] <- wl_registry@2.global, (12, Some("zwp_text_input_manager_v3"), 1)
-[1963632.489][rs] <- wl_registry@2.global, (13, Some("wl_seat"), 8)
-[1963632.741][rs] <- wl_registry@2.global, (14, Some("zwlr_virtual_pointer_manager_v1"), 2)
-[1963632.999][rs] <- wl_registry@2.global, (15, Some("zwp_virtual_keyboard_manager_v1"), 1)
-[1963633.252][rs] <- wl_registry@2.global, (16, Some("zwp_pointer_gestures_v1"), 3)
-[1963633.512][rs] <- wl_registry@2.global, (17, Some("wp_cursor_shape_manager_v1"), 1)
-[1963633.766][rs] <- wl_registry@2.global, (18, Some("xdg_wm_base"), 3)
-[1963634.023][rs] <- wl_registry@2.global, (19, Some("xdg_activation_v1"), 1)
-[1963634.286][rs] <- wl_registry@2.global, (20, Some("org_kde_kwin_server_decoration_manager"), 1)
-[1963634.544][rs] <- wl_registry@2.global, (21, Some("zxdg_decoration_manager_v1"), 1)
-[1963634.759][rs] <- wl_registry@2.global, (22, Some("wp_presentation"), 1)
-[1963634.911][rs] <- wl_registry@2.global, (23, Some("zwlr_export_dmabuf_manager_v1"), 1)
-[1963635.060][rs] <- wl_registry@2.global, (24, Some("zwlr_screencopy_manager_v1"), 3)
-[1963635.214][rs] <- wl_registry@2.global, (25, Some("zwlr_data_control_manager_v1"), 2)
-[1963635.366][rs] <- wl_registry@2.global, (26, Some("wp_security_context_manager_v1"), 1)
-[1963635.540][rs] <- wl_registry@2.global, (27, Some("wp_viewporter"), 1)
-[1963635.689][rs] <- wl_registry@2.global, (28, Some("wp_single_pixel_buffer_manager_v1"), 1)
-[1963635.841][rs] <- wl_registry@2.global, (29, Some("wp_fractional_scale_manager_v1"), 1)
-[1963635.991][rs] <- wl_registry@2.global, (30, Some("ext_idle_notifier_v1"), 1)
-[1963636.140][rs] <- wl_registry@2.global, (31, Some("zwp_idle_inhibit_manager_v1"), 1)
-[1963636.288][rs] <- wl_registry@2.global, (32, Some("zwp_relative_pointer_manager_v1"), 1)
-[1963636.448][rs] <- wl_registry@2.global, (33, Some("zwp_pointer_constraints_v1"), 1)
-[1963636.622][rs] <- wl_registry@2.global, (34, Some("zwlr_input_inhibit_manager_v1"), 1)
-[1963636.772][rs] <- wl_registry@2.global, (35, Some("zwlr_foreign_toplevel_manager_v1"), 3)
-[1963636.924][rs] <- wl_registry@2.global, (36, Some("ext_session_lock_manager_v1"), 1)
-[1963637.073][rs] <- wl_registry@2.global, (37, Some("wp_drm_lease_device_v1"), 1)
-[1963637.227][rs] <- wl_registry@2.global, (38, Some("zwlr_output_power_manager_v1"), 1)
-[1963637.379][rs] <- wl_registry@2.global, (39, Some("wp_tearing_control_manager_v1"), 1)
-[1963637.532][rs] <- wl_registry@2.global, (40, Some("zwp_tablet_manager_v2"), 1)
-[1963637.680][rs] <- wl_registry@2.global, (41, Some("zwlr_layer_shell_v1"), 4)
-[1963637.832][rs] <- wl_registry@2.global, (43, Some("wl_output"), 4)
-[1963637.976][rs] <- wl_callback@3.done, (315)
-[1963638.076][rs] <- wl_display@1.delete_id, (3)
-[1963639.152][rs] -> wl_registry@2.bind(13, Some("wl_seat"), 1, wl_seat@3)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] waiting for response of request to bind to seat
-[1963645.966][rs] <- wl_seat@3.capabilities, (3)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Received a seat event Capabilities { capabilities: Value(Capability(Pointer | Keyboard)) }
-[1963646.738][rs] -> wl_seat@3.get_keyboard(wl_keyboard@4)
-[1963646.892][rs] -> wl_seat@3.get_pointer(wl_pointer@5)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] asked to create keyboard and pointer
-[1963647.419][rs] <- wl_keyboard@4.keymap, (1, 4, 66181)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 4 }, size: 66181 }
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (received) content:
+[2024-12-06T03:29:38Z DEBUG enigo] using default settings
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] trying to establish a connection to $WAYLAND_DISPLAY
+[2682598.793][rs] -> wl_display@1.get_registry(wl_registry@2)
+[2682599.074][rs] -> wl_display@1.sync(wl_callback@3)
+[2682599.919][rs] <- wl_registry@2.global, (1, Some("wl_shm"), 1)
+[2682600.217][rs] <- wl_registry@2.global, (2, Some("wl_drm"), 2)
+[2682600.472][rs] <- wl_registry@2.global, (3, Some("zwp_linux_dmabuf_v1"), 4)
+[2682600.731][rs] <- wl_registry@2.global, (4, Some("zwlr_gamma_control_manager_v1"), 1)
+[2682600.986][rs] <- wl_registry@2.global, (5, Some("zxdg_output_manager_v1"), 3)
+[2682601.246][rs] <- wl_registry@2.global, (6, Some("zwlr_output_manager_v1"), 4)
+[2682601.502][rs] <- wl_registry@2.global, (7, Some("wl_compositor"), 5)
+[2682601.757][rs] <- wl_registry@2.global, (8, Some("wl_subcompositor"), 1)
+[2682602.015][rs] <- wl_registry@2.global, (9, Some("wl_data_device_manager"), 3)
+[2682602.290][rs] <- wl_registry@2.global, (10, Some("zwp_primary_selection_device_manager_v1"), 1)
+[2682602.549][rs] <- wl_registry@2.global, (11, Some("zwp_input_method_manager_v2"), 1)
+[2682602.802][rs] <- wl_registry@2.global, (12, Some("zwp_text_input_manager_v3"), 1)
+[2682603.059][rs] <- wl_registry@2.global, (13, Some("wl_seat"), 8)
+[2682603.366][rs] <- wl_registry@2.global, (14, Some("zwlr_virtual_pointer_manager_v1"), 2)
+[2682603.624][rs] <- wl_registry@2.global, (15, Some("zwp_virtual_keyboard_manager_v1"), 1)
+[2682603.877][rs] <- wl_registry@2.global, (16, Some("zwp_pointer_gestures_v1"), 3)
+[2682604.134][rs] <- wl_registry@2.global, (17, Some("wp_cursor_shape_manager_v1"), 1)
+[2682604.394][rs] <- wl_registry@2.global, (18, Some("xdg_wm_base"), 3)
+[2682604.651][rs] <- wl_registry@2.global, (19, Some("xdg_activation_v1"), 1)
+[2682604.903][rs] <- wl_registry@2.global, (20, Some("org_kde_kwin_server_decoration_manager"), 1)
+[2682605.160][rs] <- wl_registry@2.global, (21, Some("zxdg_decoration_manager_v1"), 1)
+[2682605.422][rs] <- wl_registry@2.global, (22, Some("wp_presentation"), 1)
+[2682605.678][rs] <- wl_registry@2.global, (23, Some("zwlr_export_dmabuf_manager_v1"), 1)
+[2682605.933][rs] <- wl_registry@2.global, (24, Some("zwlr_screencopy_manager_v1"), 3)
+[2682606.189][rs] <- wl_registry@2.global, (25, Some("zwlr_data_control_manager_v1"), 2)
+[2682606.445][rs] <- wl_registry@2.global, (26, Some("wp_security_context_manager_v1"), 1)
+[2682606.703][rs] <- wl_registry@2.global, (27, Some("wp_viewporter"), 1)
+[2682606.970][rs] <- wl_registry@2.global, (28, Some("wp_single_pixel_buffer_manager_v1"), 1)
+[2682607.182][rs] <- wl_registry@2.global, (29, Some("wp_fractional_scale_manager_v1"), 1)
+[2682607.334][rs] <- wl_registry@2.global, (30, Some("ext_idle_notifier_v1"), 1)
+[2682607.488][rs] <- wl_registry@2.global, (31, Some("zwp_idle_inhibit_manager_v1"), 1)
+[2682607.640][rs] <- wl_registry@2.global, (32, Some("zwp_relative_pointer_manager_v1"), 1)
+[2682607.796][rs] <- wl_registry@2.global, (33, Some("zwp_pointer_constraints_v1"), 1)
+[2682607.976][rs] <- wl_registry@2.global, (34, Some("zwlr_input_inhibit_manager_v1"), 1)
+[2682608.131][rs] <- wl_registry@2.global, (35, Some("zwlr_foreign_toplevel_manager_v1"), 3)
+[2682608.280][rs] <- wl_registry@2.global, (36, Some("ext_session_lock_manager_v1"), 1)
+[2682608.428][rs] <- wl_registry@2.global, (37, Some("wp_drm_lease_device_v1"), 1)
+[2682608.577][rs] <- wl_registry@2.global, (38, Some("zwlr_output_power_manager_v1"), 1)
+[2682608.729][rs] <- wl_registry@2.global, (39, Some("wp_tearing_control_manager_v1"), 1)
+[2682608.877][rs] <- wl_registry@2.global, (40, Some("zwp_tablet_manager_v2"), 1)
+[2682609.024][rs] <- wl_registry@2.global, (41, Some("zwlr_layer_shell_v1"), 4)
+[2682609.182][rs] <- wl_registry@2.global, (43, Some("wl_output"), 4)
+[2682609.325][rs] <- wl_callback@3.done, (456)
+[2682609.423][rs] <- wl_display@1.delete_id, (3)
+[2682610.480][rs] -> wl_registry@2.bind(13, Some("wl_seat"), 1, wl_seat@3)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] waiting for response of request to bind to seat
+[2682611.215][rs] <- wl_seat@3.capabilities, (3)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Received a seat event Capabilities { capabilities: Value(Capability(Pointer | Keyboard)) }
+[2682611.858][rs] -> wl_seat@3.get_keyboard(wl_keyboard@4)
+[2682612.004][rs] -> wl_seat@3.get_pointer(wl_pointer@5)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] asked to create keyboard and pointer
+[2682612.509][rs] <- wl_keyboard@4.keymap, (1, 4, 66181)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 4 }, size: 66181 }
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (received) content:
     xkb_keymap {
     xkb_keycodes "(unnamed)" {
     	minimum = 8;
@@ -2053,27 +2016,27 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     
     };
     
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap raw data (size 66181)
-[1963839.269][rs] -> wl_registry@2.bind(15, Some("zwp_virtual_keyboard_manager_v1"), 1, zwp_virtual_keyboard_manager_v1@6)
-[1963839.728][rs] -> wl_registry@2.bind(11, Some("zwp_input_method_manager_v2"), 1, zwp_input_method_manager_v2@7)
-[1963839.976][rs] -> wl_registry@2.bind(14, Some("zwlr_virtual_pointer_manager_v1"), 1, zwlr_virtual_pointer_manager_v1@8)
-[1963840.214][rs] -> zwp_input_method_manager_v2@7.get_input_method(wl_seat@3, zwp_input_method_v2@9)
-[1963879.054][rs] <- zwp_input_method_v2@9.activate, ()
-[1963879.265][rs] <- zwp_input_method_v2@9.done, ()
-[1963879.374][rs] <- zwp_input_method_v2@9.surrounding_text, (Some(""), 0, 0)
-[1963879.576][rs] <- zwp_input_method_v2@9.text_change_cause, (1)
-[1963879.675][rs] <- zwp_input_method_v2@9.content_type, (0, 0)
-[1963879.782][rs] <- zwp_input_method_v2@9.done, ()
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event Activate
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event Done
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event SurroundingText { text: "", cursor: 0, anchor: 0 }
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event TextChangeCause { cause: Value(Other) }
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event ContentType { hint: Value(ContentHint(0x0)), purpose: Value(Normal) }
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a input method event Done
-[1963882.103][rs] -> zwp_virtual_keyboard_manager_v1@6.create_virtual_keyboard(wl_seat@3, zwp_virtual_keyboard_v1@10)
-[1963923.123][rs] <- wl_keyboard@4.keymap, (1, 4, 66181)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 4 }, size: 66181 }
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (received) content:
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap raw data (size 66181)
+[2682804.638][rs] -> wl_registry@2.bind(15, Some("zwp_virtual_keyboard_manager_v1"), 1, zwp_virtual_keyboard_manager_v1@6)
+[2682804.937][rs] -> wl_registry@2.bind(11, Some("zwp_input_method_manager_v2"), 1, zwp_input_method_manager_v2@7)
+[2682805.172][rs] -> wl_registry@2.bind(14, Some("zwlr_virtual_pointer_manager_v1"), 1, zwlr_virtual_pointer_manager_v1@8)
+[2682805.447][rs] -> zwp_input_method_manager_v2@7.get_input_method(wl_seat@3, zwp_input_method_v2@9)
+[2682815.823][rs] <- zwp_input_method_v2@9.activate, ()
+[2682816.013][rs] <- zwp_input_method_v2@9.done, ()
+[2682816.130][rs] <- zwp_input_method_v2@9.surrounding_text, (Some(""), 0, 0)
+[2682816.282][rs] <- zwp_input_method_v2@9.text_change_cause, (1)
+[2682816.380][rs] <- zwp_input_method_v2@9.content_type, (0, 0)
+[2682816.485][rs] <- zwp_input_method_v2@9.done, ()
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event Activate
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event Done
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event SurroundingText { text: "", cursor: 0, anchor: 0 }
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event TextChangeCause { cause: Value(Other) }
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event ContentType { hint: Value(ContentHint(0x0)), purpose: Value(Normal) }
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a input method event Done
+[2682818.697][rs] -> zwp_virtual_keyboard_manager_v1@6.create_virtual_keyboard(wl_seat@3, zwp_virtual_keyboard_v1@10)
+[2682851.633][rs] <- wl_keyboard@4.keymap, (1, 4, 66181)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 4 }, size: 66181 }
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (received) content:
     xkb_keymap {
     xkb_keycodes "(unnamed)" {
     	minimum = 8;
@@ -4003,315 +3966,16 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     
     };
     
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap raw data (size 66181)
-[1964114.987][rs] -> zwlr_virtual_pointer_manager_v1@8.create_virtual_pointer(wl_seat@3, zwlr_virtual_pointer_v1@11)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] create virtual keyboard is done
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] protocols available
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap raw data (size 66181)
+[2683042.269][rs] -> zwlr_virtual_pointer_manager_v1@8.create_virtual_pointer(wl_seat@3, zwlr_virtual_pointer_v1@11)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] create virtual keyboard is done
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] protocols available
     virtual_keyboard: true
     input_method: true
     virtual_pointer: true
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] is alive
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] regenerated the keymap
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
-    xkb_keymap {
-    xkb_keycodes "enigo" {
-    	minimum = 8;
-    	maximum = 255;
-    	<I8>                 = 8;
-    	<I9>                 = 9;
-    	<I10>                = 10;
-    	<I11>                = 11;
-    	<I12>                = 12;
-    	<I13>                = 13;
-    	<I14>                = 14;
-    	<I15>                = 15;
-    	<I16>                = 16;
-    	<I17>                = 17;
-    	<I18>                = 18;
-    	<I19>                = 19;
-    	<I20>                = 20;
-    	<I21>                = 21;
-    	<I22>                = 22;
-    	<I23>                = 23;
-    	<I24>                = 24;
-    	<I25>                = 25;
-    	<I26>                = 26;
-    	<I27>                = 27;
-    	<I28>                = 28;
-    	<I29>                = 29;
-    	<I30>                = 30;
-    	<I31>                = 31;
-    	<I32>                = 32;
-    	<I33>                = 33;
-    	<I34>                = 34;
-    	<I35>                = 35;
-    	<I36>                = 36;
-    	<I37>                = 37;
-    	<I38>                = 38;
-    	<I39>                = 39;
-    	<I40>                = 40;
-    	<I41>                = 41;
-    	<I42>                = 42;
-    	<I43>                = 43;
-    	<I44>                = 44;
-    	<I45>                = 45;
-    	<I46>                = 46;
-    	<I47>                = 47;
-    	<I48>                = 48;
-    	<I49>                = 49;
-    	<I50>                = 50;
-    	<I51>                = 51;
-    	<I52>                = 52;
-    	<I53>                = 53;
-    	<I54>                = 54;
-    	<I55>                = 55;
-    	<I56>                = 56;
-    	<I57>                = 57;
-    	<I58>                = 58;
-    	<I59>                = 59;
-    	<I60>                = 60;
-    	<I61>                = 61;
-    	<I62>                = 62;
-    	<I63>                = 63;
-    	<I64>                = 64;
-    	<I65>                = 65;
-    	<I66>                = 66;
-    	<I67>                = 67;
-    	<I68>                = 68;
-    	<I69>                = 69;
-    	<I70>                = 70;
-    	<I71>                = 71;
-    	<I72>                = 72;
-    	<I73>                = 73;
-    	<I74>                = 74;
-    	<I75>                = 75;
-    	<I76>                = 76;
-    	<I77>                = 77;
-    	<I78>                = 78;
-    	<I79>                = 79;
-    	<I80>                = 80;
-    	<I81>                = 81;
-    	<I82>                = 82;
-    	<I83>                = 83;
-    	<I84>                = 84;
-    	<I85>                = 85;
-    	<I86>                = 86;
-    	<I87>                = 87;
-    	<I88>                = 88;
-    	<I89>                = 89;
-    	<I90>                = 90;
-    	<I91>                = 91;
-    	<I92>                = 92;
-    	<I93>                = 93;
-    	<I94>                = 94;
-    	<I95>                = 95;
-    	<I96>                = 96;
-    	<I97>                = 97;
-    	<I98>                = 98;
-    	<I99>                = 99;
-    	<I100>               = 100;
-    	<I101>               = 101;
-    	<I102>               = 102;
-    	<I103>               = 103;
-    	<I104>               = 104;
-    	<I105>               = 105;
-    	<I106>               = 106;
-    	<I107>               = 107;
-    	<I108>               = 108;
-    	<I109>               = 109;
-    	<I110>               = 110;
-    	<I111>               = 111;
-    	<I112>               = 112;
-    	<I113>               = 113;
-    	<I114>               = 114;
-    	<I115>               = 115;
-    	<I116>               = 116;
-    	<I117>               = 117;
-    	<I118>               = 118;
-    	<I119>               = 119;
-    	<I120>               = 120;
-    	<I121>               = 121;
-    	<I122>               = 122;
-    	<I123>               = 123;
-    	<I124>               = 124;
-    	<I125>               = 125;
-    	<I126>               = 126;
-    	<I127>               = 127;
-    	<I128>               = 128;
-    	<I129>               = 129;
-    	<I130>               = 130;
-    	<I131>               = 131;
-    	<I132>               = 132;
-    	<I133>               = 133;
-    	<I134>               = 134;
-    	<I135>               = 135;
-    	<I136>               = 136;
-    	<I137>               = 137;
-    	<I138>               = 138;
-    	<I139>               = 139;
-    	<I140>               = 140;
-    	<I141>               = 141;
-    	<I142>               = 142;
-    	<I143>               = 143;
-    	<I144>               = 144;
-    	<I145>               = 145;
-    	<I146>               = 146;
-    	<I147>               = 147;
-    	<I148>               = 148;
-    	<I149>               = 149;
-    	<I150>               = 150;
-    	<I151>               = 151;
-    	<I152>               = 152;
-    	<I153>               = 153;
-    	<I154>               = 154;
-    	<I155>               = 155;
-    	<I156>               = 156;
-    	<I157>               = 157;
-    	<I158>               = 158;
-    	<I159>               = 159;
-    	<I160>               = 160;
-    	<I161>               = 161;
-    	<I162>               = 162;
-    	<I163>               = 163;
-    	<I164>               = 164;
-    	<I165>               = 165;
-    	<I166>               = 166;
-    	<I167>               = 167;
-    	<I168>               = 168;
-    	<I169>               = 169;
-    	<I170>               = 170;
-    	<I171>               = 171;
-    	<I172>               = 172;
-    	<I173>               = 173;
-    	<I174>               = 174;
-    	<I175>               = 175;
-    	<I176>               = 176;
-    	<I177>               = 177;
-    	<I178>               = 178;
-    	<I179>               = 179;
-    	<I180>               = 180;
-    	<I181>               = 181;
-    	<I182>               = 182;
-    	<I183>               = 183;
-    	<I184>               = 184;
-    	<I185>               = 185;
-    	<I186>               = 186;
-    	<I187>               = 187;
-    	<I188>               = 188;
-    	<I189>               = 189;
-    	<I190>               = 190;
-    	<I191>               = 191;
-    	<I192>               = 192;
-    	<I193>               = 193;
-    	<I194>               = 194;
-    	<I195>               = 195;
-    	<I196>               = 196;
-    	<I197>               = 197;
-    	<I198>               = 198;
-    	<I199>               = 199;
-    	<I200>               = 200;
-    	<I201>               = 201;
-    	<I202>               = 202;
-    	<I203>               = 203;
-    	<I204>               = 204;
-    	<I205>               = 205;
-    	<I206>               = 206;
-    	<I207>               = 207;
-    	<I208>               = 208;
-    	<I209>               = 209;
-    	<I210>               = 210;
-    	<I211>               = 211;
-    	<I212>               = 212;
-    	<I213>               = 213;
-    	<I214>               = 214;
-    	<I215>               = 215;
-    	<I216>               = 216;
-    	<I217>               = 217;
-    	<I218>               = 218;
-    	<I219>               = 219;
-    	<I220>               = 220;
-    	<I221>               = 221;
-    	<I222>               = 222;
-    	<I223>               = 223;
-    	<I224>               = 224;
-    	<I225>               = 225;
-    	<I226>               = 226;
-    	<I227>               = 227;
-    	<I228>               = 228;
-    	<I229>               = 229;
-    	<I230>               = 230;
-    	<I231>               = 231;
-    	<I232>               = 232;
-    	<I233>               = 233;
-    	<I234>               = 234;
-    	<I235>               = 235;
-    	<I236>               = 236;
-    	<I237>               = 237;
-    	<I238>               = 238;
-    	<I239>               = 239;
-    	<I240>               = 240;
-    	<I241>               = 241;
-    	<I242>               = 242;
-    	<I243>               = 243;
-    	<I244>               = 244;
-    	<I245>               = 245;
-    	<I246>               = 246;
-    	<I247>               = 247;
-    	<I248>               = 248;
-    	<I249>               = 249;
-    	<I250>               = 250;
-    	<I251>               = 251;
-    	<I252>               = 252;
-    	<I253>               = 253;
-    	<I254>               = 254;
-    	<I255>               = 255;
-    	indicator 1 = "Caps Lock";
-    };
-    
-    xkb_types "enigo" {
-    	virtual_modifiers OSK;
-    
-    	type "ONE_LEVEL" {
-    		modifiers= none;
-    		level_name[1]= "Any";
-    	};
-    	type "TWO_LEVEL" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "ALPHABETIC" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "KEYPAD" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "SHIFT+ALT" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    };
-    
-    xkb_compatibility "enigo" {
-    	virtual_modifiers OSK;
-    
-    	interpret.useModMapMods= AnyLevel;
-    	interpret.repeat= False;
-    	interpret Any+AnyOf(all) {
-    		action= SetMods(modifiers=modMapMods,clearLocks);
-    	};
-    };
-    
-    xkb_symbols "enigo" {
-    };
-    
-    };
-[1964140.269][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7813)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] wait for response after keymap call
-[1964176.915][rs] <- wl_keyboard@4.keymap, (1, 5, 7815)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7815 }
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (received) content:
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] is alive
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] regenerated the keymap
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
     xkb_keymap {
     xkb_keycodes "enigo" {
     	minimum = 8;
@@ -4607,22 +4271,11 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     
     };
     
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap raw data (size 7815)
-[2024-12-06T03:17:39Z DEBUG enigo::platform] wayland connection established
-[2024-12-06T03:17:39Z DEBUG enigo::platform] fast_text(text: Hello World! here is a lot of text  ❤️)
-[1964203.896][rs] -> wl_display@1.sync(wl_callback@12)
-[1964204.359][rs] <- wl_callback@12.done, (316)
-[1964204.521][rs] <- wl_display@1.delete_id, (12)
-[1964204.707][rs] -> zwp_input_method_v2@9.commit_string(Some("Hello World! here is a lot of text  \xe2\x9d\xa4\xef\xb8\x8f"))
-[1964204.908][rs] -> zwp_input_method_v2@9.commit(2)
-[2024-12-06T03:17:39Z DEBUG enigo] fast text entry was successful
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the text fast
-[2024-12-06T03:17:39Z DEBUG enigo] fast text entry was successful
-[2024-12-06T03:17:39Z DEBUG enigo::platform] key(key: Unicode('p'), direction: Click)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] mapped keycode 8 to keysym XK_p
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] is alive
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] regenerated the keymap
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
+[2683067.911][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7814)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] wait for response after keymap call
+[2683104.622][rs] <- wl_keyboard@4.keymap, (1, 5, 7815)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7815 }
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (received) content:
     xkb_keymap {
     xkb_keycodes "enigo" {
     	minimum = 8;
@@ -4914,15 +4567,26 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     };
     
     xkb_symbols "enigo" {
-    	key <I8>                 {	[               p ] };
     };
     
     };
-[1964230.838][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7864)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] wait for response after keymap call
-[1964242.460][rs] <- wl_keyboard@4.keymap, (1, 5, 7866)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7866 }
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (received) content:
+    
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap raw data (size 7815)
+[2024-12-06T03:29:38Z DEBUG enigo::platform] wayland connection established
+[2024-12-06T03:29:38Z DEBUG enigo::platform] fast_text(text: Hello World! here is a lot of text  ❤️)
+[2683131.363][rs] -> wl_display@1.sync(wl_callback@12)
+[2683131.865][rs] <- wl_callback@12.done, (457)
+[2683132.003][rs] <- wl_display@1.delete_id, (12)
+[2683132.210][rs] -> zwp_input_method_v2@9.commit_string(Some("Hello World! here is a lot of text  \xe2\x9d\xa4\xef\xb8\x8f"))
+[2683132.468][rs] -> zwp_input_method_v2@9.commit(2)
+[2024-12-06T03:29:38Z DEBUG enigo] fast text entry was successful
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the text fast
+[2024-12-06T03:29:38Z DEBUG enigo] fast text entry was successful
+[2024-12-06T03:29:38Z DEBUG enigo::platform] key(key: Unicode('p'), direction: Click)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] mapped keycode 8 to keysym XK_p
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] is alive
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] regenerated the keymap
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
     xkb_keymap {
     xkb_keycodes "enigo" {
     	minimum = 8;
@@ -5219,16 +4883,619 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     
     };
     
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap raw data (size 7866)
-[1964268.123][rs] -> zwp_virtual_keyboard_v1@10.key(628, 0, 1)
-[1964268.349][rs] -> zwp_virtual_keyboard_v1@10.key(628, 0, 0)
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key via wayland
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key
-[2024-12-06T03:17:39Z DEBUG enigo::platform] key(key: Unicode('o'), direction: Click)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] mapped keycode 9 to keysym XK_o
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] is alive
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] regenerated the keymap
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
+[2683158.503][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7865)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] wait for response after keymap call
+[2683162.523][rs] <- wl_keyboard@4.keymap, (1, 5, 7866)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7866 }
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (received) content:
+    xkb_keymap {
+    xkb_keycodes "enigo" {
+    	minimum = 8;
+    	maximum = 255;
+    	<I8>                 = 8;
+    	<I9>                 = 9;
+    	<I10>                = 10;
+    	<I11>                = 11;
+    	<I12>                = 12;
+    	<I13>                = 13;
+    	<I14>                = 14;
+    	<I15>                = 15;
+    	<I16>                = 16;
+    	<I17>                = 17;
+    	<I18>                = 18;
+    	<I19>                = 19;
+    	<I20>                = 20;
+    	<I21>                = 21;
+    	<I22>                = 22;
+    	<I23>                = 23;
+    	<I24>                = 24;
+    	<I25>                = 25;
+    	<I26>                = 26;
+    	<I27>                = 27;
+    	<I28>                = 28;
+    	<I29>                = 29;
+    	<I30>                = 30;
+    	<I31>                = 31;
+    	<I32>                = 32;
+    	<I33>                = 33;
+    	<I34>                = 34;
+    	<I35>                = 35;
+    	<I36>                = 36;
+    	<I37>                = 37;
+    	<I38>                = 38;
+    	<I39>                = 39;
+    	<I40>                = 40;
+    	<I41>                = 41;
+    	<I42>                = 42;
+    	<I43>                = 43;
+    	<I44>                = 44;
+    	<I45>                = 45;
+    	<I46>                = 46;
+    	<I47>                = 47;
+    	<I48>                = 48;
+    	<I49>                = 49;
+    	<I50>                = 50;
+    	<I51>                = 51;
+    	<I52>                = 52;
+    	<I53>                = 53;
+    	<I54>                = 54;
+    	<I55>                = 55;
+    	<I56>                = 56;
+    	<I57>                = 57;
+    	<I58>                = 58;
+    	<I59>                = 59;
+    	<I60>                = 60;
+    	<I61>                = 61;
+    	<I62>                = 62;
+    	<I63>                = 63;
+    	<I64>                = 64;
+    	<I65>                = 65;
+    	<I66>                = 66;
+    	<I67>                = 67;
+    	<I68>                = 68;
+    	<I69>                = 69;
+    	<I70>                = 70;
+    	<I71>                = 71;
+    	<I72>                = 72;
+    	<I73>                = 73;
+    	<I74>                = 74;
+    	<I75>                = 75;
+    	<I76>                = 76;
+    	<I77>                = 77;
+    	<I78>                = 78;
+    	<I79>                = 79;
+    	<I80>                = 80;
+    	<I81>                = 81;
+    	<I82>                = 82;
+    	<I83>                = 83;
+    	<I84>                = 84;
+    	<I85>                = 85;
+    	<I86>                = 86;
+    	<I87>                = 87;
+    	<I88>                = 88;
+    	<I89>                = 89;
+    	<I90>                = 90;
+    	<I91>                = 91;
+    	<I92>                = 92;
+    	<I93>                = 93;
+    	<I94>                = 94;
+    	<I95>                = 95;
+    	<I96>                = 96;
+    	<I97>                = 97;
+    	<I98>                = 98;
+    	<I99>                = 99;
+    	<I100>               = 100;
+    	<I101>               = 101;
+    	<I102>               = 102;
+    	<I103>               = 103;
+    	<I104>               = 104;
+    	<I105>               = 105;
+    	<I106>               = 106;
+    	<I107>               = 107;
+    	<I108>               = 108;
+    	<I109>               = 109;
+    	<I110>               = 110;
+    	<I111>               = 111;
+    	<I112>               = 112;
+    	<I113>               = 113;
+    	<I114>               = 114;
+    	<I115>               = 115;
+    	<I116>               = 116;
+    	<I117>               = 117;
+    	<I118>               = 118;
+    	<I119>               = 119;
+    	<I120>               = 120;
+    	<I121>               = 121;
+    	<I122>               = 122;
+    	<I123>               = 123;
+    	<I124>               = 124;
+    	<I125>               = 125;
+    	<I126>               = 126;
+    	<I127>               = 127;
+    	<I128>               = 128;
+    	<I129>               = 129;
+    	<I130>               = 130;
+    	<I131>               = 131;
+    	<I132>               = 132;
+    	<I133>               = 133;
+    	<I134>               = 134;
+    	<I135>               = 135;
+    	<I136>               = 136;
+    	<I137>               = 137;
+    	<I138>               = 138;
+    	<I139>               = 139;
+    	<I140>               = 140;
+    	<I141>               = 141;
+    	<I142>               = 142;
+    	<I143>               = 143;
+    	<I144>               = 144;
+    	<I145>               = 145;
+    	<I146>               = 146;
+    	<I147>               = 147;
+    	<I148>               = 148;
+    	<I149>               = 149;
+    	<I150>               = 150;
+    	<I151>               = 151;
+    	<I152>               = 152;
+    	<I153>               = 153;
+    	<I154>               = 154;
+    	<I155>               = 155;
+    	<I156>               = 156;
+    	<I157>               = 157;
+    	<I158>               = 158;
+    	<I159>               = 159;
+    	<I160>               = 160;
+    	<I161>               = 161;
+    	<I162>               = 162;
+    	<I163>               = 163;
+    	<I164>               = 164;
+    	<I165>               = 165;
+    	<I166>               = 166;
+    	<I167>               = 167;
+    	<I168>               = 168;
+    	<I169>               = 169;
+    	<I170>               = 170;
+    	<I171>               = 171;
+    	<I172>               = 172;
+    	<I173>               = 173;
+    	<I174>               = 174;
+    	<I175>               = 175;
+    	<I176>               = 176;
+    	<I177>               = 177;
+    	<I178>               = 178;
+    	<I179>               = 179;
+    	<I180>               = 180;
+    	<I181>               = 181;
+    	<I182>               = 182;
+    	<I183>               = 183;
+    	<I184>               = 184;
+    	<I185>               = 185;
+    	<I186>               = 186;
+    	<I187>               = 187;
+    	<I188>               = 188;
+    	<I189>               = 189;
+    	<I190>               = 190;
+    	<I191>               = 191;
+    	<I192>               = 192;
+    	<I193>               = 193;
+    	<I194>               = 194;
+    	<I195>               = 195;
+    	<I196>               = 196;
+    	<I197>               = 197;
+    	<I198>               = 198;
+    	<I199>               = 199;
+    	<I200>               = 200;
+    	<I201>               = 201;
+    	<I202>               = 202;
+    	<I203>               = 203;
+    	<I204>               = 204;
+    	<I205>               = 205;
+    	<I206>               = 206;
+    	<I207>               = 207;
+    	<I208>               = 208;
+    	<I209>               = 209;
+    	<I210>               = 210;
+    	<I211>               = 211;
+    	<I212>               = 212;
+    	<I213>               = 213;
+    	<I214>               = 214;
+    	<I215>               = 215;
+    	<I216>               = 216;
+    	<I217>               = 217;
+    	<I218>               = 218;
+    	<I219>               = 219;
+    	<I220>               = 220;
+    	<I221>               = 221;
+    	<I222>               = 222;
+    	<I223>               = 223;
+    	<I224>               = 224;
+    	<I225>               = 225;
+    	<I226>               = 226;
+    	<I227>               = 227;
+    	<I228>               = 228;
+    	<I229>               = 229;
+    	<I230>               = 230;
+    	<I231>               = 231;
+    	<I232>               = 232;
+    	<I233>               = 233;
+    	<I234>               = 234;
+    	<I235>               = 235;
+    	<I236>               = 236;
+    	<I237>               = 237;
+    	<I238>               = 238;
+    	<I239>               = 239;
+    	<I240>               = 240;
+    	<I241>               = 241;
+    	<I242>               = 242;
+    	<I243>               = 243;
+    	<I244>               = 244;
+    	<I245>               = 245;
+    	<I246>               = 246;
+    	<I247>               = 247;
+    	<I248>               = 248;
+    	<I249>               = 249;
+    	<I250>               = 250;
+    	<I251>               = 251;
+    	<I252>               = 252;
+    	<I253>               = 253;
+    	<I254>               = 254;
+    	<I255>               = 255;
+    	indicator 1 = "Caps Lock";
+    };
+    
+    xkb_types "enigo" {
+    	virtual_modifiers OSK;
+    
+    	type "ONE_LEVEL" {
+    		modifiers= none;
+    		level_name[1]= "Any";
+    	};
+    	type "TWO_LEVEL" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "ALPHABETIC" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "KEYPAD" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "SHIFT+ALT" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    };
+    
+    xkb_compatibility "enigo" {
+    	virtual_modifiers OSK;
+    
+    	interpret.useModMapMods= AnyLevel;
+    	interpret.repeat= False;
+    	interpret Any+AnyOf(all) {
+    		action= SetMods(modifiers=modMapMods,clearLocks);
+    	};
+    };
+    
+    xkb_symbols "enigo" {
+    	key <I8>                 {	[               p ] };
+    };
+    
+    };
+    
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap raw data (size 7866)
+[2683188.802][rs] -> zwp_virtual_keyboard_v1@10.key(578, 0, 1)
+[2683189.117][rs] -> zwp_virtual_keyboard_v1@10.key(578, 0, 0)
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key via wayland
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key
+[2024-12-06T03:29:38Z DEBUG enigo::platform] key(key: Unicode('o'), direction: Click)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] mapped keycode 9 to keysym XK_o
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] is alive
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] regenerated the keymap
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (sent) file contents:
+    xkb_keymap {
+    xkb_keycodes "enigo" {
+    	minimum = 8;
+    	maximum = 255;
+    	<I8>                 = 8;
+    	<I9>                 = 9;
+    	<I10>                = 10;
+    	<I11>                = 11;
+    	<I12>                = 12;
+    	<I13>                = 13;
+    	<I14>                = 14;
+    	<I15>                = 15;
+    	<I16>                = 16;
+    	<I17>                = 17;
+    	<I18>                = 18;
+    	<I19>                = 19;
+    	<I20>                = 20;
+    	<I21>                = 21;
+    	<I22>                = 22;
+    	<I23>                = 23;
+    	<I24>                = 24;
+    	<I25>                = 25;
+    	<I26>                = 26;
+    	<I27>                = 27;
+    	<I28>                = 28;
+    	<I29>                = 29;
+    	<I30>                = 30;
+    	<I31>                = 31;
+    	<I32>                = 32;
+    	<I33>                = 33;
+    	<I34>                = 34;
+    	<I35>                = 35;
+    	<I36>                = 36;
+    	<I37>                = 37;
+    	<I38>                = 38;
+    	<I39>                = 39;
+    	<I40>                = 40;
+    	<I41>                = 41;
+    	<I42>                = 42;
+    	<I43>                = 43;
+    	<I44>                = 44;
+    	<I45>                = 45;
+    	<I46>                = 46;
+    	<I47>                = 47;
+    	<I48>                = 48;
+    	<I49>                = 49;
+    	<I50>                = 50;
+    	<I51>                = 51;
+    	<I52>                = 52;
+    	<I53>                = 53;
+    	<I54>                = 54;
+    	<I55>                = 55;
+    	<I56>                = 56;
+    	<I57>                = 57;
+    	<I58>                = 58;
+    	<I59>                = 59;
+    	<I60>                = 60;
+    	<I61>                = 61;
+    	<I62>                = 62;
+    	<I63>                = 63;
+    	<I64>                = 64;
+    	<I65>                = 65;
+    	<I66>                = 66;
+    	<I67>                = 67;
+    	<I68>                = 68;
+    	<I69>                = 69;
+    	<I70>                = 70;
+    	<I71>                = 71;
+    	<I72>                = 72;
+    	<I73>                = 73;
+    	<I74>                = 74;
+    	<I75>                = 75;
+    	<I76>                = 76;
+    	<I77>                = 77;
+    	<I78>                = 78;
+    	<I79>                = 79;
+    	<I80>                = 80;
+    	<I81>                = 81;
+    	<I82>                = 82;
+    	<I83>                = 83;
+    	<I84>                = 84;
+    	<I85>                = 85;
+    	<I86>                = 86;
+    	<I87>                = 87;
+    	<I88>                = 88;
+    	<I89>                = 89;
+    	<I90>                = 90;
+    	<I91>                = 91;
+    	<I92>                = 92;
+    	<I93>                = 93;
+    	<I94>                = 94;
+    	<I95>                = 95;
+    	<I96>                = 96;
+    	<I97>                = 97;
+    	<I98>                = 98;
+    	<I99>                = 99;
+    	<I100>               = 100;
+    	<I101>               = 101;
+    	<I102>               = 102;
+    	<I103>               = 103;
+    	<I104>               = 104;
+    	<I105>               = 105;
+    	<I106>               = 106;
+    	<I107>               = 107;
+    	<I108>               = 108;
+    	<I109>               = 109;
+    	<I110>               = 110;
+    	<I111>               = 111;
+    	<I112>               = 112;
+    	<I113>               = 113;
+    	<I114>               = 114;
+    	<I115>               = 115;
+    	<I116>               = 116;
+    	<I117>               = 117;
+    	<I118>               = 118;
+    	<I119>               = 119;
+    	<I120>               = 120;
+    	<I121>               = 121;
+    	<I122>               = 122;
+    	<I123>               = 123;
+    	<I124>               = 124;
+    	<I125>               = 125;
+    	<I126>               = 126;
+    	<I127>               = 127;
+    	<I128>               = 128;
+    	<I129>               = 129;
+    	<I130>               = 130;
+    	<I131>               = 131;
+    	<I132>               = 132;
+    	<I133>               = 133;
+    	<I134>               = 134;
+    	<I135>               = 135;
+    	<I136>               = 136;
+    	<I137>               = 137;
+    	<I138>               = 138;
+    	<I139>               = 139;
+    	<I140>               = 140;
+    	<I141>               = 141;
+    	<I142>               = 142;
+    	<I143>               = 143;
+    	<I144>               = 144;
+    	<I145>               = 145;
+    	<I146>               = 146;
+    	<I147>               = 147;
+    	<I148>               = 148;
+    	<I149>               = 149;
+    	<I150>               = 150;
+    	<I151>               = 151;
+    	<I152>               = 152;
+    	<I153>               = 153;
+    	<I154>               = 154;
+    	<I155>               = 155;
+    	<I156>               = 156;
+    	<I157>               = 157;
+    	<I158>               = 158;
+    	<I159>               = 159;
+    	<I160>               = 160;
+    	<I161>               = 161;
+    	<I162>               = 162;
+    	<I163>               = 163;
+    	<I164>               = 164;
+    	<I165>               = 165;
+    	<I166>               = 166;
+    	<I167>               = 167;
+    	<I168>               = 168;
+    	<I169>               = 169;
+    	<I170>               = 170;
+    	<I171>               = 171;
+    	<I172>               = 172;
+    	<I173>               = 173;
+    	<I174>               = 174;
+    	<I175>               = 175;
+    	<I176>               = 176;
+    	<I177>               = 177;
+    	<I178>               = 178;
+    	<I179>               = 179;
+    	<I180>               = 180;
+    	<I181>               = 181;
+    	<I182>               = 182;
+    	<I183>               = 183;
+    	<I184>               = 184;
+    	<I185>               = 185;
+    	<I186>               = 186;
+    	<I187>               = 187;
+    	<I188>               = 188;
+    	<I189>               = 189;
+    	<I190>               = 190;
+    	<I191>               = 191;
+    	<I192>               = 192;
+    	<I193>               = 193;
+    	<I194>               = 194;
+    	<I195>               = 195;
+    	<I196>               = 196;
+    	<I197>               = 197;
+    	<I198>               = 198;
+    	<I199>               = 199;
+    	<I200>               = 200;
+    	<I201>               = 201;
+    	<I202>               = 202;
+    	<I203>               = 203;
+    	<I204>               = 204;
+    	<I205>               = 205;
+    	<I206>               = 206;
+    	<I207>               = 207;
+    	<I208>               = 208;
+    	<I209>               = 209;
+    	<I210>               = 210;
+    	<I211>               = 211;
+    	<I212>               = 212;
+    	<I213>               = 213;
+    	<I214>               = 214;
+    	<I215>               = 215;
+    	<I216>               = 216;
+    	<I217>               = 217;
+    	<I218>               = 218;
+    	<I219>               = 219;
+    	<I220>               = 220;
+    	<I221>               = 221;
+    	<I222>               = 222;
+    	<I223>               = 223;
+    	<I224>               = 224;
+    	<I225>               = 225;
+    	<I226>               = 226;
+    	<I227>               = 227;
+    	<I228>               = 228;
+    	<I229>               = 229;
+    	<I230>               = 230;
+    	<I231>               = 231;
+    	<I232>               = 232;
+    	<I233>               = 233;
+    	<I234>               = 234;
+    	<I235>               = 235;
+    	<I236>               = 236;
+    	<I237>               = 237;
+    	<I238>               = 238;
+    	<I239>               = 239;
+    	<I240>               = 240;
+    	<I241>               = 241;
+    	<I242>               = 242;
+    	<I243>               = 243;
+    	<I244>               = 244;
+    	<I245>               = 245;
+    	<I246>               = 246;
+    	<I247>               = 247;
+    	<I248>               = 248;
+    	<I249>               = 249;
+    	<I250>               = 250;
+    	<I251>               = 251;
+    	<I252>               = 252;
+    	<I253>               = 253;
+    	<I254>               = 254;
+    	<I255>               = 255;
+    	indicator 1 = "Caps Lock";
+    };
+    
+    xkb_types "enigo" {
+    	virtual_modifiers OSK;
+    
+    	type "ONE_LEVEL" {
+    		modifiers= none;
+    		level_name[1]= "Any";
+    	};
+    	type "TWO_LEVEL" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "ALPHABETIC" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "KEYPAD" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    	type "SHIFT+ALT" {
+    		modifiers= none;
+    		level_name[1]= "Base";
+    	};
+    };
+    
+    xkb_compatibility "enigo" {
+    	virtual_modifiers OSK;
+    
+    	interpret.useModMapMods= AnyLevel;
+    	interpret.repeat= False;
+    	interpret Any+AnyOf(all) {
+    		action= SetMods(modifiers=modMapMods,clearLocks);
+    	};
+    };
+    
+    xkb_symbols "enigo" {
+    	key <I9>                 {	[               o ] };
+    	key <I8>                 {	[               p ] };
+    };
+    
+    };
+    
+[2683215.158][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7916)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] wait for response after keymap call
+[2683219.209][rs] <- wl_keyboard@4.keymap, (1, 5, 7917)
+[2024-12-06T03:29:38Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7917 }
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap (received) content:
     xkb_keymap {
     xkb_keycodes "enigo" {
     	minimum = 8;
@@ -5525,318 +5792,17 @@ warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --exam
     };
     
     };
-[1964293.914][rs] -> zwp_virtual_keyboard_v1@10.keymap(1, 4, 7915)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] wait for response after keymap call
-[1964298.404][rs] <- wl_keyboard@4.keymap, (1, 5, 7917)
-[2024-12-06T03:17:39Z WARN  enigo::platform::wayland] Got a wl_keyboard event Keymap { format: Value(XkbV1), fd: OwnedFd { fd: 5 }, size: 7917 }
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap (received) content:
-    xkb_keymap {
-    xkb_keycodes "enigo" {
-    	minimum = 8;
-    	maximum = 255;
-    	<I8>                 = 8;
-    	<I9>                 = 9;
-    	<I10>                = 10;
-    	<I11>                = 11;
-    	<I12>                = 12;
-    	<I13>                = 13;
-    	<I14>                = 14;
-    	<I15>                = 15;
-    	<I16>                = 16;
-    	<I17>                = 17;
-    	<I18>                = 18;
-    	<I19>                = 19;
-    	<I20>                = 20;
-    	<I21>                = 21;
-    	<I22>                = 22;
-    	<I23>                = 23;
-    	<I24>                = 24;
-    	<I25>                = 25;
-    	<I26>                = 26;
-    	<I27>                = 27;
-    	<I28>                = 28;
-    	<I29>                = 29;
-    	<I30>                = 30;
-    	<I31>                = 31;
-    	<I32>                = 32;
-    	<I33>                = 33;
-    	<I34>                = 34;
-    	<I35>                = 35;
-    	<I36>                = 36;
-    	<I37>                = 37;
-    	<I38>                = 38;
-    	<I39>                = 39;
-    	<I40>                = 40;
-    	<I41>                = 41;
-    	<I42>                = 42;
-    	<I43>                = 43;
-    	<I44>                = 44;
-    	<I45>                = 45;
-    	<I46>                = 46;
-    	<I47>                = 47;
-    	<I48>                = 48;
-    	<I49>                = 49;
-    	<I50>                = 50;
-    	<I51>                = 51;
-    	<I52>                = 52;
-    	<I53>                = 53;
-    	<I54>                = 54;
-    	<I55>                = 55;
-    	<I56>                = 56;
-    	<I57>                = 57;
-    	<I58>                = 58;
-    	<I59>                = 59;
-    	<I60>                = 60;
-    	<I61>                = 61;
-    	<I62>                = 62;
-    	<I63>                = 63;
-    	<I64>                = 64;
-    	<I65>                = 65;
-    	<I66>                = 66;
-    	<I67>                = 67;
-    	<I68>                = 68;
-    	<I69>                = 69;
-    	<I70>                = 70;
-    	<I71>                = 71;
-    	<I72>                = 72;
-    	<I73>                = 73;
-    	<I74>                = 74;
-    	<I75>                = 75;
-    	<I76>                = 76;
-    	<I77>                = 77;
-    	<I78>                = 78;
-    	<I79>                = 79;
-    	<I80>                = 80;
-    	<I81>                = 81;
-    	<I82>                = 82;
-    	<I83>                = 83;
-    	<I84>                = 84;
-    	<I85>                = 85;
-    	<I86>                = 86;
-    	<I87>                = 87;
-    	<I88>                = 88;
-    	<I89>                = 89;
-    	<I90>                = 90;
-    	<I91>                = 91;
-    	<I92>                = 92;
-    	<I93>                = 93;
-    	<I94>                = 94;
-    	<I95>                = 95;
-    	<I96>                = 96;
-    	<I97>                = 97;
-    	<I98>                = 98;
-    	<I99>                = 99;
-    	<I100>               = 100;
-    	<I101>               = 101;
-    	<I102>               = 102;
-    	<I103>               = 103;
-    	<I104>               = 104;
-    	<I105>               = 105;
-    	<I106>               = 106;
-    	<I107>               = 107;
-    	<I108>               = 108;
-    	<I109>               = 109;
-    	<I110>               = 110;
-    	<I111>               = 111;
-    	<I112>               = 112;
-    	<I113>               = 113;
-    	<I114>               = 114;
-    	<I115>               = 115;
-    	<I116>               = 116;
-    	<I117>               = 117;
-    	<I118>               = 118;
-    	<I119>               = 119;
-    	<I120>               = 120;
-    	<I121>               = 121;
-    	<I122>               = 122;
-    	<I123>               = 123;
-    	<I124>               = 124;
-    	<I125>               = 125;
-    	<I126>               = 126;
-    	<I127>               = 127;
-    	<I128>               = 128;
-    	<I129>               = 129;
-    	<I130>               = 130;
-    	<I131>               = 131;
-    	<I132>               = 132;
-    	<I133>               = 133;
-    	<I134>               = 134;
-    	<I135>               = 135;
-    	<I136>               = 136;
-    	<I137>               = 137;
-    	<I138>               = 138;
-    	<I139>               = 139;
-    	<I140>               = 140;
-    	<I141>               = 141;
-    	<I142>               = 142;
-    	<I143>               = 143;
-    	<I144>               = 144;
-    	<I145>               = 145;
-    	<I146>               = 146;
-    	<I147>               = 147;
-    	<I148>               = 148;
-    	<I149>               = 149;
-    	<I150>               = 150;
-    	<I151>               = 151;
-    	<I152>               = 152;
-    	<I153>               = 153;
-    	<I154>               = 154;
-    	<I155>               = 155;
-    	<I156>               = 156;
-    	<I157>               = 157;
-    	<I158>               = 158;
-    	<I159>               = 159;
-    	<I160>               = 160;
-    	<I161>               = 161;
-    	<I162>               = 162;
-    	<I163>               = 163;
-    	<I164>               = 164;
-    	<I165>               = 165;
-    	<I166>               = 166;
-    	<I167>               = 167;
-    	<I168>               = 168;
-    	<I169>               = 169;
-    	<I170>               = 170;
-    	<I171>               = 171;
-    	<I172>               = 172;
-    	<I173>               = 173;
-    	<I174>               = 174;
-    	<I175>               = 175;
-    	<I176>               = 176;
-    	<I177>               = 177;
-    	<I178>               = 178;
-    	<I179>               = 179;
-    	<I180>               = 180;
-    	<I181>               = 181;
-    	<I182>               = 182;
-    	<I183>               = 183;
-    	<I184>               = 184;
-    	<I185>               = 185;
-    	<I186>               = 186;
-    	<I187>               = 187;
-    	<I188>               = 188;
-    	<I189>               = 189;
-    	<I190>               = 190;
-    	<I191>               = 191;
-    	<I192>               = 192;
-    	<I193>               = 193;
-    	<I194>               = 194;
-    	<I195>               = 195;
-    	<I196>               = 196;
-    	<I197>               = 197;
-    	<I198>               = 198;
-    	<I199>               = 199;
-    	<I200>               = 200;
-    	<I201>               = 201;
-    	<I202>               = 202;
-    	<I203>               = 203;
-    	<I204>               = 204;
-    	<I205>               = 205;
-    	<I206>               = 206;
-    	<I207>               = 207;
-    	<I208>               = 208;
-    	<I209>               = 209;
-    	<I210>               = 210;
-    	<I211>               = 211;
-    	<I212>               = 212;
-    	<I213>               = 213;
-    	<I214>               = 214;
-    	<I215>               = 215;
-    	<I216>               = 216;
-    	<I217>               = 217;
-    	<I218>               = 218;
-    	<I219>               = 219;
-    	<I220>               = 220;
-    	<I221>               = 221;
-    	<I222>               = 222;
-    	<I223>               = 223;
-    	<I224>               = 224;
-    	<I225>               = 225;
-    	<I226>               = 226;
-    	<I227>               = 227;
-    	<I228>               = 228;
-    	<I229>               = 229;
-    	<I230>               = 230;
-    	<I231>               = 231;
-    	<I232>               = 232;
-    	<I233>               = 233;
-    	<I234>               = 234;
-    	<I235>               = 235;
-    	<I236>               = 236;
-    	<I237>               = 237;
-    	<I238>               = 238;
-    	<I239>               = 239;
-    	<I240>               = 240;
-    	<I241>               = 241;
-    	<I242>               = 242;
-    	<I243>               = 243;
-    	<I244>               = 244;
-    	<I245>               = 245;
-    	<I246>               = 246;
-    	<I247>               = 247;
-    	<I248>               = 248;
-    	<I249>               = 249;
-    	<I250>               = 250;
-    	<I251>               = 251;
-    	<I252>               = 252;
-    	<I253>               = 253;
-    	<I254>               = 254;
-    	<I255>               = 255;
-    	indicator 1 = "Caps Lock";
-    };
     
-    xkb_types "enigo" {
-    	virtual_modifiers OSK;
-    
-    	type "ONE_LEVEL" {
-    		modifiers= none;
-    		level_name[1]= "Any";
-    	};
-    	type "TWO_LEVEL" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "ALPHABETIC" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "KEYPAD" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    	type "SHIFT+ALT" {
-    		modifiers= none;
-    		level_name[1]= "Base";
-    	};
-    };
-    
-    xkb_compatibility "enigo" {
-    	virtual_modifiers OSK;
-    
-    	interpret.useModMapMods= AnyLevel;
-    	interpret.repeat= False;
-    	interpret Any+AnyOf(all) {
-    		action= SetMods(modifiers=modMapMods,clearLocks);
-    	};
-    };
-    
-    xkb_symbols "enigo" {
-    	key <I8>                 {	[               p ] };
-    	key <I9>                 {	[               o ] };
-    };
-    
-    };
-    
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] Keymap raw data (size 7917)
-[1964323.864][rs] -> zwp_virtual_keyboard_v1@10.key(684, 1, 1)
-[1964324.092][rs] -> zwp_virtual_keyboard_v1@10.key(684, 1, 0)
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key via wayland
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key
-[2024-12-06T03:17:39Z DEBUG enigo::platform] key(key: Unicode('p'), direction: Click)
-[2024-12-06T03:17:39Z DEBUG enigo::platform::wayland] is alive
-[2024-12-06T03:17:39Z DEBUG enigo::platform::keymap] keymap did not change and does not require regeneration
-[1964325.705][rs] -> zwp_virtual_keyboard_v1@10.key(686, 0, 1)
-[1964325.897][rs] -> zwp_virtual_keyboard_v1@10.key(686, 0, 0)
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key via wayland
-[2024-12-06T03:17:39Z DEBUG enigo::platform] entered the key
-[2024-12-06T03:17:39Z DEBUG enigo::platform] released all held keys and held keycodes
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] Keymap raw data (size 7917)
+[2683246.068][rs] -> zwp_virtual_keyboard_v1@10.key(635, 1, 1)
+[2683246.325][rs] -> zwp_virtual_keyboard_v1@10.key(635, 1, 0)
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key via wayland
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key
+[2024-12-06T03:29:38Z DEBUG enigo::platform] key(key: Unicode('p'), direction: Click)
+[2024-12-06T03:29:38Z DEBUG enigo::platform::wayland] is alive
+[2024-12-06T03:29:38Z DEBUG enigo::platform::keymap] keymap did not change and does not require regeneration
+[2683248.132][rs] -> zwp_virtual_keyboard_v1@10.key(637, 0, 1)
+[2683248.348][rs] -> zwp_virtual_keyboard_v1@10.key(637, 0, 0)
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key via wayland
+[2024-12-06T03:29:38Z DEBUG enigo::platform] entered the key
+[2024-12-06T03:29:38Z DEBUG enigo::platform] released all held keys and held keycodes
