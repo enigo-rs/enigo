@@ -294,4 +294,4 @@ pub const KEYMAP_END: &[u8; 8] = b"
 };
 
 };
-";
+\0";
