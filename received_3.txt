@@ -1,5 +1,5 @@
 xkb_keymap {
-    xkb_keycodes "(unnamed)" {
+    xkb_keycodes "enigo" {
     	minimum = 8;
     	maximum = 255;
     	<I8>                 = 8;
@@ -253,7 +253,7 @@ xkb_keymap {
     	indicator 1 = "Caps Lock";
     };
     
-    xkb_types "(unnamed)" {
+    xkb_types "enigo" {
     	virtual_modifiers OSK;
     
     	type "ONE_LEVEL" {
@@ -278,7 +278,7 @@ xkb_keymap {
     	};
     };
     
-    xkb_compatibility "(unnamed)" {
+    xkb_compatibility "enigo" {
     	virtual_modifiers OSK;
     
     	interpret.useModMapMods= AnyLevel;
@@ -288,7 +288,7 @@ xkb_keymap {
     	};
     };
     
-    xkb_symbols "(unnamed)" {
+    xkb_symbols "enigo" {
     };
     
     };
