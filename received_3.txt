@@ -1,5 +1,5 @@
-pub const KEYMAP_BEGINNING: &[u8; 7319] = b"xkb_keymap \"enigo\" {
-    xkb_keycodes {
+xkb_keymap {
+    xkb_keycodes "(unnamed)" {
     	minimum = 8;
     	maximum = 255;
     	<I8>                 = 8;
@@ -250,34 +250,35 @@ pub const KEYMAP_BEGINNING: &[u8; 7319] = b"xkb_keymap \"enigo\" {
     	<I253>               = 253;
     	<I254>               = 254;
     	<I255>               = 255;
-    	indicator 1 = \"Caps Lock\";
+    	indicator 1 = "Caps Lock";
     };
-    xkb_types \"enigo\" {
+    
+    xkb_types "(unnamed)" {
     	virtual_modifiers OSK;
     
-    	type \"ONE_LEVEL\" {
+    	type "ONE_LEVEL" {
     		modifiers= none;
-    		level_name[1]= \"Any\";
+    		level_name[1]= "Any";
     	};
-    	type \"TWO_LEVEL\" {
+    	type "TWO_LEVEL" {
     		modifiers= none;
-    		level_name[1]= \"Base\";
+    		level_name[1]= "Base";
     	};
-    	type \"ALPHABETIC\" {
+    	type "ALPHABETIC" {
     		modifiers= none;
-    		level_name[1]= \"Base\";
+    		level_name[1]= "Base";
     	};
-    	type \"KEYPAD\" {
+    	type "KEYPAD" {
     		modifiers= none;
-    		level_name[1]= \"Base\";
+    		level_name[1]= "Base";
     	};
-    	type \"SHIFT+ALT\" {
+    	type "SHIFT+ALT" {
     		modifiers= none;
-    		level_name[1]= \"Base\";
+    		level_name[1]= "Base";
     	};
     };
     
-    xkb_compatibility \"enigo\" {
+    xkb_compatibility "(unnamed)" {
     	virtual_modifiers OSK;
     
     	interpret.useModMapMods= AnyLevel;
@@ -287,9 +288,7 @@ pub const KEYMAP_BEGINNING: &[u8; 7319] = b"xkb_keymap \"enigo\" {
     	};
     };
     
-    xkb_symbols \"enigo\" {";
-
-pub const KEYMAP_END: &[u8; 27] = b"
+    xkb_symbols "(unnamed)" {
     };
     
-    };";
+    };
