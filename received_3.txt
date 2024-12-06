@@ -1,4 +1,4 @@
-xkb_keymap {
+    xkb_keymap {
     xkb_keycodes "enigo" {
     	minimum = 8;
     	maximum = 255;
@@ -289,6 +289,9 @@ xkb_keymap {
     };
     
     xkb_symbols "enigo" {
+    	key <I8>                 {	[               p ] };
+    	key <I9>                 {	[               o ] };
     };
     
     };
+    
