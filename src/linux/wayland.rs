@@ -227,33 +227,30 @@ impl Con {
     fn init_protocols(&mut self) -> Result<(), NewConError> {
         let qh = self.event_queue.handle();
 
-        if let Some(seat) = self.state.seat.as_ref() {
+        if self.state.seat.is_some() {
             // Setup input method
-            self.input_method = self
-                .state
-                .im_manager
-                .as_ref()
-                .map(|im_mgr| im_mgr.get_input_method(seat, &qh, ()));
+            self.input_method =
+                self.state.im_manager.as_ref().map(|im_mgr| {
+                    im_mgr.get_input_method(self.state.seat.as_ref().unwrap(), &qh, ())
+                });
+            // Wait for Activate response if the input_method was created
             if self.input_method.is_some() {
-                // Wait for Activate respons
                 self.event_queue
                     .blocking_dispatch(&mut self.state)
                     .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
             }
 
             // Setup virtual keyboard
-            self.virtual_keyboard = self
-                .state
-                .keyboard_manager
-                .as_ref()
-                .map(|vk_mgr| vk_mgr.create_virtual_keyboard(seat, &qh, ()));
+            self.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
+                vk_mgr.create_virtual_keyboard(self.state.seat.as_ref().unwrap(), &qh, ())
+            });
+            // Wait for KeyMap response if virtual_keyboard was created
             if self.virtual_keyboard.is_some() {
-                // Wait for KeyMap response
                 self.event_queue
                     .blocking_dispatch(&mut self.state)
                     .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
             }
-        };
+        }
 
         // Setup virtual pointer
         self.virtual_pointer = self
