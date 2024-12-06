@@ -616,7 +616,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     .expect("Failed to read tempfile");
 
                 // Print the content of the keymap
-                debug!("Keymap (received) content: {}", content);
+                debug!("Keymap (received) content:\n{}", content);
 
                 debug!("Keymap raw data (size {})", size);
             }
