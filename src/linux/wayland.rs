@@ -250,6 +250,8 @@ impl Con {
         }
 
         debug!("create virtual keyboard is done");
+
+        thread::sleep(Duration::from_secs(4));
         // Get all events from the compositor and process them
         self.event_queue
             .dispatch_pending(&mut self.state)
