@@ -446,7 +446,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        warn!("Got a registry event {:?}", event);
+        // warn!("Got a registry event {:?}", event);
         // When receiving events from the wl_registry, we are only interested in the
         // `global` event, which signals a new available global and then store it to
         // later bind to them
