@@ -9,10 +9,6 @@ pub(super) use xkeysym::{KeyCode, Keysym};
 use crate::keycodes::ModifierBitflag;
 use crate::{Direction, InputError, InputResult, Key};
 
-/// The "empty" keyboard symbol.
-// TODO: Replace it with the NoSymbol from xkeysym, once a new version was
-// published
-pub const NO_SYMBOL: Keysym = Keysym::new(0);
 #[cfg(feature = "x11rb")]
 const DEFAULT_DELAY: u32 = 12;
 
@@ -203,7 +199,7 @@ where
         keycode: Keycode,
     ) -> InputResult<()> {
         trace!("trying to unmap keysym {:?}", keysym);
-        if c.bind_key(keycode, NO_SYMBOL).is_err() {
+        if c.bind_key(keycode, Keysym::NoSymbol).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
         };
         self.needs_regeneration = true;
