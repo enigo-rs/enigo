@@ -302,6 +302,7 @@ impl Con {
             .ok_or(InputError::Simulate("no way to enter key"))?;
         is_alive(vk)?;
         let time = self.get_time();
+        println!("keycode before: {keycode}");
         let keycode = keycode - 8; // Adjust by 8 due to the xkb/xwayland requirements
 
         if direction == Direction::Press || direction == Direction::Click {
