@@ -14,7 +14,7 @@ use x11rb::{
     wrapper::ConnectionExt as _,
 };
 
-use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
+use super::keymap::{Bind, KeyMap, Keysym};
 use crate::{
     keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
     Keyboard, Mouse, NewConError,
@@ -146,7 +146,7 @@ impl Con {
                 trace!("{kc}:  {syms_name:?}");
             }
 
-            if syms.iter().all(|&s| s == NO_SYMBOL.raw()) {
+            if syms.iter().all(|&s| s == Keysym::NoSymbol.raw()) {
                 unused_keycodes.push_back(kc);
             }
         }
@@ -220,7 +220,7 @@ impl Drop for Con {
         // changes
         debug!("x11rb connection was dropped");
         for &keycode in self.keymap.additionally_mapped.values() {
-            match self.connection.bind_key(keycode, NO_SYMBOL) {
+            match self.connection.bind_key(keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
             };
