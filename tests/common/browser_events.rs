@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tungstenite::Message;
+use tungstenite::{Message, Utf8Bytes};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BrowserEvent {
@@ -54,39 +54,39 @@ impl TryFrom<Message> for BrowserEvent {
 fn deserialize_browser_events() {
     let messages = vec![
         (
-            Message::Text("ReadyForText".to_string()),
+            Message::Text(Utf8Bytes::from("ReadyForText")),
             BrowserEvent::ReadyForText,
         ),
         (
-            Message::Text("Text(\"Testing\")".to_string()),
+            Message::Text(Utf8Bytes::from("Text(\"Testing\")")),
             BrowserEvent::Text("Testing".to_string()),
         ),
         (
-            Message::Text("Text(\"Hi how are you?❤️ äüß$3\")".to_string()),
+            Message::Text(Utf8Bytes::from("Text(\"Hi how are you?❤️ äüß$3\")")),
             BrowserEvent::Text("Hi how are you?❤️ äüß$3".to_string()),
         ),
         (
-            Message::Text("KeyDown(\"F11\")".to_string()),
+            Message::Text(Utf8Bytes::from("KeyDown(\"F11\")")),
             BrowserEvent::KeyDown("F11".to_string()),
         ),
         (
-            Message::Text("KeyUp(\"F11\")".to_string()),
+            Message::Text(Utf8Bytes::from("KeyUp(\"F11\")")),
             BrowserEvent::KeyUp("F11".to_string()),
         ),
         (
-            Message::Text("MouseDown(0)".to_string()),
+            Message::Text(Utf8Bytes::from("MouseDown(0)")),
             BrowserEvent::MouseDown(0),
         ),
         (
-            Message::Text("MouseUp(0)".to_string()),
+            Message::Text(Utf8Bytes::from("MouseUp(0)")),
             BrowserEvent::MouseUp(0),
         ),
         (
-            Message::Text("MouseMove((-1806, -487), (200, 200))".to_string()),
+            Message::Text(Utf8Bytes::from("MouseMove((-1806, -487), (200, 200))")),
             BrowserEvent::MouseMove((-1806, -487), (200, 200)),
         ),
         (
-            Message::Text("MouseScroll(3, -2)".to_string()),
+            Message::Text(Utf8Bytes::from("MouseScroll(3, -2)")),
             BrowserEvent::MouseScroll(3, -2),
         ),
     ];
