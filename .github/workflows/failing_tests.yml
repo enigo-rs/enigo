@@ -88,11 +88,3 @@ jobs:
 
       - name: Run ignored integration tests in release mode
         run: cargo test integration --release --no-default-features --features ${{ matrix.features }} -- --ignored --test-threads=1 --nocapture
-
-      - name: Take screenshot
-        if: always() && runner.os != 'macOS'
-        uses: ./.github/actions/screenshot
-        with:
-          platform: ${{ matrix.platform }}
-          rust: ${{ matrix.rust }}
-          feature: ${{ matrix.features }}
