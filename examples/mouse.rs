@@ -10,6 +10,13 @@ use std::time::Duration;
 
 fn main() {
     env_logger::try_init().ok();
+
+    #[cfg(target_os = "windows")]
+    // This is needed on Windows if you want the application to respect the users scaling settings.
+    // Please look at the documentation of the function to see better ways to achive this and
+    // important gotchas
+    enigo::set_dpi_awareness().unwrap();
+
     let wait_time = Duration::from_secs(2);
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 

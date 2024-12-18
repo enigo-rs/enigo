@@ -74,6 +74,8 @@ mod platform;
 pub use platform::Enigo;
 
 #[cfg(target_os = "windows")]
+pub use platform::set_dpi_awareness;
+#[cfg(target_os = "windows")]
 pub use platform::EXT;
 
 mod keycodes;
