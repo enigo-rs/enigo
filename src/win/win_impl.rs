@@ -531,6 +531,31 @@ impl Enigo {
     }
 }
 
+/// Sets the current process to a specified dots per inch (dpi) awareness
+/// context [see official documentation](https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness)
+/// If you want your applications to respect the users scaling, you need to set
+/// this. Otherwise the mouse coordinates and screen dimensions will be off.
+///
+/// It is recommended that you set the process-default DPI awareness via
+/// application manifest, not an API call. See [Setting the default DPI awareness for a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext) for more information. Setting the process-default DPI
+/// awareness via API call can lead to unexpected application behavior.
+/// It also needs to be set before any APIs are used that depend on the DPI and
+/// before a UI is created.
+/// Enigo is a library and should not set this, because
+/// it will lead to unexpected scaling of the application. Only use it for
+/// examples or if you know about the consequences
+///
+/// # Errors
+/// An error is thrown if the default API awareness mode for the process has
+/// already been set (via a previous API call or within the application
+/// manifest)
+pub fn set_dpi_awareness() -> Result<(), ()> {
+    use windows::Win32::UI::HiDpi::SetProcessDpiAwareness;
+    use windows::Win32::UI::HiDpi::PROCESS_PER_MONITOR_DPI_AWARE;
+
+    unsafe { SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE) }.map_err(|_| ())
+}
+
 impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
