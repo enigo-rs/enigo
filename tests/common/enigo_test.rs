@@ -46,7 +46,9 @@ impl EnigoTest {
     fn send_message(&mut self, msg: &str) {
         println!("Sending message: {msg}");
         self.websocket
-            .send(tungstenite::Message::Text(msg.to_string()))
+            .send(tungstenite::Message::Text(tungstenite::Utf8Bytes::from(
+                msg,
+            )))
             .expect("Unable to send the message");
         println!("Sent message");
     }
