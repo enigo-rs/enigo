@@ -301,7 +301,7 @@ where
             write!(
                 keymap_file,
                 "
-            key <I{}> {{ [ {} ] }}; // \\n",
+	key <I{}>                 {{	[               {} ] }};",
                 keycode,
                 keysym_get_name(keysym)
             )?;
