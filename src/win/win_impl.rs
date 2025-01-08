@@ -400,7 +400,7 @@ impl Enigo {
 
     /// Generic function to translate between virtual keys and scan codes
     fn translate_key(input: u16, map_type: MAP_VIRTUAL_KEY_TYPE) -> InputResult<u16> {
-        let layout = Enigo::get_keyboard_layout();
+        let layout = Some(Enigo::get_keyboard_layout());
 
         // Call MapVirtualKeyExW using the provided map_type and input
         match unsafe { MapVirtualKeyExW(input.into(), map_type, layout) }.try_into() {
