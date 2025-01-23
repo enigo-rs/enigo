@@ -16,7 +16,5 @@ fn main() {
         .unwrap();
 
     // select all
-    enigo.key(Key::Unicode('p'), Click).unwrap();
-    enigo.key(Key::Unicode('o'), Click).unwrap();
-    enigo.key(Key::Unicode('p'), Click).unwrap();
+    enigo.raw(10, Click).unwrap();
 }
