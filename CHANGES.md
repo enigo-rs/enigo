@@ -5,6 +5,7 @@
 ## Added
 - macOS: Add to support Mouse special key(Back, Forward)
 - win: Helper function to tell Windows to respect the users scaling settings `set_dpi_awareness`. Read the docs before using it
+- linux: Add support for numpad keys (e.g. `Key::Numpad2`)
 
 ## Removed
 
