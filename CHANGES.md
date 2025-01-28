@@ -9,6 +9,7 @@
 ## Removed
 
 ## Fixed
+- linux: wayland: Fix the serial number of input_method events
 
 # 0.3.0
 ## Changed
