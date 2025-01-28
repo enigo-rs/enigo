@@ -94,7 +94,7 @@ pub enum Key {
     AbntC2,
     #[cfg(target_os = "windows")]
     Accept,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Add,
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
@@ -175,11 +175,11 @@ pub enum Key {
     DBESBCSChar,
     #[cfg(target_os = "windows")]
     DBESChar,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Decimal,
     /// delete key
     Delete,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Divide,
     /// down arrow key
     DownArrow,
@@ -399,7 +399,7 @@ pub enum Key {
     MissionControl,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     ModeChange,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Multiply,
     #[cfg(target_os = "windows")]
     NavigationAccept,
@@ -425,25 +425,25 @@ pub enum Key {
     None,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numlock,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad0,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad1,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad2,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad3,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad4,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad5,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad6,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad7,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad8,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad9,
     #[cfg(target_os = "windows")]
     OEM1,
@@ -579,7 +579,7 @@ pub enum Key {
     Snapshot,
     /// space key
     Space,
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Subtract,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
@@ -637,6 +637,7 @@ impl From<Key> for xkeysym::Keysym {
         #[allow(clippy::match_same_arms)]
         match key {
             Key::Unicode(c) => xkeysym::Keysym::from_char(c),
+            Key::Add => Keysym::KP_Add,
             Key::Alt | Key::Option => Keysym::Alt_L,
             Key::Backspace => Keysym::BackSpace,
             Key::Begin => Keysym::Begin,
@@ -645,7 +646,9 @@ impl From<Key> for xkeysym::Keysym {
             Key::CapsLock => Keysym::Caps_Lock,
             Key::Clear => Keysym::Clear,
             Key::Control | Key::LControl => Keysym::Control_L,
+            Key::Decimal => Keysym::KP_Decimal,
             Key::Delete => Keysym::Delete,
+            Key::Divide => Keysym::KP_Divide,
             Key::DownArrow => Keysym::Down,
             Key::End => Keysym::End,
             Key::Escape => Keysym::Escape,
@@ -696,11 +699,22 @@ impl From<Key> for xkeysym::Keysym {
             Key::Linefeed => Keysym::Linefeed,
             Key::LMenu => Keysym::Menu,
             Key::ModeChange => Keysym::Mode_switch,
+            Key::Multiply => Keysym::KP_Multiply,
             Key::MediaNextTrack => Keysym::XF86_AudioNext,
             Key::MediaPlayPause => Keysym::XF86_AudioPlay,
             Key::MediaPrevTrack => Keysym::XF86_AudioPrev,
             Key::MediaStop => Keysym::XF86_AudioStop,
             Key::Numlock => Keysym::Num_Lock,
+            Key::Numpad0 => Keysym::KP_0,
+            Key::Numpad1 => Keysym::KP_1,
+            Key::Numpad2 => Keysym::KP_2,
+            Key::Numpad3 => Keysym::KP_3,
+            Key::Numpad4 => Keysym::KP_4,
+            Key::Numpad5 => Keysym::KP_5,
+            Key::Numpad6 => Keysym::KP_6,
+            Key::Numpad7 => Keysym::KP_7,
+            Key::Numpad8 => Keysym::KP_8,
+            Key::Numpad9 => Keysym::KP_9,
             Key::PageDown => Keysym::Page_Down,
             Key::PageUp => Keysym::Page_Up,
             Key::Pause => Keysym::Pause,
@@ -717,6 +731,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::Shift | Key::LShift => Keysym::Shift_L,
             Key::ShiftLock => Keysym::Shift_Lock,
             Key::Space => Keysym::space,
+            Key::Subtract => Keysym::KP_Subtract,
             Key::SysReq => Keysym::Sys_Req,
             Key::Tab => Keysym::Tab,
             Key::Undo => Keysym::Undo,
