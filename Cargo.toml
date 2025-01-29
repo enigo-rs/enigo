@@ -27,7 +27,7 @@ exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 all-features = true
 
 [features]
-default = ["xdo"]
+default = ["wayland"]
 libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:once_cell"]
 serde = ["dep:serde"]
 wayland = [
@@ -99,8 +99,9 @@ webbrowser = "1.0"
 ron = "0.8"
 strum = "0.26"
 strum_macros = "0.26"
-rdev = "0.5"                                     # Test the main_display() function
-mouse_position = "0.1"                           # Test the location() function
+# TODO: Uncomment
+# rdev = "0.5"                                     # Test the main_display() function
+mouse_position = "0.1" # Test the location() function
 
 [[example]]
 name = "serde"
