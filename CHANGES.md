@@ -10,6 +10,7 @@
 
 ## Fixed
 - linux: wayland: Fix the serial number of input_method events
+- linux: wayland: Correct whitespace and nullbyte at the end of the keymap
 
 # 0.3.0
 ## Changed
