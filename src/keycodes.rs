@@ -94,7 +94,6 @@ pub enum Key {
     AbntC2,
     #[cfg(target_os = "windows")]
     Accept,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Add,
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
@@ -175,11 +174,9 @@ pub enum Key {
     DBESBCSChar,
     #[cfg(target_os = "windows")]
     DBESChar,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Decimal,
     /// delete key
     Delete,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Divide,
     /// down arrow key
     DownArrow,
@@ -399,7 +396,6 @@ pub enum Key {
     MissionControl,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     ModeChange,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Multiply,
     #[cfg(target_os = "windows")]
     NavigationAccept,
@@ -425,25 +421,15 @@ pub enum Key {
     None,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numlock,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad0,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad1,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad2,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad3,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad4,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad5,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad6,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad7,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad8,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numpad9,
     #[cfg(target_os = "windows")]
     OEM1,
@@ -579,7 +565,6 @@ pub enum Key {
     Snapshot,
     /// space key
     Space,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Subtract,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
