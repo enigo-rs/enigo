@@ -11,6 +11,7 @@
 ## Fixed
 - linux: wayland: Fix the serial number of input_method events
 - linux: wayland: Correct whitespace and nullbyte at the end of the keymap
+- linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
 
 # 0.3.0
 ## Changed
