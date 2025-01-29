@@ -1,12 +1,7 @@
 use enigo::{
-    Axis::{Horizontal, Vertical},
-    // Button,
     Coordinate::{Abs, Rel},
     Direction::{Click, Press, Release},
-    Key,
-    Keyboard,
-    Mouse as _,
-    Settings,
+    Key, Keyboard, Mouse as _, Settings,
 };
 
 mod common;
