@@ -98,7 +98,7 @@ url = "2"
 webbrowser = "1.0"
 ron = "0.8"
 strum = "0.26"
-strum_macros = "0.26"
+strum_macros = "0.27"
 rdev = "0.5"                                     # Test the main_display() function
 mouse_position = "0.1"                           # Test the location() function
 
