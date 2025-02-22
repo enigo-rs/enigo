@@ -412,12 +412,12 @@ impl Drop for Enigo {
         for &key in &held_keys {
             if self.key(key, Direction::Release).is_err() {
                 error!("unable to release {:?}", key);
-            };
+            }
         }
         for &keycode in &held_keycodes {
             if self.raw(keycode, Direction::Release).is_err() {
                 error!("unable to release {:?}", keycode);
-            };
+            }
         }
         debug!("released all held keys and held keycodes");
     }

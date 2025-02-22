@@ -443,7 +443,7 @@ impl Enigo {
         //       We have a virtual key and a scan code at the end anyways
         if let Key::Unicode(_) = key {
             keyflags |= KEYEVENTF_SCANCODE;
-        };
+        }
 
         if Enigo::is_extended_key(vk) {
             keyflags |= KEYEVENTF_EXTENDEDKEY;
@@ -566,12 +566,12 @@ impl Drop for Enigo {
         for key in held_keys {
             if self.key(key, Direction::Release).is_err() {
                 error!("unable to release {key:?}");
-            };
+            }
         }
         for keycode in held_keycodes {
             if self.raw(keycode, Direction::Release).is_err() {
                 error!("unable to release {keycode:?}");
-            };
+            }
         }
         debug!("released all held keys");
     }
