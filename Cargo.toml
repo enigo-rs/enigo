@@ -71,7 +71,7 @@ foreign-types-shared = "0.3"
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 reis = { version = "0.4", optional = true }
-ashpd = { version = "0.10", optional = true }
+ashpd = { version = "0.11", optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
