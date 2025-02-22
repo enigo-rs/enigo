@@ -178,7 +178,7 @@ where
                 );
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));
-                };
+                }
                 self.needs_regeneration = true;
                 self.additionally_mapped.insert(keysym, unused_keycode);
                 debug!("mapped keycode {} to keysym {:?}", unused_keycode, keysym);
@@ -201,7 +201,7 @@ where
         trace!("trying to unmap keysym {:?}", keysym);
         if c.bind_key(keycode, Keysym::NoSymbol).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
-        };
+        }
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.additionally_mapped.remove(&keysym);

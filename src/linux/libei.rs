@@ -13,8 +13,8 @@ use crate::{
 };
 pub type Keycode = u32;
 
-static INTERFACES: once_cell::sync::Lazy<HashMap<&'static str, u32>> =
-    once_cell::sync::Lazy::new(|| {
+static INTERFACES: std::sync::LazyLock<HashMap<&'static str, u32>> =
+    std::sync::LazyLock::new(|| {
         let mut m = HashMap::new();
         m.insert("ei_button", 1);
         m.insert("ei_callback", 1);
@@ -558,7 +558,7 @@ impl Mouse for Con {
                     | Button::ScrollRight
                     | Button::ScrollLeft => return Ok(()),
                 }
-            };
+            }
 
             let button = match button {
                 // Taken from /linux/input-event-codes.h
@@ -631,7 +631,7 @@ impl Mouse for Con {
                     return Err(InputError::InvalidInput(
                         "the absolute coordinates cannot be negative",
                     ));
-                };
+                }
                 trace!("vp.motion_absolute({x}, {y}, u32::MAX, u32::MAX)");
                 if let Some((device, device_data)) = self.devices.iter().find(|(_, device_data)| {
                     device_data.interface::<ei::PointerAbsolute>().is_some()
@@ -652,7 +652,7 @@ impl Mouse for Con {
                     return Ok(());
                 }
             }
-        };
+        }
         // TODO: Improve the error
         Err(InputError::Simulate(
             "None of the devices implements the move mouse interface so there is no way to move it",

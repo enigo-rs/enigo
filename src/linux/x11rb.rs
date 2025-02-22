@@ -223,7 +223,7 @@ impl Drop for Con {
             match self.connection.bind_key(keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
-            };
+            }
         }
     }
 }

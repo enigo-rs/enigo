@@ -28,7 +28,7 @@ all-features = true
 
 [features]
 default = ["xdo"]
-libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:once_cell"]
+libei = ["dep:reis", "dep:ashpd", "dep:tokio"]
 serde = ["dep:serde"]
 wayland = [
     "dep:wayland-client",
@@ -73,7 +73,6 @@ libc = "0.2"
 reis = { version = "0.4", optional = true }
 ashpd = { version = "0.10", optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
-once_cell = { version = "1.19", optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }

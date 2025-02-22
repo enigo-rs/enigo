@@ -304,7 +304,7 @@ impl Keyboard for Enigo {
                 }
                 let end_idx = match indices.peek() {
                     Some(idx) => *idx,
-                    None => s.bytes().len(),
+                    None => s.len(),
                 };
                 Some(&s[start_idx..end_idx])
             })
@@ -1152,13 +1152,13 @@ impl Drop for Enigo {
             for key in held_keys {
                 if self.key(key, Direction::Release).is_err() {
                     error!("unable to release {key:?}");
-                };
+                }
             }
 
             for keycode in held_keycodes {
                 if self.raw(keycode, Direction::Release).is_err() {
                     error!("unable to release {keycode:?}");
-                };
+                }
             }
             debug!("released all held keys");
         }
