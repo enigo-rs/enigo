@@ -214,16 +214,14 @@ impl Con {
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vk.key({time}, {keycode}, 1)");
             vk.key(time, keycode, 1);
-            self.event_queue
-                .flush()
-                .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
+
+            self.flush()?;
         }
         if direction == Direction::Release || direction == Direction::Click {
             trace!("vk.key({time}, {keycode}, 0)");
             vk.key(time, keycode, 0);
-            self.event_queue
-                .flush()
-                .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
+
+            self.flush()?;
         }
         Ok(())
     }
@@ -247,9 +245,7 @@ impl Con {
         // Send the modifier event
         vk.modifiers(modifiers, 0, 0, 0);
 
-        self.event_queue
-            .flush()
-            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
+        self.flush()?;
 
         Ok(())
     }
@@ -687,9 +683,7 @@ impl Keyboard for Con {
         im.commit_string(text.to_string());
         im.commit(self.state.im_serial.0);
 
-        self.event_queue
-            .flush()
-            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))?;
+        self.flush()?;
 
         Ok(Some(()))
     }
@@ -768,9 +762,8 @@ impl Mouse for Con {
             vp.button(time, button, wl_pointer::ButtonState::Released);
             vp.frame(); // TODO: Check if this is needed
         }
-        self.event_queue
-            .flush()
-            .map_err(|_| InputError::Simulate("Flushing Wayland queue failed"))
+
+        self.flush()
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
@@ -807,11 +800,7 @@ impl Mouse for Con {
         }
         vp.frame(); // TODO: Check if this is needed
 
-        // TODO: Change to flush()
-        self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
-            .map(|_| ())
+        self.flush()
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
@@ -832,11 +821,7 @@ impl Mouse for Con {
         vp.axis(time, axis, length.into());
         vp.frame(); // TODO: Check if this is needed
 
-        // TODO: Change to flush()
-        self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))
-            .map(|_| ())
+        self.flush()
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
