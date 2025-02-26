@@ -5,7 +5,7 @@ authors = [
     "pentamassiv <pentamassiv@posteo.de>",
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
-edition = "2021"
+edition = "2024"
 rust-version = "1.85"
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
