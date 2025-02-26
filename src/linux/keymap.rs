@@ -39,14 +39,14 @@ pub struct KeyMap<Keycode> {
 
 // TODO: Check if the bounds can be simplified
 impl<
-        Keycode: std::ops::Sub
-            + PartialEq
-            + Copy
-            + Clone
-            + Display
-            + TryInto<usize>
-            + std::convert::TryFrom<usize>,
-    > KeyMap<Keycode>
+    Keycode: std::ops::Sub
+        + PartialEq
+        + Copy
+        + Clone
+        + Display
+        + TryInto<usize>
+        + std::convert::TryFrom<usize>,
+> KeyMap<Keycode>
 where
     <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
     <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
@@ -173,8 +173,7 @@ where
             Some(unused_keycode) => {
                 trace!(
                     "trying to map keycode {} to keysym {:?}",
-                    unused_keycode,
-                    keysym
+                    unused_keycode, keysym
                 );
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));

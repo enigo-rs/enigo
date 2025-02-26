@@ -29,17 +29,17 @@ fn test_mouse_move(
     for test_case in test_cases {
         for mouse_action in test_case {
             enigo
-                .move_mouse(mouse_action.0 .0, mouse_action.0 .1, coordinate)
+                .move_mouse(mouse_action.0.0, mouse_action.0.1, coordinate)
                 .unwrap();
             thread::sleep(delay);
             let (x_res, y_res) = enigo.location().unwrap();
             assert_eq!(
-                (mouse_action.1 .0, mouse_action.1 .1),
+                (mouse_action.1.0, mouse_action.1.1),
                 (x_res, y_res),
                 "{} {}, {}",
                 error_text,
-                mouse_action.0 .0,
-                mouse_action.0 .1
+                mouse_action.0.0,
+                mouse_action.0.1
             );
             thread::sleep(delay);
         }

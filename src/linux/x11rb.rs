@@ -16,8 +16,8 @@ use x11rb::{
 
 use super::keymap::{Bind, KeyMap, Keysym};
 use crate::{
-    keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
-    Keyboard, Mouse, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, keycodes::Modifier,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;

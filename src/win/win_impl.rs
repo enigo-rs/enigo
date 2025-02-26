@@ -4,13 +4,13 @@ use log::{debug, error, info, warn};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::{
-        GetKeyboardLayout, MapVirtualKeyExW, SendInput, HKL, INPUT, INPUT_0, INPUT_KEYBOARD,
-        INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
-        KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC_EX, MAPVK_VSC_TO_VK_EX,
-        MAP_VIRTUAL_KEY_TYPE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN,
-        MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE,
-        MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN,
-        MOUSEEVENTF_XUP, MOUSEINPUT, MOUSE_EVENT_FLAGS, VIRTUAL_KEY,
+        GetKeyboardLayout, HKL, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS,
+        KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
+        MAP_VIRTUAL_KEY_TYPE, MAPVK_VK_TO_VSC_EX, MAPVK_VSC_TO_VK_EX, MOUSE_EVENT_FLAGS,
+        MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+        MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
+        MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
+        MapVirtualKeyExW, SendInput, VIRTUAL_KEY,
     },
     WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
@@ -142,7 +142,9 @@ impl Mouse for Enigo {
                 | Button::ScrollDown
                 | Button::ScrollLeft
                 | Button::ScrollRight => {
-                    info!("On Windows the mouse_up function has no effect when called with one of the Scroll buttons");
+                    info!(
+                        "On Windows the mouse_up function has no effect when called with one of the Scroll buttons"
+                    );
                     return Ok(());
                 }
             };
@@ -194,13 +196,17 @@ impl Mouse for Enigo {
             // (fastest) and represents how much the pointer moves based on the distance the
             // mouse moves. The default value is 10, which results in no additional
             // modification to the mouse motion.
-            debug!("\x1b[93mRelative mouse move is subject to mouse speed and acceleration level\x1b[0m");
+            debug!(
+                "\x1b[93mRelative mouse move is subject to mouse speed and acceleration level\x1b[0m"
+            );
             (MOUSEEVENTF_MOVE, x, y)
         } else {
             // Instead of moving the mouse by a relative amount, we calculate the resulting
             // location and move it to the absolute location so it is not subject to mouse
             // speed and acceleration levels
-            debug!("\x1b[93mRelative mouse move is NOT subject to mouse speed and acceleration level\x1b[0m");
+            debug!(
+                "\x1b[93mRelative mouse move is NOT subject to mouse speed and acceleration level\x1b[0m"
+            );
             let (current_x, current_y) = self.location()?;
             return self.move_mouse(current_x + x, current_y + y, Coordinate::Abs);
         };
@@ -406,7 +412,10 @@ impl Enigo {
         match unsafe { MapVirtualKeyExW(input.into(), map_type, layout) }.try_into() {
             Ok(output) => {
                 if output == 0 {
-                    warn!("The result for the input {:?} is zero. This usually means there was no mapping", input);
+                    warn!(
+                        "The result for the input {:?} is zero. This usually means there was no mapping",
+                        input
+                    );
                 }
                 Ok(output)
             }
@@ -550,8 +559,7 @@ impl Enigo {
 /// already been set (via a previous API call or within the application
 /// manifest)
 pub fn set_dpi_awareness() -> Result<(), ()> {
-    use windows::Win32::UI::HiDpi::SetProcessDpiAwareness;
-    use windows::Win32::UI::HiDpi::PROCESS_PER_MONITOR_DPI_AWARE;
+    use windows::Win32::UI::HiDpi::{PROCESS_PER_MONITOR_DPI_AWARE, SetProcessDpiAwareness};
 
     unsafe { SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE) }.map_err(|_| ())
 }
@@ -625,9 +633,9 @@ mod test {
             VK_DBE_ENTERDLGCONVERSIONMODE, VK_DBE_ENTERIMECONFIGMODE, VK_DBE_ENTERWORDREGISTERMODE,
             VK_DBE_FLUSHSTRING, VK_DBE_HIRAGANA, VK_DBE_KATAKANA, VK_DBE_NOCODEINPUT,
             VK_DBE_NOROMAN, VK_DBE_ROMAN, VK_DBE_SBCSCHAR, VK_DECIMAL, VK_E, VK_EREOF, VK_ESCAPE,
-            VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F10, VK_F11, VK_F12, VK_F13, VK_F14, VK_F15,
-            VK_F16, VK_F17, VK_F18, VK_F19, VK_F2, VK_F20, VK_F21, VK_F22, VK_F23, VK_F24, VK_F3,
-            VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_FINAL, VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B,
+            VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8,
+            VK_F9, VK_F10, VK_F11, VK_F12, VK_F13, VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19,
+            VK_F20, VK_F21, VK_F22, VK_F23, VK_F24, VK_FINAL, VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B,
             VK_GAMEPAD_DPAD_DOWN, VK_GAMEPAD_DPAD_LEFT, VK_GAMEPAD_DPAD_RIGHT, VK_GAMEPAD_DPAD_UP,
             VK_GAMEPAD_LEFT_SHOULDER, VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
             VK_GAMEPAD_LEFT_THUMBSTICK_DOWN, VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
@@ -645,17 +653,17 @@ mod test {
             VK_NAVIGATION_CANCEL, VK_NAVIGATION_DOWN, VK_NAVIGATION_LEFT, VK_NAVIGATION_MENU,
             VK_NAVIGATION_RIGHT, VK_NAVIGATION_UP, VK_NAVIGATION_VIEW, VK_NONAME, VK_NONCONVERT,
             VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6,
-            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_102, VK_OEM_2, VK_OEM_3,
-            VK_OEM_4, VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_ATTN, VK_OEM_AUTO, VK_OEM_AX,
-            VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL, VK_OEM_ENLW,
-            VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU, VK_OEM_FJ_ROYA,
-            VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL, VK_OEM_PA1, VK_OEM_PA2,
-            VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET, VK_OEM_WSCTRL, VK_P, VK_PA1,
-            VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PROCESSKEY, VK_Q, VK_R, VK_RBUTTON,
-            VK_RETURN, VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT, VK_SEPARATOR, VK_SHIFT,
-            VK_SLEEP, VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_V, VK_VOLUME_DOWN,
-            VK_VOLUME_MUTE, VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z,
-            VK_ZOOM,
+            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_2, VK_OEM_3, VK_OEM_4,
+            VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_102, VK_OEM_ATTN, VK_OEM_AUTO,
+            VK_OEM_AX, VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL,
+            VK_OEM_ENLW, VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU,
+            VK_OEM_FJ_ROYA, VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL,
+            VK_OEM_PA1, VK_OEM_PA2, VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET,
+            VK_OEM_WSCTRL, VK_P, VK_PA1, VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PROCESSKEY,
+            VK_Q, VK_R, VK_RBUTTON, VK_RETURN, VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT,
+            VK_SEPARATOR, VK_SHIFT, VK_SLEEP, VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_V,
+            VK_VOLUME_DOWN, VK_VOLUME_MUTE, VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2,
+            VK_Y, VK_Z, VK_ZOOM,
         };
 
         let known_ordinary_keys = [

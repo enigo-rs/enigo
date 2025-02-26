@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_int, c_ulong, c_void, CString},
+    ffi::{CString, c_char, c_int, c_ulong, c_void},
     ptr,
 };
 
@@ -19,7 +19,7 @@ type Window = c_ulong;
 type Xdo = *const c_void;
 
 #[link(name = "xdo")]
-extern "C" {
+unsafe extern "C" {
     fn xdo_free(xdo: Xdo);
     fn xdo_new(display: *const c_char) -> Xdo;
 

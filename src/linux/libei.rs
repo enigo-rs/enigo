@@ -1,9 +1,9 @@
 use ashpd::desktop::remote_desktop::RemoteDesktop;
 use log::{debug, error, trace, warn};
 use reis::{
+    PendingRequestResult,
     ei::{self, Connection},
     handshake::HandshakeResp,
-    PendingRequestResult,
 };
 use std::{collections::HashMap, os::unix::net::UnixStream, time::Instant};
 use xkbcommon::xkb;
@@ -182,7 +182,7 @@ impl Con {
         con.update(libei_name)
             .map_err(|_| NewConError::EstablishCon("unable to update the libei connection"))?;
 
-        for (device, device_data) in con.devices.iter_mut().filter(|(_, ref device_data)| {
+        for (device, device_data) in con.devices.iter_mut().filter(|(_, device_data)| {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
                 && device_data.state == DeviceState::Resumed
             // TODO: Should all devices start emulating?
@@ -281,7 +281,9 @@ impl Con {
                             invalid_id,
                         } => {
                             // TODO: Try to recover?
-                            error!("the serial {last_serial} contained an invalid object with the id {invalid_id}");
+                            error!(
+                                "the serial {last_serial} contained an invalid object with the id {invalid_id}"
+                            );
                         }
                         ei::connection::Event::Ping { ping } => {
                             debug!("ping");
@@ -434,11 +436,11 @@ impl Con {
                                 latched,
                                 group,
                             } => { // TODO: Handle updated modifiers
-                                 // Notification that the EIS
-                                 // implementation has changed modifier states
-                                 // on this device. Future ei_keyboard.key
-                                 // requests must take the new modifier state
-                                 // into account.
+                                // Notification that the EIS
+                                // implementation has changed modifier states
+                                // on this device. Future ei_keyboard.key
+                                // requests must take the new modifier state
+                                // into account.
                             }
                             _ => {}
                         }
@@ -484,7 +486,7 @@ impl Keyboard for Con {
         if let Some((device, device_data)) = self
             .devices
             .iter_mut()
-            .find(|(_, ref device_data)| device_data.interface::<ei::Keyboard>().is_some())
+            .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
         {
             if let Some((keyboard, keymap)) = self.keyboards.iter().next() {
                 let keycode = key_to_keycode(keymap, key)?;
@@ -514,7 +516,7 @@ impl Keyboard for Con {
         if let Some((device, device_data)) = self
             .devices
             .iter_mut()
-            .find(|(_, ref device_data)| device_data.interface::<ei::Keyboard>().is_some())
+            .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
         {
             let keyboard = device_data.interface::<ei::Keyboard>().unwrap();
 
@@ -542,7 +544,7 @@ impl Mouse for Con {
         if let Some((device, device_data)) = self
             .devices
             .iter_mut()
-            .find(|(_, ref device_data)| device_data.interface::<ei::Button>().is_some())
+            .find(|(_, device_data)| device_data.interface::<ei::Button>().is_some())
         {
             // Do nothing if one of the mouse scroll buttons was released
             // Releasing one of the scroll mouse buttons has no effect
@@ -691,13 +693,17 @@ impl Mouse for Con {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        error!("You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!(
+            "You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
+        );
         Err(InputError::Simulate("Not implemented yet"))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        error!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!(
+            "You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
+        );
         Err(InputError::Simulate("Not implemented yet"))
     }
 }
@@ -716,7 +722,7 @@ impl Drop for Con {
         self.connection.disconnect(); // Let the server know we voluntarily disconnected
 
         let _ = self.context.flush(); // Ignore the errors if the connection was
-                                      // dropped
+        // dropped
     }
 }
 

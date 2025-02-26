@@ -6,7 +6,7 @@ use std::{
 
 use core_foundation::{
     array::CFIndex,
-    base::{OSStatus, TCFType, UInt16, UInt32, UInt8},
+    base::{OSStatus, TCFType, UInt8, UInt16, UInt32},
     data::{CFDataGetBytePtr, CFDataRef},
     dictionary::{CFDictionary, CFDictionaryRef},
     string::{CFString, CFStringRef, UniChar},
@@ -59,7 +59,7 @@ const kUCKeyTranslateNoDeadKeysBit: CFIndex = 0; // Previously was always u32. C
 
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentASCIICapableKeyboardLayoutInputSource() -> TISInputSourceRef;
@@ -165,7 +165,9 @@ impl Mouse for Enigo {
                 | Button::ScrollDown
                 | Button::ScrollLeft
                 | Button::ScrollRight => {
-                    info!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
+                    info!(
+                        "On macOS the mouse_up function has no effect when called with one of the Scroll buttons"
+                    );
                     return Ok(());
                 }
             };
@@ -210,8 +212,8 @@ impl Mouse for Enigo {
             (CGEventType::RightMouseDragged, CGMouseButton::Right)
         } else {
             (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button
-                                                           // here is ignored so
-                                                           // it can be anything
+            // here is ignored so
+            // it can be anything
         };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
@@ -549,7 +551,7 @@ impl Enigo {
 
         let mut event_flags = CGEventFlags::CGEventFlagNonCoalesced;
         event_flags.set(CGEventFlags::from_bits_retain(0x2000_0000), true); // I don't know if this is needed or what this flag does. Correct events have it
-                                                                            // set so we also do it (until we know it is wrong)
+        // set so we also do it (until we know it is wrong)
 
         let double_click_delay = Duration::from_secs(1);
         let double_click_delay_setting = unsafe { NSEvent::doubleClickInterval() };
@@ -898,7 +900,9 @@ impl Enigo {
 
         let flag_fn = match direction {
             Direction::Click => {
-                unreachable!("The function should never get called with Direction::Click. If it was, it's an implementation error");
+                unreachable!(
+                    "The function should never get called with Direction::Click. If it was, it's an implementation error"
+                );
             }
             Direction::Press => press_fn,
             Direction::Release => release_fn,
@@ -1065,7 +1069,9 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
     let mut layout_data =
         unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
     if layout_data.is_null() {
-        debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL");
+        debug!(
+            "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL"
+        );
         // TISGetInputSourceProperty returns null with some keyboard layout.
         // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
         // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
@@ -1074,7 +1080,9 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
         if layout_data.is_null() {
-            debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again");
+            debug!(
+                "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
+            );
             current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
             layout_data = unsafe {
                 TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
@@ -1117,7 +1125,7 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     pub fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
     static kAXTrustedCheckOptionPrompt: CFStringRef;
 }

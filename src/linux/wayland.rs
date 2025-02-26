@@ -10,13 +10,13 @@ use std::{
 
 use log::{debug, error, trace, warn};
 use wayland_client::{
+    Connection, Dispatch, EventQueue, QueueHandle,
     protocol::{
         wl_keyboard::{self, WlKeyboard},
         wl_pointer::{self, WlPointer},
         wl_registry,
         wl_seat::{self, Capability},
     },
-    Connection, Dispatch, EventQueue, QueueHandle,
 };
 use wayland_protocols_misc::{
     zwp_input_method_v2::client::{zwp_input_method_manager_v2, zwp_input_method_v2},
@@ -28,8 +28,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 
 use super::keymap::{Bind, KeyMap};
 use crate::{
-    keycodes::Modifier, keycodes::ModifierBitflag, Axis, Button, Coordinate, Direction, InputError,
-    InputResult, Key, Keyboard, Mouse, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
+    NewConError, keycodes::Modifier, keycodes::ModifierBitflag,
 };
 
 pub type Keycode = u32;
@@ -468,9 +468,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         {
             trace!(
                 "Global announced: {} (name: {}, version: {})",
-                interface,
-                name,
-                version
+                interface, name, version
             );
             state.globals.insert(interface, (name, version));
         }
@@ -836,13 +834,17 @@ impl Mouse for Con {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        error!("You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!(
+            "You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
+        );
         Err(InputError::Simulate("Not implemented yet"))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
-        error!("You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol");
+        error!(
+            "You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
+        );
         Err(InputError::Simulate("Not implemented yet"))
     }
 }
