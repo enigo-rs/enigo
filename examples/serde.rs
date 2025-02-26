@@ -1,6 +1,6 @@
 use enigo::{
-    agent::{Agent, Token},
     Button, Enigo, Key, Settings,
+    agent::{Agent, Token},
 };
 use std::{thread, time::Duration};
 

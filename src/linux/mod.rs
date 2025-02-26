@@ -13,7 +13,7 @@ use crate::{
     feature = "libei"
 )))]
 compile_error!(
-   "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
+    "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
 );
 
 #[cfg(feature = "libei")]

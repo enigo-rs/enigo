@@ -11,8 +11,8 @@ use enigo::{
 use super::browser_events::BrowserEvent;
 
 const TIMEOUT: u64 = 5; // Number of minutes the test is allowed to run before timing out
-                        // This is needed, because some of the websocket functions are blocking and
-                        // would run indefinitely without a timeout if they don't receive a message
+// This is needed, because some of the websocket functions are blocking and
+// would run indefinitely without a timeout if they don't receive a message
 const INPUT_DELAY: u64 = 40; // Number of milliseconds to wait for the input to have an effect
 const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 
