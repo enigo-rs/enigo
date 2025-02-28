@@ -152,6 +152,7 @@ impl Mouse for Enigo {
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
             self.update_wait_time();
+            self.sleep_default_delay();
         }
         if direction == Direction::Click || direction == Direction::Release {
             let click_count = self.nth_button_press(button, Direction::Release);
@@ -189,6 +190,7 @@ impl Mouse for Enigo {
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
             self.update_wait_time();
+            self.sleep_default_delay();
         }
         Ok(())
     }
@@ -240,6 +242,7 @@ impl Mouse for Enigo {
         event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
         self.update_wait_time();
+        self.sleep_default_delay();
         Ok(())
     }
 
@@ -269,6 +272,7 @@ impl Mouse for Enigo {
         event.set_flags(self.event_flags);
         event.post(CGEventTapLocation::HID);
         self.update_wait_time();
+        self.sleep_default_delay();
         Ok(())
     }
 
@@ -352,6 +356,7 @@ impl Keyboard for Enigo {
             event.set_flags(CGEventFlags::CGEventFlagNull);
             event.post(CGEventTapLocation::HID);
             self.update_wait_time();
+            self.sleep_default_delay();
         }
         Ok(Some(()))
     }
@@ -487,6 +492,7 @@ impl Keyboard for Enigo {
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
             self.update_wait_time();
+            self.sleep_default_delay();
         }
 
         if direction == Direction::Click || direction == Direction::Release {
@@ -505,6 +511,7 @@ impl Keyboard for Enigo {
             event.set_flags(self.event_flags);
             event.post(CGEventTapLocation::HID);
             self.update_wait_time();
+            self.sleep_default_delay();
         }
 
         match direction {
@@ -586,6 +593,18 @@ impl Enigo {
         self.held.clone()
     }
 
+    pub fn sleep_when_last_event_was_sent_less_than_duration(&self, duration: Duration) {
+        let elapsed = self.last_event.0.elapsed();
+        if elapsed < duration {
+            thread::sleep(duration - elapsed);
+        }
+    }
+    pub fn sleep_default_delay(&self) {
+        if self.last_event.1 > Duration::from_secs(0) {
+            thread::sleep(self.last_event.1);
+        }
+    }
+
     /// Returns the value that enigo's events are marked with
     #[must_use]
     pub fn get_marker_value(&self) -> i64 {
@@ -638,6 +657,7 @@ impl Enigo {
                 cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
                 self.update_wait_time();
+                self.sleep_default_delay();
             } else {
                 return Err(InputError::Simulate(
                     "failed creating event to press special key",
@@ -669,6 +689,7 @@ impl Enigo {
                 cg_event.set_flags(self.event_flags);
                 cg_event.post(CGEventTapLocation::HID);
                 self.update_wait_time();
+                self.sleep_default_delay();
             } else {
                 return Err(InputError::Simulate(
                     "failed creating event to release special key",
