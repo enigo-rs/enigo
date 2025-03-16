@@ -316,8 +316,7 @@ where
                 debug!("regenerated the keymap");
                 Ok(Some(v))
             }
-            Err(_) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(_) => Err(std::io::Error::other(
                 "the length of the new keymap exceeds the u32::MAX",
             )),
         }
