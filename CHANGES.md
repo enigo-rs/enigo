@@ -8,6 +8,7 @@
 - win: Helper function to tell Windows to respect the users scaling settings `set_dpi_awareness`. Read the docs before using it
 - linux: Add support for numpad keys (e.g. `Key::Numpad2`)
 - macOS: Add support for numpad keys (e.g. `Key::Numpad2`)
+- linux: wayland: Implement `main_display()`. It only works reliably if only one screen is connected
 
 ## Removed
 
