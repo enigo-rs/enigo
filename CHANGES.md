@@ -16,6 +16,7 @@
 - linux: wayland: Fix the serial number of input_method events
 - linux: wayland: Correct whitespace and nullbyte at the end of the keymap
 - linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
+- linux: wayland: Fix moving the mouse to an absolute coordinate
 
 # 0.3.0
 ## Changed

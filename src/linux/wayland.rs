@@ -662,7 +662,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                     {
                         output_data.transform = true;
                     }
-                };
+                }
             }
             wl_output::Event::Mode {
                 flags,
@@ -678,12 +678,12 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                         output_data.width = width;
                         output_data.height = height;
                     }
-                };
+                }
             }
             ev => {
                 warn!("{ev:?}");
             }
-        };
+        }
     }
 }
 
@@ -838,6 +838,13 @@ impl Mouse for Con {
                 vp.motion(time, x as f64, y as f64);
             }
             Coordinate::Abs => {
+                let (x_extend, y_extend) = self.main_display()?;
+                let x_extend: u32 = x_extend
+                    .try_into()
+                    .map_err(|_| InputError::InvalidInput("x_extend cannot be negative"))?;
+                let y_extend: u32 = y_extend
+                    .try_into()
+                    .map_err(|_| InputError::InvalidInput("y_extend cannot be negative"))?;
                 let x: u32 = x.try_into().map_err(|_| {
                     InputError::InvalidInput("the absolute coordinates cannot be negative")
                 })?;
@@ -845,14 +852,8 @@ impl Mouse for Con {
                     InputError::InvalidInput("the absolute coordinates cannot be negative")
                 })?;
 
-                trace!("vp.motion_absolute({time}, {x}, {y}, u32::MAX, u32::MAX)");
-                vp.motion_absolute(
-                    time,
-                    x,
-                    y,
-                    u32::MAX, // TODO: Check what would be the correct value here
-                    u32::MAX, // TODO: Check what would be the correct value here
-                );
+                trace!("vp.motion_absolute({time}, {x}, {y}, {x_extend}, {y_extend})");
+                vp.motion_absolute(time, x, y, x_extend, y_extend);
             }
         }
         vp.frame(); // TODO: Check if this is needed
