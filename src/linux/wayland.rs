@@ -39,6 +39,7 @@ pub type Keycode = u32;
 struct OutputInfo {
     width: i32,
     height: i32,
+    transform: bool,
 }
 
 pub struct Con {
@@ -648,6 +649,21 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
         _qh: &QueueHandle<Self>,
     ) {
         match event {
+            wl_output::Event::Geometry { transform, .. } => {
+                // The width and height need to get switched if the transform changes them
+                // TODO: Check if this really is needed
+                if transform == WEnum::Value(wl_output::Transform::_90)
+                    || transform == WEnum::Value(wl_output::Transform::_270)
+                    || transform == WEnum::Value(wl_output::Transform::Flipped90)
+                    || transform == WEnum::Value(wl_output::Transform::Flipped270)
+                {
+                    if let Some((_, output_data)) =
+                        state.outputs.iter_mut().find(|(o, _)| o == output)
+                    {
+                        output_data.transform = true;
+                    }
+                };
+            }
             wl_output::Event::Mode {
                 flags,
                 width,
