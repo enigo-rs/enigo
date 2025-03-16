@@ -10,9 +10,10 @@ use std::{
 
 use log::{debug, error, trace, warn};
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle,
+    Connection, Dispatch, EventQueue, QueueHandle, WEnum,
     protocol::{
         wl_keyboard::{self, WlKeyboard},
+        wl_output::{self, Mode, WlOutput},
         wl_pointer::{self, WlPointer},
         wl_registry,
         wl_seat::{self, Capability},
@@ -33,6 +34,12 @@ use crate::{
 };
 
 pub type Keycode = u32;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+struct OutputInfo {
+    width: i32,
+    height: i32,
+}
 
 pub struct Con {
     keymap: KeyMap<Keycode>,
@@ -136,6 +143,22 @@ impl Con {
     fn bind_globals(&mut self, registry: &wl_registry::WlRegistry) -> Result<(), NewConError> {
         let qh = self.event_queue.handle();
 
+        // Bind to the wl_outputs to get the screen dimensions
+        let wl_outputs: Vec<_> = self
+            .state
+            .globals
+            .iter()
+            .filter(|(interface_name, _, _)| interface_name == "wl_output")
+            .collect();
+        for (_, name, version) in &wl_outputs {
+            let wl_output = registry.bind::<wl_output::WlOutput, _, _>(*name, *version, &qh, ());
+            self.state.outputs.push((wl_output, OutputInfo::default()));
+        }
+
+        self.event_queue
+            .flush()
+            .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
+
         // Bind to wl_seat if it exists
         // MUST be done before doing any bindings relevant to the input_method
         // protocol, otherwise e.g. labwc crashes
@@ -145,7 +168,7 @@ impl Con {
             .iter()
             .find(|(interface_name, _, _)| interface_name == "wl_seat")
             .ok_or(NewConError::EstablishCon("No seat available"))?;
-        let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version.min(1), &qh, ());
+        let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version, &qh, ());
 
         self.event_queue
             .flush()
@@ -183,7 +206,7 @@ impl Con {
             let manager = registry
                 .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
                     name,
-                    version.min(1),
+                    version,
                     &qh,
                     (),
                 );
@@ -203,7 +226,7 @@ impl Con {
             let manager = registry
                 .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
                     name,
-                    version.min(1),
+                    version,
                     &qh,
                     (),
                 );
@@ -223,7 +246,7 @@ impl Con {
             let manager = registry
                 .bind::<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, _, _>(
                     name,
-                    version.min(1),
+                    version,
                     &qh,
                     (),
                 );
@@ -452,6 +475,7 @@ impl Drop for Con {
 struct WaylandState {
     // interface name, global id, version
     globals: Vec<(String, u32, u32)>,
+    outputs: Vec<(WlOutput, OutputInfo)>,
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
     im_serial: Wrapping<u32>,
@@ -609,43 +633,38 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WaylandState {
     }
 }
 
-/*
 impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
     fn event(
         state: &mut Self,
-        _output: &wl_output::WlOutput,
+        output: &wl_output::WlOutput,
         event: wl_output::Event,
         (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
         match event {
-            wl_output::Event::Geometry {
-                x,
-                y,
-                physical_width,
-                physical_height,
-                subpixel,
-                make,
-                model,
-                transform,
-            } => {
-                state.width = x;
-                state.height = y;
-                warn!("x: {}, y: {}, physical_width: {}, physical_height: {}, make: {}, : {}",x,y,physical_width,physical_height,make,model,model);
-            }
             wl_output::Event::Mode {
                 flags,
                 width,
                 height,
                 refresh,
             } => {
-                warn!("width: {}, : {height}",width,height);
+                warn!("flags: {flags:?}, width: {width}, : {height}, refresh: {refresh}");
+                if flags == WEnum::Value(Mode::Current) {
+                    if let Some((_, output_data)) =
+                        state.outputs.iter_mut().find(|(o, _)| o == output)
+                    {
+                        output_data.width = width;
+                        output_data.height = height;
+                    }
+                };
             }
-            _ => {}
+            ev => {
+                warn!("{ev:?}");
+            }
         };
     }
-}*/
+}
 
 impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> for WaylandState {
     fn event(
