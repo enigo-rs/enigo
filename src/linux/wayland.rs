@@ -889,11 +889,16 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        // TODO Implement this
-        error!(
-            "You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
-        );
-        Err(InputError::Simulate("Not implemented yet"))
+        // TODO: The assumption here is that the output we store in the first position
+        // is the main display. This likely can be wrong
+        match self.state.outputs.first() {
+            // Switch width and height if the output was transformed
+            Some((_, output_info)) if output_info.transform => {
+                Ok((output_info.height, output_info.width))
+            }
+            Some((_, output_info)) => Ok((output_info.width, output_info.height)),
+            None => Err(InputError::Simulate("No screens available")),
+        }
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
