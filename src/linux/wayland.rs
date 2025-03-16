@@ -139,10 +139,11 @@ impl Con {
         // Bind to wl_seat if it exists
         // MUST be done before doing any bindings relevant to the input_method
         // protocol, otherwise e.g. labwc crashes
-        let &(name, version) = self
+        let &(_, name, version) = self
             .state
             .globals
-            .get("wl_seat")
+            .iter()
+            .find(|(interface_name, _, _)| interface_name == "wl_seat")
             .ok_or(NewConError::EstablishCon("No seat available"))?;
         let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version.min(1), &qh, ());
 
@@ -173,7 +174,12 @@ impl Con {
             .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
 
         // Ask compositor to create VirtualKeyboardManager
-        if let Some(&(name, version)) = self.state.globals.get("zwp_virtual_keyboard_manager_v1") {
+        if let Some(&(_, name, version)) = self
+            .state
+            .globals
+            .iter()
+            .find(|(interface_name, _, _)| interface_name == "zwp_virtual_keyboard_manager_v1")
+        {
             let manager = registry
                 .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
                     name,
@@ -188,7 +194,12 @@ impl Con {
         }
 
         // Ask compositor to create InputMethodManager
-        if let Some(&(name, version)) = self.state.globals.get("zwp_input_method_manager_v2") {
+        if let Some(&(_, name, version)) = self
+            .state
+            .globals
+            .iter()
+            .find(|(interface_name, _, _)| interface_name == "zwp_input_method_manager_v2")
+        {
             let manager = registry
                 .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
                     name,
@@ -203,7 +214,12 @@ impl Con {
         }
 
         // Ask compositor to create VirtualPointerManager
-        if let Some(&(name, version)) = self.state.globals.get("zwlr_virtual_pointer_manager_v1") {
+        if let Some(&(_, name, version)) = self
+            .state
+            .globals
+            .iter()
+            .find(|(interface_name, _, _)| interface_name == "zwlr_virtual_pointer_manager_v1")
+        {
             let manager = registry
                 .bind::<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, _, _>(
                     name,
@@ -434,8 +450,8 @@ impl Drop for Con {
 #[derive(Clone, Debug, Default)]
 /// Stores the manager for the various protocols
 struct WaylandState {
-    // Map of interface name -> (global name, version)
-    globals: std::collections::HashMap<String, (u32, u32)>,
+    // interface name, global id, version
+    globals: Vec<(String, u32, u32)>,
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
     im_serial: Wrapping<u32>,
@@ -470,7 +486,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 "Global announced: {} (name: {}, version: {})",
                 interface, name, version
             );
-            state.globals.insert(interface, (name, version));
+            state.globals.push((interface, name, version));
         }
     }
 }
