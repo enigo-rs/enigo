@@ -497,20 +497,25 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        // When receiving events from the wl_registry, we are only interested in the
-        // `global` event, which signals a new available global and then store it to
-        // later bind to them
-        if let wl_registry::Event::Global {
-            name,
-            interface,
-            version,
-        } = event
-        {
-            trace!(
-                "Global announced: {} (name: {}, version: {})",
-                interface, name, version
-            );
-            state.globals.push((interface, name, version));
+        match event {
+            // Store global to later bind to them
+            wl_registry::Event::Global {
+                name,
+                interface,
+                version,
+            } => {
+                trace!(
+                    "Global announced: {} (name: {}, version: {})",
+                    interface, name, version
+                );
+                state.globals.push((interface, name, version));
+            }
+            // Remove global from store when it becomes unavailable
+            wl_registry::Event::GlobalRemove { name } => {
+                trace!("Global removed: {}", name);
+                state.globals.retain(|&(_, n, _)| n != name);
+            }
+            ev => warn!("Received unknown Wayland event: {ev:?}"),
         }
     }
 }
