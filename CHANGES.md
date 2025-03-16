@@ -17,6 +17,7 @@
 - linux: wayland: Correct whitespace and nullbyte at the end of the keymap
 - linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
 - linux: wayland: Fix moving the mouse to an absolute coordinate
+- linux: wayland: Don't hang when using Sway
 
 # 0.3.0
 ## Changed
