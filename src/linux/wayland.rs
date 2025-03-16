@@ -46,9 +46,6 @@ pub struct Con {
     keymap: KeyMap<Keycode>,
     event_queue: EventQueue<WaylandState>,
     state: WaylandState,
-    virtual_keyboard: Option<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1>,
-    input_method: Option<zwp_input_method_v2::ZwpInputMethodV2>,
-    virtual_pointer: Option<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1>,
     base_time: std::time::Instant,
 }
 
@@ -100,9 +97,6 @@ impl Con {
             keymap,
             event_queue,
             state,
-            virtual_keyboard: None,
-            input_method: None,
-            virtual_pointer: None,
             base_time: Instant::now(),
         };
 
@@ -267,23 +261,23 @@ impl Con {
 
         if self.state.seat.is_some() {
             // Setup input method
-            self.input_method =
+            self.state.input_method =
                 self.state.im_manager.as_ref().map(|im_mgr| {
                     im_mgr.get_input_method(self.state.seat.as_ref().unwrap(), &qh, ())
                 });
             // Wait for Activate response if the input_method was created
-            if self.input_method.is_some() {
+            if self.state.input_method.is_some() {
                 self.event_queue
                     .blocking_dispatch(&mut self.state)
                     .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
             }
 
             // Setup virtual keyboard
-            self.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
+            self.state.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
                 vk_mgr.create_virtual_keyboard(self.state.seat.as_ref().unwrap(), &qh, ())
             });
             // Wait for KeyMap response if virtual_keyboard was created
-            if self.virtual_keyboard.is_some() {
+            if self.state.virtual_keyboard.is_some() {
                 self.event_queue
                     .blocking_dispatch(&mut self.state)
                     .map_err(|_| NewConError::EstablishCon("Wayland blocking dispatch failed"))?;
@@ -291,12 +285,12 @@ impl Con {
         }
 
         // Setup virtual pointer
-        self.virtual_pointer = self
+        self.state.virtual_pointer = self
             .state
             .pointer_manager
             .as_ref()
             .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
-        if self.virtual_pointer.is_some() {
+        if self.state.virtual_pointer.is_some() {
             self.event_queue
                 .flush()
                 .map_err(|_| NewConError::EstablishCon("Flushing Wayland queue failed"))?;
@@ -306,14 +300,14 @@ impl Con {
 
         debug!(
             "protocols available\nvirtual_keyboard: {}\ninput_method: {}\nvirtual_pointer: {}",
-            self.virtual_keyboard.is_some(),
-            self.input_method.is_some(),
-            self.virtual_pointer.is_some(),
+            self.state.virtual_keyboard.is_some(),
+            self.state.input_method.is_some(),
+            self.state.virtual_pointer.is_some(),
         );
 
-        if self.virtual_keyboard.is_none()
-            && self.input_method.is_none()
-            && self.virtual_pointer.is_none()
+        if self.state.virtual_keyboard.is_none()
+            && self.state.input_method.is_none()
+            && self.state.virtual_pointer.is_none()
         {
             return Err(NewConError::EstablishCon(
                 "no protocol available to simulate input",
@@ -335,6 +329,7 @@ impl Con {
     /// TODO
     fn send_key_event(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
         let vk = self
+            .state
             .virtual_keyboard
             .as_ref()
             .ok_or(InputError::Simulate("no way to enter key"))?;
@@ -364,6 +359,7 @@ impl Con {
     fn send_modifier_event(&mut self, modifiers: ModifierBitflag) -> InputResult<()> {
         // Retrieve virtual keyboard or return an error early if None
         let vk = self
+            .state
             .virtual_keyboard
             .as_ref()
             .ok_or(InputError::Simulate("no way to enter key"))?;
@@ -391,6 +387,7 @@ impl Con {
     fn apply_keymap(&mut self) -> InputResult<()> {
         trace!("apply_keymap(&mut self)");
         let vk = self
+            .state
             .virtual_keyboard
             .as_ref()
             .ok_or(InputError::Simulate("no way to apply keymap"))?;
@@ -452,13 +449,13 @@ impl Bind<Keycode> for Con {
 impl Drop for Con {
     // Destroy the Wayland objects we created
     fn drop(&mut self) {
-        if let Some(vk) = self.virtual_keyboard.take() {
+        if let Some(vk) = self.state.virtual_keyboard.take() {
             vk.destroy();
         }
-        if let Some(im) = self.input_method.take() {
+        if let Some(im) = self.state.input_method.take() {
             im.destroy();
         }
-        if let Some(vp) = self.virtual_pointer.take() {
+        if let Some(vp) = self.state.virtual_pointer.take() {
             vp.destroy();
         }
 
@@ -478,9 +475,12 @@ struct WaylandState {
     globals: Vec<(String, u32, u32)>,
     outputs: Vec<(WlOutput, OutputInfo)>,
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
+    virtual_keyboard: Option<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1>,
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
+    input_method: Option<zwp_input_method_v2::ZwpInputMethodV2>,
     im_serial: Wrapping<u32>,
     pointer_manager: Option<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1>,
+    virtual_pointer: Option<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1>,
     seat: Option<wl_seat::WlSeat>,
     seat_keyboard: Option<WlKeyboard>,
     seat_pointer: Option<WlPointer>,
@@ -727,16 +727,18 @@ impl Drop for WaylandState {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
-        let Some(im) = self.input_method.as_mut() else {
+        // Process all previous events so that the serial number is correct
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+
+        let Some(im) = self.state.input_method.as_mut() else {
             return Ok(None);
         };
 
         is_alive(im)?;
         trace!("fast text input with imput_method protocol");
-        // Process all previous events so that the serial number is correct
-        self.event_queue
-            .roundtrip(&mut self.state)
-            .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+
         im.commit_string(text.to_string());
         im.commit(self.state.im_serial.0);
 
@@ -779,6 +781,7 @@ impl Keyboard for Con {
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let vp = self
+            .state
             .virtual_pointer
             .as_ref()
             .ok_or(InputError::Simulate("no way to enter button"))?;
@@ -827,6 +830,7 @@ impl Mouse for Con {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let vp = self
+            .state
             .virtual_pointer
             .as_ref()
             .ok_or(InputError::Simulate("no way to move the mouse"))?;
@@ -867,6 +871,7 @@ impl Mouse for Con {
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let vp = self
+            .state
             .virtual_pointer
             .as_ref()
             .ok_or(InputError::Simulate("no way to scroll"))?;
