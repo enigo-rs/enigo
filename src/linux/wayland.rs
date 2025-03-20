@@ -279,7 +279,7 @@ impl Con {
 
         trace!("update wayland keymap");
 
-        let keymap_file = self.keymap.file.as_ref().unwrap(); // Safe here, assuming file is always present
+        let keymap_file = self.keymap.keymap_mapping.file.as_ref().unwrap(); // Safe here, assuming file is always present
         vk.keymap(1, keymap_file.as_fd(), size);
 
         debug!("wait for response after keymap call");
