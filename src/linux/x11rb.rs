@@ -224,7 +224,7 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for &keycode in self.keymap.additionally_mapped.values() {
+        for &keycode in self.keymap.keymap_mapping.additionally_mapped.values() {
             match self.connection.bind_key(keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
