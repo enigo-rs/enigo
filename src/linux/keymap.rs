@@ -49,17 +49,10 @@ pub struct KeyMap<Keycode> {
     pending_delays: u32,
 }
 
-// TODO: Check if the bounds can be simplified
-impl<
-    Keycode: std::ops::Sub
-        + PartialEq
-        + Copy
-        + Clone
-        + Display
-        + TryInto<usize>
-        + std::convert::TryFrom<usize>,
-> KeyMap<Keycode>
+impl<Keycode> KeyMap<Keycode>
 where
+    Keycode: Copy + Clone + PartialEq + Display,
+    Keycode: TryInto<usize> + TryFrom<usize>,
     <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
     <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
 {
