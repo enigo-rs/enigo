@@ -13,6 +13,20 @@ use crate::{Direction, InputError, InputResult, Key};
 const DEFAULT_DELAY: u32 = 12;
 
 #[derive(Debug)]
+pub(super) struct KeyMapMapping<Keycode> {
+    pub(super) additionally_mapped: HashMap<Keysym, Keycode>,
+    keycode_min: Keycode,
+    keycode_max: Keycode,
+    keysyms_per_keycode: u8,
+    keysyms: Vec<u32>,
+
+    unused_keycodes: VecDeque<Keycode>,
+
+    #[cfg(feature = "wayland")]
+    pub(super) file: Option<std::fs::File>, // temporary file that contains the keymap
+}
+
+#[derive(Debug)]
 struct KeyMapState<Keycode> {
     held_keycodes: Vec<Keycode>, // cannot get unmapped
     needs_regeneration: bool,
@@ -24,17 +38,7 @@ struct KeyMapState<Keycode> {
 
 #[derive(Debug)]
 pub struct KeyMap<Keycode> {
-    pub(super) additionally_mapped: HashMap<Keysym, Keycode>,
-    keycode_min: Keycode,
-    keycode_max: Keycode,
-    keysyms_per_keycode: u8,
-    keysyms: Vec<u32>,
-
-    unused_keycodes: VecDeque<Keycode>,
-
-    #[cfg(feature = "wayland")]
-    pub(super) file: Option<std::fs::File>, // temporary file that contains the keymap
-
+    pub(super) keymap_mapping: KeyMapMapping<Keycode>,
     keymap_state: KeyMapState<Keycode>,
 
     #[cfg(feature = "x11rb")]
@@ -83,13 +87,7 @@ where
             last_keys: vec![],
         };
 
-        #[cfg(feature = "x11rb")]
-        let delay = DEFAULT_DELAY;
-        #[cfg(feature = "x11rb")]
-        let last_event_before_delays = std::time::Instant::now();
-        #[cfg(feature = "x11rb")]
-        let pending_delays = 0;
-        Self {
+        let keymap_mapping = KeyMapMapping {
             additionally_mapped: keymap,
             keycode_min,
             keycode_max,
@@ -98,9 +96,18 @@ where
             unused_keycodes,
             #[cfg(feature = "wayland")]
             file,
+        };
 
+        #[cfg(feature = "x11rb")]
+        let delay = DEFAULT_DELAY;
+        #[cfg(feature = "x11rb")]
+        let last_event_before_delays = std::time::Instant::now();
+        #[cfg(feature = "x11rb")]
+        let pending_delays = 0;
+
+        Self {
+            keymap_mapping,
             keymap_state,
-
             #[cfg(feature = "x11rb")]
             delay,
             #[cfg(feature = "x11rb")]
@@ -111,8 +118,8 @@ where
     }
 
     fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
-        let keycode_min: usize = self.keycode_min.try_into().unwrap();
-        let keycode_max: usize = self.keycode_max.try_into().unwrap();
+        let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
+        let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
 
         // TODO: Change this range to 0..self.keysyms_per_keycode once we find out how
         // to detect the level and switch it
@@ -126,8 +133,8 @@ where
                     keycode,
                     j,
                     min_keycode,
-                    self.keysyms_per_keycode,
-                    &self.keysyms,
+                    self.keymap_mapping.keysyms_per_keycode,
+                    &self.keymap_mapping.keysyms,
                 ) {
                     if ks == keysym {
                         let i: usize = i.try_into().unwrap();
@@ -151,7 +158,7 @@ where
         }
 
         let keycode = {
-            if let Some(&keycode) = self.additionally_mapped.get(&sym) {
+            if let Some(&keycode) = self.keymap_mapping.additionally_mapped.get(&sym) {
                 // The keysym is already mapped and cached in the keymap
                 keycode
             } else {
@@ -178,7 +185,7 @@ where
     ///
     /// This does not apply the changes
     pub fn map<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) -> InputResult<Keycode> {
-        match self.unused_keycodes.pop_front() {
+        match self.keymap_mapping.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
                 trace!("trying to map keycode {unused_keycode} to keysym {keysym:?}");
@@ -186,7 +193,9 @@ where
                     return Err(InputError::Mapping(format!("{keysym:?}")));
                 }
                 self.keymap_state.needs_regeneration = true;
-                self.additionally_mapped.insert(keysym, unused_keycode);
+                self.keymap_mapping
+                    .additionally_mapped
+                    .insert(keysym, unused_keycode);
                 debug!("mapped keycode {unused_keycode} to keysym {keysym:?}");
                 Ok(unused_keycode)
             }
@@ -209,8 +218,8 @@ where
             return Err(InputError::Unmapping(format!("{keysym:?}")));
         }
         self.keymap_state.needs_regeneration = true;
-        self.unused_keycodes.push_back(keycode);
-        self.additionally_mapped.remove(&keysym);
+        self.keymap_mapping.unused_keycodes.push_back(keycode);
+        self.keymap_mapping.additionally_mapped.remove(&keysym);
         debug!("unmapped keysym {keysym:?}");
         Ok(())
     }
@@ -252,8 +261,8 @@ where
     /// regenerated
     fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
         // Unmap all keys, if all keycodes are already being used
-        if self.unused_keycodes.is_empty() {
-            let mapped_keys = self.additionally_mapped.clone();
+        if self.keymap_mapping.unused_keycodes.is_empty() {
+            let mapped_keys = self.keymap_mapping.additionally_mapped.clone();
             let held_keycodes = self.keymap_state.held_keycodes.clone();
             let mut made_room = false;
 
@@ -290,20 +299,21 @@ where
         }
 
         // Create a file to store the layout
-        if self.file.is_none() {
+        if self.keymap_mapping.file.is_none() {
             let mut temp_file = tempfile::tempfile()?;
             temp_file.write_all(KEYMAP_BEGINNING)?;
-            self.file = Some(temp_file);
+            self.keymap_mapping.file = Some(temp_file);
         }
 
         let keymap_file = self
+            .keymap_mapping
             .file
             .as_mut()
             .expect("There was no file to write to. This should not be possible!");
         // Move the virtual cursor of the file to the end of the part of the keymap that
         // is always the same so we only overwrite the parts that can change.
         keymap_file.seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))?;
-        for (&keysym, &keycode) in &self.additionally_mapped {
+        for (&keysym, &keycode) in &self.keymap_mapping.additionally_mapped {
             write!(
                 keymap_file,
                 "
