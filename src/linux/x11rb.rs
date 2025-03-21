@@ -69,8 +69,15 @@ impl Con {
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
-        let (keysyms_per_keycode, keysyms) =
-            Self::get_keyboard_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+
+        let GetKeyboardMappingReply {
+            keysyms_per_keycode,
+            keysyms,
+            ..
+        } = connection
+            .get_keyboard_mapping(min_keycode, max_keycode - min_keycode + 1)?
+            .reply()?;
+
         let unused_keycodes =
             Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
@@ -106,24 +113,6 @@ impl Con {
     /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
-    }
-
-    /// Find keycodes that have not yet been mapped any keysyms
-    fn get_keyboard_mapping(
-        connection: &CompositorConnection,
-        keycode_min: Keycode,
-        keycode_max: Keycode,
-    ) -> Result<(u8, Vec<u32>), ReplyError> {
-        let GetKeyboardMappingReply {
-            keysyms_per_keycode,
-            keysyms,
-            ..
-        } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min + 1)?
-            .reply()?;
-
-        //let keysyms = keysyms.into_iter().map(|s| Keysym::from(s)).collect();
-        Ok((keysyms_per_keycode, keysyms))
     }
 
     fn unused_keycodes(
