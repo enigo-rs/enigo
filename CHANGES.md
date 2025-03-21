@@ -18,6 +18,7 @@
 - linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
 - linux: wayland: Fix moving the mouse to an absolute coordinate
 - linux: wayland: Don't hang when using Sway
+- linux: x11rb: Fix not being able to enter right modifier keys [#391](https://github.com/enigo-rs/enigo/issues/391)
 
 # 0.3.0
 ## Changed

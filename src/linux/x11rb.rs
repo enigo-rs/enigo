@@ -28,7 +28,7 @@ pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
-    modifiers: Vec<Keycode>,
+    modifiers: Vec<Vec<Keycode>>,
     delay: u32, // milliseconds
 }
 
@@ -157,32 +157,28 @@ impl Con {
     /// Find the keycodes that must be used for the modifiers
     fn find_modifier_keycodes(
         connection: &CompositorConnection,
-    ) -> Result<Vec<Keycode>, ReplyError> {
+    ) -> Result<Vec<Vec<Keycode>>, ReplyError> {
         let modifier_reply = connection.get_modifier_mapping()?.reply()?;
         let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
         let GetModifierMappingReply {
             keycodes: modifiers,
             ..
         } = modifier_reply;
-        trace!("keycodes per modifier: {keycodes_per_modifier:?}");
+
+        let modifiers: Vec<_> = modifiers
+            .chunks(keycodes_per_modifier)
+            .enumerate()
+            .map(|(mod_no, c)| {
+                let keycodes: Vec<_> = c.iter().copied().filter(|&kc| kc != 0).collect();
+                if keycodes.is_empty() {
+                    warn!("modifier_no: {mod_no} is unmapped");
+                }
+                keycodes
+            })
+            .collect();
         trace!("the keycodes associated with the modifiers are:\n{modifiers:?}");
 
-        debug!("modifier mapping:");
-        let mut modifier_keycodes = vec![0; 8];
-        'mods: for (mod_no, mod_keycode) in modifier_keycodes.iter_mut().enumerate().take(8) {
-            let start = mod_no * keycodes_per_modifier;
-            for &keycode in &modifiers[start..start + keycodes_per_modifier] {
-                if keycode != 0 {
-                    // Found one keycode that can be used for this modifier
-                    debug!("mod_no: {mod_no} -> {keycode}");
-                    *mod_keycode = keycode;
-                    continue 'mods;
-                }
-            }
-            warn!("modifier_no: {mod_no} is unmapped");
-        }
-
-        Ok(modifier_keycodes)
+        Ok(modifiers)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -250,18 +246,18 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        // Check if the key is a modifier
-        let keycode: u16 = match Modifier::try_from(key) {
-            // If it is a modifier, the already mapped keycode must be used
-            Ok(modifier) => {
-                debug!("it is a modifier: {modifier:?}");
-                self.modifiers[modifier.no()].into()
-            }
-            // All regular keys might have to get mapped
-            _ => self.keymap.key_to_keycode(&self.connection, key)?.into(),
-        };
+        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
 
-        self.raw(keycode, direction)
+        if let Ok(modifier) = Modifier::try_from(key) {
+            debug!("it is a modifier: {modifier:?}");
+            if !self.modifiers[modifier.no()].contains(&keycode) {
+                return Err(InputError::Mapping(
+                    "the modifier is mapped, but not registered as a modifier".to_string(),
+                ));
+            }
+        }
+
+        self.raw(keycode.into(), direction)
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
