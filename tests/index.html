@@ -157,14 +157,14 @@
         // Handle keydown events but ignore if flag is set
         document.addEventListener('keydown', (event) => {
             if (!ignoreKeyEvents) {
-                handleEvent('KeyDown', `(\"${event.key}\")`);
+                handleEvent('KeyDown', `(\"${event.code}\")`);
             }
         });
 
         // Handle keyup events but ignore if flag is set
         document.addEventListener('keyup', (event) => {
             if (!ignoreKeyEvents) {
-                handleEvent('KeyUp', `(\"${event.key}\")`);
+                handleEvent('KeyUp', `(\"${event.code}\")`);
             }
         });
 

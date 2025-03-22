@@ -93,12 +93,7 @@ impl Keyboard for EnigoTest {
         self.send_message("GetText");
 
         let ev = self.read_message();
-        if let BrowserEvent::Text(received_text) = ev {
-            println!("received text: {received_text}");
-            assert_eq!(text, received_text);
-        } else {
-            panic!("BrowserEvent was not a Text: {ev:?}");
-        }
+        assert_eq!(ev, text);
 
         res.map(Some) // TODO: Check if this is always correct
     }
@@ -107,34 +102,12 @@ impl Keyboard for EnigoTest {
         let res = self.enigo.key(key, direction);
         if direction == Press || direction == Click {
             let ev = self.read_message();
-            if let BrowserEvent::KeyDown(name) = ev {
-                println!("received pressed key: {name}");
-                let key_name = if let Key::Unicode(char) = key {
-                    format!("{char}")
-                } else {
-                    format!("{key:?}").to_lowercase()
-                };
-                println!("key_name: {key_name}");
-                assert_eq!(key_name, name.to_lowercase());
-            } else {
-                panic!("BrowserEvent was not a KeyDown: {ev:?}");
-            }
+            assert_eq!(ev, (key, Press))
         }
         if direction == Release || direction == Click {
             std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
             let ev = self.read_message();
-            if let BrowserEvent::KeyUp(name) = ev {
-                println!("received released key: {name}");
-                let key_name = if let Key::Unicode(char) = key {
-                    format!("{char}")
-                } else {
-                    format!("{key:?}").to_lowercase()
-                };
-                println!("key_name: {key_name}");
-                assert_eq!(key_name, name.to_lowercase());
-            } else {
-                panic!("BrowserEvent was not a KeyUp: {ev:?}");
-            }
+            assert_eq!(ev, (key, Release));
         }
         println!("enigo.key() was a success");
         res

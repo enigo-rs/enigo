@@ -20,6 +20,23 @@ fn integration_browser_events() {
     enigo.key(Key::Backspace, Press).unwrap();
     enigo.key(Key::Backspace, Release).unwrap();
 
+    // Skip when using xdo feature because xdotools doesn't properly simulate right
+    // modifiers
+    // https://github.com/jordansissel/xdotool/issues/487
+    #[cfg(not(feature = "xdo"))]
+    {
+        println!("Test if the left and right versions of keys can get differentiated");
+        enigo.key(Key::Control, Press).unwrap();
+        enigo.key(Key::Control, Release).unwrap();
+        enigo.key(Key::LControl, Press).unwrap();
+        enigo.key(Key::LControl, Release).unwrap();
+        enigo.key(Key::RControl, Press).unwrap();
+        enigo.key(Key::RControl, Release).unwrap();
+        enigo.key(Key::Shift, Click).unwrap();
+        enigo.key(Key::LShift, Click).unwrap();
+        enigo.key(Key::RShift, Click).unwrap();
+    }
+
     println!("Test mouse");
     // enigo.button(Button::Left, Click).unwrap();
     enigo.move_mouse(100, 100, Abs).unwrap();
