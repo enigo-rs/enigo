@@ -1,3 +1,4 @@
+use enigo::{Direction, Key};
 use serde::{Deserialize, Serialize};
 use tungstenite::{Message, Utf8Bytes};
 
@@ -46,6 +47,53 @@ impl TryFrom<Message> for BrowserEvent {
                 println!("Other Message received");
                 Err(BrowserEventError::UnknownMessageType)
             }
+        }
+    }
+}
+
+impl PartialEq<(Key, Direction)> for BrowserEvent {
+    fn eq(&self, (key, direction): &(Key, Direction)) -> bool {
+        match self {
+            BrowserEvent::KeyDown(name) if *direction == Direction::Press => {
+                let key_name = match key {
+                    Key::Unicode(char) => format!("{char}"),
+                    Key::Shift => format!("ShiftLeft"),
+                    Key::LShift => format!("ShiftLeft"),
+                    Key::RShift => format!("ShiftRight"),
+                    Key::Control => format!("ControlLeft"),
+                    Key::LControl => format!("ControlLeft"),
+                    Key::RControl => format!("ControlRight"),
+                    // TODO: Add the other keys that have a right and left variant here
+                    _ => format!("{key:?}"),
+                };
+                key_name == *name
+            }
+
+            BrowserEvent::KeyUp(name) if *direction == Direction::Release => {
+                let key_name = match key {
+                    Key::Unicode(char) => format!("{char}"),
+                    Key::Shift => format!("ShiftLeft"),
+                    Key::LShift => format!("ShiftLeft"),
+                    Key::RShift => format!("ShiftRight"),
+                    Key::Control => format!("ControlLeft"),
+                    Key::LControl => format!("ControlLeft"),
+                    Key::RControl => format!("ControlRight"),
+                    // TODO: Add the other keys that have a right and left variant here
+                    _ => format!("{key:?}"),
+                };
+                key_name == *name
+            }
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq<&str> for BrowserEvent {
+    fn eq(&self, other: &&str) -> bool {
+        if let BrowserEvent::Text(received_text) = self {
+            other == received_text
+        } else {
+            false
         }
     }
 }
