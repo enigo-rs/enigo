@@ -10,6 +10,9 @@
 
 <body>
     <h1>Conducted tests</h1>
+    <!-- Checkbox to disable WebSocket connection -->
+    <input type="checkbox" id="disableWS" name="disableWS" />
+    <label for="disableWS"> Disable WebSocket Connection</label><br>
     <input type="checkbox" id="KeyDown" name="KeyDown">
     <label for="KeyDown"> KeyDown</label><br>
     <input type="checkbox" id="KeyUp" name="KeyUp">
@@ -30,12 +33,26 @@
         let messageQueue = []; // Queue to store pending messages
         let reconnectInterval = 1000; // Initial reconnect interval (1 second)
 
-        // Focus on the textarea when the page loads
+        // Focus on the textarea when the page loads and initialize WebSocket if not disabled
         window.onload = () => {
             const textArea = document.getElementById('text');
             textArea.focus();
-            initializeWebSocket(); // Initialize WebSocket when the page loads
+            // Only initialize the WebSocket if the disable checkbox is not checked
+            if (!document.getElementById('disableWS').checked) {
+                initializeWebSocket();
+            }
         };
+
+        // Listen for changes on the disable checkbox
+        document.getElementById('disableWS').addEventListener('change', function () {
+            if (!this.checked) {
+                // If unchecked and there is no active WebSocket, attempt reconnect
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    console.log('WebSocket re-enabled via checkbox. Attempting to reconnect...');
+                    initializeWebSocket();
+                }
+            }
+        });
 
         // Prevent other elements from gaining focus
         document.addEventListener('focusin', (event) => {
@@ -95,16 +112,23 @@
             });
         }
 
-        // Schedule a reconnect every second
+        // Schedule a reconnect every second if WebSocket is not disabled
         function scheduleReconnect() {
+            if (document.getElementById('disableWS').checked) {
+                console.log('WebSocket connection is disabled by checkbox.');
+                return;
+            }
             setTimeout(() => {
-                initializeWebSocket(); // Attempt to reconnect
+                // Only try to reconnect if still not connected
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    initializeWebSocket();
+                }
             }, 1000); // Retry every 1000 milliseconds (1 second)
         }
 
         // Queue a message or send it directly if WebSocket is connected
         function sendMessage(message) {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(message);
             } else {
                 messageQueue.push(message); // Store message in the queue
