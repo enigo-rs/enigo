@@ -16,8 +16,7 @@ use x11rb::{
 
 use super::keymap::{Bind, KeyMap, Keysym};
 use crate::{
-    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
-    NewConError, keycodes::Modifier,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -28,7 +27,7 @@ pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
-    modifiers: Vec<Vec<Keycode>>,
+    modifiers: [Vec<Keycode>; 8],
     delay: u32, // milliseconds
 }
 
@@ -157,7 +156,7 @@ impl Con {
     /// Find the keycodes that must be used for the modifiers
     fn find_modifier_keycodes(
         connection: &CompositorConnection,
-    ) -> Result<Vec<Vec<Keycode>>, ReplyError> {
+    ) -> Result<[Vec<Keycode>; 8], ReplyError> {
         let modifier_reply = connection.get_modifier_mapping()?.reply()?;
         let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
         let GetModifierMappingReply {
@@ -165,20 +164,25 @@ impl Con {
             ..
         } = modifier_reply;
 
-        let modifiers: Vec<_> = modifiers
-            .chunks(keycodes_per_modifier)
-            .enumerate()
-            .map(|(mod_no, c)| {
-                let keycodes: Vec<_> = c.iter().copied().filter(|&kc| kc != 0).collect();
-                if keycodes.is_empty() {
-                    warn!("modifier_no: {mod_no} is unmapped");
-                }
-                keycodes
-            })
-            .collect();
-        trace!("the keycodes associated with the modifiers are:\n{modifiers:?}");
+        let mut modifiers_array: [Vec<Keycode>; 8] = Default::default(); // Initialize with empty vectors
+        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
+        if modifier_mapping.len() > 8 {
+            error!(
+                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
+                modifier_mapping.len()
+            );
+            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
+        }
+        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
+            let keycodes: Vec<_> = mod_keycodes.iter().copied().filter(|&kc| kc != 0).collect();
+            if keycodes.is_empty() {
+                warn!("modifier_no: {mod_no} is unmapped");
+            }
+            modifiers_array[mod_no] = keycodes;
+        }
+        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
 
-        Ok(modifiers)
+        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -248,12 +252,11 @@ impl Keyboard for Con {
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
 
-        if let Ok(modifier) = Modifier::try_from(key) {
-            debug!("it is a modifier: {modifier:?}");
-            if !self.modifiers[modifier.no()].contains(&keycode) {
-                return Err(InputError::Mapping(
-                    "the modifier is mapped, but not registered as a modifier".to_string(),
-                ));
+        if log::log_enabled!(log::Level::Debug) {
+            for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
+                if mod_keycodes.contains(&keycode) {
+                    debug!("the key is modifier no: {mod_idx}");
+                }
             }
         }
 
