@@ -72,6 +72,10 @@ emerge -a xdotool
 
 Please have a look at our [changelog](CHANGES.md) to find out what you have to do, if you used a previous version.
 
+## Debugging
+
+If you encounter an issue and want to debug it, turn on log messages as described [here](DEBUGGING.md).
+
 ## Permissions
 
 Some platforms have security measures in place to prevent programs from entering keys or controlling the mouse. Have a look at the [permissions](Permissions.md) documentation to see what you need to do to allow it.
