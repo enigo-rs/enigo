@@ -20,6 +20,7 @@
 - linux: wayland: Don't hang when using Sway
 - linux: x11rb: Fix not being able to enter right modifier keys [#391](https://github.com/enigo-rs/enigo/issues/391)
 - linux: x11rb: Don't assume a modifier mapping and get the modifier mapping dynamically instead [#410](https://github.com/enigo-rs/enigo/issues/410)
+- linux: x11rb: Successfully enter the first simulated character as well
 
 # 0.3.0
 ## Changed

@@ -92,7 +92,12 @@ impl Con {
             8,
             255,
             // All keycodes are unused when initialized
-            (8..=255).collect::<VecDeque<Keycode>>(),
+            // Never use keycode 8
+            // Keycode 8 is special: when converted to evdev keycodes,
+            // 8 is subtracted, resulting in 0. This typically leads to no effect
+            // when simulating input because keycode 0 corresponds to NoSymbol,
+            // meaning it has no assigned key mapping.
+            (9..=255).collect::<VecDeque<Keycode>>(),
             0,
             Vec::new(),
         );
