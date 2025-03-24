@@ -122,10 +122,7 @@ impl Con {
     // Helper function for setting up the Wayland connection
     fn setup_connection(dyp_name: Option<&str>) -> Result<Connection, NewConError> {
         let connection = if let Some(dyp_name) = dyp_name {
-            debug!(
-                "\x1b[93mtrying to establish a connection to: {}\x1b[0m",
-                dyp_name
-            );
+            debug!("\x1b[93mtrying to establish a connection to: {dyp_name}\x1b[0m");
             let socket_path = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).ok_or(
                 NewConError::EstablishCon("Missing XDG_RUNTIME_DIR env variable"),
             )?;
@@ -308,7 +305,7 @@ impl Con {
     /// Flush the Wayland queue
     fn flush(&self) -> InputResult<()> {
         self.event_queue.flush().map_err(|e| {
-            error!("{:?}", e);
+            error!("{e:?}");
             InputError::Simulate("could not flush Wayland queue")
         })?;
         trace!("flushed event queue");
@@ -377,10 +374,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 interface,
                 version,
             } => {
-                trace!(
-                    "Global announced: {} (name: {}, version: {})",
-                    interface, name, version
-                );
+                trace!("Global announced: {interface} (name: {name}, version: {version})");
                 match &interface[..] {
                     "wl_seat" => {
                         let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version, qh, ());
@@ -475,7 +469,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a virtual keyboard manager event {:?}", event);
+        warn!("Received a virtual keyboard manager event {event:?}");
     }
 }
 
@@ -488,7 +482,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a virtual keyboard event {:?}", event);
+        warn!("Got a virtual keyboard event {event:?}");
     }
 }
 
@@ -501,7 +495,7 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received an input method manager event {:?}", event);
+        warn!("Received an input method manager event {event:?}");
     }
 }
 impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
@@ -513,10 +507,23 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a input method event {:?}", event);
+        warn!("Got a input method event {event:?}");
         match event {
             zwp_input_method_v2::Event::Done => state.im_serial += Wrapping(1u32),
-            _ => (), // TODO
+            zwp_input_method_v2::Event::Activate
+            | zwp_input_method_v2::Event::Deactivate
+            | zwp_input_method_v2::Event::SurroundingText {
+                text: _,
+                cursor: _,
+                anchor: _,
+            }
+            | zwp_input_method_v2::Event::TextChangeCause { cause: _ }
+            | zwp_input_method_v2::Event::ContentType {
+                hint: _,
+                purpose: _,
+            }
+            | zwp_input_method_v2::Event::Unavailable => (),
+            _ => todo!(),
         }
     }
 }
@@ -530,7 +537,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _con: &Connection,
         qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a seat event {:?}", event);
+        warn!("Received a seat event {event:?}");
         match event {
             wl_seat::Event::Capabilities { capabilities } => {
                 let capabilities = match capabilities {
@@ -568,7 +575,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a wl_keyboard event {:?}", event);
+        warn!("Got a wl_keyboard event {event:?}");
     }
 }
 
@@ -581,7 +588,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a wl_pointer event {:?}", event);
+        warn!("Got a wl_pointer event {event:?}");
     }
 }
 
@@ -642,7 +649,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a virtual keyboard manager event {:?}", event);
+        warn!("Received a virtual keyboard manager event {event:?}");
     }
 }
 
@@ -655,7 +662,7 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a virtual keyboard event {:?}", event);
+        warn!("Got a virtual keyboard event {event:?}");
     }
 }
 

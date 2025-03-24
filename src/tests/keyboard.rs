@@ -64,7 +64,7 @@ fn unit_text_all_utf16() {
                 Ok(()),
                 "Didn't expect an error for string: {string}"
             );
-        };
+        }
     }
 }
 
@@ -118,7 +118,7 @@ fn unit_key_unicode_all_utf16() {
                 Ok(()),
                 "Didn't expect an error for character: {character}"
             );
-        };
+        }
     }
 }
 
