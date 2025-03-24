@@ -12,6 +12,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUST_LOG: debug
+  WAYLAND_DEBUG: 1
 
 jobs:
   additional_tests:
