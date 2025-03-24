@@ -66,6 +66,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
     "objc2-core-foundation",
     "NSGeometry",
 ] }
+dispatch2 = "0.2"
 foreign-types-shared = "0.3"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
