@@ -64,7 +64,7 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
-        let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
+        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
@@ -280,10 +280,7 @@ impl Keyboard for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
-        debug!(
-            "xtest_fake_input with keycode {}, deviceid {}, delay {}",
-            keycode, deviceid, time
-        );
+        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, delay {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -357,10 +354,7 @@ impl Mouse for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
-        debug!(
-            "xtest_fake_input with button {}, deviceid {}, delay {}",
-            detail, deviceid, time
-        );
+        debug!("xtest_fake_input with button {detail}, deviceid {deviceid}, delay {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -429,8 +423,7 @@ impl Mouse for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}, delay {}",
-            detail, deviceid, root_x, root_y, time
+            "xtest_fake_input with coordinate {detail}, deviceid {deviceid}, x {root_x}, y {root_y}, delay {time}"
         );
 
         self.connection

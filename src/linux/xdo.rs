@@ -245,15 +245,15 @@ impl Mouse for Con {
         let button = mousebutton(button);
         let res = match direction {
             Direction::Press => {
-                debug!("xdo_mouse_down with mouse button {}", button);
+                debug!("xdo_mouse_down with mouse button {button}");
                 unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Release => {
-                debug!("xdo_mouse_up with mouse button {}", button);
+                debug!("xdo_mouse_up with mouse button {button}");
                 unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Click => {
-                debug!("xdo_click_window with mouse button {}", button);
+                debug!("xdo_click_window with mouse button {button}");
                 unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, button) }
             }
         };
@@ -266,11 +266,11 @@ impl Mouse for Con {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let res = match coordinate {
             Coordinate::Rel => {
-                debug!("xdo_move_mouse_relative with x {}, y {}", x, y);
+                debug!("xdo_move_mouse_relative with x {x}, y {y}");
                 unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
             }
             Coordinate::Abs => {
-                debug!("xdo_move_mouse with mouse button with x {}, y {}", x, y);
+                debug!("xdo_move_mouse with mouse button with x {x}, y {y}");
                 unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
             }
         };

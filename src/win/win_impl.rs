@@ -413,8 +413,7 @@ impl Enigo {
             Ok(output) => {
                 if output == 0 {
                     warn!(
-                        "The result for the input {:?} is zero. This usually means there was no mapping",
-                        input
+                        "The result for the input {input:?} is zero. This usually means there was no mapping"
                     );
                 }
                 Ok(output)
