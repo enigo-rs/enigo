@@ -233,13 +233,19 @@ fn unit_10th_click() {
     }
 }
 
-#[cfg(not(feature = "x11rb"))] // For some reason it stalls
 #[test]
 fn unit_scroll() {
     let delay = super::get_delay();
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
-    let test_cases = vec![0, 1, 5, 100, 57899, -57899, -0, -1, -5, -100];
+    // On X11 there is no scroll function but instead we repeatedly simulate a
+    // keypress. This takes a long time for large values. That's why we skip them on
+    // X11
+    let test_cases = if cfg!(any(feature = "xdo", feature = "x11rb")) {
+        vec![0, 1, 5, 100, -0, -1, -5, -100]
+    } else {
+        vec![0, 1, 5, 100, 57899, -57899, -0, -1, -5, -100]
+    };
 
     for length in &test_cases {
         thread::sleep(delay);
