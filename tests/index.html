@@ -157,14 +157,20 @@
         // Handle keydown events but ignore if flag is set
         document.addEventListener('keydown', (event) => {
             if (!ignoreKeyEvents) {
-                handleEvent('KeyDown', `(\"${event.code}\")`);
+
+                let debug_data = `key: ${event.key}, which: ${event.which}, charCode: ${event.charCode}, shiftKey: ${event.shiftKey}, ctrlKey: ${event.ctrlKey}, altKey: ${event.altKey}, metaKey: ${event.metaKey}, repeat: ${event.repeat}, isComposing: ${event.isComposing}, location: ${event.location}, bubbles: ${event.bubbles}, cancelable: ${event.cancelable}, defaultPrevented: ${event.defaultPrevented}, composed: ${event.composed}`;
+
+                handleEvent('KeyDown', `(\"${event.code}\", \"${debug_data}\")`);
             }
         });
 
         // Handle keyup events but ignore if flag is set
         document.addEventListener('keyup', (event) => {
             if (!ignoreKeyEvents) {
-                handleEvent('KeyUp', `(\"${event.code}\")`);
+
+                let debug_data = `key: ${event.key}, which: ${event.which}, charCode: ${event.charCode}, shiftKey: ${event.shiftKey}, ctrlKey: ${event.ctrlKey}, altKey: ${event.altKey}, metaKey: ${event.metaKey}, repeat: ${event.repeat}, isComposing: ${event.isComposing}, location: ${event.location}, bubbles: ${event.bubbles}, cancelable: ${event.cancelable}, defaultPrevented: ${event.defaultPrevented}, composed: ${event.composed}`;
+
+                handleEvent('KeyUp', `(\"${event.code}\", \"${debug_data}\")`);
             }
         });
 
