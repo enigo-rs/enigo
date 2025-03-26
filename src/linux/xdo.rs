@@ -281,20 +281,14 @@ impl Mouse for Con {
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        let mut length = length;
-        let button = if length < 0 {
-            length = -length;
-            match axis {
-                Axis::Horizontal => Button::ScrollLeft,
-                Axis::Vertical => Button::ScrollUp,
-            }
-        } else {
-            match axis {
-                Axis::Horizontal => Button::ScrollRight,
-                Axis::Vertical => Button::ScrollDown,
-            }
+        let button = match (length.is_positive(), axis) {
+            (true, Axis::Vertical) => Button::ScrollDown,
+            (false, Axis::Vertical) => Button::ScrollUp,
+            (true, Axis::Horizontal) => Button::ScrollRight,
+            (false, Axis::Horizontal) => Button::ScrollLeft,
         };
-        for _ in 0..length {
+
+        for _ in 0..length.abs() {
             self.button(button, Direction::Click)?;
         }
         Ok(())
