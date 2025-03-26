@@ -248,9 +248,7 @@ impl Bind<Keycode> for CompositorConnection {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
-        warn!("fast text entry is not yet implemented with x11rb");
-        // TODO: Add fast method
-        // xdotools can do it, so it is possible
+        warn!("fast text entry is not possible on X11");
         Ok(None)
     }
 
