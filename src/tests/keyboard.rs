@@ -157,7 +157,7 @@ fn unit_key_other_all_keycodes() {
     }
 
     // This will only run on Windows
-    for raw_keycode in max..=max {
+    for raw_keycode in max..=u32::MAX {
         assert_eq!(
             enigo.key(Key::Other(raw_keycode), Press),
             Err(InputError::InvalidInput(
