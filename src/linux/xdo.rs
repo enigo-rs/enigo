@@ -101,7 +101,7 @@ impl Con {
         debug!("using xdo");
         let xdo = match dyp_name {
             Some(name) => {
-                let Ok(string) = CString::new(name.as_bytes()) else {
+                let Ok(string) = CString::new(name) else {
                     return Err(NewConError::EstablishCon(
                         "the display name contained a null byte",
                     ));
@@ -150,8 +150,8 @@ impl Keyboard for Con {
             ));
         };
         debug!(
-            "xdo_enter_text_window with string {:?}, delay {}",
-            string, self.delay
+            "xdo_enter_text_window with string {string:?}, delay {}",
+            self.delay
         );
         let res = unsafe {
             xdo_enter_text_window(
@@ -185,8 +185,8 @@ impl Keyboard for Con {
         let res = match direction {
             Direction::Click => {
                 debug!(
-                    "xdo_send_keysequence_window with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window(
@@ -199,8 +199,8 @@ impl Keyboard for Con {
             }
             Direction::Press => {
                 debug!(
-                    "xdo_send_keysequence_window_down with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window_down with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window_down(
@@ -213,8 +213,8 @@ impl Keyboard for Con {
             }
             Direction::Release => {
                 debug!(
-                    "xdo_send_keysequence_window_up with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window_up with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window_up(
