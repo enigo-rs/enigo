@@ -1,0 +1,46 @@
+name: "screenshot"
+description: "Creates a screenshot"
+inputs:
+  rust:
+    description: 'Name of the Rust version'     
+    required: true
+  platform:
+    description: 'Name of the OS'     
+    required: true
+  feature:
+    description: 'Activated features'     
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Echo inputs
+      shell: bash
+      run: echo "${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}"
+    - name: Take screenshot on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get install -y imagemagick
+        DISPLAY=$DISPLAY import -window root -quality 90 ./'${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+    - name: Take screenshot on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        screencapture -x "${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg"
+    - name: Take screenshot on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+        $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+        $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+        $bitmap.Save("${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg", [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    - uses: actions/upload-artifact@v4
+      with:
+        name: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+        path: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
+        overwrite: true
+        
