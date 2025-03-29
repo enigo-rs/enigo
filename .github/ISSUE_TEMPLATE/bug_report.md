@@ -23,3 +23,4 @@ A clear and concise description of what you expected to happen.
 
 **Additional context**
 Add any other context about the problem here.
+Adding log messages can often be helpful. This is optional. You can find instruction on how to do it [here](../../DEBUGGING.md)

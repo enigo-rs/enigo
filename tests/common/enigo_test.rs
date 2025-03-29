@@ -11,8 +11,8 @@ use enigo::{
 use super::browser_events::BrowserEvent;
 
 const TIMEOUT: u64 = 5; // Number of minutes the test is allowed to run before timing out
-                        // This is needed, because some of the websocket functions are blocking and
-                        // would run indefinitely without a timeout if they don't receive a message
+// This is needed, because some of the websocket functions are blocking and
+// would run indefinitely without a timeout if they don't receive a message
 const INPUT_DELAY: u64 = 40; // Number of milliseconds to wait for the input to have an effect
 const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
 
@@ -23,7 +23,7 @@ pub struct EnigoTest {
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
-        env_logger::init();
+        env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
         let enigo = Enigo::new(settings).unwrap();
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
@@ -46,7 +46,9 @@ impl EnigoTest {
     fn send_message(&mut self, msg: &str) {
         println!("Sending message: {msg}");
         self.websocket
-            .send(tungstenite::Message::Text(msg.to_string()))
+            .send(tungstenite::Message::Text(tungstenite::Utf8Bytes::from(
+                msg,
+            )))
             .expect("Unable to send the message");
         println!("Sent message");
     }
@@ -91,12 +93,7 @@ impl Keyboard for EnigoTest {
         self.send_message("GetText");
 
         let ev = self.read_message();
-        if let BrowserEvent::Text(received_text) = ev {
-            println!("received text: {received_text}");
-            assert_eq!(text, received_text);
-        } else {
-            panic!("BrowserEvent was not a Text: {ev:?}");
-        }
+        assert_eq!(ev, text);
 
         res.map(Some) // TODO: Check if this is always correct
     }
@@ -105,34 +102,12 @@ impl Keyboard for EnigoTest {
         let res = self.enigo.key(key, direction);
         if direction == Press || direction == Click {
             let ev = self.read_message();
-            if let BrowserEvent::KeyDown(name) = ev {
-                println!("received pressed key: {name}");
-                let key_name = if let Key::Unicode(char) = key {
-                    format!("{char}")
-                } else {
-                    format!("{key:?}").to_lowercase()
-                };
-                println!("key_name: {key_name}");
-                assert_eq!(key_name, name.to_lowercase());
-            } else {
-                panic!("BrowserEvent was not a KeyDown: {ev:?}");
-            }
+            assert_eq!(ev, (key, Press))
         }
         if direction == Release || direction == Click {
             std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
             let ev = self.read_message();
-            if let BrowserEvent::KeyUp(name) = ev {
-                println!("received released key: {name}");
-                let key_name = if let Key::Unicode(char) = key {
-                    format!("{char}")
-                } else {
-                    format!("{key:?}").to_lowercase()
-                };
-                println!("key_name: {key_name}");
-                assert_eq!(key_name, name.to_lowercase());
-            } else {
-                panic!("BrowserEvent was not a KeyUp: {ev:?}");
-            }
+            assert_eq!(ev, (key, Release));
         }
         println!("enigo.key() was a success");
         res

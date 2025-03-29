@@ -6,7 +6,7 @@ use std::{
 
 use core_foundation::{
     array::CFIndex,
-    base::{OSStatus, TCFType, UInt16, UInt32, UInt8},
+    base::{OSStatus, TCFType, UInt8, UInt16, UInt32},
     data::{CFDataGetBytePtr, CFDataRef},
     dictionary::{CFDictionary, CFDictionaryRef},
     string::{CFString, CFStringRef, UniChar},
@@ -30,6 +30,26 @@ use crate::{
     NewConError, Settings,
 };
 
+// TODO: Replace with upstream values once a new version of core_graphics is published that contains https://github.com/servo/core-foundation-rs/pull/712
+const ANSI_KEYPAD_0: u16 = 0x52;
+const ANSI_KEYPAD_1: u16 = 0x53;
+const ANSI_KEYPAD_2: u16 = 0x54;
+const ANSI_KEYPAD_3: u16 = 0x55;
+const ANSI_KEYPAD_4: u16 = 0x56;
+const ANSI_KEYPAD_5: u16 = 0x57;
+const ANSI_KEYPAD_6: u16 = 0x58;
+const ANSI_KEYPAD_7: u16 = 0x59;
+const ANSI_KEYPAD_8: u16 = 0x5B;
+const ANSI_KEYPAD_9: u16 = 0x5C;
+const ANSI_KEYPAD_DECIMAL: u16 = 0x41;
+const ANSI_KEYPAD_MULTIPLY: u16 = 0x43;
+const ANSI_KEYPAD_PLUS: u16 = 0x45;
+const ANSI_KEYPAD_CLEAR: u16 = 0x47;
+const ANSI_KEYPAD_DIVIDE: u16 = 0x4B;
+const ANSI_KEYPAD_ENTER: u16 = 0x4C;
+const ANSI_KEYPAD_MINUS: u16 = 0x4E;
+const ANSI_KEYPAD_EQUAL: u16 = 0x51;
+
 #[repr(C)]
 struct __TISInputSource;
 type TISInputSourceRef = *const __TISInputSource;
@@ -39,7 +59,7 @@ const kUCKeyTranslateNoDeadKeysBit: CFIndex = 0; // Previously was always u32. C
 
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentASCIICapableKeyboardLayoutInputSource() -> TISInputSourceRef;
@@ -82,8 +102,8 @@ pub struct Enigo {
     // Instant when the last event was sent and the duration that needs to be waited for after that
     // instant to make sure all events were handled by the OS
     last_event: (Instant, Duration),
-    // TODO: Use mem::variant_count::<Button>() here instead of 7 once it is stabilized
-    last_mouse_click: [(i64, Instant); 7], /* For each of the seven Button variants, we
+    // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is stabilized
+    last_mouse_click: [(i64, Instant); 9], /* For each of the nine Button variants, we
                                             * store the last time the button was clicked and
                                             * the nth click that was
                                             * This information is needed to
@@ -100,10 +120,12 @@ impl Mouse for Enigo {
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
-            let (button, event_type) = match button {
-                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown),
-                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown),
-                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseDown),
+            let (button, event_type, button_number) = match button {
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseDown, None),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(2)),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseDown, None),
+                Button::Back => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(3)),
+                Button::Forward => (CGMouseButton::Center, CGEventType::OtherMouseDown, Some(4)),
                 Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
                 Button::ScrollDown => return self.scroll(1, Axis::Vertical),
                 Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
@@ -118,6 +140,10 @@ impl Mouse for Enigo {
                     "failed creating event to enter mouse button",
                 ));
             };
+
+            if let Some(button_number) = button_number {
+                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+            }
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.set_integer_value_field(
                 EventField::EVENT_SOURCE_USER_DATA,
@@ -129,15 +155,19 @@ impl Mouse for Enigo {
         }
         if direction == Direction::Click || direction == Direction::Release {
             let click_count = self.nth_button_press(button, Direction::Release);
-            let (button, event_type) = match button {
-                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp),
-                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp),
-                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseUp),
+            let (button, event_type, button_number) = match button {
+                Button::Left => (CGMouseButton::Left, CGEventType::LeftMouseUp, None),
+                Button::Middle => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(2)),
+                Button::Right => (CGMouseButton::Right, CGEventType::RightMouseUp, None),
+                Button::Back => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(3)),
+                Button::Forward => (CGMouseButton::Center, CGEventType::OtherMouseUp, Some(4)),
                 Button::ScrollUp
                 | Button::ScrollDown
                 | Button::ScrollLeft
                 | Button::ScrollRight => {
-                    info!("On macOS the mouse_up function has no effect when called with one of the Scroll buttons");
+                    info!(
+                        "On macOS the mouse_up function has no effect when called with one of the Scroll buttons"
+                    );
                     return Ok(());
                 }
             };
@@ -150,6 +180,9 @@ impl Mouse for Enigo {
                 ));
             };
 
+            if let Some(button_number) = button_number {
+                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+            }
             event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
             event.set_integer_value_field(
                 EventField::EVENT_SOURCE_USER_DATA,
@@ -179,8 +212,8 @@ impl Mouse for Enigo {
             (CGEventType::RightMouseDragged, CGMouseButton::Right)
         } else {
             (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button
-                                                           // here is ignored so
-                                                           // it can be anything
+            // here is ignored so
+            // it can be anything
         };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
@@ -273,7 +306,7 @@ impl Keyboard for Enigo {
                 }
                 let end_idx = match indices.peek() {
                     Some(idx) => *idx,
-                    None => s.bytes().len(),
+                    None => s.len(),
                 };
                 Some(&s[start_idx..end_idx])
             })
@@ -518,7 +551,7 @@ impl Enigo {
 
         let mut event_flags = CGEventFlags::CGEventFlagNonCoalesced;
         event_flags.set(CGEventFlags::from_bits_retain(0x2000_0000), true); // I don't know if this is needed or what this flag does. Correct events have it
-                                                                            // set so we also do it (until we know it is wrong)
+        // set so we also do it (until we know it is wrong)
 
         let double_click_delay = Duration::from_secs(1);
         let double_click_delay_setting = unsafe { NSEvent::doubleClickInterval() };
@@ -545,7 +578,7 @@ impl Enigo {
             event_flags,
             double_click_delay,
             last_event,
-            last_mouse_click: [(0, Instant::now()); 7],
+            last_mouse_click: [(0, Instant::now()); 9],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
     }
@@ -867,7 +900,9 @@ impl Enigo {
 
         let flag_fn = match direction {
             Direction::Click => {
-                unreachable!("The function should never get called with Direction::Click. If it was, it's an implementation error");
+                unreachable!(
+                    "The function should never get called with Direction::Click. If it was, it's an implementation error"
+                );
             }
             Direction::Press => press_fn,
             Direction::Release => release_fn,
@@ -902,11 +937,14 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
         // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
         // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
         let key = match key {
+            Key::Add => ANSI_KEYPAD_PLUS,
             Key::Alt | Key::Option => KeyCode::OPTION,
             Key::Backspace => KeyCode::DELETE,
             Key::CapsLock => KeyCode::CAPS_LOCK,
             Key::Control | Key::LControl => KeyCode::CONTROL,
+            Key::Decimal => ANSI_KEYPAD_DECIMAL,
             Key::Delete => KeyCode::FORWARD_DELETE,
+            Key::Divide => ANSI_KEYPAD_DIVIDE,
             Key::DownArrow => KeyCode::DOWN_ARROW,
             Key::End => KeyCode::END,
             Key::Escape => KeyCode::ESCAPE,
@@ -936,6 +974,17 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::Launchpad => 131,
             Key::LeftArrow => KeyCode::LEFT_ARROW,
             Key::MissionControl => 160,
+            Key::Multiply => ANSI_KEYPAD_MULTIPLY,
+            Key::Numpad0 => ANSI_KEYPAD_0,
+            Key::Numpad1 => ANSI_KEYPAD_1,
+            Key::Numpad2 => ANSI_KEYPAD_2,
+            Key::Numpad3 => ANSI_KEYPAD_3,
+            Key::Numpad4 => ANSI_KEYPAD_4,
+            Key::Numpad5 => ANSI_KEYPAD_5,
+            Key::Numpad6 => ANSI_KEYPAD_6,
+            Key::Numpad7 => ANSI_KEYPAD_7,
+            Key::Numpad8 => ANSI_KEYPAD_8,
+            Key::Numpad9 => ANSI_KEYPAD_9,
             Key::PageDown => KeyCode::PAGE_DOWN,
             Key::PageUp => KeyCode::PAGE_UP,
             Key::RCommand => KeyCode::RIGHT_COMMAND,
@@ -946,6 +995,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::ROption => KeyCode::RIGHT_OPTION,
             Key::Shift | Key::LShift => KeyCode::SHIFT,
             Key::Space => KeyCode::SPACE,
+            Key::Subtract => ANSI_KEYPAD_MINUS,
             Key::Tab => KeyCode::TAB,
             Key::UpArrow => KeyCode::UP_ARROW,
             Key::VolumeDown => KeyCode::VOLUME_DOWN,
@@ -1019,7 +1069,9 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
     let mut layout_data =
         unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
     if layout_data.is_null() {
-        debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL");
+        debug!(
+            "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL"
+        );
         // TISGetInputSourceProperty returns null with some keyboard layout.
         // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
         // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
@@ -1028,7 +1080,9 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
         };
         if layout_data.is_null() {
-            debug!("TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again");
+            debug!(
+                "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
+            );
             current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
             layout_data = unsafe {
                 TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
@@ -1071,7 +1125,7 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     pub fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
     static kAXTrustedCheckOptionPrompt: CFStringRef;
 }
@@ -1106,13 +1160,13 @@ impl Drop for Enigo {
             for key in held_keys {
                 if self.key(key, Direction::Release).is_err() {
                     error!("unable to release {key:?}");
-                };
+                }
             }
 
             for keycode in held_keycodes {
                 if self.raw(keycode, Direction::Release).is_err() {
                     error!("unable to release {keycode:?}");
-                };
+                }
             }
             debug!("released all held keys");
         }

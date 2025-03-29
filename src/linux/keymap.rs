@@ -9,10 +9,6 @@ pub(super) use xkeysym::{KeyCode, Keysym};
 use crate::keycodes::ModifierBitflag;
 use crate::{Direction, InputError, InputResult, Key};
 
-/// The "empty" keyboard symbol.
-// TODO: Replace it with the NoSymbol from xkeysym, once a new version was
-// published
-pub const NO_SYMBOL: Keysym = Keysym::new(0);
 #[cfg(feature = "x11rb")]
 const DEFAULT_DELAY: u32 = 12;
 
@@ -43,14 +39,14 @@ pub struct KeyMap<Keycode> {
 
 // TODO: Check if the bounds can be simplified
 impl<
-        Keycode: std::ops::Sub
-            + PartialEq
-            + Copy
-            + Clone
-            + Display
-            + TryInto<usize>
-            + std::convert::TryFrom<usize>,
-    > KeyMap<Keycode>
+    Keycode: std::ops::Sub
+        + PartialEq
+        + Copy
+        + Clone
+        + Display
+        + TryInto<usize>
+        + std::convert::TryFrom<usize>,
+> KeyMap<Keycode>
 where
     <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
     <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
@@ -175,17 +171,13 @@ where
         match self.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
-                trace!(
-                    "trying to map keycode {} to keysym {:?}",
-                    unused_keycode,
-                    keysym
-                );
+                trace!("trying to map keycode {unused_keycode} to keysym {keysym:?}");
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));
-                };
+                }
                 self.needs_regeneration = true;
                 self.additionally_mapped.insert(keysym, unused_keycode);
-                debug!("mapped keycode {} to keysym {:?}", unused_keycode, keysym);
+                debug!("mapped keycode {unused_keycode} to keysym {keysym:?}");
                 Ok(unused_keycode)
             }
             // All keycodes are being used. A mapping is not possible
@@ -202,14 +194,14 @@ where
         keysym: Keysym,
         keycode: Keycode,
     ) -> InputResult<()> {
-        trace!("trying to unmap keysym {:?}", keysym);
-        if c.bind_key(keycode, NO_SYMBOL).is_err() {
+        trace!("trying to unmap keysym {keysym:?}");
+        if c.bind_key(keycode, Keysym::NoSymbol).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
-        };
+        }
         self.needs_regeneration = true;
         self.unused_keycodes.push_back(keycode);
         self.additionally_mapped.remove(&keysym);
-        debug!("unmapped keysym {:?}", keysym);
+        debug!("unmapped keysym {keysym:?}");
         Ok(())
     }
 
@@ -305,7 +297,7 @@ where
             write!(
                 keymap_file,
                 "
-            key <I{}> {{ [ {} ] }}; // \\n",
+	key <I{}>                 {{	[               {} ] }};",
                 keycode,
                 keysym_get_name(keysym)
             )?;
@@ -321,8 +313,7 @@ where
                 debug!("regenerated the keymap");
                 Ok(Some(v))
             }
-            Err(_) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(_) => Err(std::io::Error::other(
                 "the length of the new keymap exceeds the u32::MAX",
             )),
         }

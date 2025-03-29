@@ -13,7 +13,7 @@ use crate::{
     feature = "libei"
 )))]
 compile_error!(
-   "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
+    "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
 );
 
 #[cfg(feature = "libei")]
@@ -79,10 +79,7 @@ impl Enigo {
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         match x11_display {
             Some(name) => {
-                debug!(
-                    "\x1b[93mtrying to establish a x11 connection to: {}\x1b[0m",
-                    name
-                );
+                debug!("\x1b[93mtrying to establish a x11 connection to: {name}\x1b[0m");
             }
             None => {
                 debug!("\x1b[93mtrying to establish a x11 connection to $DISPLAY\x1b[0m");
@@ -411,13 +408,13 @@ impl Drop for Enigo {
         let (held_keys, held_keycodes) = self.held();
         for &key in &held_keys {
             if self.key(key, Direction::Release).is_err() {
-                error!("unable to release {:?}", key);
-            };
+                error!("unable to release {key:?}");
+            }
         }
         for &keycode in &held_keycodes {
             if self.raw(keycode, Direction::Release).is_err() {
-                error!("unable to release {:?}", keycode);
-            };
+                error!("unable to release {keycode:?}");
+            }
         }
         debug!("released all held keys and held keycodes");
     }

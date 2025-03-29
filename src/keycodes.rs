@@ -94,7 +94,6 @@ pub enum Key {
     AbntC2,
     #[cfg(target_os = "windows")]
     Accept,
-    #[cfg(target_os = "windows")]
     Add,
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
@@ -175,11 +174,9 @@ pub enum Key {
     DBESBCSChar,
     #[cfg(target_os = "windows")]
     DBESChar,
-    #[cfg(target_os = "windows")]
     Decimal,
     /// delete key
     Delete,
-    #[cfg(target_os = "windows")]
     Divide,
     /// down arrow key
     DownArrow,
@@ -399,7 +396,6 @@ pub enum Key {
     MissionControl,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     ModeChange,
-    #[cfg(target_os = "windows")]
     Multiply,
     #[cfg(target_os = "windows")]
     NavigationAccept,
@@ -425,25 +421,15 @@ pub enum Key {
     None,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numlock,
-    #[cfg(target_os = "windows")]
     Numpad0,
-    #[cfg(target_os = "windows")]
     Numpad1,
-    #[cfg(target_os = "windows")]
     Numpad2,
-    #[cfg(target_os = "windows")]
     Numpad3,
-    #[cfg(target_os = "windows")]
     Numpad4,
-    #[cfg(target_os = "windows")]
     Numpad5,
-    #[cfg(target_os = "windows")]
     Numpad6,
-    #[cfg(target_os = "windows")]
     Numpad7,
-    #[cfg(target_os = "windows")]
     Numpad8,
-    #[cfg(target_os = "windows")]
     Numpad9,
     #[cfg(target_os = "windows")]
     OEM1,
@@ -579,7 +565,6 @@ pub enum Key {
     Snapshot,
     /// space key
     Space,
-    #[cfg(target_os = "windows")]
     Subtract,
     #[deprecated(since = "0.0.12", note = "now renamed to Meta")]
     /// super key on linux (command key on macOS, windows key on Windows)
@@ -637,6 +622,7 @@ impl From<Key> for xkeysym::Keysym {
         #[allow(clippy::match_same_arms)]
         match key {
             Key::Unicode(c) => xkeysym::Keysym::from_char(c),
+            Key::Add => Keysym::KP_Add,
             Key::Alt | Key::Option => Keysym::Alt_L,
             Key::Backspace => Keysym::BackSpace,
             Key::Begin => Keysym::Begin,
@@ -645,7 +631,9 @@ impl From<Key> for xkeysym::Keysym {
             Key::CapsLock => Keysym::Caps_Lock,
             Key::Clear => Keysym::Clear,
             Key::Control | Key::LControl => Keysym::Control_L,
+            Key::Decimal => Keysym::KP_Decimal,
             Key::Delete => Keysym::Delete,
+            Key::Divide => Keysym::KP_Divide,
             Key::DownArrow => Keysym::Down,
             Key::End => Keysym::End,
             Key::Escape => Keysym::Escape,
@@ -696,11 +684,22 @@ impl From<Key> for xkeysym::Keysym {
             Key::Linefeed => Keysym::Linefeed,
             Key::LMenu => Keysym::Menu,
             Key::ModeChange => Keysym::Mode_switch,
+            Key::Multiply => Keysym::KP_Multiply,
             Key::MediaNextTrack => Keysym::XF86_AudioNext,
             Key::MediaPlayPause => Keysym::XF86_AudioPlay,
             Key::MediaPrevTrack => Keysym::XF86_AudioPrev,
             Key::MediaStop => Keysym::XF86_AudioStop,
             Key::Numlock => Keysym::Num_Lock,
+            Key::Numpad0 => Keysym::KP_0,
+            Key::Numpad1 => Keysym::KP_1,
+            Key::Numpad2 => Keysym::KP_2,
+            Key::Numpad3 => Keysym::KP_3,
+            Key::Numpad4 => Keysym::KP_4,
+            Key::Numpad5 => Keysym::KP_5,
+            Key::Numpad6 => Keysym::KP_6,
+            Key::Numpad7 => Keysym::KP_7,
+            Key::Numpad8 => Keysym::KP_8,
+            Key::Numpad9 => Keysym::KP_9,
             Key::PageDown => Keysym::Page_Down,
             Key::PageUp => Keysym::Page_Up,
             Key::Pause => Keysym::Pause,
@@ -717,6 +716,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::Shift | Key::LShift => Keysym::Shift_L,
             Key::ShiftLock => Keysym::Shift_Lock,
             Key::Space => Keysym::space,
+            Key::Subtract => Keysym::KP_Subtract,
             Key::SysReq => Keysym::Sys_Req,
             Key::Tab => Keysym::Tab,
             Key::Undo => Keysym::Undo,
@@ -739,7 +739,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
     #[allow(clippy::too_many_lines)]
     fn try_from(key: Key) -> Result<Self, Self::Error> {
         use windows::Win32::UI::Input::KeyboardAndMouse::{
-            VK__none_, VIRTUAL_KEY, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9,
+            VIRTUAL_KEY, VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9,
             VK_A, VK_ABNT_C1, VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK,
             VK_BROWSER_BACK, VK_BROWSER_FAVORITES, VK_BROWSER_FORWARD, VK_BROWSER_HOME,
             VK_BROWSER_REFRESH, VK_BROWSER_SEARCH, VK_BROWSER_STOP, VK_C, VK_CANCEL, VK_CAPITAL,
@@ -748,9 +748,9 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             VK_DBE_ENTERDLGCONVERSIONMODE, VK_DBE_ENTERIMECONFIGMODE, VK_DBE_ENTERWORDREGISTERMODE,
             VK_DBE_FLUSHSTRING, VK_DBE_HIRAGANA, VK_DBE_KATAKANA, VK_DBE_NOCODEINPUT,
             VK_DBE_NOROMAN, VK_DBE_ROMAN, VK_DBE_SBCSCHAR, VK_DECIMAL, VK_DELETE, VK_DIVIDE,
-            VK_DOWN, VK_E, VK_END, VK_EREOF, VK_ESCAPE, VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F10,
-            VK_F11, VK_F12, VK_F13, VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19, VK_F2, VK_F20,
-            VK_F21, VK_F22, VK_F23, VK_F24, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9,
+            VK_DOWN, VK_E, VK_END, VK_EREOF, VK_ESCAPE, VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F2,
+            VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_F10, VK_F11, VK_F12, VK_F13,
+            VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19, VK_F20, VK_F21, VK_F22, VK_F23, VK_F24,
             VK_FINAL, VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B, VK_GAMEPAD_DPAD_DOWN, VK_GAMEPAD_DPAD_LEFT,
             VK_GAMEPAD_DPAD_RIGHT, VK_GAMEPAD_DPAD_UP, VK_GAMEPAD_LEFT_SHOULDER,
             VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON, VK_GAMEPAD_LEFT_THUMBSTICK_DOWN,
@@ -769,17 +769,18 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             VK_NAVIGATION_DOWN, VK_NAVIGATION_LEFT, VK_NAVIGATION_MENU, VK_NAVIGATION_RIGHT,
             VK_NAVIGATION_UP, VK_NAVIGATION_VIEW, VK_NEXT, VK_NONAME, VK_NONCONVERT, VK_NUMLOCK,
             VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6,
-            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_102, VK_OEM_2, VK_OEM_3,
-            VK_OEM_4, VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_ATTN, VK_OEM_AUTO, VK_OEM_AX,
-            VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL, VK_OEM_ENLW,
-            VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU, VK_OEM_FJ_ROYA,
-            VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL, VK_OEM_PA1, VK_OEM_PA2,
-            VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET, VK_OEM_WSCTRL, VK_P, VK_PA1,
-            VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PRIOR, VK_PROCESSKEY, VK_Q, VK_R,
-            VK_RBUTTON, VK_RCONTROL, VK_RETURN, VK_RIGHT, VK_RMENU, VK_RSHIFT, VK_RWIN, VK_S,
-            VK_SCROLL, VK_SELECT, VK_SEPARATOR, VK_SHIFT, VK_SLEEP, VK_SNAPSHOT, VK_SPACE,
-            VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_UP, VK_V, VK_VOLUME_DOWN, VK_VOLUME_MUTE,
-            VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z, VK_ZOOM,
+            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_2, VK_OEM_3, VK_OEM_4,
+            VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_102, VK_OEM_ATTN, VK_OEM_AUTO,
+            VK_OEM_AX, VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL,
+            VK_OEM_ENLW, VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU,
+            VK_OEM_FJ_ROYA, VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL,
+            VK_OEM_PA1, VK_OEM_PA2, VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET,
+            VK_OEM_WSCTRL, VK_P, VK_PA1, VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PRIOR,
+            VK_PROCESSKEY, VK_Q, VK_R, VK_RBUTTON, VK_RCONTROL, VK_RETURN, VK_RIGHT, VK_RMENU,
+            VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT, VK_SEPARATOR, VK_SHIFT, VK_SLEEP,
+            VK_SNAPSHOT, VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_UP, VK_V, VK_VOLUME_DOWN,
+            VK_VOLUME_MUTE, VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2, VK_Y, VK_Z,
+            VK_ZOOM,
         };
 
         trace!("Key::try_from(key: {key:?})");
@@ -1036,7 +1037,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                     '\n' => break 'unicode_handling VK_RETURN,
 
                     '\r' => { // TODO: What is the correct key to type here?
-                         // break 'unicode_handling VK_,
+                        // break 'unicode_handling VK_,
                     }
                     '\t' => break 'unicode_handling VK_TAB,
                     '\0' => {
@@ -1057,7 +1058,7 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                 // virtual-key code and the high-order byte contains the shift state, which can
                 // be a combination of the following flag bits. If the function finds no key
                 // that translates to the passed character code, both the low-order and
-                // high-order bytes contain –1
+                // high-order bytes contain -1
                 let vk = unsafe {
                     windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanExW(
                         utf16_surrogates[0],

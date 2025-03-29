@@ -1,8 +1,26 @@
 # Unreleased
 ## Changed
+- Rust: MSRV is 1.85
+- Rust: Use edition 2024
+
 ## Added
+- macOS: Add to support Mouse special key(Back, Forward)
+- win: Helper function to tell Windows to respect the users scaling settings `set_dpi_awareness`. Read the docs before using it
+- linux: Add support for numpad keys (e.g. `Key::Numpad2`)
+- macOS: Add support for numpad keys (e.g. `Key::Numpad2`)
+- linux: wayland: Implement `main_display()`. It only works reliably if only one screen is connected
+
 ## Removed
+
 ## Fixed
+- linux: wayland: Fix the serial number of input_method events
+- linux: wayland: Correct whitespace and nullbyte at the end of the keymap
+- linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
+- linux: wayland: Fix moving the mouse to an absolute coordinate
+- linux: wayland: Don't hang when using Sway
+- linux: x11rb: Fix not being able to enter right modifier keys [#391](https://github.com/enigo-rs/enigo/issues/391)
+- linux: x11rb: Don't assume a modifier mapping and get the modifier mapping dynamically instead [#410](https://github.com/enigo-rs/enigo/issues/410)
+- linux: x11rb: Successfully enter the first simulated character as well
 
 # 0.3.0
 ## Changed

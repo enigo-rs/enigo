@@ -14,10 +14,9 @@ use x11rb::{
     wrapper::ConnectionExt as _,
 };
 
-use super::keymap::{Bind, KeyMap, Keysym, NO_SYMBOL};
+use super::keymap::{Bind, KeyMap, Keysym};
 use crate::{
-    keycodes::Modifier, Axis, Button, Coordinate, Direction, InputError, InputResult, Key,
-    Keyboard, Mouse, NewConError,
+    Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
 type CompositorConnection = RustConnection<DefaultStream>;
@@ -28,7 +27,7 @@ pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
-    modifiers: Vec<Keycode>,
+    modifiers: [Vec<Keycode>; 8],
     delay: u32, // milliseconds
 }
 
@@ -65,7 +64,7 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
-        let (connection, screen_idx) = x11rb::connect(dpy_name.as_deref())?;
+        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
@@ -146,7 +145,12 @@ impl Con {
                 trace!("{kc}:  {syms_name:?}");
             }
 
-            if syms.iter().all(|&s| s == NO_SYMBOL.raw()) {
+            // Never use keycode 8
+            // Keycode 8 is special: when converted to evdev keycodes,
+            // 8 is subtracted, resulting in 0. This typically leads to no effect
+            // when simulating input because keycode 0 corresponds to NoSymbol,
+            // meaning it has no assigned key mapping.
+            if syms.iter().all(|&s| s == Keysym::NoSymbol.raw()) && kc != 8 {
                 unused_keycodes.push_back(kc);
             }
         }
@@ -157,32 +161,33 @@ impl Con {
     /// Find the keycodes that must be used for the modifiers
     fn find_modifier_keycodes(
         connection: &CompositorConnection,
-    ) -> Result<Vec<Keycode>, ReplyError> {
+    ) -> Result<[Vec<Keycode>; 8], ReplyError> {
         let modifier_reply = connection.get_modifier_mapping()?.reply()?;
         let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
         let GetModifierMappingReply {
             keycodes: modifiers,
             ..
         } = modifier_reply;
-        trace!("keycodes per modifier: {keycodes_per_modifier:?}");
-        trace!("the keycodes associated with the modifiers are:\n{modifiers:?}");
 
-        debug!("modifier mapping:");
-        let mut modifier_keycodes = vec![0; 8];
-        'mods: for (mod_no, mod_keycode) in modifier_keycodes.iter_mut().enumerate().take(8) {
-            let start = mod_no * keycodes_per_modifier;
-            for &keycode in &modifiers[start..start + keycodes_per_modifier] {
-                if keycode != 0 {
-                    // Found one keycode that can be used for this modifier
-                    debug!("mod_no: {mod_no} -> {keycode}");
-                    *mod_keycode = keycode;
-                    continue 'mods;
-                }
-            }
-            warn!("modifier_no: {mod_no} is unmapped");
+        let mut modifiers_array: [Vec<Keycode>; 8] = Default::default(); // Initialize with empty vectors
+        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
+        if modifier_mapping.len() > 8 {
+            error!(
+                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
+                modifier_mapping.len()
+            );
+            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
         }
+        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
+            let keycodes: Vec<_> = mod_keycodes.iter().copied().filter(|&kc| kc != 0).collect();
+            if keycodes.is_empty() {
+                warn!("modifier_no: {mod_no} is unmapped");
+            }
+            modifiers_array[mod_no] = keycodes;
+        }
+        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
 
-        Ok(modifier_keycodes)
+        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -220,10 +225,10 @@ impl Drop for Con {
         // changes
         debug!("x11rb connection was dropped");
         for &keycode in self.keymap.additionally_mapped.values() {
-            match self.connection.bind_key(keycode, NO_SYMBOL) {
+            match self.connection.bind_key(keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
-            };
+            }
         }
     }
 }
@@ -243,25 +248,22 @@ impl Bind<Keycode> for CompositorConnection {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
-        warn!("fast text entry is not yet implemented with x11rb");
-        // TODO: Add fast method
-        // xdotools can do it, so it is possible
+        warn!("fast text entry is not possible on X11");
         Ok(None)
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        // Check if the key is a modifier
-        let keycode: u16 = match Modifier::try_from(key) {
-            // If it is a modifier, the already mapped keycode must be used
-            Ok(modifier) => {
-                debug!("it is a modifier: {modifier:?}");
-                self.modifiers[modifier.no()].into()
-            }
-            // All regular keys might have to get mapped
-            _ => self.keymap.key_to_keycode(&self.connection, key)?.into(),
-        };
+        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
 
-        self.raw(keycode, direction)
+        if log::log_enabled!(log::Level::Debug) {
+            for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
+                if mod_keycodes.contains(&keycode) {
+                    debug!("the key is modifier no: {mod_idx}");
+                }
+            }
+        }
+
+        self.raw(keycode.into(), direction)
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
@@ -276,10 +278,7 @@ impl Keyboard for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
-        debug!(
-            "xtest_fake_input with keycode {}, deviceid {}, delay {}",
-            keycode, deviceid, time
-        );
+        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, delay {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -353,10 +352,7 @@ impl Mouse for Con {
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
-        debug!(
-            "xtest_fake_input with button {}, deviceid {}, delay {}",
-            detail, deviceid, time
-        );
+        debug!("xtest_fake_input with button {detail}, deviceid {deviceid}, delay {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -425,8 +421,7 @@ impl Mouse for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with coordinate {}, deviceid {}, x {}, y {}, delay {}",
-            detail, deviceid, root_x, root_y, time
+            "xtest_fake_input with coordinate {detail}, deviceid {deviceid}, x {root_x}, y {root_y}, delay {time}"
         );
 
         self.connection
@@ -444,22 +439,17 @@ impl Mouse for Con {
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        let mut length = length;
-        let button = if length < 0 {
-            length = -length;
-            match axis {
-                Axis::Horizontal => Button::ScrollLeft,
-                Axis::Vertical => Button::ScrollUp,
-            }
-        } else {
-            match axis {
-                Axis::Horizontal => Button::ScrollRight,
-                Axis::Vertical => Button::ScrollDown,
-            }
+        let button = match (length.is_positive(), axis) {
+            (true, Axis::Vertical) => Button::ScrollDown,
+            (false, Axis::Vertical) => Button::ScrollUp,
+            (true, Axis::Horizontal) => Button::ScrollRight,
+            (false, Axis::Horizontal) => Button::ScrollLeft,
         };
-        for _ in 0..length {
+
+        for _ in 0..length.abs() {
             self.button(button, Direction::Click)?;
         }
+
         Ok(())
     }
 

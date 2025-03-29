@@ -1,11 +1,11 @@
 use enigo::{
-    agent::{Agent, Token},
     Button, Enigo, Key, Settings,
+    agent::{Agent, Token},
 };
 use std::{thread, time::Duration};
 
 fn main() {
-    env_logger::init();
+    env_logger::try_init().ok();
     thread::sleep(Duration::from_secs(2));
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 

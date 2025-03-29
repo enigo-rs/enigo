@@ -5,8 +5,8 @@ authors = [
     "pentamassiv <pentamassiv@posteo.de>",
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
-edition = "2021"
-rust-version = "1.75" # The CI already runs on 1.80 because the tests needed it
+edition = "2024"
+rust-version = "1.85"
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
@@ -28,13 +28,12 @@ all-features = true
 
 [features]
 default = ["xdo"]
-libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:once_cell"]
+libei = ["dep:reis", "dep:ashpd", "dep:tokio"]
 serde = ["dep:serde"]
 wayland = [
     "dep:wayland-client",
     "dep:wayland-protocols-misc",
     "dep:wayland-protocols-wlr",
-    "dep:wayland-protocols-plasma",
     "dep:tempfile",
 ]
 xdo = []
@@ -45,7 +44,7 @@ log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.58", features = [
+windows = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_UI_TextServices",
     "Win32_UI_WindowsAndMessaging",
@@ -56,24 +55,28 @@ windows = { version = "0.58", features = [
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
 core-graphics = { version = "0.24", features = ["highsierra"] }
-objc2 = { version = "0.5", features = ["relax-void-encoding"] }
-objc2-app-kit = { version = "0.2", features = ["NSEvent", "NSGraphicsContext"] }
-objc2-foundation = { version = "0.2", features = ["NSGeometry"] }
+objc2 = { version = "0.6", features = ["relax-void-encoding"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSEvent",
+    "NSGraphicsContext",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+    "std",
+    "objc2-core-foundation",
+    "NSGeometry",
+] }
 foreign-types-shared = "0.3"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 reis = { version = "0.4", optional = true }
-ashpd = { version = "0.10", optional = true }
+ashpd = { version = "0.11", optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
-once_cell = { version = "1.19", optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-protocols-wlr = { version = "0.3", features = [
-    "client",
-], optional = true }
-wayland-protocols-plasma = { version = "0.3", features = [
     "client",
 ], optional = true }
 wayland-client = { version = "0.31", optional = true }
@@ -89,12 +92,12 @@ tempfile = { version = "3", optional = true }
 [dev-dependencies]
 env_logger = "0.11"
 serde = { version = "1", features = ["derive"] }
-tungstenite = "0.24"
+tungstenite = "0.26"
 url = "2"
 webbrowser = "1.0"
-ron = "0.8"
-strum = "0.26"
-strum_macros = "0.26"
+ron = "0.9"
+strum = "0.27"
+strum_macros = "0.27"
 rdev = "0.5"                                     # Test the main_display() function
 mouse_position = "0.1"                           # Test the location() function
 

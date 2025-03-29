@@ -64,7 +64,7 @@ fn unit_text_all_utf16() {
                 Ok(()),
                 "Didn't expect an error for string: {string}"
             );
-        };
+        }
     }
 }
 
@@ -118,7 +118,7 @@ fn unit_key_unicode_all_utf16() {
                 Ok(()),
                 "Didn't expect an error for character: {character}"
             );
-        };
+        }
     }
 }
 
@@ -157,7 +157,7 @@ fn unit_key_other_all_keycodes() {
     }
 
     // This will only run on Windows
-    for raw_keycode in max..=max {
+    for raw_keycode in max..=u32::MAX {
         assert_eq!(
             enigo.key(Key::Other(raw_keycode), Press),
             Err(InputError::InvalidInput(

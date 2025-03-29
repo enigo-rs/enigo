@@ -12,6 +12,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUST_LOG: debug
+  WAYLAND_DEBUG: 1
 
 jobs:
   integration:
@@ -22,7 +24,7 @@ jobs:
         rust:
           - stable
           - nightly
-          - "1.80.0"
+          - "1.85.0"
         platform:
           - ubuntu-latest
           - windows-latest
@@ -80,7 +82,7 @@ jobs:
         run: cargo test integration --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture --include-ignored
 
       - name: Take screenshot
-        if: always() && runner.os != 'macOS'
+        if: always()
         uses: ./.github/actions/screenshot
         with:
           platform: ${{ matrix.platform }}

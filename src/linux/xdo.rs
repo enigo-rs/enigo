@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_int, c_ulong, c_void, CString},
+    ffi::{CString, c_char, c_int, c_ulong, c_void},
     ptr,
 };
 
@@ -19,7 +19,7 @@ type Window = c_ulong;
 type Xdo = *const c_void;
 
 #[link(name = "xdo")]
-extern "C" {
+unsafe extern "C" {
     fn xdo_free(xdo: Xdo);
     fn xdo_new(display: *const c_char) -> Xdo;
 
@@ -101,7 +101,7 @@ impl Con {
         debug!("using xdo");
         let xdo = match dyp_name {
             Some(name) => {
-                let Ok(string) = CString::new(name.as_bytes()) else {
+                let Ok(string) = CString::new(name) else {
                     return Err(NewConError::EstablishCon(
                         "the display name contained a null byte",
                     ));
@@ -150,8 +150,8 @@ impl Keyboard for Con {
             ));
         };
         debug!(
-            "xdo_enter_text_window with string {:?}, delay {}",
-            string, self.delay
+            "xdo_enter_text_window with string {string:?}, delay {}",
+            self.delay
         );
         let res = unsafe {
             xdo_enter_text_window(
@@ -185,8 +185,8 @@ impl Keyboard for Con {
         let res = match direction {
             Direction::Click => {
                 debug!(
-                    "xdo_send_keysequence_window with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window(
@@ -199,8 +199,8 @@ impl Keyboard for Con {
             }
             Direction::Press => {
                 debug!(
-                    "xdo_send_keysequence_window_down with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window_down with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window_down(
@@ -213,8 +213,8 @@ impl Keyboard for Con {
             }
             Direction::Release => {
                 debug!(
-                    "xdo_send_keysequence_window_up with string {:?}, delay {}",
-                    string, self.delay
+                    "xdo_send_keysequence_window_up with string {string:?}, delay {}",
+                    self.delay
                 );
                 unsafe {
                     xdo_send_keysequence_window_up(
@@ -245,15 +245,15 @@ impl Mouse for Con {
         let button = mousebutton(button);
         let res = match direction {
             Direction::Press => {
-                debug!("xdo_mouse_down with mouse button {}", button);
+                debug!("xdo_mouse_down with mouse button {button}");
                 unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Release => {
-                debug!("xdo_mouse_up with mouse button {}", button);
+                debug!("xdo_mouse_up with mouse button {button}");
                 unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Click => {
-                debug!("xdo_click_window with mouse button {}", button);
+                debug!("xdo_click_window with mouse button {button}");
                 unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, button) }
             }
         };
@@ -266,11 +266,11 @@ impl Mouse for Con {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         let res = match coordinate {
             Coordinate::Rel => {
-                debug!("xdo_move_mouse_relative with x {}, y {}", x, y);
+                debug!("xdo_move_mouse_relative with x {x}, y {y}");
                 unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
             }
             Coordinate::Abs => {
-                debug!("xdo_move_mouse with mouse button with x {}, y {}", x, y);
+                debug!("xdo_move_mouse with mouse button with x {x}, y {y}");
                 unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
             }
         };
@@ -281,20 +281,14 @@ impl Mouse for Con {
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        let mut length = length;
-        let button = if length < 0 {
-            length = -length;
-            match axis {
-                Axis::Horizontal => Button::ScrollLeft,
-                Axis::Vertical => Button::ScrollUp,
-            }
-        } else {
-            match axis {
-                Axis::Horizontal => Button::ScrollRight,
-                Axis::Vertical => Button::ScrollDown,
-            }
+        let button = match (length.is_positive(), axis) {
+            (true, Axis::Vertical) => Button::ScrollDown,
+            (false, Axis::Vertical) => Button::ScrollUp,
+            (true, Axis::Horizontal) => Button::ScrollRight,
+            (false, Axis::Horizontal) => Button::ScrollLeft,
         };
-        for _ in 0..length {
+
+        for _ in 0..length.abs() {
             self.button(button, Direction::Click)?;
         }
         Ok(())
