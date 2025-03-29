@@ -9,6 +9,10 @@ use common::enigo_test::EnigoTest as Enigo;
 
 #[test]
 fn integration_browser_events() {
+    println!(
+        "DYLD_INSERT_LIBRARIES={:?}",
+        std::env::var("DYLD_INSERT_LIBRARIES")
+    );
     let mut enigo = Enigo::new(&Settings::default());
 
     enigo.text("TestText❤️").unwrap();
