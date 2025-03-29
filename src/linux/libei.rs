@@ -189,7 +189,7 @@ impl Con {
             // && device_data.interface::<ei::Keyboard>().is_some()
         }) {
             println!("Start emulating");
-            device.start_emulating(con.sequence, con.last_serial);
+            device.start_emulating(con.last_serial, con.sequence);
             con.sequence = con.sequence.wrapping_add(1);
             device_data.state = DeviceState::Emulating;
         }
