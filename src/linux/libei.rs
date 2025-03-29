@@ -493,15 +493,24 @@ impl Keyboard for Con {
 
                 if direction == Direction::Press || direction == Direction::Click {
                     keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+
+                    // It is a client bug to send more than one key request for the same key within
+                    // the same ei_device.frame and the EIS implementation may ignore either or all
+                    // key state changes and/or disconnect the client
+                    // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_keyboard/index.html#ei_keyboardkey).
+                    // That's why we need to call frame for the press and the release
+                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+                    device.frame(self.sequence, elapsed);
+                    self.sequence = self.sequence.wrapping_add(1);
                 }
                 if direction == Direction::Release || direction == Direction::Click {
                     keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
+
+                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+                    device.frame(self.sequence, elapsed);
+                    self.sequence = self.sequence.wrapping_add(1);
                 }
 
-                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-                device.frame(self.sequence, elapsed);
-                self.sequence = self.sequence.wrapping_add(1);
                 self.update("enigo").map_err(|_| {
                     InputError::Simulate("unable to update the libei connection to scroll")
                 })?;
