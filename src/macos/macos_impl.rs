@@ -19,6 +19,7 @@ use core_graphics::{
     },
     event_source::{CGEventSource, CGEventSourceStateID},
 };
+use dispatch2::run_on_main;
 use foreign_types_shared::ForeignTypeRef as _;
 use log::{debug, error, info};
 use objc2::msg_send;
@@ -549,6 +550,9 @@ impl Enigo {
 
         let held = (Vec::new(), Vec::new());
 
+        run_on_main(|mtm| {
+            // Do something on the main thread with the given marker
+        });
         let mut event_flags = CGEventFlags::CGEventFlagNonCoalesced;
         event_flags.set(CGEventFlags::from_bits_retain(0x2000_0000), true); // I don't know if this is needed or what this flag does. Correct events have it
         // set so we also do it (until we know it is wrong)
