@@ -1,7 +1,7 @@
 # TL;DR: Log everything (except X11)
 
 ```
-RUST_LOG=debug WAYLAND_DEBUG=1 cargo run --example keyboard
+RUST_LOG=debug WAYLAND_DEBUG=1 REIS_DEBUG=1 cargo run --example keyboard
 ```
 
 # Debugging
@@ -22,6 +22,9 @@ RUST_LOG=enigo::platform::x11=debug cargo run --example keyboard --features x11r
 
 On Linux, we can additionally print the messages that are exchanged with the compositor. It depends on the used protocol how to turn this on.
 
+### Libei
+Run the executable with the environment variable `REIS_DEBUG=1`.
+
 ### Wayland
 Run the executable with the environment variable `WAYLAND_DEBUG=1`.
 
@@ -40,5 +43,5 @@ cargo run
 ## Log everything (including X11)
 
 ```
-RUST_LOG=debug WAYLAND_DEBUG=1 /home/pentamassiv/x11rb/target/debug/xtrace-example cargo run --example keyboard --features x11rb,wayland --no-default-features
+RUST_LOG=debug WAYLAND_DEBUG=1 REIS_DEBUG=1 /home/pentamassiv/x11rb/target/debug/xtrace-example cargo run --example keyboard --features x11rb,wayland --no-default-features
 ```

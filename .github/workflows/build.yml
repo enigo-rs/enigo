@@ -16,6 +16,7 @@ env:
   RUST_BACKTRACE: 1
   RUST_LOG: debug
   WAYLAND_DEBUG: 1
+  REIS_DEBUG: 1
 
 jobs:
   build:
