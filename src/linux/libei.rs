@@ -189,6 +189,9 @@ impl Con {
             // && device_data.interface::<ei::Keyboard>().is_some()
         }) {
             println!("Start emulating");
+            if !device.is_alive() {
+                return Err(NewConError::EstablishCon("ei::Device is no longer alive"));
+            }
             device.start_emulating(con.last_serial, con.sequence);
             con.sequence = con.sequence.wrapping_add(1);
             device_data.state = DeviceState::Emulating;
@@ -287,6 +290,11 @@ impl Con {
                         }
                         ei::connection::Event::Ping { ping } => {
                             debug!("ping");
+                            if !ping.is_alive() {
+                                return Err(InputError::Simulate(
+                                    "ei::Pingpong is no longer alive",
+                                ));
+                            }
                             ping.done(0);
                         }
                         _ => {
@@ -491,6 +499,10 @@ impl Keyboard for Con {
             if let Some((keyboard, keymap)) = self.keyboards.iter().next() {
                 let keycode = key_to_keycode(keymap, key)?;
 
+                if !keyboard.is_alive() {
+                    return Err(InputError::Simulate("ei::Keyboard is no longer alive"));
+                }
+
                 if direction == Direction::Press || direction == Direction::Click {
                     keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
 
@@ -528,6 +540,9 @@ impl Keyboard for Con {
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
         {
             let keyboard = device_data.interface::<ei::Keyboard>().unwrap();
+            if !keyboard.is_alive() {
+                return Err(InputError::Simulate("ei::Keyboard is no longer alive"));
+            }
 
             if direction == Direction::Press || direction == Direction::Click {
                 keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
@@ -585,6 +600,9 @@ impl Mouse for Con {
             };
 
             let vp = device_data.interface::<ei::Button>().unwrap();
+            if !vp.is_alive() {
+                return Err(InputError::Simulate("ei::Button is no longer alive"));
+            }
 
             if direction == Direction::Press || direction == Direction::Click {
                 trace!("vp.button({button}, ei::button::ButtonState::Pressed)");
@@ -622,6 +640,9 @@ impl Mouse for Con {
                     .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
                 {
                     let vp = device_data.interface::<ei::Pointer>().unwrap();
+                    if !vp.is_alive() {
+                        return Err(InputError::Simulate("ei::Pointer is no longer alive"));
+                    }
                     vp.motion_relative(x, y);
 
                     let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
@@ -648,6 +669,11 @@ impl Mouse for Con {
                     device_data.interface::<ei::PointerAbsolute>().is_some()
                 }) {
                     let vp = device_data.interface::<ei::PointerAbsolute>().unwrap();
+                    if !vp.is_alive() {
+                        return Err(InputError::Simulate(
+                            "ei::PointerAbsolute is no longer alive",
+                        ));
+                    }
                     vp.motion_absolute(x, y);
 
                     let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
@@ -684,6 +710,9 @@ impl Mouse for Con {
             };
             trace!("vp.scroll({x}, {y})");
             let vp = device_data.interface::<ei::Scroll>().unwrap();
+            if !vp.is_alive() {
+                return Err(InputError::Simulate("ei::Scroll is no longer alive"));
+            }
             vp.scroll(x, y);
 
             let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
