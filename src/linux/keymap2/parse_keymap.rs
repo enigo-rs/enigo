@@ -104,32 +104,12 @@ impl ParsedKeymap {
     }
 }
 
-impl TryFrom<&mut std::fs::File> for ParsedKeymap {
+impl TryFrom<&str> for ParsedKeymap {
     type Error = ();
 
-    fn try_from(keymap_file: &mut std::fs::File) -> Result<Self, Self::Error> {
-        use std::io::{Read, Seek, SeekFrom};
-
-        // Reset the cursor to the beginning of the file.
-        keymap_file.seek(SeekFrom::Start(0)).map_err(|e| {
-            error!("unable to seek from the start:\n{e}");
-        })?;
-
-        // Read keymap to String
-        let mut keymap_str = String::new();
-        keymap_file.read_to_string(&mut keymap_str).map_err(|e| {
-            error!("unable to read file to string:\n{e}");
-        })?;
-
-        trace!("RECEIVED KEYMAP:\n{keymap_str}");
-
-        // Reset the cursor to the beginning of the file.
-        keymap_file.seek(SeekFrom::Start(0)).map_err(|e| {
-            error!("unable to seek from the start:\n{e}");
-        })?;
-
-        // Parse the keymap
-        let (remaining, parsed_keymap) = ParsedKeymap::parse(&keymap_str).map_err(|_| {
+    fn try_from(keymap_str: &str) -> Result<Self, Self::Error> {
+        trace!("ParsedKeymap::try_from({keymap_str})");
+        let (remaining, parsed_keymap) = ParsedKeymap::parse(keymap_str).map_err(|_| {
             error!("parsing keymap failed");
         })?;
         if !remaining.is_empty() && remaining != "\0" {
