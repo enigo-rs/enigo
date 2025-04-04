@@ -17,6 +17,7 @@ mod default_keymap;
 use default_keymap::DEFAULT_KEYMAP;
 
 pub struct Keymap2 {
+    original_keymap: String,
     context: Context,
     keymap: Keymap,
     state: State,
@@ -43,40 +44,42 @@ impl Keymap2 {
             return Err(());
         }
 
-        let parsed_keymap = ParsedKeymap::try_from(&mut keymap_file).map_err(|()| {
-            trace!("unable to parse the new keymap");
-        })?;
         // Read keymap to String
-        let mut keymap_string = String::new();
+        let mut original_keymap = String::new();
         // Reset the cursor to the beginning of the file.
         keymap_file.seek(SeekFrom::Start(0)).map_err(|e| {
             error!("unable to seek from the start:\n{e}");
         })?;
         keymap_file
-            .read_to_string(&mut keymap_string)
+            .read_to_string(&mut original_keymap)
             .map_err(|e| {
                 error!("unable to read file to string:\n{e}");
             })?;
-        // Reset the cursor to the beginning of the file.
-        keymap_file.seek(SeekFrom::Start(0)).map_err(|e| {
-            error!("unable to seek from the start:\n{e}");
+        // The String cannot end with NULL otherwise xkbcommon will fail to parse it
+        while original_keymap.ends_with('\0') {
+            debug!("removed NULL byte at the end");
+            original_keymap.pop();
+        }
+        trace!("keymap string getting parsed by xkbcommon:\n{original_keymap}");
+
+        let parsed_keymap = ParsedKeymap::try_from(original_keymap.as_str()).map_err(|()| {
+            trace!("unable to parse the new keymap");
         })?;
 
-        // The String cannot end with NULL otherwise xkbcommon will fail to parse it
-        while keymap_string.ends_with('\0') {
-            debug!("removed NULL byte at the end");
-            keymap_string.pop();
-        }
-        trace!("keymap string getting parsed by xkbcommon:\n{keymap_string}");
-        let keymap =
-            Keymap::new_from_string(&context, keymap_string, format, KEYMAP_COMPILE_NO_FLAGS)
-                .ok_or_else(|| {
-                    error!("unable to parse the keymap with xkbcommon! resetting the keymap");
-                })?;
+        let keymap = Keymap::new_from_string(
+            &context,
+            original_keymap.clone(),
+            format,
+            KEYMAP_COMPILE_NO_FLAGS,
+        )
+        .ok_or_else(|| {
+            error!("unable to parse the keymap with xkbcommon! resetting the keymap");
+        })?;
 
         let state = State::new(&keymap);
 
         Ok(Self {
+            original_keymap,
             context,
             keymap,
             state,
@@ -102,6 +105,7 @@ impl Keymap2 {
             parsed_keymap,
             pressed_keys,
             keymap_file,
+            original_keymap: _, // Never update the original keymap
         } = Self::new(self.context.clone(), format, fd, size).map_err(|()| {
             trace!("unable to create new keymap");
         })?;
