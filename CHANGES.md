@@ -2,6 +2,7 @@
 ## Changed
 - Rust: MSRV is 1.85
 - Rust: Use edition 2024
+- linux: wayland: Use the keymap the compositor sends instead of a hardcoded one
 
 ## Added
 - macOS: Add to support Mouse special key(Back, Forward)
@@ -18,6 +19,7 @@
 - linux: wayland: Send messages in the correct order and make sure Wayland objects are created before they are used
 - linux: wayland: Fix moving the mouse to an absolute coordinate
 - linux: wayland: Don't hang when using Sway
+- linux: wayland: Fix simulating modifiers
 - linux: x11rb: Fix not being able to enter right modifier keys [#391](https://github.com/enigo-rs/enigo/issues/391)
 - linux: x11rb: Don't assume a modifier mapping and get the modifier mapping dynamically instead [#410](https://github.com/enigo-rs/enigo/issues/410)
 - linux: x11rb: Successfully enter the first simulated character as well

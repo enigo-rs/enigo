@@ -1,9 +1,8 @@
 use std::{
-    collections::VecDeque,
     convert::TryInto as _,
     env,
     num::Wrapping,
-    os::unix::{io::AsFd, net::UnixStream},
+    os::{fd::AsFd, unix::net::UnixStream},
     path::PathBuf,
     time::Instant,
 };
@@ -26,11 +25,12 @@ use wayland_protocols_misc::{
 use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1, zwlr_virtual_pointer_v1,
 };
+use xkbcommon::xkb;
 
-use super::keymap::{Bind, KeyMap};
+use super::keymap2::Keymap2;
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
-    NewConError, keycodes::Modifier, keycodes::ModifierBitflag,
+    NewConError, keycodes::ModifierBitflag,
 };
 
 pub type Keycode = u32;
@@ -43,7 +43,6 @@ struct OutputInfo {
 }
 
 pub struct Con {
-    keymap: KeyMap<Keycode>,
     event_queue: EventQueue<WaylandState>,
     state: WaylandState,
     base_time: std::time::Instant,
@@ -88,33 +87,30 @@ impl Con {
             .roundtrip(&mut state)
             .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
 
-        let keymap = KeyMap::new(
-            8,
-            255,
-            // All keycodes are unused when initialized
-            // Never use keycode 8
-            // Keycode 8 is special: when converted to evdev keycodes,
-            // 8 is subtracted, resulting in 0. This typically leads to no effect
-            // when simulating input because keycode 0 corresponds to NoSymbol,
-            // meaning it has no assigned key mapping.
-            (9..=255).collect::<VecDeque<Keycode>>(),
-            0,
-            Vec::new(),
-        );
+        // Initialize the protocols (get the input_method, virtual_keyboard and
+        // virtual_pointer)
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
+
+        // One extra, just to be sure
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
 
         let mut connection = Self {
-            keymap,
             event_queue,
             state,
             base_time: Instant::now(),
         };
 
-        connection.init_protocols()?;
-        connection.check_available_protocols()?;
+        if connection.state.virtual_keyboard.is_some() {
+            connection
+                .update_keymap()
+                .map_err(|_| NewConError::EstablishCon("Sending the initial keymap failed"))?;
+        }
 
-        connection
-            .apply_keymap()
-            .map_err(|_| NewConError::EstablishCon("Unable to apply the keymap"))?;
+        connection.check_available_protocols()?;
 
         Ok(connection)
     }
@@ -138,39 +134,6 @@ impl Con {
             error!("Failed to connect to Wayland. Try setting 'WAYLAND_DISPLAY=wayland-0'.");
             NewConError::EstablishCon("Wayland connection failed.")
         })
-    }
-
-    /// Try to set up all the protocols. An error is returned, if no protocol is
-    /// available
-    fn init_protocols(&mut self) -> Result<(), NewConError> {
-        let qh = self.event_queue.handle();
-
-        if self.state.seat.is_some() {
-            self.state.input_method =
-                self.state.im_manager.as_ref().map(|im_mgr| {
-                    im_mgr.get_input_method(self.state.seat.as_ref().unwrap(), &qh, ())
-                });
-
-            self.state.virtual_keyboard = self.state.keyboard_manager.as_ref().map(|vk_mgr| {
-                vk_mgr.create_virtual_keyboard(self.state.seat.as_ref().unwrap(), &qh, ())
-            });
-        }
-
-        // Setup virtual pointer
-        self.state.virtual_pointer = self
-            .state
-            .pointer_manager
-            .as_ref()
-            .map(|vp_mgr| vp_mgr.create_virtual_pointer(self.state.seat.as_ref(), &qh, ()));
-
-        // Wait for Activate response if the input_method was created
-        // Wait for KeyMap response if virtual_keyboard was created
-        if self.state.input_method.is_some() {
-            self.event_queue
-                .roundtrip(&mut self.state)
-                .map_err(|_| NewConError::EstablishCon("Wayland roundtrip failed"))?;
-        }
-        Ok(())
     }
 
     fn check_available_protocols(&self) -> Result<(), NewConError> {
@@ -204,33 +167,41 @@ impl Con {
     /// # Errors
     /// TODO
     fn send_key_event(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
+        trace!("send_key_event(&mut self, keycode: {keycode}, direction: {direction:?})");
         let vk = self
             .state
             .virtual_keyboard
             .as_ref()
             .ok_or(InputError::Simulate("no way to enter key"))?;
         is_alive(vk)?;
+
         let time = self.get_time();
         let keycode = keycode - 8; // Adjust by 8 due to the xkb/xwayland requirements
+        let direction_wayland = match direction {
+            Direction::Press => 1,
+            Direction::Release => 0,
+            Direction::Click => {
+                return Err(InputError::Simulate(
+                    "impossible direction, this should never be possible. This function must never be called with Direction::Click",
+                ));
+            }
+        };
 
-        if direction == Direction::Press || direction == Direction::Click {
-            trace!("vk.key({time}, {keycode}, 1)");
-            vk.key(time, keycode, 1);
+        vk.key(time, keycode, direction_wayland);
 
-            self.flush()?;
-        }
-        if direction == Direction::Release || direction == Direction::Click {
-            trace!("vk.key({time}, {keycode}, 0)");
-            vk.key(time, keycode, 0);
-
-            self.flush()?;
-        }
+        self.flush()?;
         Ok(())
     }
 
     /// Sends a modifier event with the updated bitflag of the modifiers to the
     /// compositor
-    fn send_modifier_event(&mut self, modifiers: ModifierBitflag) -> InputResult<()> {
+    fn send_modifier_event(
+        &mut self,
+        depressed_mods_new: ModifierBitflag,
+        latched_mods_new: ModifierBitflag,
+        locked_mods_new: ModifierBitflag,
+        effective_layout_new: u32,
+    ) -> InputResult<()> {
         // Retrieve virtual keyboard or return an error early if None
         let vk = self
             .state
@@ -242,10 +213,17 @@ impl Con {
         is_alive(vk)?;
 
         // Log the modifier event
-        trace!("vk.modifiers({modifiers}, 0, 0, 0)");
+        trace!(
+            "vk.modifiers({depressed_mods_new}, {latched_mods_new}, {locked_mods_new}, {effective_layout_new})"
+        );
 
         // Send the modifier event
-        vk.modifiers(modifiers, 0, 0, 0);
+        vk.modifiers(
+            depressed_mods_new,
+            latched_mods_new,
+            locked_mods_new,
+            effective_layout_new,
+        );
 
         self.flush()?;
 
@@ -256,8 +234,8 @@ impl Con {
     ///
     /// # Errors
     /// TODO
-    fn apply_keymap(&mut self) -> InputResult<()> {
-        trace!("apply_keymap(&mut self)");
+    fn update_keymap(&mut self) -> InputResult<()> {
+        debug!("update_keymap(&mut self)");
         let vk = self
             .state
             .virtual_keyboard
@@ -265,39 +243,21 @@ impl Con {
             .ok_or(InputError::Simulate("no way to apply keymap"))?;
         is_alive(vk)?;
 
-        // Regenerate keymap and handle failure
-        let keymap_size = self
-            .keymap
-            .regenerate()
-            .map_err(|_| InputError::Mapping("unable to regenerate keymap".to_string()))?;
-
-        // Early return if the keymap was not changed because we only send an updated
-        // keymap if we had to regenerate it
-        let Some(size) = keymap_size else {
-            return Ok(());
+        let keymap = match &self.state.seat_keymap {
+            Some(keymap) => keymap,
+            None => &Keymap2::default()
+                .map_err(|()| InputError::Mapping("could not update the keymap".to_string()))?,
         };
 
-        trace!("update wayland keymap");
-
-        let keymap_file = self.keymap.keymap_mapping.file.as_ref().unwrap(); // Safe here, assuming file is always present
-        vk.keymap(1, keymap_file.as_fd(), size);
+        let (format, keymap_file, size) = keymap
+            .format_file_size()
+            .map_err(|()| InputError::Mapping("could not update the keymap".to_string()))?;
+        vk.keymap(format, keymap_file.as_fd(), size);
 
         debug!("wait for response after keymap call");
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| InputError::Simulate("Wayland roundtrip failed"))?;
-
-        Ok(())
-    }
-
-    fn raw(&mut self, keycode: Keycode, direction: Direction) -> InputResult<()> {
-        // Apply the new keymap if there were any changes
-        self.apply_keymap()?;
-
-        // Send the key event and update keymap state
-        // This is important to avoid unmapping held keys
-        self.send_key_event(keycode, direction)?;
-        self.keymap.key(keycode, direction);
 
         Ok(())
     }
@@ -311,11 +271,6 @@ impl Con {
         trace!("flushed event queue");
         Ok(())
     }
-}
-
-impl Bind<Keycode> for Con {
-    // Nothing to do
-    // On Wayland only the whole keymap can be applied
 }
 
 impl Drop for Con {
@@ -340,7 +295,7 @@ impl Drop for Con {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Default)]
 /// Stores the manager for the various protocols
 struct WaylandState {
     // interface name, global id, version
@@ -355,10 +310,12 @@ struct WaylandState {
     virtual_pointer: Option<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1>,
     seat: Option<wl_seat::WlSeat>,
     seat_keyboard: Option<WlKeyboard>,
+    seat_keymap: Option<Keymap2>,
     seat_pointer: Option<WlPointer>,
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
+    #[allow(clippy::too_many_lines)]
     fn event(
         state: &mut Self,
         registry: &wl_registry::WlRegistry,
@@ -374,10 +331,37 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 interface,
                 version,
             } => {
-                trace!("Global announced: {interface} (name: {name}, version: {version})");
+                debug!("Global announced: {interface} (name: {name}, version: {version})");
                 match &interface[..] {
                     "wl_seat" => {
                         let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version, qh, ());
+                        // We don't know if the seat or the im_manager is created first and we need
+                        // both to get the input_method
+                        if let Some(im_manager) = &state.im_manager {
+                            if state.input_method.is_none() {
+                                let input_method = im_manager.get_input_method(&seat, qh, ());
+                                state.input_method = Some(input_method);
+                            }
+                        }
+                        // We don't know if the seat or the keyboard_manager is created first and we
+                        // need both to get the virtual_keyboard
+                        if let Some(keyboard_manager) = &state.keyboard_manager {
+                            if state.virtual_keyboard.is_none() {
+                                let virtual_keyboard =
+                                    keyboard_manager.create_virtual_keyboard(&seat, qh, ());
+                                state.virtual_keyboard = Some(virtual_keyboard);
+                            }
+                        }
+                        // We don't know if the seat or the pointer_manager is created first and we
+                        // need both to get the virtual_pointer
+                        if let Some(pointer_manager) = &state.pointer_manager {
+                            if state.virtual_pointer.is_none() {
+                                let virtual_pointer =
+                                    pointer_manager.create_virtual_pointer(Some(&seat), qh, ());
+                                state.virtual_pointer = Some(virtual_pointer);
+                            }
+                        }
+
                         state.seat = Some(seat);
                     }
                     "wl_output" => {
@@ -386,34 +370,60 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         state.outputs.push((wl_output, OutputInfo::default()));
                     }
                     "zwp_input_method_manager_v2" => {
-                        let manager = registry
+                        let im_manager = registry
                             .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
-                                name,
-                                version,
-                                qh,
-                                (),
-                            );
-                        state.im_manager = Some(manager);
+                            name,
+                            version,
+                            qh,
+                            (),
+                        );
+                        // We don't know if the seat or the im_manager is created first and we need
+                        // both to get the input_method
+                        if let Some(seat) = &state.seat {
+                            if state.input_method.is_none() {
+                                let input_method = im_manager.get_input_method(seat, qh, ());
+                                state.input_method = Some(input_method);
+                            }
+                        }
+                        state.im_manager = Some(im_manager);
                     }
                     "zwp_virtual_keyboard_manager_v1" => {
-                        let manager = registry
+                        let keyboard_manager = registry
                         .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
                         name,
                         version,
                         qh,
                         (),
                     );
-                        state.keyboard_manager = Some(manager);
+                        // We don't know if the seat or the keyboard_manager is created first and we
+                        // need both to get the virtual_keyboard
+                        if let Some(seat) = &state.seat {
+                            if state.virtual_keyboard.is_none() {
+                                let virtual_keyboard =
+                                    keyboard_manager.create_virtual_keyboard(seat, qh, ());
+                                state.virtual_keyboard = Some(virtual_keyboard);
+                            }
+                        }
+                        state.keyboard_manager = Some(keyboard_manager);
                     }
                     "zwlr_virtual_pointer_manager_v1" => {
-                        let manager = registry
+                        let pointer_manager = registry
                         .bind::<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, _, _>(
                         name,
                         version,
                         qh,
                         (),
                     );
-                        state.pointer_manager = Some(manager);
+                        // We don't know if the seat or the pointer_manager is created first and we
+                        // need both to get the virtual_pointer
+                        if let Some(seat) = &state.seat {
+                            if state.virtual_pointer.is_none() {
+                                let virtual_pointer =
+                                    pointer_manager.create_virtual_pointer(Some(seat), qh, ());
+                                state.virtual_pointer = Some(virtual_pointer);
+                            }
+                        }
+                        state.pointer_manager = Some(pointer_manager);
                     }
                     _ => {}
                 }
@@ -421,7 +431,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
             }
             // Remove global from store when it becomes unavailable
             wl_registry::Event::GlobalRemove { name } => {
-                trace!("Global removed: {name}");
+                debug!("Global removed: {name}");
                 let Some((idx, (interface, name, _))) = state
                     .globals
                     .iter()
@@ -455,7 +465,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 }
                 state.globals.remove(idx);
             }
-            ev => warn!("Received unknown Wayland event: {ev:?}"),
+            ev => warn!("WlRegistry received unknown event:\n{ev:?}"),
         }
     }
 }
@@ -469,7 +479,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a virtual keyboard manager event {event:?}");
+        warn!("ZwpVirtualKeyboardManagerV1 received unknown event:\n{event:?}");
     }
 }
 
@@ -482,7 +492,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a virtual keyboard event {event:?}");
+        warn!("ZwpVirtualKeyboardV1 received unknown event:\n{event:?}");
     }
 }
 
@@ -495,7 +505,7 @@ impl Dispatch<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, ()> for Wayl
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received an input method manager event {event:?}");
+        warn!("ZwpInputMethodManagerV2 received unknown event:\n{event:?}");
     }
 }
 impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
@@ -507,9 +517,11 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a input method event {event:?}");
         match event {
-            zwp_input_method_v2::Event::Done => state.im_serial += Wrapping(1u32),
+            zwp_input_method_v2::Event::Done => {
+                debug!("ZwpInputMethodV2 received event:\nzwp_input_method_v2::Event::Done");
+                state.im_serial += Wrapping(1u32);
+            }
             zwp_input_method_v2::Event::Activate
             | zwp_input_method_v2::Event::Deactivate
             | zwp_input_method_v2::Event::SurroundingText {
@@ -522,8 +534,10 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
                 hint: _,
                 purpose: _,
             }
-            | zwp_input_method_v2::Event::Unavailable => (),
-            _ => todo!(),
+            | zwp_input_method_v2::Event::Unavailable => {
+                trace!("ZwpInputMethodV2 received irrelevant event:\n{event:?}");
+            }
+            _ => warn!("ZwpInputMethodV2 received unknown event:\n{event:?}"),
         }
     }
 }
@@ -537,15 +551,12 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
         _con: &Connection,
         qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a seat event {event:?}");
         match event {
             wl_seat::Event::Capabilities { capabilities } => {
-                let capabilities = match capabilities {
-                    wayland_client::WEnum::Value(capabilities) => capabilities,
-                    wayland_client::WEnum::Unknown(v) => {
-                        warn!("Unknown value for the capabilities of the wl_seat: {v}");
-                        return;
-                    }
+                debug!("WlSeat received event:\n{event:?}");
+                let wayland_client::WEnum::Value(capabilities) = capabilities else {
+                    warn!("Unknown value for the capabilities of the wl_seat: {capabilities:?}");
+                    return;
                 };
 
                 // Create a WlKeyboard if the seat has the capability
@@ -560,22 +571,78 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
                     state.seat_pointer = Some(seat_pointer);
                 }
             }
-            wl_seat::Event::Name { name: _ } => {}
-            _ => warn!("unknown event"),
+            wl_seat::Event::Name { name: _ } => {
+                trace!("WlSeat received irrelevant event:\n{event:?}");
+            }
+            _ => warn!("WlSeat received unknown event:\n{event:?}"),
         }
     }
 }
 
 impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         _seat: &wl_keyboard::WlKeyboard,
         event: wl_keyboard::Event,
         (): &(),
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a wl_keyboard event {event:?}");
+        match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                debug!(
+                    "WlKeyboard received event:\nwl_keyboard::Event::Keymap {{ {format:?}, {fd:?}, {size} }}"
+                );
+
+                // Get the received format
+                let format = if let WEnum::Value(format) = format {
+                    format as xkb::KeymapFormat
+                } else {
+                    error!("invalid format received! resetting the keymap");
+                    state.seat_keymap = None;
+                    return;
+                };
+
+                if let Some(keymap) = &mut state.seat_keymap {
+                    if keymap.update(format, fd, size).is_err() {
+                        state.seat_keymap = None;
+                    }
+                } else {
+                    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+                    state.seat_keymap = Keymap2::new_from_fd(context, format, fd, size).ok();
+                }
+            }
+            wl_keyboard::Event::Modifiers {
+                serial: _,
+                mods_depressed: depressed_mods,
+                mods_latched: latched_mods,
+                mods_locked: locked_mods,
+                group: depressed_layout,
+            } => {
+                if let Some(keymap) = &mut state.seat_keymap {
+                    // Wayland doesn't differentiates between depressed, latched and locked
+                    keymap.update_modifiers(
+                        depressed_mods,
+                        latched_mods,
+                        locked_mods,
+                        depressed_layout,
+                        0,
+                        0,
+                    );
+                    debug!("modifiers updated");
+                }
+            }
+            // On Wayland the clients only get notified about pressed keys or modifiers if they have
+            // the focus. We cannot assume that is the case, so the received events don't reflect
+            // the full picture and we cannot use them to keep track of the state of the keyboard
+            wl_keyboard::Event::Enter { .. }
+            | wl_keyboard::Event::Leave { .. }
+            | wl_keyboard::Event::Key { .. }
+            | wl_keyboard::Event::RepeatInfo { .. } => {
+                debug!("WlKeyboard received irrelevant event:\n{event:?}");
+            }
+            _ => warn!("WlKeyboard received unknown event:\n{event:?}"),
+        }
     }
 }
 
@@ -588,7 +655,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WaylandState {
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a wl_pointer event {event:?}");
+        warn!("WlPointer received unknown event:\n{event:?}");
     }
 }
 
@@ -603,6 +670,7 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
     ) {
         match event {
             wl_output::Event::Geometry { transform, .. } => {
+                debug!("WlOutput received event:\n{event:?}");
                 // The width and height need to get switched if the transform changes them
                 // TODO: Check if this really is needed
                 if transform == WEnum::Value(wl_output::Transform::_90)
@@ -621,9 +689,9 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                 flags,
                 width,
                 height,
-                refresh,
+                refresh: _,
             } => {
-                warn!("flags: {flags:?}, width: {width}, : {height}, refresh: {refresh}");
+                debug!("WlOutput received event:\n{event:?}");
                 if flags == WEnum::Value(Mode::Current) {
                     if let Some((_, output_data)) =
                         state.outputs.iter_mut().find(|(o, _)| o == output)
@@ -633,9 +701,14 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                     }
                 }
             }
-            ev => {
-                warn!("{ev:?}");
+            // TODO: Check if Scale is relevant
+            wl_output::Event::Done
+            | wl_output::Event::Scale { factor: _ }
+            | wl_output::Event::Name { name: _ }
+            | wl_output::Event::Description { description: _ } => {
+                trace!("WlOutput received irrelevant event:\n{event:?}");
             }
+            _ => warn!("WlOutput received unknown event:\n{event:?}"),
         }
     }
 }
@@ -649,7 +722,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()> 
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Received a virtual keyboard manager event {event:?}");
+        warn!("ZwlrVirtualPointerManagerV1 received unknown event:\n{event:?}");
     }
 }
 
@@ -662,7 +735,7 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for WaylandStat
         _: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        warn!("Got a virtual keyboard event {event:?}");
+        warn!("ZwlrVirtualPointerV1 received unknown event:\n{event:?}");
     }
 }
 
@@ -701,34 +774,91 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let Ok(modifier) = Modifier::try_from(key) else {
-            let keycode = self.keymap.key_to_keycode(&(), key)?;
-            self.raw(keycode, direction)?;
-            return Ok(());
+        let keymap = self
+            .state
+            .seat_keymap
+            .as_mut()
+            .ok_or(InputError::Simulate("no keymap available"))?;
+
+        let keycode = if let Some(keycode) = keymap.key_to_keycode(key) {
+            keycode
+        } else {
+            debug!("keycode for key {key:?} was not found");
+
+            let mapping_res = keymap.map_key(key);
+            let keycode = match mapping_res {
+                Err(InputError::Mapping(_)) => {
+                    // Unmap and retry
+                    keymap.unmap_everything()?;
+                    keymap.map_key(key)?
+                }
+
+                Ok(keycode) => keycode,
+                _ => return Err(InputError::Mapping("unable to map the key".to_string())),
+            };
+
+            // Apply the new keymap if there were any changes
+            self.update_keymap()?;
+            keycode
         };
-
-        // Send the events to the compositor
-        trace!("it is a modifier: {modifier:?}");
-        if direction == Direction::Click || direction == Direction::Press {
-            let modifiers = self
-                .keymap
-                .enter_modifier(modifier.bitflag(), Direction::Press);
-            self.send_modifier_event(modifiers)?;
-        }
-        if direction == Direction::Click || direction == Direction::Release {
-            let modifiers = self
-                .keymap
-                .enter_modifier(modifier.bitflag(), Direction::Release);
-            self.send_modifier_event(modifiers)?;
-        }
-
-        Ok(())
+        self.raw(keycode, direction)
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
-        self.raw(keycode as u32, direction)
+        if direction == Direction::Click || direction == Direction::Press {
+            // Update keymap state
+            if let Some((
+                depressed_mods_new,
+                latched_mods_new,
+                locked_mods_new,
+                effective_layout_new,
+            )) = self
+                .state
+                .seat_keymap
+                .as_mut()
+                .ok_or(InputError::Simulate("no keymap available"))?
+                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Down)
+            {
+                trace!("it is a modifier");
+                self.send_modifier_event(
+                    depressed_mods_new,
+                    latched_mods_new,
+                    locked_mods_new,
+                    effective_layout_new,
+                )?;
+            } else {
+                self.send_key_event(keycode.into(), Direction::Press)?;
+            }
+        }
+        if direction == Direction::Click || direction == Direction::Release {
+            // Update keymap state
+            if let Some((
+                depressed_mods_new,
+                latched_mods_new,
+                locked_mods_new,
+                effective_layout_new,
+            )) = self
+                .state
+                .seat_keymap
+                .as_mut()
+                .ok_or(InputError::Simulate("no keymap available"))?
+                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Up)
+            {
+                trace!("it is a modifier");
+                self.send_modifier_event(
+                    depressed_mods_new,
+                    latched_mods_new,
+                    locked_mods_new,
+                    effective_layout_new,
+                )?;
+            } else {
+                self.send_key_event(keycode.into(), Direction::Press)?;
+            }
+        }
+        Ok(())
     }
 }
+
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let vp = self
