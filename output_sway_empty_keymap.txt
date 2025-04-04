@@ -1,0 +1,311 @@
+warning: unused variable: `new_modifier_bitflag`
+   --> src/linux/keymap2/mod.rs:108:40
+    |
+108 |     pub fn update_modifiers(&mut self, new_modifier_bitflag: u32) {
+    |                                        ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_modifier_bitflag`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `keycode`
+   --> src/linux/keymap2/mod.rs:136:31
+    |
+136 |     pub fn is_modifier(&self, keycode: u16) -> Option<ModifierBitflag> {
+    |                               ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_keycode`
+ 
+warning: constant `KEYMAP_BEGINNING` is never used
+ --> src/linux/constants.rs:1:11
+  |
+1 | pub const KEYMAP_BEGINNING: &[u8; 7806] = b"xkb_keymap {
+  |           ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+ 
+warning: constant `KEYMAP_END` is never used
+   --> src/linux/constants.rs:293:11
+    |
+293 | pub const KEYMAP_END: &[u8; 9] = b"
+    |           ^^^^^^^^^^
+ 
+warning: struct `KeyMapMapping` is never constructed
+  --> src/linux/keymap.rs:16:19
+   |
+16 | pub(super) struct KeyMapMapping<Keycode> {
+   |                   ^^^^^^^^^^^^^
+ 
+warning: struct `KeyMapState` is never constructed
+  --> src/linux/keymap.rs:30:8
+   |
+30 | struct KeyMapState<Keycode> {
+   |        ^^^^^^^^^^^
+ 
+warning: struct `KeyMap` is never constructed
+  --> src/linux/keymap.rs:40:12
+   |
+40 | pub struct KeyMap<Keycode> {
+   |            ^^^^^^
+   |
+   = note: `KeyMap` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+ 
+warning: multiple associated items are never used
+   --> src/linux/keymap.rs:60:12
+    |
+52  | / impl<Keycode> KeyMap<Keycode>
+53  | | where
+54  | |     Keycode: Copy + Clone + PartialEq + Display,
+55  | |     Keycode: TryInto<usize> + TryFrom<usize>,
+56  | |     <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
+57  | |     <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
+    | |________________________________________________________- associated items in this implementation
+...
+60  |       pub fn new(
+    |              ^^^
+...
+113 |       fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
+    |          ^^^^^^^^^^^^^^^^^
+...
+146 |       pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Ke...
+    |              ^^^^^^^^^^^^^^
+...
+180 |       pub fn map<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) -> InputResult<Keycode> {
+    |              ^^^
+...
+203 |       pub fn unmap<C: Bind<Keycode>>(
+    |              ^^^^^
+...
+255 |       fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
+    |          ^^^^^^^^^
+...
+283 |       pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
+    |              ^^^^^^^^^^
+...
+339 |       pub fn enter_modifier(
+    |              ^^^^^^^^^^^^^^
+...
+357 |       pub fn key(&mut self, keycode: Keycode, direction: Direction) {
+    |              ^^^
+ 
+warning: trait `Bind` is never used
+   --> src/linux/keymap.rs:377:11
+    |
+377 | pub trait Bind<Keycode> {
+    |           ^^^^
+ 
+warning: variant `Mod3` is never constructed
+    --> src/keycodes.rs:1108:5
+     |
+1092 | pub(crate) enum Modifier {
+     |                 -------- variant in this enum
+...
+1108 |     Mod3,
+     |     ^^^^
+     |
+     = note: `Modifier` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+ 
+warning: methods `bitflag` and `no` are never used
+    --> src/keycodes.rs:1123:19
+     |
+1119 | impl Modifier {
+     | ------------- methods in this implementation
+...
+1123 |     pub(crate) fn bitflag(self) -> ModifierBitflag {
+     |                   ^^^^^^^
+...
+1139 |     pub(crate) fn no(self) -> usize {
+     |                   ^^
+ 
+warning: `enigo` (lib) generated 11 warnings
+warning: unused imports: `Press` and `Release`
+ --> examples/keyboard.rs:2:24
+  |
+2 |     Direction::{Click, Press, Release},
+  |                        ^^^^^  ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+ 
+warning: `enigo` (example "keyboard") generated 1 warning (run `cargo fix --example "keyboard"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running `target/debug/examples/keyboard`
+[2025-04-02T22:55:59Z DEBUG enigo] using default settings
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] trying to establish a connection to $WAYLAND_DISPLAY
+[2391740.679][rs] -> wl_display@1.get_registry(wl_registry@2)
+[2391740.769][rs] -> wl_display@1.sync(wl_callback@3)
+[2391740.993][rs] <- wl_registry@2.global, (1, Some("wl_shm"), 2)
+[2391741.021][rs] <- wl_registry@2.global, (2, Some("zwp_linux_dmabuf_v1"), 4)
+[2391741.040][rs] <- wl_registry@2.global, (3, Some("wl_compositor"), 6)
+[2391741.058][rs] <- wl_registry@2.global, (4, Some("wl_subcompositor"), 1)
+[2391741.075][rs] <- wl_registry@2.global, (5, Some("wl_data_device_manager"), 3)
+[2391741.093][rs] <- wl_registry@2.global, (6, Some("zwlr_gamma_control_manager_v1"), 1)
+[2391741.111][rs] <- wl_registry@2.global, (7, Some("zxdg_output_manager_v1"), 3)
+[2391741.128][rs] <- wl_registry@2.global, (8, Some("ext_idle_notifier_v1"), 1)
+[2391741.145][rs] <- wl_registry@2.global, (9, Some("zwp_idle_inhibit_manager_v1"), 1)
+[2391741.182][rs] <- wl_registry@2.global, (10, Some("zwlr_layer_shell_v1"), 4)
+[2391741.199][rs] <- wl_registry@2.global, (11, Some("xdg_wm_base"), 5)
+[2391741.216][rs] <- wl_registry@2.global, (12, Some("zwp_tablet_manager_v2"), 1)
+[2391741.232][rs] <- wl_registry@2.global, (13, Some("org_kde_kwin_server_decoration_manager"), 1)
+[2391741.249][rs] <- wl_registry@2.global, (14, Some("zxdg_decoration_manager_v1"), 1)
+[2391741.266][rs] <- wl_registry@2.global, (15, Some("zwp_relative_pointer_manager_v1"), 1)
+[2391741.283][rs] <- wl_registry@2.global, (16, Some("zwp_pointer_constraints_v1"), 1)
+[2391741.300][rs] <- wl_registry@2.global, (17, Some("wp_presentation"), 1)
+[2391741.316][rs] <- wl_registry@2.global, (18, Some("wp_alpha_modifier_v1"), 1)
+[2391741.333][rs] <- wl_registry@2.global, (19, Some("zwlr_output_manager_v1"), 4)
+[2391741.376][rs] <- wl_registry@2.global, (20, Some("zwlr_output_power_manager_v1"), 1)
+[2391741.392][rs] <- wl_registry@2.global, (21, Some("zwp_input_method_manager_v2"), 1)
+[2391741.409][rs] <- wl_registry@2.global, (22, Some("zwp_text_input_manager_v3"), 1)
+[2391741.426][rs] <- wl_registry@2.global, (23, Some("ext_foreign_toplevel_list_v1"), 1)
+[2391741.442][rs] <- wl_registry@2.global, (24, Some("zwlr_foreign_toplevel_manager_v1"), 3)
+[2391741.459][rs] <- wl_registry@2.global, (25, Some("ext_session_lock_manager_v1"), 1)
+[2391741.476][rs] <- wl_registry@2.global, (26, Some("wp_drm_lease_device_v1"), 1)
+[2391741.493][rs] <- wl_registry@2.global, (27, Some("zwlr_export_dmabuf_manager_v1"), 1)
+[2391741.510][rs] <- wl_registry@2.global, (28, Some("zwlr_screencopy_manager_v1"), 3)
+[2391741.526][rs] <- wl_registry@2.global, (29, Some("zwlr_data_control_manager_v1"), 2)
+[2391741.543][rs] <- wl_registry@2.global, (30, Some("wp_security_context_manager_v1"), 1)
+[2391741.560][rs] <- wl_registry@2.global, (31, Some("wp_viewporter"), 1)
+[2391741.576][rs] <- wl_registry@2.global, (32, Some("wp_single_pixel_buffer_manager_v1"), 1)
+[2391741.593][rs] <- wl_registry@2.global, (33, Some("wp_content_type_manager_v1"), 1)
+[2391741.619][rs] <- wl_registry@2.global, (34, Some("wp_fractional_scale_manager_v1"), 1)
+[2391741.636][rs] <- wl_registry@2.global, (35, Some("wp_tearing_control_manager_v1"), 1)
+[2391741.653][rs] <- wl_registry@2.global, (36, Some("zxdg_exporter_v1"), 1)
+[2391741.670][rs] <- wl_registry@2.global, (37, Some("zxdg_importer_v1"), 1)
+[2391741.686][rs] <- wl_registry@2.global, (38, Some("zxdg_exporter_v2"), 1)
+[2391741.703][rs] <- wl_registry@2.global, (39, Some("zxdg_importer_v2"), 1)
+[2391741.720][rs] <- wl_registry@2.global, (40, Some("xdg_activation_v1"), 1)
+[2391741.737][rs] <- wl_registry@2.global, (41, Some("wp_cursor_shape_manager_v1"), 1)
+[2391741.754][rs] <- wl_registry@2.global, (42, Some("zwp_virtual_keyboard_manager_v1"), 1)
+[2391741.770][rs] <- wl_registry@2.global, (43, Some("zwlr_virtual_pointer_manager_v1"), 2)
+[2391741.799][rs] <- wl_registry@2.global, (44, Some("zwp_keyboard_shortcuts_inhibit_manager_v1"), 1)
+[2391741.816][rs] <- wl_registry@2.global, (45, Some("zwp_pointer_gestures_v1"), 3)
+[2391741.833][rs] <- wl_registry@2.global, (46, Some("ext_transient_seat_manager_v1"), 1)
+[2391741.849][rs] <- wl_registry@2.global, (47, Some("wl_seat"), 9)
+[2391741.866][rs] <- wl_registry@2.global, (49, Some("zwp_primary_selection_device_manager_v1"), 1)
+[2391741.883][rs] <- wl_registry@2.global, (50, Some("wl_output"), 4)
+[2391741.899][rs] <- wl_callback@3.done, (4359)
+[2391741.911][rs] <- wl_display@1.delete_id, (3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_shm (name: 1, version: 2)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_linux_dmabuf_v1 (name: 2, version: 4)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_compositor (name: 3, version: 6)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_subcompositor (name: 4, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_data_device_manager (name: 5, version: 3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_gamma_control_manager_v1 (name: 6, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_output_manager_v1 (name: 7, version: 3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: ext_idle_notifier_v1 (name: 8, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_idle_inhibit_manager_v1 (name: 9, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_layer_shell_v1 (name: 10, version: 4)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: xdg_wm_base (name: 11, version: 5)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_tablet_manager_v2 (name: 12, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: org_kde_kwin_server_decoration_manager (name: 13, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_decoration_manager_v1 (name: 14, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_relative_pointer_manager_v1 (name: 15, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_pointer_constraints_v1 (name: 16, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_presentation (name: 17, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_alpha_modifier_v1 (name: 18, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_output_manager_v1 (name: 19, version: 4)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_output_power_manager_v1 (name: 20, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_input_method_manager_v2 (name: 21, version: 1)
+[2391742.636][rs] -> wl_registry@2.bind(21, Some("zwp_input_method_manager_v2"), 1, zwp_input_method_manager_v2@3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_text_input_manager_v3 (name: 22, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: ext_foreign_toplevel_list_v1 (name: 23, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_foreign_toplevel_manager_v1 (name: 24, version: 3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: ext_session_lock_manager_v1 (name: 25, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_drm_lease_device_v1 (name: 26, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_export_dmabuf_manager_v1 (name: 27, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_screencopy_manager_v1 (name: 28, version: 3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_data_control_manager_v1 (name: 29, version: 2)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_security_context_manager_v1 (name: 30, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_viewporter (name: 31, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_single_pixel_buffer_manager_v1 (name: 32, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_content_type_manager_v1 (name: 33, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_fractional_scale_manager_v1 (name: 34, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_tearing_control_manager_v1 (name: 35, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_exporter_v1 (name: 36, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_importer_v1 (name: 37, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_exporter_v2 (name: 38, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zxdg_importer_v2 (name: 39, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: xdg_activation_v1 (name: 40, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wp_cursor_shape_manager_v1 (name: 41, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_virtual_keyboard_manager_v1 (name: 42, version: 1)
+[2391743.356][rs] -> wl_registry@2.bind(42, Some("zwp_virtual_keyboard_manager_v1"), 1, zwp_virtual_keyboard_manager_v1@4)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwlr_virtual_pointer_manager_v1 (name: 43, version: 2)
+[2391743.427][rs] -> wl_registry@2.bind(43, Some("zwlr_virtual_pointer_manager_v1"), 2, zwlr_virtual_pointer_manager_v1@5)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_keyboard_shortcuts_inhibit_manager_v1 (name: 44, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_pointer_gestures_v1 (name: 45, version: 3)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: ext_transient_seat_manager_v1 (name: 46, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_seat (name: 47, version: 9)
+[2391743.586][rs] -> wl_registry@2.bind(47, Some("wl_seat"), 9, wl_seat@6)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: zwp_primary_selection_device_manager_v1 (name: 49, version: 1)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] Global announced: wl_output (name: 50, version: 4)
+[2391743.678][rs] -> wl_registry@2.bind(50, Some("wl_output"), 4, wl_output@7)
+[2391743.706][rs] -> wl_display@1.sync(wl_callback@8)
+[2391743.854][rs] <- wl_seat@6.name, (Some("seat0"))
+[2391743.872][rs] <- wl_seat@6.capabilities, (3)
+[2391743.890][rs] <- wl_output@7.geometry, (0, 0, 320, 200, 0, Some("Red Hat, Inc."), Some("QEMU Monitor"), 0)
+[2391743.917][rs] <- wl_output@7.mode, (1, 3840, 2160, 60000)
+[2391743.932][rs] <- wl_output@7.scale, (3)
+[2391743.943][rs] <- wl_output@7.name, (Some("Virtual-1"))
+[2391743.957][rs] <- wl_output@7.description, (Some("Red Hat, Inc. QEMU Monitor (Virtual-1)"))
+[2391743.970][rs] <- wl_output@7.done, ()
+[2391743.980][rs] <- wl_callback@8.done, (4359)
+[2391743.991][rs] <- wl_display@1.delete_id, (8)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] WlSeat received event:
+    Capabilities { capabilities: Value(Capability(Pointer | Keyboard)) }
+[2391744.076][rs] -> wl_seat@6.get_keyboard(wl_keyboard@8)
+[2391744.097][rs] -> wl_seat@6.get_pointer(wl_pointer@9)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] WlOutput received event:
+    Geometry { x: 0, y: 0, physical_width: 320, physical_height: 200, subpixel: Value(Unknown), make: "Red Hat, Inc.", model: "QEMU Monitor", transform: Value(Normal) }
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] WlOutput received event:
+    Mode { flags: Value(Mode(Current)), width: 3840, height: 2160, refresh: 60000 }
+[2391744.266][rs] -> zwp_input_method_manager_v2@3.get_input_method(wl_seat@6, zwp_input_method_v2@10)
+[2391744.291][rs] -> zwp_virtual_keyboard_manager_v1@4.create_virtual_keyboard(wl_seat@6, zwp_virtual_keyboard_v1@11)
+[2391744.315][rs] -> zwlr_virtual_pointer_manager_v1@5.create_virtual_pointer(wl_seat@6, zwlr_virtual_pointer_v1@12)
+[2391744.335][rs] -> wl_display@1.sync(wl_callback@13)
+[2391744.655][rs] <- wl_keyboard@8.keymap, (1, 4, 67292)
+[2391744.695][rs] <- wl_keyboard@8.repeat_info, (25, 600)
+[2391744.719][rs] <- wl_callback@13.done, (4359)
+[2391744.741][rs] <- wl_display@1.delete_id, (13)
+[2391744.771][rs] <- zwp_input_method_v2@10.activate, ()
+[2391744.793][rs] <- zwp_input_method_v2@10.text_change_cause, (0)
+[2391744.815][rs] <- zwp_input_method_v2@10.content_type, (0, 13)
+[2391744.838][rs] <- zwp_input_method_v2@10.done, ()
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] WlKeyboard received event:
+    wl_keyboard::Event::Keymap { Value(XkbV1), OwnedFd { fd: 4 }, 67292 }
+[2025-04-02T22:55:59Z DEBUG enigo::platform::keymap2] creating new xkb:Keymap
+[2025-04-02T22:55:59Z DEBUG enigo::platform::keymap2] new(format: 1, size: 67292, ...)
+[2025-04-02T22:55:59Z DEBUG enigo::platform::keymap2::parse_keymap] RECEIVED KEYMAP:
+ 
+[2025-04-02T22:55:59Z ERROR enigo::platform::keymap2::parse_keymap] parsing keymap failed
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] WlKeyboard received irrelevant event:
+    RepeatInfo { rate: 25, delay: 600 }
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] ZwpInputMethodV2 received event:
+    zwp_input_method_v2::Event::Done
+[2025-04-02T22:55:59Z DEBUG enigo::platform::wayland] protocols available
+    virtual_keyboard: true
+    input_method: true
+    virtual_pointer: true
+[2025-04-02T22:55:59Z DEBUG enigo::platform] wayland connection established
+[2025-04-02T22:55:59Z DEBUG enigo::platform] fast_text(text: Hello World! here is a lot of text  ❤️)
+[2391745.724][rs] -> wl_display@1.sync(wl_callback@13)
+[2391745.944][rs] <- wl_callback@13.done, (4359)
+[2391745.961][rs] <- wl_display@1.delete_id, (13)
+[2391745.990][rs] -> zwp_input_method_v2@10.commit_string(Some("Hello World! here is a lot of text  \xe2\x9d\xa4\xef\xb8\x8f"))
+[2391746.011][rs] -> zwp_input_method_v2@10.commit(1)
+[2025-04-02T22:55:59Z DEBUG enigo] fast text entry was successful
+[2025-04-02T22:55:59Z DEBUG enigo::platform] entered the text fast
+[2025-04-02T22:55:59Z DEBUG enigo] fast text entry was successful
+[2025-04-02T22:55:59Z DEBUG enigo::platform] key(key: Unicode('a'), direction: Click)
+[2391746.144][rs] -> wl_display@1.sync(wl_callback@13)
+[2391746.257][rs] <- wl_callback@13.done, (4359)
+[2391746.269][rs] <- wl_display@1.delete_id, (13)
+ 
+thread 'main' panicked at examples/keyboard.rs:20:41:
+called `Result::unwrap()` on an `Err` value: Simulate("no keymap available")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[2025-04-02T22:55:59Z DEBUG enigo::platform] released all held keys and held keycodes
+[2391746.391][rs] -> zwp_virtual_keyboard_v1@11.destroy()
+[2391746.406][rs] -> zwp_input_method_v2@10.destroy()
+[2391746.418][rs] -> zwlr_virtual_pointer_v1@12.destroy()
+[2391746.463][rs] -> wl_display@1.sync(wl_callback@13)
+[2391746.657][rs] <- wl_display@1.delete_id, (11)
+[2391746.672][rs] <- wl_display@1.delete_id, (10)
+[2391746.682][rs] <- wl_display@1.delete_id, (12)
+[2391746.694][rs] <- wl_callback@13.done, (4359)
+[2391746.705][rs] <- wl_display@1.delete_id, (13)
+ 
