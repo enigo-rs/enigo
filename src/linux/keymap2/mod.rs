@@ -9,7 +9,7 @@ use xkbcommon::xkb::{
 };
 use xkeysym::Keysym;
 
-use crate::{InputResult, Key};
+use crate::{InputError, InputResult, Key};
 
 mod parse_keymap;
 pub(crate) use parse_keymap::ParsedKeymap;
@@ -241,6 +241,78 @@ impl Keymap2 {
             None => key_name,
         };
         self.parsed_keymap.map_key(key_name, true)
+    }
+
+    pub fn unmap_everything(&mut self) -> InputResult<()> {
+        debug!("unmap_everything");
+        let depressed_mods = self.state.serialize_mods(STATE_MODS_DEPRESSED);
+        let latched_mods = self.state.serialize_mods(STATE_MODS_LATCHED);
+        let locked_mods = self.state.serialize_mods(STATE_MODS_LOCKED);
+
+        let depressed_layout = self.state.serialize_layout(STATE_LAYOUT_DEPRESSED);
+        let latched_layout = self.state.serialize_layout(STATE_LAYOUT_LATCHED);
+        let locked_layout = self.state.serialize_layout(STATE_LAYOUT_LOCKED);
+
+        let mut keymap_file = tempfile::tempfile().map_err(|e| {
+            error!("could not create temporary file. Error: {e}");
+            InputError::Unmapping("unable to unmap the keys".to_string())
+        })?;
+        write!(keymap_file, "{}", self.original_keymap).map_err(|e| {
+            error!("could not write to temporary file. Error: {e}");
+            InputError::Unmapping("unable to unmap the keys".to_string())
+        })?;
+        let metadata = keymap_file.metadata().map_err(|e| {
+            error!("could not get the file's metadata! Error: {e}");
+            InputError::Unmapping("unable to unmap the keys".to_string())
+        })?;
+        let size = metadata.len().try_into().map_err(|_| {
+            error!(
+                "keymap file is {} but the maximum is {} (u32::MAX)",
+                metadata.len(),
+                u32::MAX
+            );
+            InputError::Unmapping("unable to unmap the keys".to_string())
+        })?;
+
+        let Keymap2 {
+            context,
+            keymap,
+            mut state,
+            mut parsed_keymap,
+            pressed_keys: _, // We don't change the mapping of pressed keys
+            keymap_file,
+            original_keymap: _, // Never update the original keymap
+        } = Self::new(
+            self.context.clone(),
+            KEYMAP_FORMAT_TEXT_V1,
+            keymap_file.into(),
+            size,
+        )
+        .map_err(|()| {
+            trace!("unable to create new keymap");
+            InputError::Unmapping("unable to unmap the keys".to_string())
+        })?;
+
+        state.update_mask(
+            depressed_mods,
+            latched_mods,
+            locked_mods,
+            depressed_layout,
+            latched_layout,
+            locked_layout,
+        );
+
+        // Copy the current mapping for all pressed keys so they can get released
+        let pressed_keys = self.pressed_keys.iter().map(|k| u32::from(*k)).collect();
+        parsed_keymap.copy_maps_for_keycodes(&self.parsed_keymap, &pressed_keys);
+
+        self.context = context;
+        self.keymap = keymap;
+        self.state = state;
+        self.parsed_keymap = parsed_keymap;
+        self.keymap_file = keymap_file;
+
+        Ok(())
     }
 
     pub fn default() -> Result<Self, ()> {

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use log::{error, trace, warn};
 use nom::{
@@ -101,6 +101,64 @@ impl ParsedKeymap {
         // Update the maximum if it is needed
         self.keycodes.maximum = self.keycodes.maximum.max(free_keycode_u32);
         free_keycode_u16
+    }
+
+    pub fn copy_maps_for_keycodes(
+        &mut self,
+        other_keymap: &Self,
+        keycodes_to_copy: &HashSet<Keycode>,
+    ) {
+        let keycode_entrys: Vec<_> = other_keymap
+            .keycodes
+            .keycode_mappings
+            .iter()
+            .filter(
+                |KeycodeEntry {
+                     identifier: _,
+                     code,
+                 }| keycodes_to_copy.contains(code),
+            )
+            .cloned()
+            .collect();
+
+        let max_keycode = other_keymap
+            .keycodes
+            .keycode_mappings
+            .iter()
+            .max_by_key(|x| x.code);
+        if let Some(max_keycode) = max_keycode {
+            self.keycodes.maximum = self.keycodes.maximum.max(max_keycode.code);
+        }
+        // We can ignore aliases here because they are only used by the original keymap
+        let identifiers: Vec<_> = keycode_entrys
+            .iter()
+            .map(
+                |KeycodeEntry {
+                     identifier,
+                     code: _,
+                 }| identifier,
+            )
+            .collect();
+
+        let key_entrys: Vec<_> = other_keymap
+            .symbols
+            .keys
+            .iter()
+            .filter(|(identifier, _)| identifiers.contains(&identifier))
+            .collect();
+
+        // Add the found entries to the keymap, but only if they are not in it already
+        for keycode_entry in keycode_entrys {
+            if !self.keycodes.keycode_mappings.contains(&keycode_entry) {
+                let symbols_entry = key_entrys
+                    .iter()
+                    .find(|(i, _)| *i == keycode_entry.identifier);
+                if let Some(symbols_entry) = symbols_entry {
+                    self.symbols.keys.push((*symbols_entry).clone());
+                }
+                self.keycodes.keycode_mappings.push(keycode_entry);
+            }
+        }
     }
 }
 
