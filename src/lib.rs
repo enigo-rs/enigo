@@ -67,6 +67,8 @@ use strum_macros::EnumIter;
 /// works.
 pub mod agent;
 
+pub use crate::platform::keymap2::ParsedKeymap;
+
 #[cfg_attr(all(unix, not(target_os = "macos")), path = "linux/mod.rs")]
 #[cfg_attr(target_os = "macos", path = "macos/mod.rs")]
 #[cfg_attr(target_os = "windows", path = "win/mod.rs")]
