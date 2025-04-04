@@ -12,7 +12,7 @@ use xkeysym::Keysym;
 use crate::{InputResult, Key};
 
 mod parse_keymap;
-pub use parse_keymap::ParsedKeymap;
+pub(crate) use parse_keymap::ParsedKeymap;
 mod default_keymap;
 use default_keymap::DEFAULT_KEYMAP;
 
