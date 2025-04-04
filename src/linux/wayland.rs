@@ -781,7 +781,19 @@ impl Keyboard for Con {
             keycode
         } else {
             debug!("keycode for key {key:?} was not found");
-            let keycode = keymap.map_key(key)?;
+
+            let mapping_res = keymap.map_key(key);
+            let keycode = match mapping_res {
+                Err(InputError::Mapping(_)) => {
+                    // Unmap and retry
+                    keymap.unmap_everything()?;
+                    keymap.map_key(key)?
+                }
+
+                Ok(keycode) => keycode,
+                _ => return Err(InputError::Mapping("unable to map the key".to_string())),
+            };
+
             // Apply the new keymap if there were any changes
             self.update_keymap()?;
             keycode
