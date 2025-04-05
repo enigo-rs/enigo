@@ -34,6 +34,7 @@ use constants::{KEYMAP_BEGINNING, KEYMAP_END};
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
 
+#[cfg(any(feature = "wayland"))]
 pub mod keymap2;
 
 pub struct Enigo {
