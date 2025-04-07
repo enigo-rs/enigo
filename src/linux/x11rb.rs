@@ -29,7 +29,7 @@ pub struct Con {
     connection: XCBConnection,
     screen: Screen,
     keymap: KeyMap,
-    modifiers: [Vec<Keycode>; 8],
+    modifiers: [Vec<Keycode>; 32],
     delay: u32, // milliseconds
 }
 
@@ -169,7 +169,9 @@ impl Con {
     }
 
     /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(connection: &XCBConnection) -> Result<[Vec<Keycode>; 8], ReplyError> {
+    fn find_modifier_keycodes(
+        connection: &XCBConnection,
+    ) -> Result<[Vec<Keycode>; 32], ReplyError> {
         let modifier_reply = connection.get_modifier_mapping()?.reply()?;
         let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
         let GetModifierMappingReply {
@@ -177,9 +179,9 @@ impl Con {
             ..
         } = modifier_reply;
 
-        let mut modifiers_array: [Vec<Keycode>; 8] = Default::default(); // Initialize with empty vectors
+        let mut modifiers_array: [Vec<Keycode>; 32] = Default::default(); // Initialize with empty vectors
         let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
-        if modifier_mapping.len() > 8 {
+        if modifier_mapping.len() > 32 {
             error!(
                 "the associated keycodes of {} modifiers were returned! Only 8 were expected",
                 modifier_mapping.len()
