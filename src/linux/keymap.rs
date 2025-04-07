@@ -8,9 +8,10 @@ pub(super) use xkeysym::{KeyCode, Keysym};
 use crate::{Direction, InputError, InputResult, Key};
 
 const DEFAULT_DELAY: u32 = 12;
+pub type Keycode = u8;
 
 #[derive(Debug)]
-pub(super) struct KeyMapMapping<Keycode> {
+pub(super) struct KeyMapMapping {
     pub(super) additionally_mapped: HashMap<Keysym, Keycode>,
     keycode_min: Keycode,
     keycode_max: Keycode,
@@ -20,28 +21,21 @@ pub(super) struct KeyMapMapping<Keycode> {
 }
 
 #[derive(Debug)]
-struct KeyMapState<Keycode> {
+struct KeyMapState {
     held_keycodes: Vec<Keycode>, // cannot get unmapped
-    needs_regeneration: bool,
-    last_keys: Vec<Keycode>, // last pressed keycodes
+    last_keys: Vec<Keycode>,     // last pressed keycodes
 }
 
 #[derive(Debug)]
-pub struct KeyMap<Keycode> {
-    pub(super) keymap_mapping: KeyMapMapping<Keycode>,
-    keymap_state: KeyMapState<Keycode>,
+pub struct KeyMap {
+    pub(super) keymap_mapping: KeyMapMapping,
+    keymap_state: KeyMapState,
     delay: u32,                                   // milliseconds
     last_event_before_delays: std::time::Instant, // time of the last event
     pending_delays: u32,
 }
 
-impl<Keycode> KeyMap<Keycode>
-where
-    Keycode: Copy + Clone + PartialEq + Display,
-    Keycode: TryInto<usize> + TryFrom<usize>,
-    <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
-    <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
-{
+impl KeyMap {
     /// Create a new `KeyMap`
     pub fn new(
         keycode_min: Keycode,
@@ -50,13 +44,12 @@ where
         keysyms_per_keycode: u8,
         keysyms: Vec<u32>,
     ) -> Self {
-        let capacity: usize = keycode_max.try_into().unwrap() - keycode_min.try_into().unwrap();
+        let capacity: usize = (keycode_max - keycode_min) as usize;
         let capacity = capacity + 1;
         let keymap = HashMap::with_capacity(capacity);
 
         let keymap_state = KeyMapState {
             held_keycodes: vec![],
-            needs_regeneration: true,
             last_keys: vec![],
         };
 
@@ -83,15 +76,14 @@ where
     }
 
     fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
-        let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
-        let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
+        let keycode_min = self.keymap_mapping.keycode_min;
+        let keycode_max = self.keymap_mapping.keycode_max;
 
         // TODO: Change this range to 0..self.keysyms_per_keycode once we find out how
         // to detect the level and switch it
         for j in 0..1 {
             for i in keycode_min..=keycode_max {
-                let i: u32 = i.try_into().unwrap();
-                let min_keycode: u32 = keycode_min.try_into().unwrap();
+                let min_keycode: u32 = keycode_min.into();
                 let keycode = KeyCode::from(i);
                 let min_keycode = KeyCode::from(min_keycode);
                 if let Some(ks) = xkeysym::keysym(
@@ -102,8 +94,6 @@ where
                     &self.keymap_mapping.keysyms,
                 ) {
                     if ks == keysym {
-                        let i: usize = i.try_into().unwrap();
-                        let i: Keycode = i.try_into().unwrap();
                         trace!("found keysym in row {i}, col {j}");
                         return Some(i);
                     }
@@ -115,7 +105,7 @@ where
 
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
-    pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
+    pub fn key_to_keycode<C: Bind>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
         let sym = Keysym::from(key);
 
         if let Some(keycode) = self.keysym_to_keycode(sym) {
@@ -147,7 +137,7 @@ where
     /// Add the Keysym to the keymap
     ///
     /// This does not apply the changes
-    pub fn map<C: Bind<Keycode>>(&mut self, c: &C, keysym: Keysym) -> InputResult<Keycode> {
+    pub fn map<C: Bind>(&mut self, c: &C, keysym: Keysym) -> InputResult<Keycode> {
         match self.keymap_mapping.unused_keycodes.pop_front() {
             // A keycode is unused so a mapping is possible
             Some(unused_keycode) => {
@@ -155,7 +145,6 @@ where
                 if c.bind_key(unused_keycode, keysym).is_err() {
                     return Err(InputError::Mapping(format!("{keysym:?}")));
                 }
-                self.keymap_state.needs_regeneration = true;
                 self.keymap_mapping
                     .additionally_mapped
                     .insert(keysym, unused_keycode);
@@ -170,17 +159,11 @@ where
     /// Remove the Keysym from the keymap
     ///
     /// This does not apply the changes
-    pub fn unmap<C: Bind<Keycode>>(
-        &mut self,
-        c: &C,
-        keysym: Keysym,
-        keycode: Keycode,
-    ) -> InputResult<()> {
+    pub fn unmap<C: Bind>(&mut self, c: &C, keysym: Keysym, keycode: Keycode) -> InputResult<()> {
         trace!("trying to unmap keysym {keysym:?}");
         if c.bind_key(keycode, Keysym::NoSymbol).is_err() {
             return Err(InputError::Unmapping(format!("{keysym:?}")));
         }
-        self.keymap_state.needs_regeneration = true;
         self.keymap_mapping.unused_keycodes.push_back(keycode);
         self.keymap_mapping.additionally_mapped.remove(&keysym);
         debug!("unmapped keysym {keysym:?}");
@@ -221,7 +204,7 @@ where
     /// make some room by freeing the already mapped keycodes.
     /// Returns true, if keys were unmapped and the keymap needs to be
     /// regenerated
-    fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
+    fn make_room<C: Bind>(&mut self, c: &C) -> InputResult<()> {
         // Unmap all keys, if all keycodes are already being used
         if self.keymap_mapping.unused_keycodes.is_empty() {
             let mapped_keys = self.keymap_mapping.additionally_mapped.clone();
@@ -262,7 +245,7 @@ where
     }
 }
 
-pub trait Bind<Keycode> {
+pub trait Bind {
     // Map the keysym to the given keycode
     // Only use keycodes that are not used, otherwise the existing mapping is
     // overwritten
@@ -273,4 +256,4 @@ pub trait Bind<Keycode> {
     }
 }
 
-impl<Keycode> Bind<Keycode> for () {}
+impl Bind for () {}

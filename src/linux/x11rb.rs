@@ -26,7 +26,7 @@ pub type Keycode = u8;
 pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
-    keymap: KeyMap<Keycode>,
+    keymap: KeyMap,
     modifiers: [Vec<Keycode>; 8],
     delay: u32, // milliseconds
 }
@@ -233,7 +233,7 @@ impl Drop for Con {
     }
 }
 
-impl Bind<Keycode> for CompositorConnection {
+impl Bind for CompositorConnection {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a
