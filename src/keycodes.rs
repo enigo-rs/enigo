@@ -1116,42 +1116,6 @@ pub(crate) enum Modifier {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
-impl Modifier {
-    /// Returns the bitflag of the modifier that is usually associated with it
-    /// on Linux
-    #[must_use]
-    pub(crate) fn bitflag(self) -> ModifierBitflag {
-        match self {
-            Self::Shift => 0x1,
-            Self::Lock => 0x2,
-            Self::Control => 0x4,
-            Self::Mod1 => 0x8,
-            Self::Mod2 => 0x10,
-            Self::Mod3 => 0x20,
-            Self::Mod4 => 0x40,
-            Self::Mod5 => 0x80,
-        }
-    }
-
-    /// Returns the number of the modifier that is usually associated with it
-    /// on Linux
-    #[must_use]
-    pub(crate) fn no(self) -> usize {
-        match self {
-            Self::Shift => 0,
-            Self::Lock => 1,
-            Self::Control => 2,
-            Self::Mod1 => 3,
-            Self::Mod2 => 4,
-            Self::Mod3 => 5,
-            Self::Mod4 => 6,
-            Self::Mod5 => 7,
-        }
-    }
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 /// Converts a Key to a modifier
 impl TryFrom<Key> for Modifier {
     type Error = &'static str;
@@ -1173,5 +1137,5 @@ impl TryFrom<Key> for Modifier {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
+#[cfg(any(feature = "wayland", feature = "libei"))]
 pub(crate) type ModifierBitflag = u32;
