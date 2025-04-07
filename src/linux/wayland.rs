@@ -620,11 +620,14 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                 group: depressed_layout,
             } => {
                 if let Some(keymap) = &mut state.seat_keymap {
+                    // Wayland doesn't differentiates between depressed, latched and locked
                     keymap.update_modifiers(
                         depressed_mods,
                         latched_mods,
                         locked_mods,
                         depressed_layout,
+                        0,
+                        0,
                     );
                     debug!("modifiers updated");
                 }

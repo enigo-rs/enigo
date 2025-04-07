@@ -5,12 +5,12 @@ use std::ffi::CString;
 use log::{debug, error, trace, warn};
 
 use x11rb::{
-    connection::Connection,
+    connection::{Connection, RequestConnection},
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::ConnectionExt as _,
-        xproto::{GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xkb::{ConnectionExt as _, X11_EXTENSION_NAME},
+        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
     rust_connection::{ConnectError, ConnectionError, ReplyError},
@@ -76,7 +76,17 @@ impl Con {
             .transpose()?;
 
         let (connection, screen_idx) = XCBConnection::connect(dpy_name.as_deref())?;
+
+        connection.prefetch_extension_information(X11_EXTENSION_NAME)?;
         let setup = connection.setup();
+
+        let xkb = connection.xkb_use_extension(1, 0)?;
+        let xkb = xkb.reply()?;
+        assert!(
+            xkb.supported,
+            "This program requires the X11 server to support the XKB extension"
+        );
+
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;

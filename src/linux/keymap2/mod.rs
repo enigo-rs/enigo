@@ -184,17 +184,16 @@ impl Keymap2 {
         latched_mods: ModMask,
         locked_mods: ModMask,
         depressed_layout: LayoutIndex,
-        // Wayland doesn't differentiates between depressed, latched and locked
-        // latched_layout: LayoutIndex,
-        // locked_layout: LayoutIndex,
+        latched_layout: LayoutIndex,
+        locked_layout: LayoutIndex,
     ) {
         self.state.update_mask(
             depressed_mods,
             latched_mods,
             locked_mods,
             depressed_layout,
-            0,
-            0,
+            latched_layout,
+            locked_layout,
         );
     }
 
