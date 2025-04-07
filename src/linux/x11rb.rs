@@ -189,7 +189,11 @@ impl Con {
             return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
         }
         for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
-            let keycodes: Vec<_> = mod_keycodes.iter().copied().filter(|&kc| kc != 0).collect();
+            let keycodes: Vec<_> = mod_keycodes
+                .iter()
+                .filter(|&kc| *kc != 0)
+                .copied()
+                .collect();
             if keycodes.is_empty() {
                 warn!("modifier_no: {mod_no} is unmapped");
             }
