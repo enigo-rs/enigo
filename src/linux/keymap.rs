@@ -7,7 +7,6 @@ pub(super) use xkeysym::{KeyCode, Keysym};
 
 use crate::{Direction, InputError, InputResult, Key};
 
-#[cfg(feature = "x11rb")]
 const DEFAULT_DELAY: u32 = 12;
 
 #[derive(Debug)]
@@ -24,7 +23,6 @@ pub(super) struct KeyMapMapping<Keycode> {
 struct KeyMapState<Keycode> {
     held_keycodes: Vec<Keycode>, // cannot get unmapped
     needs_regeneration: bool,
-    #[cfg(feature = "x11rb")]
     last_keys: Vec<Keycode>, // last pressed keycodes
 }
 
@@ -32,12 +30,8 @@ struct KeyMapState<Keycode> {
 pub struct KeyMap<Keycode> {
     pub(super) keymap_mapping: KeyMapMapping<Keycode>,
     keymap_state: KeyMapState<Keycode>,
-
-    #[cfg(feature = "x11rb")]
-    delay: u32, // milliseconds
-    #[cfg(feature = "x11rb")]
+    delay: u32,                                   // milliseconds
     last_event_before_delays: std::time::Instant, // time of the last event
-    #[cfg(feature = "x11rb")]
     pending_delays: u32,
 }
 
@@ -75,21 +69,15 @@ where
             unused_keycodes,
         };
 
-        #[cfg(feature = "x11rb")]
         let delay = DEFAULT_DELAY;
-        #[cfg(feature = "x11rb")]
         let last_event_before_delays = std::time::Instant::now();
-        #[cfg(feature = "x11rb")]
         let pending_delays = 0;
 
         Self {
             keymap_mapping,
             keymap_state,
-            #[cfg(feature = "x11rb")]
             delay,
-            #[cfg(feature = "x11rb")]
             last_event_before_delays,
-            #[cfg(feature = "x11rb")]
             pending_delays,
         }
     }
@@ -147,13 +135,11 @@ where
             }
         };
 
-        #[cfg(feature = "x11rb")]
         self.update_delays(keycode);
         Ok(keycode)
     }
 
     /// Get the pending delay
-    #[cfg(feature = "x11rb")]
     pub fn pending_delays(&self) -> u32 {
         self.pending_delays
     }
@@ -204,7 +190,6 @@ where
     // Update the delay
     // TODO: A delay of 1 ms in all cases seems to work on my machine. Maybe
     // this is not needed?
-    #[cfg(feature = "x11rb")]
     pub fn update_delays(&mut self, keycode: Keycode) {
         // Check if a delay is needed
         // A delay is required, if one of the keycodes was recently entered and there
@@ -271,7 +256,6 @@ where
             Direction::Click => (),
         }
 
-        #[cfg(feature = "x11rb")]
         {
             self.last_event_before_delays = std::time::Instant::now();
         }
