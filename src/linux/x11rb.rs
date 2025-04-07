@@ -1,17 +1,21 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::ffi::CString;
 
 use log::{debug, error, trace, warn};
+
 use x11rb::{
     connection::Connection,
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xproto::ConnectionExt as _,
+        xproto::{GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, ReplyError},
     wrapper::ConnectionExt as _,
+    xcb_ffi::XCBConnection,
 };
 
 use super::keymap::{Bind, KeyMap, Keysym};
@@ -19,12 +23,10 @@ use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
-type CompositorConnection = RustConnection<DefaultStream>;
-
 pub type Keycode = u8;
 
 pub struct Con {
-    connection: CompositorConnection,
+    connection: XCBConnection,
     screen: Screen,
     keymap: KeyMap<Keycode>,
     modifiers: [Vec<Keycode>; 8],
@@ -64,7 +66,16 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
-        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
+
+        let dpy_name = dpy_name
+            .map(|name| {
+                CString::new(name).map_err(|_| {
+                    NewConError::EstablishCon("the display name contained a null byte")
+                })
+            })
+            .transpose()?;
+
+        let (connection, screen_idx) = XCBConnection::connect(dpy_name.as_deref())?;
         let setup = connection.setup();
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
@@ -148,9 +159,7 @@ impl Con {
     }
 
     /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(
-        connection: &CompositorConnection,
-    ) -> Result<[Vec<Keycode>; 8], ReplyError> {
+    fn find_modifier_keycodes(connection: &XCBConnection) -> Result<[Vec<Keycode>; 8], ReplyError> {
         let modifier_reply = connection.get_modifier_mapping()?.reply()?;
         let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
         let GetModifierMappingReply {
@@ -222,7 +231,7 @@ impl Drop for Con {
     }
 }
 
-impl Bind<Keycode> for CompositorConnection {
+impl Bind<Keycode> for XCBConnection {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a

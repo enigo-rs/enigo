@@ -85,6 +85,8 @@ x11rb = { version = "0.13", features = [
     "randr",
     "xinput",
     "xtest",
+    "allow-unsafe-code",
+    "xkb",
 ], optional = true }
 xkbcommon = "0.8"
 xkeysym = "0.2"
