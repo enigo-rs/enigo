@@ -23,7 +23,6 @@ pub struct Keymap2 {
     state: State,
     parsed_keymap: ParsedKeymap,
     pressed_keys: HashSet<Keycode>,
-    keymap_file: Option<File>,
 }
 
 impl Keymap2 {
@@ -85,7 +84,6 @@ impl Keymap2 {
             state,
             parsed_keymap,
             pressed_keys: HashSet::with_capacity(8),
-            keymap_file: Some(keymap_file),
         })
     }
 
@@ -104,7 +102,6 @@ impl Keymap2 {
             mut state,
             parsed_keymap,
             pressed_keys,
-            keymap_file,
             original_keymap: _, // Never update the original keymap
         } = Self::new(self.context.clone(), format, fd, size).map_err(|()| {
             trace!("unable to create new keymap");
@@ -129,7 +126,6 @@ impl Keymap2 {
         self.keymap = keymap;
         self.state = state;
         self.parsed_keymap = parsed_keymap;
-        self.keymap_file = keymap_file;
 
         Ok(())
     }
@@ -278,8 +274,7 @@ impl Keymap2 {
             keymap,
             mut state,
             mut parsed_keymap,
-            pressed_keys: _, // We don't change the mapping of pressed keys
-            keymap_file,
+            pressed_keys: _,    // We don't change the mapping of pressed keys
             original_keymap: _, // Never update the original keymap
         } = Self::new(
             self.context.clone(),
@@ -309,7 +304,6 @@ impl Keymap2 {
         self.keymap = keymap;
         self.state = state;
         self.parsed_keymap = parsed_keymap;
-        self.keymap_file = keymap_file;
 
         Ok(())
     }
