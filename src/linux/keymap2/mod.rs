@@ -26,7 +26,12 @@ pub struct Keymap2 {
 }
 
 impl Keymap2 {
-    pub fn new(context: Context, format: KeymapFormat, fd: OwnedFd, size: u32) -> Result<Self, ()> {
+    pub fn new_from_fd(
+        context: Context,
+        format: KeymapFormat,
+        fd: OwnedFd,
+        size: u32,
+    ) -> Result<Self, ()> {
         use std::io::{Read, Seek, SeekFrom};
 
         debug!("creating new xkb:Keymap");
@@ -61,10 +66,6 @@ impl Keymap2 {
         }
         trace!("keymap string getting parsed by xkbcommon:\n{original_keymap}");
 
-        let parsed_keymap = ParsedKeymap::try_from(original_keymap.as_str()).map_err(|()| {
-            trace!("unable to parse the new keymap");
-        })?;
-
         let keymap = Keymap::new_from_string(
             &context,
             original_keymap.clone(),
@@ -76,6 +77,26 @@ impl Keymap2 {
         })?;
 
         let state = State::new(&keymap);
+
+        Self::new(context, original_keymap, keymap, state)
+    }
+
+    fn new(
+        context: Context,
+        mut original_keymap: String,
+        keymap: Keymap,
+        state: State,
+    ) -> Result<Self, ()> {
+        // The String cannot end with NULL otherwise xkbcommon will fail to parse it
+        while original_keymap.ends_with('\0') {
+            debug!("removed NULL byte at the end");
+            original_keymap.pop();
+        }
+        trace!("keymap string getting parsed by xkbcommon:\n{original_keymap}");
+
+        let parsed_keymap = ParsedKeymap::try_from(original_keymap.as_str()).map_err(|()| {
+            trace!("unable to parse the new keymap");
+        })?;
 
         Ok(Self {
             original_keymap,
@@ -103,7 +124,7 @@ impl Keymap2 {
             parsed_keymap,
             pressed_keys,
             original_keymap: _, // Never update the original keymap
-        } = Self::new(self.context.clone(), format, fd, size).map_err(|()| {
+        } = Self::new_from_fd(self.context.clone(), format, fd, size).map_err(|()| {
             trace!("unable to create new keymap");
         })?;
 
@@ -276,7 +297,7 @@ impl Keymap2 {
             mut parsed_keymap,
             pressed_keys: _,    // We don't change the mapping of pressed keys
             original_keymap: _, // Never update the original keymap
-        } = Self::new(
+        } = Self::new_from_fd(
             self.context.clone(),
             KEYMAP_FORMAT_TEXT_V1,
             keymap_file.into(),
@@ -330,6 +351,6 @@ impl Keymap2 {
         let format = KEYMAP_FORMAT_TEXT_V1;
         let context = Context::new(CONTEXT_NO_FLAGS);
 
-        Self::new(context, format, keymap_file.into(), size)
+        Self::new_from_fd(context, format, keymap_file.into(), size)
     }
 }

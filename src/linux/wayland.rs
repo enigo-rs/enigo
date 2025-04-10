@@ -609,7 +609,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     }
                 } else {
                     let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-                    state.seat_keymap = Keymap2::new(context, format, fd, size).ok();
+                    state.seat_keymap = Keymap2::new_from_fd(context, format, fd, size).ok();
                 }
             }
             wl_keyboard::Event::Modifiers {
