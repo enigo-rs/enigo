@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::ffi::CString;
 
@@ -10,7 +9,7 @@ use x11rb::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
         xkb::{ConnectionExt as _, EventType, ID, MapPart, SelectEventsAux, X11_EXTENSION_NAME},
-        xproto::{ConnectionExt as _, GetModifierMappingReply, Screen},
+        xproto::{ConnectionExt as _, Screen},
         xtest::ConnectionExt as _,
     },
     rust_connection::{ConnectError, ConnectionError, ReplyError},
@@ -33,6 +32,7 @@ pub struct Con {
     connection: XCBConnection,
     screen: Screen,
     keymap: Keymap2,
+    additionally_mapped: Vec<(Key, Keycode)>,
     delay: u32, // milliseconds
 }
 
@@ -142,6 +142,7 @@ impl Con {
             connection,
             screen,
             keymap,
+            additionally_mapped: vec![],
             delay,
         })
     }
@@ -155,74 +156,6 @@ impl Con {
     /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
-    }
-
-    fn unused_keycodes(
-        keycode_min: Keycode,
-        keycode_max: Keycode,
-        keysyms_per_keycode: u8,
-        keysyms: &[u32],
-    ) -> VecDeque<Keycode> {
-        let mut unused_keycodes: VecDeque<Keycode> =
-            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
-
-        // Split the mapping into the chunks of keysyms that are mapped to each keycode
-        trace!("initial keymap:");
-        let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
-        for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
-            // Check if the keycode is unused
-            if log::log_enabled!(log::Level::Trace) {
-                let syms_name: Vec<Keysym> = syms.iter().map(|&s| Keysym::from(s)).collect();
-                trace!("{kc}:  {syms_name:?}");
-            }
-
-            // Never use keycode 8
-            // Keycode 8 is special: when converted to evdev keycodes,
-            // 8 is subtracted, resulting in 0. This typically leads to no effect
-            // when simulating input because keycode 0 corresponds to NoSymbol,
-            // meaning it has no assigned key mapping.
-            if syms.iter().all(|&s| s == Keysym::NoSymbol.raw()) && kc != 8 {
-                unused_keycodes.push_back(kc);
-            }
-        }
-        debug!("unused keycodes: {unused_keycodes:?}");
-        unused_keycodes
-    }
-
-    /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(
-        connection: &XCBConnection,
-    ) -> Result<[Vec<Keycode>; 32], ReplyError> {
-        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
-        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
-        let GetModifierMappingReply {
-            keycodes: modifiers,
-            ..
-        } = modifier_reply;
-
-        let mut modifiers_array: [Vec<Keycode>; 32] = Default::default(); // Initialize with empty vectors
-        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
-        if modifier_mapping.len() > 32 {
-            error!(
-                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
-                modifier_mapping.len()
-            );
-            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
-        }
-        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
-            let keycodes: Vec<_> = mod_keycodes
-                .iter()
-                .filter(|&kc| *kc != 0)
-                .copied()
-                .collect();
-            if keycodes.is_empty() {
-                warn!("modifier_no: {mod_no} is unmapped");
-            }
-            modifiers_array[mod_no] = keycodes;
-        }
-        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
-
-        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -259,8 +192,8 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for &keycode in self.keymap.keymap_mapping.additionally_mapped.values() {
-            match self.connection.bind_key(keycode, Keysym::NoSymbol) {
+        for (key, keycode) in &self.additionally_mapped {
+            match self.connection.bind_key(*keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
             }
