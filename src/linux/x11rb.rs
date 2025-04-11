@@ -10,7 +10,7 @@ use x11rb::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
         xkb::{ConnectionExt as _, EventType, ID, MapPart, SelectEventsAux, X11_EXTENSION_NAME},
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xproto::{ConnectionExt as _, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
     rust_connection::{ConnectError, ConnectionError, ReplyError},
@@ -19,7 +19,10 @@ use x11rb::{
 };
 use xkbcommon::xkb as xkbc;
 
-use super::keymap::{Bind, KeyMap, Keysym};
+use super::{
+    keymap::{Bind, Keysym},
+    keymap2::Keymap2,
+};
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
@@ -29,8 +32,7 @@ pub type Keycode = u8;
 pub struct Con {
     connection: XCBConnection,
     screen: Screen,
-    keymap: KeyMap,
-    modifiers: [Vec<Keycode>; 32],
+    keymap: Keymap2,
     delay: u32, // milliseconds
 }
 
@@ -58,8 +60,8 @@ impl Con {
     ///
     /// # Arguments
     ///
-    /// * `delay` - Minimum delay in milliseconds between keypresses in order to
-    ///   properly enter all chars
+    /// * `delay` - Minimum delay in milliseconds between key presses in order
+    ///   to properly enter all chars
     /// * `dpy_name` - If no `dpy_name` is provided, the value from $DISPLAY is
     ///   used
     ///
@@ -89,8 +91,6 @@ impl Con {
         );
 
         let screen = setup.roots[screen_idx].clone();
-        let min_keycode = setup.min_keycode;
-        let max_keycode = setup.max_keycode;
 
         // Ask the X11 server to send us XKB events.
         // TODO: No idea what to pick here. I guess this is asking unnecessarily for too
@@ -116,48 +116,32 @@ impl Con {
             &SelectEventsAux::new(),
         )?;
 
-        // Set up xkbcommon state and get the current keymap.
-        let context = xkbc::Context::new(xkbc::CONTEXT_NO_FLAGS);
-        let device_id = xkbc::x11::get_core_keyboard_device_id(&connection);
-        assert!(device_id >= 0);
-        let keymap = xkbc::x11::keymap_new_from_device(
-            &context,
-            &connection,
-            device_id,
-            xkbc::KEYMAP_COMPILE_NO_FLAGS,
-        );
-        let mut state = xkbc::x11::state_new_from_device(&keymap, &connection, device_id);
+        let keymap = {
+            // Set up xkbcommon state and get the current keymap.
+            let context = xkbc::Context::new(xkbc::CONTEXT_NO_FLAGS);
+            let device_id = xkbc::x11::get_core_keyboard_device_id(&connection);
+            if !device_id < 0 {
+                return Err(NewConError::EstablishCon("getting the device id failed"));
+            };
+            let keymap = xkbc::x11::keymap_new_from_device(
+                &context,
+                &connection,
+                device_id,
+                xkbc::KEYMAP_COMPILE_NO_FLAGS,
+            );
 
-        let GetKeyboardMappingReply {
-            keysyms_per_keycode,
-            keysyms,
-            ..
-        } = connection
-            .get_keyboard_mapping(min_keycode, max_keycode - min_keycode + 1)?
-            .reply()?;
+            let format = xkbcommon::xkb::KEYMAP_FORMAT_TEXT_V1;
+            let original_keymap = keymap.get_as_string(format);
+            let state = xkbc::x11::state_new_from_device(&keymap, &connection, device_id);
 
-        let unused_keycodes =
-            Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
-
-        if unused_keycodes.is_empty() {
-            return Err(NewConError::NoEmptyKeycodes);
-        }
-        let keymap = KeyMap::new(
-            min_keycode,
-            max_keycode,
-            unused_keycodes,
-            keysyms_per_keycode,
-            keysyms,
-        );
-
-        // Get the keycodes of the modifiers
-        let modifiers = Self::find_modifier_keycodes(&connection)?;
+            Keymap2::new(context, original_keymap, keymap, state)
+                .map_err(|_| NewConError::EstablishCon("unable to create keymap"))?
+        };
 
         Ok(Con {
             connection,
             screen,
             keymap,
-            modifiers,
             delay,
         })
     }
