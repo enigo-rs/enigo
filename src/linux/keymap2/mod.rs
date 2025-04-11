@@ -81,7 +81,7 @@ impl Keymap2 {
         Self::new(context, original_keymap, keymap, state)
     }
 
-    fn new(
+    pub fn new(
         context: Context,
         mut original_keymap: String,
         keymap: Keymap,
@@ -108,7 +108,7 @@ impl Keymap2 {
         })
     }
 
-    pub fn update(&mut self, format: KeymapFormat, fd: OwnedFd, size: u32) -> Result<(), ()> {
+    pub fn update(&mut self, new_keymap: Keymap2) -> Result<(), ()> {
         let depressed_mods = self.state.serialize_mods(STATE_MODS_DEPRESSED);
         let latched_mods = self.state.serialize_mods(STATE_MODS_LATCHED);
         let locked_mods = self.state.serialize_mods(STATE_MODS_LOCKED);
@@ -124,9 +124,7 @@ impl Keymap2 {
             parsed_keymap,
             pressed_keys,
             original_keymap: _, // Never update the original keymap
-        } = Self::new_from_fd(self.context.clone(), format, fd, size).map_err(|()| {
-            trace!("unable to create new keymap");
-        })?;
+        } = new_keymap;
 
         // The docs say this is a bad idea. update_key and update_mask should not get
         // mixed. I don't know how else to get the same state though

@@ -603,13 +603,20 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     return;
                 };
 
+                let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+                let Ok(new_keymap) = Keymap2::new_from_fd(context, format, fd, size) else {
+                    error!("unable to create the new keymap");
+                    state.seat_keymap = None;
+                    return;
+                };
                 if let Some(keymap) = &mut state.seat_keymap {
-                    if keymap.update(format, fd, size).is_err() {
+                    if keymap.update(new_keymap).is_err() {
+                        error!("unable to update the keymap");
                         state.seat_keymap = None;
+                        return;
                     }
                 } else {
-                    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-                    state.seat_keymap = Keymap2::new_from_fd(context, format, fd, size).ok();
+                    state.seat_keymap = Some(new_keymap);
                 }
             }
             wl_keyboard::Event::Modifiers {
