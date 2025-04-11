@@ -38,7 +38,7 @@ wayland = [
     "dep:nom",
 ]
 xdo = []
-x11rb = ["dep:x11rb", "dep:nom"]
+x11rb = ["dep:x11rb", "dep:nom", "xkbcommon/x11"]
 
 [dependencies]
 log = "0.4"
