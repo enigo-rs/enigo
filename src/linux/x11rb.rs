@@ -9,7 +9,7 @@ use x11rb::{
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xkb::{ConnectionExt as _, X11_EXTENSION_NAME},
+        xkb::{ConnectionExt as _, EventType, ID, MapPart, SelectEventsAux, X11_EXTENSION_NAME},
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
@@ -17,6 +17,7 @@ use x11rb::{
     wrapper::ConnectionExt as _,
     xcb_ffi::XCBConnection,
 };
+use xkbcommon::xkb as xkbc;
 
 use super::keymap::{Bind, KeyMap, Keysym};
 use crate::{
@@ -90,6 +91,42 @@ impl Con {
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
+
+        // Ask the X11 server to send us XKB events.
+        // TODO: No idea what to pick here. I guess this is asking unnecessarily for too
+        // much?
+        let events =
+            EventType::NEW_KEYBOARD_NOTIFY | EventType::MAP_NOTIFY | EventType::STATE_NOTIFY;
+        // TODO: No idea what to pick here. I guess this is asking unnecessarily for too
+        // much?
+        let map_parts = MapPart::KEY_TYPES
+            | MapPart::KEY_SYMS
+            | MapPart::MODIFIER_MAP
+            | MapPart::EXPLICIT_COMPONENTS
+            | MapPart::KEY_ACTIONS
+            | MapPart::KEY_BEHAVIORS
+            | MapPart::VIRTUAL_MODS
+            | MapPart::VIRTUAL_MOD_MAP;
+        connection.xkb_select_events(
+            ID::USE_CORE_KBD.into(),
+            0u8.into(),
+            events,
+            map_parts,
+            map_parts,
+            &SelectEventsAux::new(),
+        )?;
+
+        // Set up xkbcommon state and get the current keymap.
+        let context = xkbc::Context::new(xkbc::CONTEXT_NO_FLAGS);
+        let device_id = xkbc::x11::get_core_keyboard_device_id(&connection);
+        assert!(device_id >= 0);
+        let keymap = xkbc::x11::keymap_new_from_device(
+            &context,
+            &connection,
+            device_id,
+            xkbc::KEYMAP_COMPILE_NO_FLAGS,
+        );
+        let mut state = xkbc::x11::state_new_from_device(&keymap, &connection, device_id);
 
         let GetKeyboardMappingReply {
             keysyms_per_keycode,
