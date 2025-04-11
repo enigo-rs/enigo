@@ -26,13 +26,10 @@ mod wayland;
 #[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
 mod x11;
 
-#[cfg(feature = "wayland")]
-mod constants;
-#[cfg(feature = "wayland")]
-use constants::{KEYMAP_BEGINNING, KEYMAP_END};
-
-#[cfg(any(feature = "wayland", feature = "x11rb"))]
+#[cfg(feature = "x11rb")]
 mod keymap;
+#[cfg(feature = "wayland")]
+pub mod keymap2;
 
 pub struct Enigo {
     held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes

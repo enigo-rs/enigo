@@ -1,33 +1,38 @@
-use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::ffi::CString;
 
 use log::{debug, error, trace, warn};
+
 use x11rb::{
-    connection::Connection,
+    connection::{Connection, RequestConnection},
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xkb::{ConnectionExt as _, EventType, ID, MapPart, SelectEventsAux, X11_EXTENSION_NAME},
+        xproto::{ConnectionExt as _, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, ReplyError},
     wrapper::ConnectionExt as _,
+    xcb_ffi::XCBConnection,
 };
+use xkbcommon::xkb as xkbc;
 
-use super::keymap::{Bind, KeyMap, Keysym};
+use super::{
+    keymap::{Bind, Keysym},
+    keymap2::Keymap2,
+};
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
-type CompositorConnection = RustConnection<DefaultStream>;
-
 pub type Keycode = u8;
 
 pub struct Con {
-    connection: CompositorConnection,
+    connection: XCBConnection,
     screen: Screen,
-    keymap: KeyMap<Keycode>,
-    modifiers: [Vec<Keycode>; 8],
+    keymap: Keymap2,
+    additionally_mapped: Vec<(Key, Keycode)>,
     delay: u32, // milliseconds
 }
 
@@ -55,8 +60,8 @@ impl Con {
     ///
     /// # Arguments
     ///
-    /// * `delay` - Minimum delay in milliseconds between keypresses in order to
-    ///   properly enter all chars
+    /// * `delay` - Minimum delay in milliseconds between key presses in order
+    ///   to properly enter all chars
     /// * `dpy_name` - If no `dpy_name` is provided, the value from $DISPLAY is
     ///   used
     ///
@@ -64,35 +69,80 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
-        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
-        let setup = connection.setup();
-        let screen = setup.roots[screen_idx].clone();
-        let min_keycode = setup.min_keycode;
-        let max_keycode = setup.max_keycode;
-        let (keysyms_per_keycode, keysyms) =
-            Self::get_keyboard_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
-        let unused_keycodes =
-            Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
-        if unused_keycodes.is_empty() {
-            return Err(NewConError::NoEmptyKeycodes);
-        }
-        let keymap = KeyMap::new(
-            min_keycode,
-            max_keycode,
-            unused_keycodes,
-            keysyms_per_keycode,
-            keysyms,
+        let dpy_name = dpy_name
+            .map(|name| {
+                CString::new(name).map_err(|_| {
+                    NewConError::EstablishCon("the display name contained a null byte")
+                })
+            })
+            .transpose()?;
+
+        let (connection, screen_idx) = XCBConnection::connect(dpy_name.as_deref())?;
+
+        connection.prefetch_extension_information(X11_EXTENSION_NAME)?;
+        let setup = connection.setup();
+
+        let xkb = connection.xkb_use_extension(1, 0)?;
+        let xkb = xkb.reply()?;
+        assert!(
+            xkb.supported,
+            "This program requires the X11 server to support the XKB extension"
         );
 
-        // Get the keycodes of the modifiers
-        let modifiers = Self::find_modifier_keycodes(&connection)?;
+        let screen = setup.roots[screen_idx].clone();
+
+        // Ask the X11 server to send us XKB events.
+        // TODO: No idea what to pick here. I guess this is asking unnecessarily for too
+        // much?
+        let events =
+            EventType::NEW_KEYBOARD_NOTIFY | EventType::MAP_NOTIFY | EventType::STATE_NOTIFY;
+        // TODO: No idea what to pick here. I guess this is asking unnecessarily for too
+        // much?
+        let map_parts = MapPart::KEY_TYPES
+            | MapPart::KEY_SYMS
+            | MapPart::MODIFIER_MAP
+            | MapPart::EXPLICIT_COMPONENTS
+            | MapPart::KEY_ACTIONS
+            | MapPart::KEY_BEHAVIORS
+            | MapPart::VIRTUAL_MODS
+            | MapPart::VIRTUAL_MOD_MAP;
+        connection.xkb_select_events(
+            ID::USE_CORE_KBD.into(),
+            0u8.into(),
+            events,
+            map_parts,
+            map_parts,
+            &SelectEventsAux::new(),
+        )?;
+
+        let keymap = {
+            // Set up xkbcommon state and get the current keymap.
+            let context = xkbc::Context::new(xkbc::CONTEXT_NO_FLAGS);
+            let device_id = xkbc::x11::get_core_keyboard_device_id(&connection);
+            if !device_id < 0 {
+                return Err(NewConError::EstablishCon("getting the device id failed"));
+            };
+            let keymap = xkbc::x11::keymap_new_from_device(
+                &context,
+                &connection,
+                device_id,
+                xkbc::KEYMAP_COMPILE_NO_FLAGS,
+            );
+
+            let format = xkbcommon::xkb::KEYMAP_FORMAT_TEXT_V1;
+            let original_keymap = keymap.get_as_string(format);
+            let state = xkbc::x11::state_new_from_device(&keymap, &connection, device_id);
+
+            Keymap2::new(context, original_keymap, keymap, state)
+                .map_err(|_| NewConError::EstablishCon("unable to create keymap"))?
+        };
 
         Ok(Con {
             connection,
             screen,
             keymap,
-            modifiers,
+            additionally_mapped: vec![],
             delay,
         })
     }
@@ -106,88 +156,6 @@ impl Con {
     /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
-    }
-
-    /// Find keycodes that have not yet been mapped any keysyms
-    fn get_keyboard_mapping(
-        connection: &CompositorConnection,
-        keycode_min: Keycode,
-        keycode_max: Keycode,
-    ) -> Result<(u8, Vec<u32>), ReplyError> {
-        let GetKeyboardMappingReply {
-            keysyms_per_keycode,
-            keysyms,
-            ..
-        } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min + 1)?
-            .reply()?;
-
-        //let keysyms = keysyms.into_iter().map(|s| Keysym::from(s)).collect();
-        Ok((keysyms_per_keycode, keysyms))
-    }
-
-    fn unused_keycodes(
-        keycode_min: Keycode,
-        keycode_max: Keycode,
-        keysyms_per_keycode: u8,
-        keysyms: &[u32],
-    ) -> VecDeque<Keycode> {
-        let mut unused_keycodes: VecDeque<Keycode> =
-            VecDeque::with_capacity((keycode_max - keycode_min) as usize);
-
-        // Split the mapping into the chunks of keysyms that are mapped to each keycode
-        trace!("initial keymap:");
-        let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
-        for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
-            // Check if the keycode is unused
-            if log::log_enabled!(log::Level::Trace) {
-                let syms_name: Vec<Keysym> = syms.iter().map(|&s| Keysym::from(s)).collect();
-                trace!("{kc}:  {syms_name:?}");
-            }
-
-            // Never use keycode 8
-            // Keycode 8 is special: when converted to evdev keycodes,
-            // 8 is subtracted, resulting in 0. This typically leads to no effect
-            // when simulating input because keycode 0 corresponds to NoSymbol,
-            // meaning it has no assigned key mapping.
-            if syms.iter().all(|&s| s == Keysym::NoSymbol.raw()) && kc != 8 {
-                unused_keycodes.push_back(kc);
-            }
-        }
-        debug!("unused keycodes: {unused_keycodes:?}");
-        unused_keycodes
-    }
-
-    /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(
-        connection: &CompositorConnection,
-    ) -> Result<[Vec<Keycode>; 8], ReplyError> {
-        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
-        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
-        let GetModifierMappingReply {
-            keycodes: modifiers,
-            ..
-        } = modifier_reply;
-
-        let mut modifiers_array: [Vec<Keycode>; 8] = Default::default(); // Initialize with empty vectors
-        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
-        if modifier_mapping.len() > 8 {
-            error!(
-                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
-                modifier_mapping.len()
-            );
-            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
-        }
-        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
-            let keycodes: Vec<_> = mod_keycodes.iter().copied().filter(|&kc| kc != 0).collect();
-            if keycodes.is_empty() {
-                warn!("modifier_no: {mod_no} is unmapped");
-            }
-            modifiers_array[mod_no] = keycodes;
-        }
-        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
-
-        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -224,8 +192,8 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for &keycode in self.keymap.additionally_mapped.values() {
-            match self.connection.bind_key(keycode, Keysym::NoSymbol) {
+        for (key, keycode) in &self.additionally_mapped {
+            match self.connection.bind_key(*keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
             }
@@ -233,7 +201,7 @@ impl Drop for Con {
     }
 }
 
-impl Bind<Keycode> for CompositorConnection {
+impl Bind for XCBConnection {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a
