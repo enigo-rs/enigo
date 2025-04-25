@@ -16,12 +16,10 @@ use x11rb::{
     wrapper::ConnectionExt as _,
     xcb_ffi::XCBConnection,
 };
+
 use xkbcommon::xkb as xkbc;
 
-use super::{
-    keymap::{Bind, Keysym},
-    keymap2::Keymap2,
-};
+use super::{keymap::Keysym, keymap2::Keymap2};
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
@@ -32,8 +30,11 @@ pub struct Con {
     connection: XCBConnection,
     screen: Screen,
     keymap: Keymap2,
-    additionally_mapped: Vec<(Key, Keycode)>,
-    delay: u32, // milliseconds
+    additionally_mapped: Vec<Keycode>,
+    held_keycodes: Vec<Keycode>,                  // cannot get unmapped
+    last_keys: Vec<Keycode>,                      // last pressed keycodes milliseconds
+    last_event_before_delays: std::time::Instant, // time of the last event
+    delay: u32,                                   // milliseconds
 }
 
 impl From<ConnectionError> for NewConError {
@@ -55,6 +56,7 @@ impl From<ReplyError> for NewConError {
         Self::Reply
     }
 }
+
 impl Con {
     /// Tries to establish a new X11 connection using the specified parameters
     ///
@@ -120,7 +122,7 @@ impl Con {
             // Set up xkbcommon state and get the current keymap.
             let context = xkbc::Context::new(xkbc::CONTEXT_NO_FLAGS);
             let device_id = xkbc::x11::get_core_keyboard_device_id(&connection);
-            if !device_id < 0 {
+            if device_id < 0 {
                 return Err(NewConError::EstablishCon("getting the device id failed"));
             };
             let keymap = xkbc::x11::keymap_new_from_device(
@@ -138,12 +140,17 @@ impl Con {
                 .map_err(|_| NewConError::EstablishCon("unable to create keymap"))?
         };
 
+        let last_event_before_delays = std::time::Instant::now();
+
         Ok(Con {
             connection,
             screen,
             keymap,
             additionally_mapped: vec![],
+            held_keycodes: vec![],
             delay,
+            last_event_before_delays,
+            last_keys: Vec::with_capacity(64),
         })
     }
 
@@ -158,8 +165,42 @@ impl Con {
         self.delay = delay;
     }
 
+    // Get the pending delay
+    // TODO: A delay of 1 ms in all cases seems to work on my machine. Maybe
+    // this is not needed?
+    pub fn get_pending_delay(&mut self, keycode: Keycode) -> u32 {
+        // Check if a delay is needed
+        // A delay is required, if one of the keycodes was recently entered and there
+        // was no delay between it
+
+        // e.g. A quick rabbit
+        // Chunk 1: 'A quick' # Add a delay before the second space
+        // Chunk 2: ' rab'     # Add a delay before the second 'b'
+        // Chunk 3: 'bit'     # Enter the remaining chars
+
+        // In order to not grow the list of last pressed keys too big, we also clear it
+        // when it gets longer than 64 items 64 was chosen arbitrarily
+        let pending_delay = if self.last_keys.contains(&keycode) || self.last_keys.len() > 64 {
+            let elapsed_ms = self
+                .last_event_before_delays
+                .elapsed()
+                .as_millis()
+                .try_into()
+                .unwrap_or(u32::MAX);
+            trace!("delay needed");
+            self.last_keys.clear();
+            self.delay.saturating_sub(elapsed_ms)
+        } else {
+            trace!("no delay needed");
+            1 // TODO: Try out 0 here. If 0 does not work, the other arm of the if statement should also get changed to have a minimum delay of 1
+        };
+        self.last_keys.push(keycode);
+        pending_delay
+    }
+
     // Get the device id of the first device that is found which has the same usage
     // as the input parameter
+    // TODO: Should this get replaced with xkbc::x11::get_core_keyboard_device_id?
     fn device_id(&self, usage: DeviceUse) -> InputResult<u8> {
         x11rb::protocol::xinput::list_input_devices(&self.connection)
             .map_err(|e| {
@@ -185,6 +226,110 @@ impl Con {
                 |d| Ok(d.device_id),
             )
     }
+
+    /// Press/Release a keycode
+    ///
+    /// # Errors
+    /// TODO
+    fn send_key_event(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        let Ok(keycode) = keycode.try_into() else {
+            return Err(InputError::InvalidInput(
+                "Keycode was too large. It has to fit in u8 on X11",
+            ));
+        };
+
+        let time = self.get_pending_delay(keycode);
+        let root = self.screen.root;
+        let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
+        let direction = match direction {
+            Direction::Press => x11rb::protocol::xproto::KEY_PRESS_EVENT,
+            Direction::Release => x11rb::protocol::xproto::KEY_RELEASE_EVENT,
+            Direction::Click => {
+                error!(
+                    "Implementation error! This function must never be called with Direction::Click"
+                );
+                return Err(InputError::Simulate(
+                    "error when using xtest_fake_input with x11rb",
+                ));
+            }
+        };
+
+        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, delay {time}");
+        self.connection
+            .xtest_fake_input(direction, keycode, time, root, 0, 0, deviceid)
+            .map_err(|e| {
+                error!("error when using xtest_fake_input with x11rb:\n{e}");
+                InputError::Simulate("error when using xtest_fake_input with x11rb")
+            })?;
+
+        self.last_event_before_delays = std::time::Instant::now();
+        Ok(())
+    }
+
+    fn map_key(&mut self, key: Key) -> InputResult<u16> {
+        let keysym = Keysym::from(key);
+        let new_keycode = self.keymap.map_key(key, false)?;
+        let new_keycode_u8 = new_keycode.try_into().unwrap(); // This is safe, because the previous function only returns a keycode <255
+
+        // A list of two keycodes has to be mapped, otherwise the map is not what would
+        // be expected. If we would try to map only one keysym, we would get a
+        // map that is tolower(keysym), toupper(keysym), tolower(keysym),
+        // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
+        // https://stackoverflow.com/a/44334103
+        self.connection
+            .change_keyboard_mapping(1, new_keycode_u8, 2, &[keysym.raw(), keysym.raw()])
+            .map_err(|e| {
+                error!("error when changing the keyboard mapping with x11rb: {e:?}");
+                InputError::Mapping(
+                    "error when changing the keyboard mapping with x11rb".to_string(),
+                )
+            })?;
+        self.connection.sync().map_err(|e| {error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}");InputError::Mapping("unable to sync with X11 server".to_string())})?;
+        self.additionally_mapped.push(new_keycode_u8);
+        Ok(new_keycode)
+    }
+
+    fn unmap_keycode(&mut self, keycode: Keycode) -> InputResult<()> {
+        let Some((map_idx, _)) = self
+            .additionally_mapped
+            .iter()
+            .enumerate()
+            .find(|&(_, v)| *v == keycode)
+        else {
+            warn!("the keycode was not mapped");
+            return Ok(());
+        };
+        let keysym = Keysym::NoSymbol;
+        // A list of two keycodes has to be mapped, otherwise the map is not what would
+        // be expected If we would try to map only one keysym, we would get a
+        // map that is tolower(keysym), toupper(keysym), tolower(keysym),
+        // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
+        // https://stackoverflow.com/a/44334103
+        self.connection
+            .change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
+            .map_err(|e| {
+                error!("error when changing the keyboard mapping with x11rb: {e:?}");
+                InputError::Mapping(
+                    "error when changing the keyboard mapping with x11rb".to_string(),
+                )
+            })?;
+        self.connection.sync().map_err(|e| {error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}");InputError::Mapping("unable to sync with X11 server".to_string())})?;
+        self.additionally_mapped.swap_remove((map_idx).into());
+        Ok(())
+    }
+
+    /// Unmap all the additional mappings
+    fn unmap_everything(&mut self) -> InputResult<()> {
+        let additionally_mapped = self.additionally_mapped.clone();
+        let held_keycodes = self.held_keycodes.clone();
+        for &keycode in additionally_mapped
+            .iter()
+            .filter(|keycode| !held_keycodes.contains(keycode))
+        {
+            self.unmap_keycode(keycode)?
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Con {
@@ -192,25 +337,8 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        for (key, keycode) in &self.additionally_mapped {
-            match self.connection.bind_key(*keycode, Keysym::NoSymbol) {
-                Ok(()) => debug!("unmapped keycode {keycode:?}"),
-                Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
-            }
-        }
-    }
-}
-
-impl Bind for XCBConnection {
-    fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
-        // A list of two keycodes has to be mapped, otherwise the map is not what would
-        // be expected If we would try to map only one keysym, we would get a
-        // map that is tolower(keysym), toupper(keysym), tolower(keysym),
-        // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
-        // https://stackoverflow.com/a/44334103
-        self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
-            .map_err(|e| error!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
-        self.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
+        let _ = self.unmap_everything();
+        debug!("Original keymap was restored");
     }
 }
 
@@ -221,70 +349,42 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
-
-        if log::log_enabled!(log::Level::Debug) {
-            for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
-                if mod_keycodes.contains(&keycode) {
-                    debug!("the key is modifier no: {mod_idx}");
+        let keycode = if let Some(keycode) = self.keymap.key_to_keycode(key) {
+            keycode
+        } else {
+            debug!("keycode for key {key:?} was not found");
+            let mapping_res = self.map_key(key);
+            let keycode = match mapping_res {
+                Err(InputError::Mapping(_)) => {
+                    // Unmap and retry
+                    self.unmap_everything()?;
+                    self.map_key(key)?
                 }
-            }
-        }
+
+                Ok(keycode) => keycode,
+                _ => return Err(InputError::Mapping("unable to map the key".to_string())),
+            };
+
+            keycode
+        };
 
         self.raw(keycode.into(), direction)
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
-        let Ok(keycode) = keycode.try_into() else {
-            return Err(InputError::InvalidInput(
-                "Keycode was too large. It has to fit in u8 on X11",
-            ));
-        };
-        let time = self.keymap.pending_delays();
-        let root = self.screen.root;
-        let root_x = 0;
-        let root_y = 0;
-        let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
-
-        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, delay {time}");
         if direction == Direction::Press || direction == Direction::Click {
-            self.connection
-                .xtest_fake_input(
-                    x11rb::protocol::xproto::KEY_PRESS_EVENT,
-                    keycode,
-                    time,
-                    root,
-                    root_x,
-                    root_y,
-                    deviceid,
-                )
-                .map_err(|e| {
-                    error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
-                })?;
-            trace!("press");
+            self.keymap
+                .update_key_state(xkbc::Keycode::new(keycode.into()), xkbc::KeyDirection::Down);
+            self.send_key_event(keycode, Direction::Press)?;
         }
 
         // TODO: Check if we need to update the delays again
         // self.keymap.update_delays(keycode);
-        // let time = self.keymap.pending_delays();
 
         if direction == Direction::Release || direction == Direction::Click {
-            self.connection
-                .xtest_fake_input(
-                    x11rb::protocol::xproto::KEY_RELEASE_EVENT,
-                    keycode,
-                    time, // TODO: Check if there needs to be a delay here
-                    root,
-                    root_x,
-                    root_y,
-                    deviceid,
-                )
-                .map_err(|e| {
-                    error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
-                })?;
-            trace!("released");
+            self.keymap
+                .update_key_state(xkbc::Keycode::new(keycode.into()), xkbc::KeyDirection::Up);
+            self.send_key_event(keycode, Direction::Release)?;
         }
 
         self.connection.sync()
@@ -292,10 +392,6 @@ impl Keyboard for Con {
                 error!("{e}");
                 InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
             })?;
-
-        // Let the keymap know that the key was held/no longer held
-        // This is important to avoid unmapping held keys
-        self.keymap.key(keycode, direction);
 
         Ok(())
     }

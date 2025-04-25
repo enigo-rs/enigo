@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
-use std::fmt::Display;
 
 use log::{debug, trace};
 pub(super) use xkeysym::{KeyCode, Keysym};
@@ -21,18 +20,13 @@ pub(super) struct KeyMapMapping {
 }
 
 #[derive(Debug)]
-struct KeyMapState {
-    held_keycodes: Vec<Keycode>, // cannot get unmapped
-    last_keys: Vec<Keycode>,     // last pressed keycodes
-}
+struct KeyMapState {}
 
 #[derive(Debug)]
 pub struct KeyMap {
     pub(super) keymap_mapping: KeyMapMapping,
     keymap_state: KeyMapState,
-    delay: u32,                                   // milliseconds
-    last_event_before_delays: std::time::Instant, // time of the last event
-    pending_delays: u32,
+    delay: u32,
 }
 
 impl KeyMap {
@@ -48,10 +42,7 @@ impl KeyMap {
         let capacity = capacity + 1;
         let keymap = HashMap::with_capacity(capacity);
 
-        let keymap_state = KeyMapState {
-            held_keycodes: vec![],
-            last_keys: vec![],
-        };
+        let keymap_state = KeyMapState {};
 
         let keymap_mapping = KeyMapMapping {
             additionally_mapped: keymap,
@@ -63,15 +54,11 @@ impl KeyMap {
         };
 
         let delay = DEFAULT_DELAY;
-        let last_event_before_delays = std::time::Instant::now();
-        let pending_delays = 0;
 
         Self {
             keymap_mapping,
             keymap_state,
             delay,
-            last_event_before_delays,
-            pending_delays,
         }
     }
 
@@ -125,13 +112,8 @@ impl KeyMap {
             }
         };
 
-        self.update_delays(keycode);
+        // self.update_delays(keycode);
         Ok(keycode)
-    }
-
-    /// Get the pending delay
-    pub fn pending_delays(&self) -> u32 {
-        self.pending_delays
     }
 
     /// Add the Keysym to the keymap
@@ -168,36 +150,6 @@ impl KeyMap {
         self.keymap_mapping.additionally_mapped.remove(&keysym);
         debug!("unmapped keysym {keysym:?}");
         Ok(())
-    }
-
-    // Update the delay
-    // TODO: A delay of 1 ms in all cases seems to work on my machine. Maybe
-    // this is not needed?
-    pub fn update_delays(&mut self, keycode: Keycode) {
-        // Check if a delay is needed
-        // A delay is required, if one of the keycodes was recently entered and there
-        // was no delay between it
-
-        // e.g. A quick rabbit
-        // Chunk 1: 'A quick' # Add a delay before the second space
-        // Chunk 2: ' rab'     # Add a delay before the second 'b'
-        // Chunk 3: 'bit'     # Enter the remaining chars
-
-        if self.keymap_state.last_keys.contains(&keycode) {
-            let elapsed_ms = self
-                .last_event_before_delays
-                .elapsed()
-                .as_millis()
-                .try_into()
-                .unwrap_or(u32::MAX);
-            self.pending_delays = self.delay.saturating_sub(elapsed_ms);
-            trace!("delay needed");
-            self.keymap_state.last_keys.clear();
-        } else {
-            trace!("no delay needed");
-            self.pending_delays = 1;
-        }
-        self.keymap_state.last_keys.push(keycode);
     }
 
     /// Check if there are still unused keycodes available. If there aren't,
@@ -237,10 +189,6 @@ impl KeyMap {
                 self.keymap_state.held_keycodes.retain(|&k| k != keycode);
             }
             Direction::Click => (),
-        }
-
-        {
-            self.last_event_before_delays = std::time::Instant::now();
         }
     }
 }

@@ -610,7 +610,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     return;
                 };
                 if let Some(keymap) = &mut state.seat_keymap {
-                    if keymap.update(new_keymap).is_err() {
+                    if keymap.update_keymap(new_keymap).is_err() {
                         error!("unable to update the keymap");
                         state.seat_keymap = None;
                         return;
@@ -628,7 +628,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
             } => {
                 if let Some(keymap) = &mut state.seat_keymap {
                     // Wayland doesn't differentiates between depressed, latched and locked
-                    keymap.update_modifiers(
+                    keymap.update_modifier_state(
                         depressed_mods,
                         latched_mods,
                         locked_mods,
@@ -792,12 +792,12 @@ impl Keyboard for Con {
         } else {
             debug!("keycode for key {key:?} was not found");
 
-            let mapping_res = keymap.map_key(key);
+            let mapping_res = keymap.map_key(key, true);
             let keycode = match mapping_res {
                 Err(InputError::Mapping(_)) => {
                     // Unmap and retry
                     keymap.unmap_everything()?;
-                    keymap.map_key(key)?
+                    keymap.map_key(key, true)?
                 }
 
                 Ok(keycode) => keycode,
@@ -824,7 +824,10 @@ impl Keyboard for Con {
                 .seat_keymap
                 .as_mut()
                 .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Down)
+                .update_key_state_and_get_modifiers(
+                    xkb::Keycode::new(keycode.into()),
+                    xkb::KeyDirection::Down,
+                )
             {
                 trace!("it is a modifier");
                 self.send_modifier_event(
@@ -849,7 +852,10 @@ impl Keyboard for Con {
                 .seat_keymap
                 .as_mut()
                 .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Up)
+                .update_key_state_and_get_modifiers(
+                    xkb::Keycode::new(keycode.into()),
+                    xkb::KeyDirection::Up,
+                )
             {
                 trace!("it is a modifier");
                 self.send_modifier_event(
