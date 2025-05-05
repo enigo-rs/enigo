@@ -255,7 +255,7 @@ impl Mouse for Enigo {
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
         let mut point = POINT { x: 0, y: 0 };
-        if unsafe { GetCursorPos(&mut point) }.is_ok() {
+        if unsafe { GetCursorPos(&raw mut point) }.is_ok() {
             Ok((point.x, point.y))
         } else {
             Err(InputError::Simulate(

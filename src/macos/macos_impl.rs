@@ -1105,9 +1105,9 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             modifier,
             LMGetKbdType() as u32,
             kUCKeyTranslateNoDeadKeysBit,
-            &mut keys_down,
+            &raw mut keys_down,
             chars.len() as CFIndex,
-            &mut real_length,
+            &raw mut real_length,
             chars.as_mut_ptr(),
         )
     };
