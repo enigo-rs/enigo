@@ -6,7 +6,7 @@ use std::{
 
 use core_foundation::{
     array::CFIndex,
-    base::{OSStatus, TCFType, UInt8, UInt16, UInt32},
+    base::{CFRelease, OSStatus, TCFType, UInt8, UInt16, UInt32},
     data::{CFDataGetBytePtr, CFDataRef},
     dictionary::{CFDictionary, CFDictionaryRef},
     string::{CFString, CFStringRef, UniChar},
@@ -60,19 +60,23 @@ const kUCKeyTranslateNoDeadKeysBit: CFIndex = 0; // Previously was always u32. C
 #[allow(improper_ctypes)]
 #[link(name = "Carbon", kind = "framework")]
 unsafe extern "C" {
+    // “Copy” here means +1 retain — we must CFRelease when done
     fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentKeyboardLayoutInputSource() -> TISInputSourceRef;
     fn TISCopyCurrentASCIICapableKeyboardLayoutInputSource() -> TISInputSourceRef;
 
+    // property key for the Unicode (‘uchr’) layout data
     #[allow(non_upper_case_globals)]
     static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
 
+    // fetches a CFDataRef containing the raw UCKeyboardLayout bytes
     #[allow(non_snake_case)]
     fn TISGetInputSourceProperty(
         inputSource: TISInputSourceRef,
         propertyKey: CFStringRef,
     ) -> CFDataRef;
 
+    // turn keycode+modifiers → UTF‑16 string
     #[allow(non_snake_case)]
     fn UCKeyTranslate(
         keyLayoutPtr: *const UInt8, //*const UCKeyboardLayout,
@@ -1072,6 +1076,8 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
         debug!(
             "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL"
         );
+        unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+
         // TISGetInputSourceProperty returns null with some keyboard layout.
         // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
         // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
@@ -1083,6 +1089,7 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             debug!(
                 "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
             );
+            unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
             current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
             layout_data = unsafe {
                 TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
@@ -1111,6 +1118,7 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             chars.as_mut_ptr(),
         )
     };
+    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
     if status != 0 {
         error!("UCKeyTranslate failed with status: {status}");
