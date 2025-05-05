@@ -38,7 +38,7 @@ wayland = [
     "dep:nom",
 ]
 xdo = []
-x11rb = ["dep:x11rb", "dep:nom"]
+x11rb = ["dep:x11rb", "dep:nom", "xkbcommon/x11"]
 
 [dependencies]
 log = "0.4"
@@ -85,6 +85,8 @@ x11rb = { version = "0.13", features = [
     "randr",
     "xinput",
     "xtest",
+    "allow-unsafe-code",
+    "xkb",
 ], optional = true }
 xkbcommon = "0.8"
 xkeysym = "0.2"

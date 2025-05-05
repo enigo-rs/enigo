@@ -81,7 +81,7 @@ impl Keymap2 {
         Self::new(context, original_keymap, keymap, state)
     }
 
-    fn new(
+    pub fn new(
         context: Context,
         mut original_keymap: String,
         keymap: Keymap,
@@ -108,7 +108,7 @@ impl Keymap2 {
         })
     }
 
-    pub fn update(&mut self, format: KeymapFormat, fd: OwnedFd, size: u32) -> Result<(), ()> {
+    pub fn update_keymap(&mut self, new_keymap: Keymap2) -> Result<(), ()> {
         let depressed_mods = self.state.serialize_mods(STATE_MODS_DEPRESSED);
         let latched_mods = self.state.serialize_mods(STATE_MODS_LATCHED);
         let locked_mods = self.state.serialize_mods(STATE_MODS_LOCKED);
@@ -124,9 +124,7 @@ impl Keymap2 {
             parsed_keymap,
             pressed_keys,
             original_keymap: _, // Never update the original keymap
-        } = Self::new_from_fd(self.context.clone(), format, fd, size).map_err(|()| {
-            trace!("unable to create new keymap");
-        })?;
+        } = new_keymap;
 
         // The docs say this is a bad idea. update_key and update_mask should not get
         // mixed. I don't know how else to get the same state though
@@ -154,7 +152,22 @@ impl Keymap2 {
     /// Update the state and return the new bitflags for the modifiers and the
     /// effective layout if they changed. If they remained the same, None is
     /// returned
-    pub fn update_key(
+    pub fn update_key_state(&mut self, keycode: Keycode, direction: KeyDirection) {
+        match direction {
+            KeyDirection::Up => {
+                self.pressed_keys.remove(&keycode);
+            }
+            KeyDirection::Down => {
+                self.pressed_keys.insert(keycode);
+            }
+        }
+        self.state.update_key(keycode, direction);
+    }
+
+    /// Update the state and return the new bitflags for the modifiers and the
+    /// effective layout if they changed. If they remained the same, None is
+    /// returned
+    pub fn update_key_state_and_get_modifiers(
         &mut self,
         keycode: Keycode,
         direction: KeyDirection,
@@ -195,7 +208,7 @@ impl Keymap2 {
         }
     }
 
-    pub fn update_modifiers(
+    pub fn update_modifier_state(
         &mut self,
         depressed_mods: ModMask,
         latched_mods: ModMask,
@@ -248,7 +261,7 @@ impl Keymap2 {
             .and_then(|k| u16::try_from(k).ok())
     }
 
-    pub fn map_key(&mut self, key: Key) -> InputResult<u16> {
+    pub fn map_key(&mut self, key: Key, is_wayland: bool) -> InputResult<u16> {
         let key_name = Keysym::from(key).name().ok_or_else(|| {
             crate::InputError::Mapping("the key to map doesn't have a name".to_string())
         })?;
@@ -256,7 +269,7 @@ impl Keymap2 {
             Some(key_name) => key_name,
             None => key_name,
         };
-        self.parsed_keymap.map_key(key_name, true)
+        self.parsed_keymap.map_key(key_name, is_wayland)
     }
 
     pub fn unmap_everything(&mut self) -> InputResult<()> {
