@@ -58,12 +58,12 @@ impl PartialEq<(Key, Direction)> for BrowserEvent {
             BrowserEvent::KeyDown(name, debug_data) if *direction == Direction::Press => {
                 let key_name = match key {
                     Key::Unicode(char) => format!("{char}"),
-                    Key::Shift => format!("ShiftLeft"),
-                    Key::LShift => format!("ShiftLeft"),
-                    Key::RShift => format!("ShiftRight"),
-                    Key::Control => format!("ControlLeft"),
-                    Key::LControl => format!("ControlLeft"),
-                    Key::RControl => format!("ControlRight"),
+                    Key::Shift => "ShiftLeft".to_string(),
+                    Key::LShift => "ShiftLeft".to_string(),
+                    Key::RShift => "ShiftRight".to_string(),
+                    Key::Control => "ControlLeft".to_string(),
+                    Key::LControl => "ControlLeft".to_string(),
+                    Key::RControl => "ControlRight".to_string(),
                     // TODO: Add the other keys that have a right and left variant here
                     _ => format!("{key:?}"),
                 };
@@ -78,12 +78,12 @@ impl PartialEq<(Key, Direction)> for BrowserEvent {
             BrowserEvent::KeyUp(name, debug_data) if *direction == Direction::Release => {
                 let key_name = match key {
                     Key::Unicode(char) => format!("{char}"),
-                    Key::Shift => format!("ShiftLeft"),
-                    Key::LShift => format!("ShiftLeft"),
-                    Key::RShift => format!("ShiftRight"),
-                    Key::Control => format!("ControlLeft"),
-                    Key::LControl => format!("ControlLeft"),
-                    Key::RControl => format!("ControlRight"),
+                    Key::Shift => "ShiftLeft".to_string(),
+                    Key::LShift => "ShiftLeft".to_string(),
+                    Key::RShift => "ShiftRight".to_string(),
+                    Key::Control => "ControlLeft".to_string(),
+                    Key::LControl => "ControlLeft".to_string(),
+                    Key::RControl => "ControlRight".to_string(),
                     // TODO: Add the other keys that have a right and left variant here
                     _ => format!("{key:?}"),
                 };
