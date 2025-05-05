@@ -300,8 +300,9 @@ impl Mouse for Con {
         let mut height = 0;
 
         debug!("xdo_get_viewport_dimensions");
-        let res =
-            unsafe { xdo_get_viewport_dimensions(self.xdo, &mut width, &mut height, MAIN_SCREEN) };
+        let res = unsafe {
+            xdo_get_viewport_dimensions(self.xdo, &raw mut width, &raw mut height, MAIN_SCREEN)
+        };
 
         if res != XDO_SUCCESS {
             return Err(InputError::Simulate("unable to get the main display"));
@@ -318,10 +319,10 @@ impl Mouse for Con {
         let res = unsafe {
             xdo_get_mouse_location2(
                 self.xdo,
-                &mut x,
-                &mut y,
-                &mut unused_screen_index,
-                &mut unused_window_index,
+                &raw mut x,
+                &raw mut y,
+                &raw mut unused_screen_index,
+                &raw mut unused_window_index,
             )
         };
         if res != XDO_SUCCESS {
