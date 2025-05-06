@@ -1,17 +1,21 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::ffi::CString;
 
 use log::{debug, error, trace, warn};
+
 use x11rb::{
-    connection::Connection,
+    connection::{Connection, RequestConnection},
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
+        xkb::{ConnectionExt as _, X11_EXTENSION_NAME},
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
-    rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
+    rust_connection::{ConnectError, ConnectionError, ReplyError},
     wrapper::ConnectionExt as _,
+    xcb_ffi::XCBConnection,
 };
 
 use super::keymap::{Bind, KeyMap, Keysym};
@@ -19,15 +23,12 @@ use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
 
-type CompositorConnection = RustConnection<DefaultStream>;
-
 pub type Keycode = u8;
 
 pub struct Con {
-    connection: CompositorConnection,
+    connection: XCBConnection,
     screen: Screen,
-    keymap: KeyMap<Keycode>,
-    modifiers: [Vec<Keycode>; 8],
+    keymap: KeyMap,
     delay: u32, // milliseconds
 }
 
@@ -64,13 +65,39 @@ impl Con {
     /// TODO
     pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
         debug!("using x11rb");
-        let (connection, screen_idx) = x11rb::connect(dpy_name)?;
+
+        let dpy_name = dpy_name
+            .map(|name| {
+                CString::new(name).map_err(|_| {
+                    NewConError::EstablishCon("the display name contained a null byte")
+                })
+            })
+            .transpose()?;
+
+        let (connection, screen_idx) = XCBConnection::connect(dpy_name.as_deref())?;
+
+        connection.prefetch_extension_information(X11_EXTENSION_NAME)?;
         let setup = connection.setup();
+
+        let xkb = connection.xkb_use_extension(1, 0)?;
+        let xkb = xkb.reply()?;
+        assert!(
+            xkb.supported,
+            "This program requires the X11 server to support the XKB extension"
+        );
+
         let screen = setup.roots[screen_idx].clone();
         let min_keycode = setup.min_keycode;
         let max_keycode = setup.max_keycode;
-        let (keysyms_per_keycode, keysyms) =
-            Self::get_keyboard_mapping(&connection, min_keycode, max_keycode)?; // Check if a mapping is possible
+
+        let GetKeyboardMappingReply {
+            keysyms_per_keycode,
+            keysyms,
+            ..
+        } = connection
+            .get_keyboard_mapping(min_keycode, max_keycode - min_keycode + 1)?
+            .reply()?;
+
         let unused_keycodes =
             Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms); // Check if a mapping is possible
 
@@ -85,14 +112,10 @@ impl Con {
             keysyms,
         );
 
-        // Get the keycodes of the modifiers
-        let modifiers = Self::find_modifier_keycodes(&connection)?;
-
         Ok(Con {
             connection,
             screen,
             keymap,
-            modifiers,
             delay,
         })
     }
@@ -106,24 +129,6 @@ impl Con {
     /// Set the delay in milliseconds per keypress
     pub fn set_delay(&mut self, delay: u32) {
         self.delay = delay;
-    }
-
-    /// Find keycodes that have not yet been mapped any keysyms
-    fn get_keyboard_mapping(
-        connection: &CompositorConnection,
-        keycode_min: Keycode,
-        keycode_max: Keycode,
-    ) -> Result<(u8, Vec<u32>), ReplyError> {
-        let GetKeyboardMappingReply {
-            keysyms_per_keycode,
-            keysyms,
-            ..
-        } = connection
-            .get_keyboard_mapping(keycode_min, keycode_max - keycode_min + 1)?
-            .reply()?;
-
-        //let keysyms = keysyms.into_iter().map(|s| Keysym::from(s)).collect();
-        Ok((keysyms_per_keycode, keysyms))
     }
 
     fn unused_keycodes(
@@ -156,38 +161,6 @@ impl Con {
         }
         debug!("unused keycodes: {unused_keycodes:?}");
         unused_keycodes
-    }
-
-    /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(
-        connection: &CompositorConnection,
-    ) -> Result<[Vec<Keycode>; 8], ReplyError> {
-        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
-        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
-        let GetModifierMappingReply {
-            keycodes: modifiers,
-            ..
-        } = modifier_reply;
-
-        let mut modifiers_array: [Vec<Keycode>; 8] = Default::default(); // Initialize with empty vectors
-        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
-        if modifier_mapping.len() > 8 {
-            error!(
-                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
-                modifier_mapping.len()
-            );
-            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
-        }
-        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
-            let keycodes: Vec<_> = mod_keycodes.iter().copied().filter(|&kc| kc != 0).collect();
-            if keycodes.is_empty() {
-                warn!("modifier_no: {mod_no} is unmapped");
-            }
-            modifiers_array[mod_no] = keycodes;
-        }
-        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
-
-        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -233,7 +206,7 @@ impl Drop for Con {
     }
 }
 
-impl Bind<Keycode> for CompositorConnection {
+impl Bind for XCBConnection {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a
@@ -254,15 +227,6 @@ impl Keyboard for Con {
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
-
-        if log::log_enabled!(log::Level::Debug) {
-            for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
-                if mod_keycodes.contains(&keycode) {
-                    debug!("the key is modifier no: {mod_idx}");
-                }
-            }
-        }
-
         self.raw(keycode.into(), direction)
     }
 
