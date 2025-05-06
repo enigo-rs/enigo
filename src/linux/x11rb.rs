@@ -29,7 +29,6 @@ pub struct Con {
     connection: XCBConnection,
     screen: Screen,
     keymap: KeyMap,
-    modifiers: [Vec<Keycode>; 32],
     delay: u32, // milliseconds
 }
 
@@ -113,14 +112,10 @@ impl Con {
             keysyms,
         );
 
-        // Get the keycodes of the modifiers
-        let modifiers = Self::find_modifier_keycodes(&connection)?;
-
         Ok(Con {
             connection,
             screen,
             keymap,
-            modifiers,
             delay,
         })
     }
@@ -166,42 +161,6 @@ impl Con {
         }
         debug!("unused keycodes: {unused_keycodes:?}");
         unused_keycodes
-    }
-
-    /// Find the keycodes that must be used for the modifiers
-    fn find_modifier_keycodes(
-        connection: &XCBConnection,
-    ) -> Result<[Vec<Keycode>; 32], ReplyError> {
-        let modifier_reply = connection.get_modifier_mapping()?.reply()?;
-        let keycodes_per_modifier = modifier_reply.keycodes_per_modifier() as usize;
-        let GetModifierMappingReply {
-            keycodes: modifiers,
-            ..
-        } = modifier_reply;
-
-        let mut modifiers_array: [Vec<Keycode>; 32] = Default::default(); // Initialize with empty vectors
-        let modifier_mapping = modifiers.chunks(keycodes_per_modifier);
-        if modifier_mapping.len() > 32 {
-            error!(
-                "the associated keycodes of {} modifiers were returned! Only 8 were expected",
-                modifier_mapping.len()
-            );
-            return Err(ReplyError::ConnectionError(ConnectionError::UnknownError));
-        }
-        for (mod_no, mod_keycodes) in modifier_mapping.enumerate() {
-            let keycodes: Vec<_> = mod_keycodes
-                .iter()
-                .filter(|&kc| *kc != 0)
-                .copied()
-                .collect();
-            if keycodes.is_empty() {
-                warn!("modifier_no: {mod_no} is unmapped");
-            }
-            modifiers_array[mod_no] = keycodes;
-        }
-        debug!("the keycodes associated with the modifiers are:\n{modifiers_array:?}");
-
-        Ok(modifiers_array)
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -268,15 +227,6 @@ impl Keyboard for Con {
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
-
-        if log::log_enabled!(log::Level::Debug) {
-            for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
-                if mod_keycodes.contains(&keycode) {
-                    debug!("the key is modifier no: {mod_idx}");
-                }
-            }
-        }
-
         self.raw(keycode.into(), direction)
     }
 
