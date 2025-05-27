@@ -55,7 +55,7 @@ windows = { version = "0.61", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
-core-graphics = { version = "0.24", features = ["highsierra"] }
+core-graphics = { version = "0.25", features = ["highsierra"] }
 objc2 = { version = "0.6", features = ["relax-void-encoding"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
     "std",
