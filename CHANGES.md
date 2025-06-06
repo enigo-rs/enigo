@@ -1,5 +1,14 @@
 # Unreleased
 ## Changed
+
+## Added
+
+## Removed
+
+## Fixed
+
+# 0.4.0
+## Changed
 - Rust: MSRV is 1.85
 - Rust: Use edition 2024
 - linux: wayland: Use the keymap the compositor sends instead of a hardcoded one
