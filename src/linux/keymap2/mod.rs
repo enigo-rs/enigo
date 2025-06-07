@@ -25,8 +25,11 @@ pub struct Keymap2 {
     pressed_keys: HashSet<Keycode>,
 }
 
+// This is safe, we have a unique pointer.
+unsafe impl Send for Keymap2 {}
+
 impl Keymap2 {
-    pub fn new_from_fd(
+    pub(crate) fn new_from_fd(
         context: Context,
         format: KeymapFormat,
         fd: OwnedFd,
