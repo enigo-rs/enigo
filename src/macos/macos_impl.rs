@@ -116,6 +116,9 @@ pub struct Enigo {
                                             * not yet been released */
 }
 
+// TODO: Double check this is safe
+unsafe impl Send for Enigo {}
+
 impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
