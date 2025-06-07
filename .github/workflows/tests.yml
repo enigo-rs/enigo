@@ -85,3 +85,6 @@ jobs:
       
       - name: Run the unit tests in release mode
         run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
+
+      - name: Run the sync example
+        run: cargo run --example sync --no-default-features --features ${{ matrix.features }}
