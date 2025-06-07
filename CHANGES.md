@@ -6,6 +6,7 @@
 ## Removed
 
 ## Fixed
+- linux: wayland: The `Enigo` struct implements `Sync`/`Send` again
 
 # 0.4.0
 ## Changed
