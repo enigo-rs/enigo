@@ -852,7 +852,7 @@ impl Keyboard for Con {
                     effective_layout_new,
                 )?;
             } else {
-                self.send_key_event(keycode.into(), Direction::Press)?;
+                self.send_key_event(keycode.into(), Direction::Release)?;
             }
         }
         Ok(())
