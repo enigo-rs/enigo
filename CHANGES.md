@@ -6,6 +6,7 @@
 ## Removed
 
 ## Fixed
+- linux: wayland: Fix releasing raw keys
 
 # 0.4.0
 ## Changed
