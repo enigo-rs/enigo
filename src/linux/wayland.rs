@@ -445,8 +445,15 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
 
                 match &interface[..] {
                     "wl_seat" => {
-                        state.im_manager = None;
+                        state.virtual_keyboard = None;
                         state.keyboard_manager = None;
+                        state.input_method = None;
+                        state.im_manager = None;
+                        state.virtual_pointer = None;
+                        state.pointer_manager = None;
+                        state.seat_keyboard = None;
+                        state.seat_keymap = None;
+                        state.seat_pointer = None;
                         state.seat = None;
                     }
                     "wl_output" => {
@@ -455,13 +462,16 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             .retain(|(output, _)| output.id().protocol_id() != *name);
                     }
                     "zwp_input_method_manager_v2" => {
+                        state.input_method = None;
                         state.im_manager = None;
                     }
                     "zwp_virtual_keyboard_manager_v1" => {
+                        state.virtual_keyboard = None;
                         state.keyboard_manager = None;
                     }
                     "zwlr_virtual_pointer_manager_v1" => {
                         state.pointer_manager = None;
+                        state.virtual_pointer = None;
                     }
                     _ => {}
                 }
