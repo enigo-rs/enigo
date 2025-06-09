@@ -2,6 +2,15 @@
 ## Changed
 
 ## Added
+
+## Removed
+
+## Fixed
+
+# 0.4.1
+## Changed
+
+## Added
 - macOS: The `Enigo` struct implements `Sync`/`Send`
 
 ## Removed
