@@ -6,6 +6,9 @@
 ## Removed
 
 ## Fixed
+
+# 0.4.2
+## Fixed
 -linux: xdo: Enable entering all unicode characters with the `key` function
 -linux: wayland: Enable entering all unicode characters with the `key` function
 
