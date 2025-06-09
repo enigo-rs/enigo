@@ -533,9 +533,16 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
             | zwp_input_method_v2::Event::ContentType {
                 hint: _,
                 purpose: _,
-            }
-            | zwp_input_method_v2::Event::Unavailable => {
+            } => {
                 trace!("ZwpInputMethodV2 received irrelevant event:\n{event:?}");
+            }
+            zwp_input_method_v2::Event::Unavailable => {
+                warn!("ZwpInputMethodV2 received event:\nzwp_input_method_v2::Event::Unavailable");
+                warn!(
+                    "It is not possible to enter text anymore! The characters will now be simulated by individual key presses instead"
+                );
+                state.input_method = None;
+                state.im_manager = None;
             }
             _ => warn!("ZwpInputMethodV2 received unknown event:\n{event:?}"),
         }
