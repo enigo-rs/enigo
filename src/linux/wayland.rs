@@ -341,6 +341,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             if state.input_method.is_none() {
                                 let input_method = im_manager.get_input_method(&seat, qh, ());
                                 state.input_method = Some(input_method);
+                                state.im_serial = Wrapping(0u32);
                             }
                         }
                         // We don't know if the seat or the keyboard_manager is created first and we
@@ -383,6 +384,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             if state.input_method.is_none() {
                                 let input_method = im_manager.get_input_method(seat, qh, ());
                                 state.input_method = Some(input_method);
+                                state.im_serial = Wrapping(0u32);
                             }
                         }
                         state.im_manager = Some(im_manager);
