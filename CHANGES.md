@@ -7,6 +7,7 @@
 
 ## Fixed
 - linux: wayland: Fix releasing raw keys
+- linux: wayland: Don't try to use the input_method protocol if it is unavailable
 
 # 0.4.0
 ## Changed
