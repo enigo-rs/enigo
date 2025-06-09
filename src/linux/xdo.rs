@@ -169,10 +169,7 @@ impl Keyboard for Con {
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         let keysym = Keysym::from(key);
-        let Some(keysym_name) = keysym.name() else {
-            // this should never happen, because we only use keysyms with a known name
-            return Err(InputError::InvalidInput("the keysym does not have a name"));
-        };
+        let keysym_name = format!("{keysym:?}");
         let keysym_name = keysym_name.replace("XK_", ""); // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
 
         let Ok(string) = CString::new(keysym_name) else {

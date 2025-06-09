@@ -241,23 +241,24 @@ impl Keymap2 {
     }
 
     pub fn key_to_keycode(&self, key: Key) -> Option<u16> {
-        let Some(key_name) = Keysym::from(key).name() else {
-            error!("the key to map doesn't have a name");
-            return None;
-        };
+        let keysym = Keysym::from(key);
+        let key_name = format!("{keysym:?}");
 
         (self.keymap.min_keycode().raw()..self.keymap.max_keycode().raw())
-            .find(|&k| self.state.key_get_one_sym(Keycode::new(k)).name() == Some(key_name))
+            .find(|&k| {
+                let keycode = Keycode::new(k);
+                let keysym = self.state.key_get_one_sym(keycode);
+                format!("{keysym:?}") == key_name
+            })
             .and_then(|k| u16::try_from(k).ok())
     }
 
     pub fn map_key(&mut self, key: Key) -> InputResult<u16> {
-        let key_name = Keysym::from(key).name().ok_or_else(|| {
-            crate::InputError::Mapping("the key to map doesn't have a name".to_string())
-        })?;
+        let keysym = Keysym::from(key);
+        let key_name = format!("{keysym:?}");
         let key_name = match key_name.strip_prefix("XK_") {
             Some(key_name) => key_name,
-            None => key_name,
+            None => &key_name,
         };
         self.parsed_keymap.map_key(key_name, true)
     }

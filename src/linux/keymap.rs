@@ -283,7 +283,6 @@ where
     pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
         use super::{KEYMAP_BEGINNING, KEYMAP_END};
         use std::io::{Seek, SeekFrom, Write};
-        use xkbcommon::xkb::keysym_get_name;
 
         // Don't do anything if there were no changes
         if !self.keymap_state.needs_regeneration {
@@ -312,7 +311,7 @@ where
                 "
 	key <I{}>                 {{	[               {} ] }};",
                 keycode,
-                keysym_get_name(keysym)
+                format!("{keysym:?}")
             )?;
         }
         keymap_file.write_all(KEYMAP_END)?;
