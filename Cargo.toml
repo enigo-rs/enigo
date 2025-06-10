@@ -27,7 +27,7 @@ exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 all-features = true
 
 [features]
-default = ["xdo"]
+default = ["x11rb"]
 libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:nom"]
 serde = ["dep:serde"]
 wayland = [
