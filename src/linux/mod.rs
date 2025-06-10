@@ -26,11 +26,6 @@ mod wayland;
 #[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
 mod x11;
 
-#[cfg(feature = "wayland")]
-mod constants;
-#[cfg(feature = "wayland")]
-use constants::{KEYMAP_BEGINNING, KEYMAP_END};
-
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
 
