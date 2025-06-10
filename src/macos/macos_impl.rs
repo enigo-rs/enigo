@@ -30,26 +30,6 @@ use crate::{
     NewConError, Settings,
 };
 
-// TODO: Replace with upstream values once a new version of core_graphics is published that contains https://github.com/servo/core-foundation-rs/pull/712
-const ANSI_KEYPAD_0: u16 = 0x52;
-const ANSI_KEYPAD_1: u16 = 0x53;
-const ANSI_KEYPAD_2: u16 = 0x54;
-const ANSI_KEYPAD_3: u16 = 0x55;
-const ANSI_KEYPAD_4: u16 = 0x56;
-const ANSI_KEYPAD_5: u16 = 0x57;
-const ANSI_KEYPAD_6: u16 = 0x58;
-const ANSI_KEYPAD_7: u16 = 0x59;
-const ANSI_KEYPAD_8: u16 = 0x5B;
-const ANSI_KEYPAD_9: u16 = 0x5C;
-const ANSI_KEYPAD_DECIMAL: u16 = 0x41;
-const ANSI_KEYPAD_MULTIPLY: u16 = 0x43;
-const ANSI_KEYPAD_PLUS: u16 = 0x45;
-const ANSI_KEYPAD_CLEAR: u16 = 0x47;
-const ANSI_KEYPAD_DIVIDE: u16 = 0x4B;
-const ANSI_KEYPAD_ENTER: u16 = 0x4C;
-const ANSI_KEYPAD_MINUS: u16 = 0x4E;
-const ANSI_KEYPAD_EQUAL: u16 = 0x51;
-
 #[repr(C)]
 struct __TISInputSource;
 type TISInputSourceRef = *const __TISInputSource;
@@ -777,102 +757,102 @@ impl Enigo {
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x41 => (
+            KeyCode::ANSI_KEYPAD_DECIMAL => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x43 => (
+            KeyCode::ANSI_KEYPAD_MULTIPLY => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x45 => (
+            KeyCode::ANSI_KEYPAD_PLUS => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x47 => (
+            KeyCode::ANSI_KEYPAD_CLEAR => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x4b => (
+            KeyCode::ANSI_KEYPAD_DIVIDE => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x4c => (
+            KeyCode::ANSI_KEYPAD_ENTER => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x4e => (
+            KeyCode::ANSI_KEYPAD_MINUS => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x4f => (
+            KeyCode::F18 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x50 => (
+            KeyCode::F19 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x51..=0x59 => (
+            KeyCode::ANSI_KEYPAD_EQUAL..=KeyCode::ANSI_KEYPAD_7 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x5b..=0x5c => (
+            KeyCode::ANSI_KEYPAD_8..=KeyCode::ANSI_KEYPAD_9 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagNumericPad,
             ),
-            0x60..=0x65 => (
+            KeyCode::F5..=KeyCode::F9 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x67 => (
+            KeyCode::F11 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x69..=0x6b => (
+            KeyCode::F13..=KeyCode::F14 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x6d => (
+            KeyCode::F10 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x6f => (
+            KeyCode::F12 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x71 => (
+            KeyCode::F15 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x72 => (
+            KeyCode::HELP => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagHelp,
             ),
-            0x73..0x7b => (
+            KeyCode::HOME..KeyCode::LEFT_ARROW => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn,
             ),
-            0x7b..0x7f => (
+            KeyCode::LEFT_ARROW..0x7f => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
                 CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagNumericPad,
@@ -944,14 +924,14 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
         // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
         // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
         let key = match key {
-            Key::Add => ANSI_KEYPAD_PLUS,
+            Key::Add => KeyCode::ANSI_KEYPAD_PLUS,
             Key::Alt | Key::Option => KeyCode::OPTION,
             Key::Backspace => KeyCode::DELETE,
             Key::CapsLock => KeyCode::CAPS_LOCK,
             Key::Control | Key::LControl => KeyCode::CONTROL,
-            Key::Decimal => ANSI_KEYPAD_DECIMAL,
+            Key::Decimal => KeyCode::ANSI_KEYPAD_DECIMAL,
             Key::Delete => KeyCode::FORWARD_DELETE,
-            Key::Divide => ANSI_KEYPAD_DIVIDE,
+            Key::Divide => KeyCode::ANSI_KEYPAD_DIVIDE,
             Key::DownArrow => KeyCode::DOWN_ARROW,
             Key::End => KeyCode::END,
             Key::Escape => KeyCode::ESCAPE,
@@ -981,17 +961,17 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::Launchpad => 131,
             Key::LeftArrow => KeyCode::LEFT_ARROW,
             Key::MissionControl => 160,
-            Key::Multiply => ANSI_KEYPAD_MULTIPLY,
-            Key::Numpad0 => ANSI_KEYPAD_0,
-            Key::Numpad1 => ANSI_KEYPAD_1,
-            Key::Numpad2 => ANSI_KEYPAD_2,
-            Key::Numpad3 => ANSI_KEYPAD_3,
-            Key::Numpad4 => ANSI_KEYPAD_4,
-            Key::Numpad5 => ANSI_KEYPAD_5,
-            Key::Numpad6 => ANSI_KEYPAD_6,
-            Key::Numpad7 => ANSI_KEYPAD_7,
-            Key::Numpad8 => ANSI_KEYPAD_8,
-            Key::Numpad9 => ANSI_KEYPAD_9,
+            Key::Multiply => KeyCode::ANSI_KEYPAD_MULTIPLY,
+            Key::Numpad0 => KeyCode::ANSI_KEYPAD_0,
+            Key::Numpad1 => KeyCode::ANSI_KEYPAD_1,
+            Key::Numpad2 => KeyCode::ANSI_KEYPAD_2,
+            Key::Numpad3 => KeyCode::ANSI_KEYPAD_3,
+            Key::Numpad4 => KeyCode::ANSI_KEYPAD_4,
+            Key::Numpad5 => KeyCode::ANSI_KEYPAD_5,
+            Key::Numpad6 => KeyCode::ANSI_KEYPAD_6,
+            Key::Numpad7 => KeyCode::ANSI_KEYPAD_7,
+            Key::Numpad8 => KeyCode::ANSI_KEYPAD_8,
+            Key::Numpad9 => KeyCode::ANSI_KEYPAD_9,
             Key::PageDown => KeyCode::PAGE_DOWN,
             Key::PageUp => KeyCode::PAGE_UP,
             Key::RCommand => KeyCode::RIGHT_COMMAND,
@@ -1002,7 +982,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::ROption => KeyCode::RIGHT_OPTION,
             Key::Shift | Key::LShift => KeyCode::SHIFT,
             Key::Space => KeyCode::SPACE,
-            Key::Subtract => ANSI_KEYPAD_MINUS,
+            Key::Subtract => KeyCode::ANSI_KEYPAD_MINUS,
             Key::Tab => KeyCode::TAB,
             Key::UpArrow => KeyCode::UP_ARROW,
             Key::VolumeDown => KeyCode::VOLUME_DOWN,
