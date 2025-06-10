@@ -1,6 +1,6 @@
 [package]
 name = "enigo"
-version = "0.4.2"
+version = "0.5.0"
 authors = [
     "pentamassiv <pentamassiv@posteo.de>",
     "Dustin Bensing <dustin.bensing@googlemail.com>",

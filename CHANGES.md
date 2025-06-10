@@ -1,5 +1,14 @@
 # Unreleased
 ## Changed
+
+## Added
+
+## Removed
+
+## Fixed
+
+# 0.5.0
+## Changed
 - linux: x11: Use `x11rb` by default to simulate input as it is more reliable, makes it possible to enter raw keycodes, does not need `xdotools` as a runtime dependency and uses native Rust. If you experience issue with the new default, please open an issue. You can disable default features and use the feature `xdo` to use the old method.
 
 ## Added
