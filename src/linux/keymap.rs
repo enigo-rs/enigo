@@ -5,8 +5,6 @@ use std::fmt::Display;
 use log::{debug, trace};
 pub(super) use xkeysym::{KeyCode, Keysym};
 
-#[cfg(feature = "wayland")]
-use crate::keycodes::ModifierBitflag;
 use crate::{Direction, InputError, InputResult, Key};
 
 #[cfg(feature = "x11rb")]
@@ -19,19 +17,13 @@ pub(super) struct KeyMapMapping<Keycode> {
     keycode_max: Keycode,
     keysyms_per_keycode: u8,
     keysyms: Vec<u32>,
-
     unused_keycodes: VecDeque<Keycode>,
-
-    #[cfg(feature = "wayland")]
-    pub(super) file: Option<std::fs::File>, // temporary file that contains the keymap
 }
 
 #[derive(Debug)]
 struct KeyMapState<Keycode> {
     held_keycodes: Vec<Keycode>, // cannot get unmapped
     needs_regeneration: bool,
-    #[cfg(feature = "wayland")]
-    modifiers: ModifierBitflag, // state of the modifiers
     #[cfg(feature = "x11rb")]
     last_keys: Vec<Keycode>, // last pressed keycodes
 }
@@ -68,14 +60,9 @@ where
         let capacity = capacity + 1;
         let keymap = HashMap::with_capacity(capacity);
 
-        #[cfg(feature = "wayland")]
-        let file = None;
-
         let keymap_state = KeyMapState {
             held_keycodes: vec![],
             needs_regeneration: true,
-            #[cfg(feature = "wayland")]
-            modifiers: 0,
             #[cfg(feature = "x11rb")]
             last_keys: vec![],
         };
@@ -87,8 +74,6 @@ where
             keysyms_per_keycode,
             keysyms,
             unused_keycodes,
-            #[cfg(feature = "wayland")]
-            file,
         };
 
         #[cfg(feature = "x11rb")]
@@ -272,85 +257,6 @@ where
             return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
         }
         Ok(())
-    }
-
-    /// Regenerate the keymap if there were any changes
-    /// and write the new keymap to a temporary file
-    ///
-    /// If there was the need to regenerate the keymap, the size of the keymap
-    /// is returned
-    #[cfg(feature = "wayland")]
-    pub fn regenerate(&mut self) -> Result<Option<u32>, std::io::Error> {
-        use super::{KEYMAP_BEGINNING, KEYMAP_END};
-        use std::io::{Seek, SeekFrom, Write};
-
-        // Don't do anything if there were no changes
-        if !self.keymap_state.needs_regeneration {
-            debug!("keymap did not change and does not require regeneration");
-            return Ok(None);
-        }
-
-        // Create a file to store the layout
-        if self.keymap_mapping.file.is_none() {
-            let mut temp_file = tempfile::tempfile()?;
-            temp_file.write_all(KEYMAP_BEGINNING)?;
-            self.keymap_mapping.file = Some(temp_file);
-        }
-
-        let keymap_file = self
-            .keymap_mapping
-            .file
-            .as_mut()
-            .expect("There was no file to write to. This should not be possible!");
-        // Move the virtual cursor of the file to the end of the part of the keymap that
-        // is always the same so we only overwrite the parts that can change.
-        keymap_file.seek(SeekFrom::Start(KEYMAP_BEGINNING.len() as u64))?;
-        for (&keysym, &keycode) in &self.keymap_mapping.additionally_mapped {
-            write!(
-                keymap_file,
-                "
-	key <I{}>                 {{	[               {} ] }};",
-                keycode,
-                format!("{keysym:?}")
-            )?;
-        }
-        keymap_file.write_all(KEYMAP_END)?;
-        // Truncate the file at the current cursor position in order to cut off any old
-        // data in case the keymap was smaller than the old one
-        let keymap_len = keymap_file.stream_position()?;
-        keymap_file.set_len(keymap_len)?;
-        self.keymap_state.needs_regeneration = false;
-        match keymap_len.try_into() {
-            Ok(v) => {
-                debug!("regenerated the keymap");
-                Ok(Some(v))
-            }
-            Err(_) => Err(std::io::Error::other(
-                "the length of the new keymap exceeds the u32::MAX",
-            )),
-        }
-    }
-
-    /// Tells the keymap that a modifier was pressed
-    /// Updates the internal state of the modifiers and returns the new bitflag
-    /// representing the state of the modifiers
-    #[cfg(feature = "wayland")]
-    pub fn enter_modifier(
-        &mut self,
-        modifier: ModifierBitflag,
-        direction: crate::Direction,
-    ) -> ModifierBitflag {
-        match direction {
-            crate::Direction::Press => {
-                self.keymap_state.modifiers |= modifier;
-                self.keymap_state.modifiers
-            }
-            crate::Direction::Release => {
-                self.keymap_state.modifiers &= !modifier;
-                self.keymap_state.modifiers
-            }
-            crate::Direction::Click => self.keymap_state.modifiers,
-        }
     }
 
     pub fn key(&mut self, keycode: Keycode, direction: Direction) {
