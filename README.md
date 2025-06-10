@@ -39,12 +39,9 @@ By default, enigo currently works on Windows, macOS and Linux (X11). If you want
 
 There are multiple ways how to simulate input on Linux and not all systems support everything. Enigo can also use wayland protocols and libei to simulate input but there are currently some bugs with it. That is why they are hidden behind feature flags.
 
-If you do not want your users to have to install any runtime dependencies on Linux when using X11, you can try the experimental `x11rb` feature.
-
-
 ## Runtime dependencies
 
-Linux users may have to install `libxdo-dev` if they are using `X11`. For example, on Debian-based distros:
+Linux users may have to install `libxdo-dev` if they are using the `xdo` feature. For example, on Debian-based distros:
 
 ```Bash
 apt install libxdo-dev
