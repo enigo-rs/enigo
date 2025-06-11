@@ -143,11 +143,17 @@ impl Con {
         let time_created = Instant::now();
 
         // Initialize a Tokio runtime
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?;
 
-        // Block on an async function within this runtime
-        let context = runtime.block_on(async { Self::open_connection().await });
+        // pick the right way to run open_connection():
+        let context = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // we’re already inside a runtime, so just block_on on its handle:
+            handle.block_on(Self::open_connection())
+        } else {
+            // no runtime currently, so build one:
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?;
+            rt.block_on(Self::open_connection())
+        };
 
         let HandshakeResp {
             connection,

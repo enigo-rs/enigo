@@ -6,6 +6,7 @@
 ## Removed
 
 ## Fixed
+- linux: libei: Don't panic if a tokio runtime already exists
 
 # 0.5.0
 ## Changed
