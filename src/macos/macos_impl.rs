@@ -242,7 +242,7 @@ impl Mouse for Enigo {
 
         let Ok(event) = CGEvent::new_scroll_event(
             self.event_source.clone(),
-            ScrollEventUnit::LINE,
+            ScrollEventUnit::PIXEL,
             ax,
             len_x,
             len_y,
