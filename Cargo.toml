@@ -25,10 +25,12 @@ exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["x11rb"]
 libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:nom"]
+platform_specific = []
 serde = ["dep:serde"]
 wayland = [
     "dep:wayland-client",
