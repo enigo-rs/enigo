@@ -2,6 +2,8 @@
 ## Changed
 
 ## Added
+- all: So far only functions that were possible on all platforms were implemented in order to keep every thing cross-platform. The new feature `platform_specific` allows you to opt-in to functionality that is only available on one or more platforms. At the beginning the only new platform specific function is smooth scrolling on macOS.
+- macos: added smooth scrolling (only available on macos and hidden behind the `platform_specific` feature)
 
 ## Removed
 

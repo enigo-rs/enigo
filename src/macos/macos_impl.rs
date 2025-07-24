@@ -15,7 +15,7 @@ use core_graphics::{
     display::{CGDisplay, CGPoint},
     event::{
         CGEvent, CGEventFlags, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode,
-        CGMouseButton, EventField, KeyCode, ScrollEventUnit,
+        CGMouseButton, CGScrollEventUnit, EventField, KeyCode, ScrollEventUnit,
     },
     event_source::{CGEventSource, CGEventSourceStateID},
 };
@@ -232,33 +232,15 @@ impl Mouse for Enigo {
         Ok(())
     }
 
-    // Sends a scroll event to the X11 server via `XTest` extension
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
-        let (ax, len_x, len_y) = match axis {
-            Axis::Horizontal => (2, 0, -length),
-            Axis::Vertical => (1, -length, 0),
-        };
+        self.scroll_unit(length, ScrollEventUnit::LINE, axis)
+    }
 
-        let Ok(event) = CGEvent::new_scroll_event(
-            self.event_source.clone(),
-            ScrollEventUnit::LINE,
-            ax,
-            len_x,
-            len_y,
-            0,
-        ) else {
-            return Err(InputError::Simulate("failed creating event to scroll"));
-        };
-
-        event.set_integer_value_field(
-            EventField::EVENT_SOURCE_USER_DATA,
-            self.event_source_user_data,
-        );
-        event.set_flags(self.event_flags);
-        event.post(CGEventTapLocation::HID);
-        self.update_wait_time();
-        Ok(())
+    #[cfg(all(feature = "platform_specific", target_os = "macos"))]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
+        self.scroll_unit(length, ScrollEventUnit::PIXEL, axis)
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
@@ -896,6 +878,38 @@ impl Enigo {
         };
 
         flag_fn(&mut self.event_flags, event_flag);
+    }
+
+    fn scroll_unit(
+        &mut self,
+        length: i32,
+        scroll_event_unit: CGScrollEventUnit,
+        axis: Axis,
+    ) -> InputResult<()> {
+        let (ax, len_x, len_y) = match axis {
+            Axis::Horizontal => (2, 0, -length),
+            Axis::Vertical => (1, -length, 0),
+        };
+
+        let Ok(event) = CGEvent::new_scroll_event(
+            self.event_source.clone(),
+            scroll_event_unit,
+            ax,
+            len_x,
+            len_y,
+            0,
+        ) else {
+            return Err(InputError::Simulate("failed creating event to scroll"));
+        };
+
+        event.set_integer_value_field(
+            EventField::EVENT_SOURCE_USER_DATA,
+            self.event_source_user_data,
+        );
+        event.set_flags(self.event_flags);
+        event.post(CGEventTapLocation::HID);
+        self.update_wait_time();
+        Ok(())
     }
 
     /// Save the current Instant and calculate the remaining waiting time

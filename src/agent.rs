@@ -47,6 +47,12 @@ pub enum Token {
     #[cfg_attr(feature = "serde", serde(alias = "S"))]
     #[cfg_attr(feature = "serde", serde(alias = "s"))]
     Scroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
+    /// Call the [`Mouse::smooth_scroll`] fn.
+    /// Only available on macOS with platform_specific feature.
+    #[cfg(all(feature = "platform_specific", target_os = "macos"))]
+    #[cfg_attr(feature = "serde", serde(alias = "SS"))]
+    #[cfg_attr(feature = "serde", serde(alias = "ss"))]
+    SmoothScroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
     /// Call the [`Mouse::location`] fn and compare the return values with
     /// the values of this enum. Log an error if they are not equal.
     /// This variant contains the EXPECTED location of the mouse
@@ -82,6 +88,8 @@ where
             Token::Button(button, direction) => self.button(*button, *direction),
             Token::MoveMouse(x, y, coordinate) => self.move_mouse(*x, *y, *coordinate),
             Token::Scroll(length, axis) => self.scroll(*length, *axis),
+            #[cfg(all(feature = "platform_specific", target_os = "macos"))]
+            Token::SmoothScroll(length, axis) => self.smooth_scroll(*length, *axis),
             Token::Location(expected_x, expected_y) => match self.location() {
                 Ok((actual_x, actual_y)) => {
                     if actual_x != *expected_x || actual_y != *expected_y {

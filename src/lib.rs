@@ -46,6 +46,7 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(deprecated)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::{
     error::Error,
@@ -341,6 +342,27 @@ pub trait Mouse {
     /// conditions an error will be returned.
     #[doc(alias = "mouse_scroll_x", alias = "mouse_scroll_y")]
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()>;
+
+    /// Smooth scroll using pixel-based scrolling on macOS
+    ///
+    /// This function provides pixel-level precision for scrolling
+    /// offering smoother scrolling behavior compared to the
+    /// standard line-based scrolling.
+    ///
+    /// # Arguments
+    /// * `length` - The number of pixels to scroll. Positive values scroll
+    /// down/right, negative values scroll up/left.
+    /// * `axis` - The axis to scroll along (Horizontal or Vertical)
+    ///
+    /// # Errors
+    /// Have a look at the documentation of [`InputError`] to see under which
+    /// conditions an error will be returned.
+    #[cfg_attr(docsrs, doc(cfg(feature = "platform_specific")))]
+    #[cfg(all(feature = "platform_specific", any(target_os = "macos", doc)))]
+    #[doc(alias = "mouse_smooth_scroll_x", alias = "mouse_smooth_scroll_y")]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        unimplemented!()
+    }
 
     /// Get the (width, height) of the main display in pixels. This currently
     /// only works on the main display
