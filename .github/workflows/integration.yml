@@ -60,7 +60,7 @@ jobs:
             features: "x11rb"
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # If manually triggered, use the current commit (GITHUB_SHA), otherwise use the head_sha from the Build workflow
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
