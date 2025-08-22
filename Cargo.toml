@@ -29,7 +29,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["x11rb"]
-libei = ["dep:reis", "dep:ashpd", "dep:tokio", "dep:nom"]
+libei = ["dep:reis", "dep:ashpd", "dep:futures", "dep:nom"]
 platform_specific = []
 serde = ["dep:serde"]
 wayland = [
@@ -75,10 +75,7 @@ foreign-types-shared = "0.3"
 libc = "0.2"
 reis = { version = "0.5", optional = true }
 ashpd = { version = "0.11", optional = true }
-tokio = { version = "1.23.1", features = [
-    "rt",
-    "rt-multi-thread",
-], optional = true }
+futures = { version = "0.3", optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }

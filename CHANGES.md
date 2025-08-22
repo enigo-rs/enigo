@@ -8,6 +8,7 @@
 ## Removed
 
 ## Fixed
+- linux: libei: The library can now be used inside a Tokio runtime. Previously that was not possible, because it would attempt to start a runtime from within another runtime.
 
 # 0.5.0
 ## Changed

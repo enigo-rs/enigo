@@ -142,12 +142,8 @@ impl Con {
         let sequence = 0;
         let time_created = Instant::now();
 
-        // Initialize a Tokio runtime
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?;
-
-        // Block on an async function within this runtime
-        let context = runtime.block_on(async { Self::open_connection().await });
+        // Run the async open_connection() synchronously
+        let context = futures::executor::block_on(Self::open_connection());
 
         let HandshakeResp {
             connection,
