@@ -128,6 +128,19 @@ impl Con {
         }
     }
 
+    #[allow(unnecessary_wraps)] // The wrap is needed for the libei_tokio feature
+    fn custom_block_on<F: Future>(f: F) -> Result<F::Output, NewConError> {
+        #[cfg(feature = "libei_tokio")]
+        if tokio::runtime::Handle::try_current().is_err() {
+            return Ok(tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .build()
+                .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?
+                .block_on(f));
+        }
+        Ok(futures::executor::block_on(f))
+    }
+
     #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
     pub fn new() -> Result<Self, NewConError> {
@@ -142,8 +155,7 @@ impl Con {
         let sequence = 0;
         let time_created = Instant::now();
 
-        // Run the async open_connection() synchronously
-        let context = futures::executor::block_on(Self::open_connection());
+        let context = Self::custom_block_on(Self::open_connection())?;
 
         let HandshakeResp {
             connection,
