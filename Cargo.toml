@@ -114,7 +114,7 @@ serde = { version = "1", features = ["derive"] }
 tungstenite = "0.27"
 url = "2"
 webbrowser = "1.0"
-ron = "0.10"
+ron = "0.11"
 strum = "0.27"
 strum_macros = "0.27"
 rdev = "0.5"                                     # Test the main_display() function
