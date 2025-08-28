@@ -90,7 +90,7 @@ libc = "0.2"
 reis = { version = "0.5", optional = true }
 ashpd = { version = "0.12", default-features = false, optional = true }
 futures = { version = "0.3", optional = true }
-tokio = { version = "1.23", optional = true }
+tokio = { version = "1.24", optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }
