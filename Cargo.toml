@@ -1,6 +1,6 @@
 [package]
 name = "enigo"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "pentamassiv <pentamassiv@posteo.de>",
     "Dustin Bensing <dustin.bensing@googlemail.com>",
@@ -24,7 +24,7 @@ license = "MIT"
 exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["x11rb", "wayland", "libei_smol", "platform_specific", "serde"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]

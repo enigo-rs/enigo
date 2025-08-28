@@ -7,6 +7,10 @@
 
 ## Fixed
 
+# 0.6.1
+## Fixed
+- docs.rs: Fixed build by only activating the `libei_smol` feature and not `libei_tokio`
+
 # 0.6.0
 ## Changed
 - linux: libei: Replaced `libei` feature with `libei_tokio` and `libei_smol`
