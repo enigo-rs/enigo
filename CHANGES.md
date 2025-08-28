@@ -1,5 +1,14 @@
 # Unreleased
 ## Changed
+
+## Added
+
+## Removed
+
+## Fixed
+
+# 0.6.0
+## Changed
 - linux: libei: Replaced `libei` feature with `libei_tokio` and `libei_smol`
 
 ## Added
