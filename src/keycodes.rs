@@ -431,6 +431,8 @@ pub enum Key {
     Numpad7,
     Numpad8,
     Numpad9,
+    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    NumpadEnter,
     #[cfg(target_os = "windows")]
     OEM1,
     #[cfg(target_os = "windows")]
@@ -636,6 +638,7 @@ impl From<Key> for xkeysym::Keysym {
             Key::Divide => Keysym::KP_Divide,
             Key::DownArrow => Keysym::Down,
             Key::End => Keysym::End,
+            Key::NumpadEnter => Keysym::KP_Enter,
             Key::Escape => Keysym::Escape,
             Key::Execute => Keysym::Execute,
             Key::F1 => Keysym::F1,
@@ -1011,7 +1014,12 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
             Key::Processkey => VK_PROCESSKEY,
             Key::RButton => VK_RBUTTON,
             Key::RControl => VK_RCONTROL,
-            Key::Return => VK_RETURN,
+            /* Both the main Return key and the
+             * numpad Enter use VK_RETURN. They are
+             * distinguished by their scan codes:
+             * - Return: standard scan code
+             * - NumpadEnter: extended scan code (0xE01C) */
+            Key::Return | Key::NumpadEnter => VK_RETURN,
             Key::RightArrow => VK_RIGHT,
             Key::RMenu => VK_RMENU,
             Key::RShift => VK_RSHIFT,

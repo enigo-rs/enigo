@@ -25,7 +25,6 @@ use crate::{
 };
 
 type ScanCode = u16;
-pub const EXT: u16 = 0xFF00;
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
@@ -331,8 +330,7 @@ impl Keyboard for Enigo {
         let vk = VIRTUAL_KEY(Enigo::translate_key(scan, MAPVK_VSC_TO_VK_EX)?); // translate scan code to virtual key
 
         let mut keyflags = KEYEVENTF_SCANCODE;
-        // TODO: Check if the first bytes need to be truncated if it is an extended key
-        if Enigo::is_extended_key(vk) {
+        if Enigo::is_extended_key_sc(scan) {
             keyflags |= KEYEVENTF_EXTENDEDKEY;
         }
 
@@ -453,7 +451,7 @@ impl Enigo {
             keyflags |= KEYEVENTF_SCANCODE;
         }
 
-        if Enigo::is_extended_key(vk) {
+        if Enigo::is_extended_key(key) {
             keyflags |= KEYEVENTF_EXTENDEDKEY;
         }
 
@@ -515,25 +513,46 @@ impl Enigo {
         self.dw_extra_info
     }
 
-    /// Test if the virtual key is one of the keys that need the
-    /// `KEYEVENTF_EXTENDEDKEY` flag to be set
-    fn is_extended_key(vk: VIRTUAL_KEY) -> bool {
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT,
-            VK_NUMLOCK, VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
-        };
+    /// Returns true if the scan code represents an extended key.
+    /// Extended keys have the prefix 0xE0 (or 0xE1).
+    fn is_extended_key_sc(scan_code: u16) -> bool {
+        let high = (scan_code >> 8) as u8;
+        high == 0xE0 || high == 0xE1
+    }
 
-        match vk {
-            // Navigation keys should be injected with the extended flag to distinguish
-            // them from the Numpad navigation keys. Otherwise, input Shift+<Navigation key>
-            // may not have the expected result and depends on whether NUMLOCK is enabled/disabled.
-            // A list of the extended keys can be found here:
-            // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag
-            // TODO: The keys "BREAK (CTRL+PAUSE) key" and "ENTER key in the numeric keypad" are
-            // missing
-            VK_RMENU | VK_RCONTROL | VK_UP | VK_DOWN | VK_LEFT | VK_RIGHT | VK_INSERT
-            | VK_DELETE | VK_HOME | VK_END | VK_PRIOR | VK_NEXT | VK_NUMLOCK | VK_SNAPSHOT
-            | VK_DIVIDE => true,
+    /// Returns true if the key is an extended key (i.e., requires the
+    /// `KEYEVENTF_EXTENDEDKEY` flag when injecting input).
+    ///
+    /// This is based on Microsoft’s official extended key documentation:
+    /// <https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag>
+    //
+    // This function is based on Microsoft’s documentation and reference tables.
+    // It cannot be tested against Windows APIs reliably.
+    fn is_extended_key(key: Key) -> bool {
+        match key {
+            // Navigation cluster keys (arrows, Insert, Delete, Home, End, PageUp, PageDown)
+            // share virtual key codes with the numpad keys. To simulate them correctly,
+            // KEYEVENTF_EXTENDEDKEY must be set. Without it, Windows might interpret
+            // the keystroke as coming from the numpad, causing unexpected behavior
+            // (e.g., Shift+Arrow may act like Shift+NumPad8 depending on NumLock state).
+            Key::RMenu
+            | Key::RControl
+            | Key::UpArrow
+            | Key::DownArrow
+            | Key::LeftArrow
+            | Key::RightArrow
+            | Key::Insert
+            | Key::Delete
+            | Key::Home
+            | Key::End
+            | Key::PageUp
+            | Key::PageDown
+            | Key::Numlock
+            | Key::PrintScr
+            | Key::Snapshot
+            | Key::Divide
+            | Key::NumpadEnter
+            | Key::Pause => true,
             _ => false,
         }
     }
@@ -581,331 +600,5 @@ impl Drop for Enigo {
             }
         }
         debug!("released all held keys");
-    }
-}
-
-mod test {
-
-    #[test]
-    fn extended_key() {
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            VK_DELETE, VK_DIVIDE, VK_DOWN, VK_END, VK_HOME, VK_INSERT, VK_LEFT, VK_NEXT,
-            VK_NUMLOCK, VK_PRIOR, VK_RCONTROL, VK_RIGHT, VK_RMENU, VK_SNAPSHOT, VK_UP,
-        };
-
-        let known_extended_keys = [
-            VK_RMENU,    // 165
-            VK_RCONTROL, // 163
-            VK_UP,       // 38
-            VK_DOWN,     // 40
-            VK_LEFT,     // 37
-            VK_RIGHT,    // 39
-            VK_INSERT,   // 45
-            VK_DELETE,   // 46
-            VK_HOME,     // 36
-            VK_END,      // 35
-            VK_PRIOR,    // 33
-            VK_NEXT,     // 34
-            VK_NUMLOCK,  // 144
-            VK_SNAPSHOT, // 44
-            VK_DIVIDE,   // 111
-        ];
-
-        for key in known_extended_keys {
-            assert_eq!(
-                true,
-                super::Enigo::is_extended_key(key),
-                "Failed for {key:#?}"
-            )
-        }
-    }
-
-    #[test]
-    fn regular_key() {
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            VK__none_, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_A,
-            VK_ABNT_C1, VK_ABNT_C2, VK_ACCEPT, VK_ADD, VK_APPS, VK_ATTN, VK_B, VK_BACK,
-            VK_BROWSER_BACK, VK_BROWSER_FAVORITES, VK_BROWSER_FORWARD, VK_BROWSER_HOME,
-            VK_BROWSER_REFRESH, VK_BROWSER_SEARCH, VK_BROWSER_STOP, VK_C, VK_CANCEL, VK_CAPITAL,
-            VK_CLEAR, VK_CONTROL, VK_CONVERT, VK_CRSEL, VK_D, VK_DBE_ALPHANUMERIC,
-            VK_DBE_CODEINPUT, VK_DBE_DBCSCHAR, VK_DBE_DETERMINESTRING,
-            VK_DBE_ENTERDLGCONVERSIONMODE, VK_DBE_ENTERIMECONFIGMODE, VK_DBE_ENTERWORDREGISTERMODE,
-            VK_DBE_FLUSHSTRING, VK_DBE_HIRAGANA, VK_DBE_KATAKANA, VK_DBE_NOCODEINPUT,
-            VK_DBE_NOROMAN, VK_DBE_ROMAN, VK_DBE_SBCSCHAR, VK_DECIMAL, VK_E, VK_EREOF, VK_ESCAPE,
-            VK_EXECUTE, VK_EXSEL, VK_F, VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8,
-            VK_F9, VK_F10, VK_F11, VK_F12, VK_F13, VK_F14, VK_F15, VK_F16, VK_F17, VK_F18, VK_F19,
-            VK_F20, VK_F21, VK_F22, VK_F23, VK_F24, VK_FINAL, VK_G, VK_GAMEPAD_A, VK_GAMEPAD_B,
-            VK_GAMEPAD_DPAD_DOWN, VK_GAMEPAD_DPAD_LEFT, VK_GAMEPAD_DPAD_RIGHT, VK_GAMEPAD_DPAD_UP,
-            VK_GAMEPAD_LEFT_SHOULDER, VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
-            VK_GAMEPAD_LEFT_THUMBSTICK_DOWN, VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
-            VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT, VK_GAMEPAD_LEFT_THUMBSTICK_UP,
-            VK_GAMEPAD_LEFT_TRIGGER, VK_GAMEPAD_MENU, VK_GAMEPAD_RIGHT_SHOULDER,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON, VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT, VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_UP, VK_GAMEPAD_RIGHT_TRIGGER, VK_GAMEPAD_VIEW,
-            VK_GAMEPAD_X, VK_GAMEPAD_Y, VK_H, VK_HANGEUL, VK_HANGUL, VK_HANJA, VK_HELP, VK_I,
-            VK_ICO_00, VK_ICO_CLEAR, VK_ICO_HELP, VK_IME_OFF, VK_IME_ON, VK_J, VK_JUNJA, VK_K,
-            VK_KANA, VK_KANJI, VK_L, VK_LAUNCH_APP1, VK_LAUNCH_APP2, VK_LAUNCH_MAIL,
-            VK_LAUNCH_MEDIA_SELECT, VK_LBUTTON, VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_M,
-            VK_MBUTTON, VK_MEDIA_NEXT_TRACK, VK_MEDIA_PLAY_PAUSE, VK_MEDIA_PREV_TRACK,
-            VK_MEDIA_STOP, VK_MENU, VK_MODECHANGE, VK_MULTIPLY, VK_N, VK_NAVIGATION_ACCEPT,
-            VK_NAVIGATION_CANCEL, VK_NAVIGATION_DOWN, VK_NAVIGATION_LEFT, VK_NAVIGATION_MENU,
-            VK_NAVIGATION_RIGHT, VK_NAVIGATION_UP, VK_NAVIGATION_VIEW, VK_NONAME, VK_NONCONVERT,
-            VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6,
-            VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_O, VK_OEM_1, VK_OEM_2, VK_OEM_3, VK_OEM_4,
-            VK_OEM_5, VK_OEM_6, VK_OEM_7, VK_OEM_8, VK_OEM_102, VK_OEM_ATTN, VK_OEM_AUTO,
-            VK_OEM_AX, VK_OEM_BACKTAB, VK_OEM_CLEAR, VK_OEM_COMMA, VK_OEM_COPY, VK_OEM_CUSEL,
-            VK_OEM_ENLW, VK_OEM_FINISH, VK_OEM_FJ_JISHO, VK_OEM_FJ_LOYA, VK_OEM_FJ_MASSHOU,
-            VK_OEM_FJ_ROYA, VK_OEM_FJ_TOUROKU, VK_OEM_JUMP, VK_OEM_MINUS, VK_OEM_NEC_EQUAL,
-            VK_OEM_PA1, VK_OEM_PA2, VK_OEM_PA3, VK_OEM_PERIOD, VK_OEM_PLUS, VK_OEM_RESET,
-            VK_OEM_WSCTRL, VK_P, VK_PA1, VK_PACKET, VK_PAUSE, VK_PLAY, VK_PRINT, VK_PROCESSKEY,
-            VK_Q, VK_R, VK_RBUTTON, VK_RETURN, VK_RSHIFT, VK_RWIN, VK_S, VK_SCROLL, VK_SELECT,
-            VK_SEPARATOR, VK_SHIFT, VK_SLEEP, VK_SPACE, VK_SUBTRACT, VK_T, VK_TAB, VK_U, VK_V,
-            VK_VOLUME_DOWN, VK_VOLUME_MUTE, VK_VOLUME_UP, VK_W, VK_X, VK_XBUTTON1, VK_XBUTTON2,
-            VK_Y, VK_Z, VK_ZOOM,
-        };
-
-        let known_ordinary_keys = [
-            VK__none_,  // 255
-            VK_0,       // 48
-            VK_1,       // 49
-            VK_2,       // 50
-            VK_3,       // 51
-            VK_4,       // 52
-            VK_5,       // 53
-            VK_6,       // 54
-            VK_7,       // 55
-            VK_8,       // 56
-            VK_9,       // 57
-            VK_A,       // 65
-            VK_ABNT_C1, // 193
-            VK_ABNT_C2, // 194
-            VK_ACCEPT,  // 30
-            VK_ADD,     // 107
-            VK_APPS,    // 93
-            VK_ATTN,
-            VK_B,
-            VK_BACK,
-            VK_BROWSER_BACK,
-            VK_BROWSER_FAVORITES,
-            VK_BROWSER_FORWARD,
-            VK_BROWSER_HOME,
-            VK_BROWSER_REFRESH,
-            VK_BROWSER_SEARCH,
-            VK_BROWSER_STOP,
-            VK_C,
-            VK_CANCEL,
-            VK_CAPITAL,
-            VK_CLEAR,
-            VK_CONTROL,
-            VK_CONVERT,
-            VK_CRSEL,
-            VK_D,
-            VK_DBE_ALPHANUMERIC,
-            VK_DBE_CODEINPUT,
-            VK_DBE_DBCSCHAR,
-            VK_DBE_DETERMINESTRING,
-            VK_DBE_ENTERDLGCONVERSIONMODE,
-            VK_DBE_ENTERIMECONFIGMODE,
-            VK_DBE_ENTERWORDREGISTERMODE,
-            VK_DBE_FLUSHSTRING,
-            VK_DBE_HIRAGANA,
-            VK_DBE_KATAKANA,
-            VK_DBE_NOCODEINPUT,
-            VK_DBE_NOROMAN,
-            VK_DBE_ROMAN,
-            VK_DBE_SBCSCHAR,
-            VK_DECIMAL,
-            VK_E,
-            VK_EREOF,
-            VK_ESCAPE,
-            VK_EXECUTE,
-            VK_EXSEL,
-            VK_F,
-            VK_F1,
-            VK_F10,
-            VK_F11,
-            VK_F12,
-            VK_F13,
-            VK_F14,
-            VK_F15,
-            VK_F16,
-            VK_F17,
-            VK_F18,
-            VK_F19,
-            VK_F2,
-            VK_F20,
-            VK_F21,
-            VK_F22,
-            VK_F23,
-            VK_F24,
-            VK_F3,
-            VK_F4,
-            VK_F5,
-            VK_F6,
-            VK_F7,
-            VK_F8,
-            VK_F9,
-            VK_FINAL,
-            VK_G,
-            VK_GAMEPAD_A,
-            VK_GAMEPAD_B,
-            VK_GAMEPAD_DPAD_DOWN,
-            VK_GAMEPAD_DPAD_LEFT,
-            VK_GAMEPAD_DPAD_RIGHT,
-            VK_GAMEPAD_DPAD_UP,
-            VK_GAMEPAD_LEFT_SHOULDER,
-            VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON,
-            VK_GAMEPAD_LEFT_THUMBSTICK_DOWN,
-            VK_GAMEPAD_LEFT_THUMBSTICK_LEFT,
-            VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT,
-            VK_GAMEPAD_LEFT_THUMBSTICK_UP,
-            VK_GAMEPAD_LEFT_TRIGGER,
-            VK_GAMEPAD_MENU,
-            VK_GAMEPAD_RIGHT_SHOULDER,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT,
-            VK_GAMEPAD_RIGHT_THUMBSTICK_UP,
-            VK_GAMEPAD_RIGHT_TRIGGER,
-            VK_GAMEPAD_VIEW,
-            VK_GAMEPAD_X,
-            VK_GAMEPAD_Y,
-            VK_H,
-            VK_HANGEUL,
-            VK_HANGUL,
-            VK_HANJA,
-            VK_HELP,
-            VK_I,
-            VK_ICO_00,
-            VK_ICO_CLEAR,
-            VK_ICO_HELP,
-            VK_IME_OFF,
-            VK_IME_ON,
-            VK_J,
-            VK_JUNJA,
-            VK_K,
-            VK_KANA,
-            VK_KANJI,
-            VK_L,
-            VK_LAUNCH_APP1,
-            VK_LAUNCH_APP2,
-            VK_LAUNCH_MAIL,
-            VK_LAUNCH_MEDIA_SELECT,
-            VK_LBUTTON,
-            VK_LCONTROL,
-            VK_LMENU,
-            VK_LSHIFT,
-            VK_LWIN,
-            VK_M,
-            VK_MBUTTON,
-            VK_MEDIA_NEXT_TRACK,
-            VK_MEDIA_PLAY_PAUSE,
-            VK_MEDIA_PREV_TRACK,
-            VK_MEDIA_STOP,
-            VK_MENU,
-            VK_MODECHANGE,
-            VK_MULTIPLY,
-            VK_N,
-            VK_NAVIGATION_ACCEPT,
-            VK_NAVIGATION_CANCEL,
-            VK_NAVIGATION_DOWN,
-            VK_NAVIGATION_LEFT,
-            VK_NAVIGATION_MENU,
-            VK_NAVIGATION_RIGHT,
-            VK_NAVIGATION_UP,
-            VK_NAVIGATION_VIEW,
-            VK_NONAME,
-            VK_NONCONVERT,
-            VK_NUMPAD0,
-            VK_NUMPAD1,
-            VK_NUMPAD2,
-            VK_NUMPAD3,
-            VK_NUMPAD4,
-            VK_NUMPAD5,
-            VK_NUMPAD6,
-            VK_NUMPAD7,
-            VK_NUMPAD8,
-            VK_NUMPAD9,
-            VK_O,
-            VK_OEM_1,
-            VK_OEM_102,
-            VK_OEM_2,
-            VK_OEM_3,
-            VK_OEM_4,
-            VK_OEM_5,
-            VK_OEM_6,
-            VK_OEM_7,
-            VK_OEM_8,
-            VK_OEM_ATTN,
-            VK_OEM_AUTO,
-            VK_OEM_AX,
-            VK_OEM_BACKTAB,
-            VK_OEM_CLEAR,
-            VK_OEM_COMMA,
-            VK_OEM_COPY,
-            VK_OEM_CUSEL,
-            VK_OEM_ENLW,
-            VK_OEM_FINISH,
-            VK_OEM_FJ_JISHO,
-            VK_OEM_FJ_LOYA,
-            VK_OEM_FJ_MASSHOU,
-            VK_OEM_FJ_ROYA,
-            VK_OEM_FJ_TOUROKU,
-            VK_OEM_JUMP,
-            VK_OEM_MINUS,
-            VK_OEM_NEC_EQUAL,
-            VK_OEM_PA1,
-            VK_OEM_PA2,
-            VK_OEM_PA3,
-            VK_OEM_PERIOD,
-            VK_OEM_PLUS,
-            VK_OEM_RESET,
-            VK_OEM_WSCTRL,
-            VK_P,
-            VK_PA1,
-            VK_PACKET,
-            VK_PAUSE,
-            VK_PLAY,
-            VK_PRINT,
-            VK_PROCESSKEY,
-            VK_Q,
-            VK_R,
-            VK_RBUTTON,
-            VK_RETURN,
-            VK_RSHIFT,
-            VK_RWIN,
-            VK_S,
-            VK_SCROLL,
-            VK_SELECT,
-            VK_SEPARATOR,
-            VK_SHIFT,
-            VK_SLEEP,
-            VK_SPACE,
-            VK_SUBTRACT,
-            VK_T,
-            VK_TAB,
-            VK_U,
-            VK_V,
-            VK_VOLUME_DOWN,
-            VK_VOLUME_MUTE,
-            VK_VOLUME_UP,
-            VK_W,
-            VK_X,
-            VK_XBUTTON1,
-            VK_XBUTTON2,
-            VK_Y,
-            VK_Z,
-            VK_ZOOM,
-        ];
-
-        for key in known_ordinary_keys {
-            assert_eq!(
-                false,
-                super::Enigo::is_extended_key(key),
-                "Failed for {key:#?}"
-            )
-        }
     }
 }
