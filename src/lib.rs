@@ -75,8 +75,6 @@ mod platform;
 pub use platform::Enigo;
 
 #[cfg(target_os = "windows")]
-pub use platform::EXT;
-#[cfg(target_os = "windows")]
 pub use platform::set_dpi_awareness;
 
 mod keycodes;
@@ -277,8 +275,9 @@ pub trait Keyboard {
     /// games). Have a look at the [`Keyboard::key`] function,
     /// if you just want to enter a specific key and don't want to worry about
     /// the layout/keymap. Windows only: If you want to enter the keycode
-    /// (scancode) of an extended key, you need to set extra bits. You can
-    /// for example do: `enigo.raw(45 | EXT, Direction::Click)`
+    /// (scancode) of an extended key, you need to set the high byte for the
+    /// extended key too. You can for example do: `enigo.raw(0xE01D,
+    /// Direction::Click) to simulate RControl`
     ///
     /// # Errors
     /// Have a look at the documentation of [`InputError`] to see under which

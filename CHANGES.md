@@ -4,8 +4,12 @@
 ## Added
 
 ## Removed
+- win: `EXT` constant was removed, because it was incorrect and obsolete
 
 ## Fixed
+- linux: Added `NumpadEnter` key
+- win: Added `NumpadEnter` key
+- win: Extended keys can now be correctly simulated with the raw() function.
 
 # 0.6.1
 ## Fixed

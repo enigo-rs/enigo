@@ -19,8 +19,10 @@ fn main() {
         // windows: Enter divide symbol (slash)
         enigo.key(Key::Divide, Click).unwrap();
 
-        // windows: Press and release the NumLock key. Without the EXT bit set, it would
-        // enter the Pause key
-        enigo.raw(45 | enigo::EXT, enigo::Direction::Click).unwrap();
+        // Windows: Simulate pressing and releasing the Control key.
+        // 0x1D       = Left Control (normal scancode)
+        // 0xE01D     = Right Control (extended scancode; 0xE0 prefix in the high byte)
+        enigo.raw(0x1D, enigo::Direction::Click).unwrap(); // LControl
+        enigo.raw(0x1D | 0xE000, enigo::Direction::Click).unwrap(); // RControl
     }
 }
