@@ -17,6 +17,7 @@ fn integration_browser_events() {
     enigo.key(Key::Backspace, Click).unwrap();
     enigo.key(Key::PageUp, Click).unwrap();
 
+    enigo.text("❤️TestText❤️").unwrap();
     enigo.key(Key::Backspace, Press).unwrap();
     enigo.key(Key::Backspace, Release).unwrap();
 

@@ -115,6 +115,7 @@ tungstenite = "0.28"
 url = "2"
 webbrowser = "1.0"
 ron = "0.11"
+serde_json = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
 rdev = "0.5"                                     # Test the main_display() function
@@ -123,4 +124,9 @@ mouse_position = "0.1"                           # Test the location() function
 [[example]]
 name = "serde"
 path = "examples/serde.rs"
+required-features = ["serde"]
+
+[[test]]
+name = "integration_browser_events"
+path = "tests/integration_browser.rs"
 required-features = ["serde"]
