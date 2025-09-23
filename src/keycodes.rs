@@ -368,6 +368,7 @@ pub enum Key {
     LaunchPanel,
     #[cfg(target_os = "windows")]
     LButton,
+    #[cfg_attr(feature = "serde", serde(alias = "ControlLeft"))]
     LControl,
     /// left arrow key
     LeftArrow,
@@ -375,6 +376,7 @@ pub enum Key {
     Linefeed,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     LMenu,
+    #[cfg_attr(feature = "serde", serde(alias = "ShiftLeft"))]
     LShift,
     #[cfg(target_os = "windows")]
     LWin,
@@ -531,6 +533,7 @@ pub enum Key {
     RButton,
     #[cfg(target_os = "macos")]
     RCommand,
+    #[cfg_attr(feature = "serde", serde(alias = "ControlRight"))]
     RControl,
     #[cfg(all(unix, not(target_os = "macos")))]
     Redo,
@@ -542,6 +545,7 @@ pub enum Key {
     RMenu,
     #[cfg(target_os = "macos")]
     ROption,
+    #[cfg_attr(feature = "serde", serde(alias = "ShiftRight"))]
     RShift,
     #[cfg(target_os = "windows")]
     RWin,

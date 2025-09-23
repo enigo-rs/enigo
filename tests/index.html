@@ -28,12 +28,9 @@
     <textarea id="text" name="text" rows="20" cols="50"></textarea><br>
 
     <script>
-        let ignoreKeyEvents = false; // Flag to ignore key events
-        let ws; // WebSocket instance
-        let messageQueue = []; // Queue to store pending messages
-        let reconnectInterval = 1000; // Initial reconnect interval (1 second)
+        let ws;
+        let messageQueue = [];
 
-        // Focus on the textarea when the page loads and initialize WebSocket if not disabled
         window.onload = () => {
             const textArea = document.getElementById('text');
             textArea.focus();
@@ -45,74 +42,34 @@
 
         // Listen for changes on the disable checkbox
         document.getElementById('disableWS').addEventListener('change', function () {
-            if (!this.checked) {
-                // If unchecked and there is no active WebSocket, attempt reconnect
-                if (!ws || ws.readyState !== WebSocket.OPEN) {
-                    console.log('WebSocket re-enabled via checkbox. Attempting to reconnect...');
-                    initializeWebSocket();
-                }
+            if (!this.checked && (!ws || ws.readyState !== WebSocket.OPEN)) {
+                console.log('WebSocket re-enabled via checkbox. Attempting to reconnect...');
+                initializeWebSocket();
             }
         });
 
-        // Prevent other elements from gaining focus
-        document.addEventListener('focusin', (event) => {
-            const textArea = document.getElementById('text');
-            if (event.target !== textArea) {
-                event.preventDefault();
-                textArea.focus();
-            }
-        });
 
         // Initialize or reconnect WebSocket
         function initializeWebSocket() {
             console.log('Attempting to connect WebSocket...');
             ws = new WebSocket('ws://localhost:26541');
 
-            // Handle WebSocket open
             ws.addEventListener('open', () => {
                 console.log('WebSocket connected');
-                flushMessageQueue(); // Send all pending messages
+                flushMessageQueue();
             });
 
-            // Handle WebSocket close and attempt reconnection
             ws.addEventListener('close', () => {
                 console.warn('WebSocket disconnected. Retrying...');
                 scheduleReconnect();
             });
 
-            // Handle WebSocket errors
             ws.addEventListener('error', (error) => {
                 console.error('WebSocket error:', error);
                 scheduleReconnect();
             });
-
-            // Handle incoming WebSocket messages
-            ws.addEventListener('message', (event) => {
-                console.log('Received message:', event.data);
-
-                // Server asks to clear the text and focus on it
-                if (event.data === 'ClearText') {
-                    document.getElementById('text').value = '';
-                    document.getElementById('text').focus();
-                    // Set flag to ignore key events
-                    ignoreKeyEvents = true;
-                    sendMessage(`ReadyForText`);
-                }
-
-                // Server asks for the form's content
-                if (event.data === 'GetText') {
-                    const text = document.getElementById('text').value;
-
-                    // Send the form's content via WebSocket
-                    sendMessage(`Text(\"${text}\")`);
-
-                    // Reset flag after sending text, allowing key events again
-                    ignoreKeyEvents = false;
-                }
-            });
         }
 
-        // Schedule a reconnect every second if WebSocket is not disabled
         function scheduleReconnect() {
             if (document.getElementById('disableWS').checked) {
                 console.log('WebSocket connection is disabled by checkbox.');
@@ -126,59 +83,92 @@
             }, 1000); // Retry every 1000 milliseconds (1 second)
         }
 
-        // Queue a message or send it directly if WebSocket is connected
-        function sendMessage(message) {
+        function sendMessage(obj) {
+            const json = JSON.stringify(obj);
+            // Log all properties of the event before conversion
+            console.log("send message:", json);
+            // Queue a message or send it directly if WebSocket is connected
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(message);
+                ws.send(json);
             } else {
-                messageQueue.push(message); // Store message in the queue
+                messageQueue.push(json);
             }
         }
 
-        // Flush the message queue
         function flushMessageQueue() {
             while (messageQueue.length > 0) {
-                const message = messageQueue.shift();
-                ws.send(message);
+                ws.send(messageQueue.shift());
             }
         }
 
-        // Helper function to handle events
-        const handleEvent = (eventType, data = '') => {
-            const message = `${eventType}${data}`;
-            console.log(message);
-            document.getElementById(eventType).checked = true;
-            sendMessage(message);
-        };
+        function handleAndSend(e) {
+            const textArea = document.getElementById('text');
+            const text = textArea.value;
 
-        // document.addEventListener('open', (event) => handleEvent('Open', event));
-        // document.addEventListener('close', (event) => handleEvent('Close', event));
+            let token = { type: e.type, timestamp: e.timeStamp };
 
-        // Handle keydown events but ignore if flag is set
-        document.addEventListener('keydown', (event) => {
-            if (!ignoreKeyEvents) {
+            switch (e.type) {
+                case "keydown":
+                case "keyup":
+                    token.key = e.key;
+                    token.code = e.code;
+                    token.keyCode = e.keyCode;
+                    token.altKey = e.altKey;
+                    token.ctrlKey = e.ctrlKey;
+                    token.shiftKey = e.shiftKey;
+                    token.metaKey = e.metaKey;
+                    token.direction = (e.type === "keydown") ? "pressed" : "released";
+                    token.type = "key";
+                    break;
 
-                let debug_data = `key: ${event.key}, which: ${event.which}, charCode: ${event.charCode}, shiftKey: ${event.shiftKey}, ctrlKey: ${event.ctrlKey}, altKey: ${event.altKey}, metaKey: ${event.metaKey}, repeat: ${event.repeat}, isComposing: ${event.isComposing}, location: ${event.location}, bubbles: ${event.bubbles}, cancelable: ${event.cancelable}, defaultPrevented: ${event.defaultPrevented}, composed: ${event.composed}`;
+                case "mousedown":
+                case "mouseup":
+                    token.button = e.button;
+                    token.buttons = e.buttons;
+                    token.clientX = e.clientX;
+                    token.clientY = e.clientY;
+                    token.screenX = e.screenX;
+                    token.screenY = e.screenY;
+                    token.direction = (e.type === "mousedown") ? "pressed" : "released";
+                    token.type = "button";
+                    break;
 
-                handleEvent('KeyDown', `(\"${event.code}\", \"${debug_data}\")`);
+                case "mousemove":
+                    token.clientX = e.clientX;
+                    token.clientY = e.clientY;
+                    token.movementX = e.movementX;
+                    token.movementY = e.movementY;
+                    token.type = "mouseMove";
+                    break;
+
+                case "wheel":
+                    token.deltaX = e.deltaX;
+                    token.deltaY = e.deltaY;
+                    token.deltaMode = e.deltaMode;
+                    token.clientX = e.clientX;
+                    token.clientY = e.clientY;
+                    token.type = "scroll";
+                    break;
             }
-        });
 
-        // Handle keyup events but ignore if flag is set
-        document.addEventListener('keyup', (event) => {
-            if (!ignoreKeyEvents) {
-
-                let debug_data = `key: ${event.key}, which: ${event.which}, charCode: ${event.charCode}, shiftKey: ${event.shiftKey}, ctrlKey: ${event.ctrlKey}, altKey: ${event.altKey}, metaKey: ${event.metaKey}, repeat: ${event.repeat}, isComposing: ${event.isComposing}, location: ${event.location}, bubbles: ${event.bubbles}, cancelable: ${event.cancelable}, defaultPrevented: ${event.defaultPrevented}, composed: ${event.composed}`;
-
-                handleEvent('KeyUp', `(\"${event.code}\", \"${debug_data}\")`);
+            // 🔹 Clear the textarea after each keyup
+            if (e.type === "keyup") {
+                textArea.value = "";
             }
-        });
 
-        document.addEventListener('mousedown', (event) => handleEvent('MouseDown', `(${event.button})`));
-        document.addEventListener('mouseup', (event) => handleEvent('MouseUp', `(${event.button})`));
-        document.addEventListener('mousemove', (event) => handleEvent('MouseMove', `((${event.movementX},${event.movementY}),(${event.screenX},${event.screenY}))`));
-        document.addEventListener('wheel', (event) => handleEvent('MouseScroll', `(${event.deltaX},${event.deltaY})`));
+            const msg = { text, event: token };
+            console.log("prepared message:", msg);
+            sendMessage(msg);
+
+        }
+
+
+
+        ["keydown", "keyup", "mousedown", "mouseup", "mousemove", "wheel"].forEach(evt =>
+            document.addEventListener(evt, handleAndSend)
+        );
     </script>
+
 </body>
 
 </html>

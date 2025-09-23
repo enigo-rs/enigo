@@ -2,19 +2,14 @@ use std::net::{TcpListener, TcpStream};
 
 use tungstenite::accept;
 
-use enigo::{
-    Axis, Coordinate,
-    Direction::{self, Click, Press, Release},
-    Enigo, Key, Keyboard, Mouse, Settings,
-};
+use enigo::{Axis, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 
-use super::browser_events::BrowserEvent;
+use super::browser_events::{BrowserEvent, Event};
 
-const TIMEOUT: u64 = 5; // Number of minutes the test is allowed to run before timing out
+// Number of minutes the test is allowed to run before timing out
 // This is needed, because some of the websocket functions are blocking and
 // would run indefinitely without a timeout if they don't receive a message
-const INPUT_DELAY: u64 = 40; // Number of milliseconds to wait for the input to have an effect
-const SCROLL_STEP: (i32, i32) = (20, 114); // (horizontal, vertical)
+const TIMEOUT: u64 = 5;
 
 pub struct EnigoTest {
     enigo: Enigo,
@@ -25,7 +20,7 @@ impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         EnigoTest::start_timeout_thread();
-        let enigo = Enigo::new(settings).unwrap();
+        let enigo = Enigo::new(settings).expect("failed to create new enigo struct");
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
 
@@ -34,7 +29,7 @@ impl EnigoTest {
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
-        let listener = TcpListener::bind("127.0.0.1:26541").unwrap();
+        let listener = TcpListener::bind("127.0.0.1:26541").expect("failed to bind to port");
         println!("TcpListener was created");
         let (stream, addr) = listener.accept().expect("Unable to accept the connection");
         println!("New connection was made from {addr:?}");
@@ -43,33 +38,26 @@ impl EnigoTest {
         websocket
     }
 
-    fn send_message(&mut self, msg: &str) {
-        println!("Sending message: {msg}");
-        self.websocket
-            .send(tungstenite::Message::Text(tungstenite::Utf8Bytes::from(
-                msg,
-            )))
-            .expect("Unable to send the message");
-        println!("Sent message");
-    }
-
     fn read_message(&mut self) -> BrowserEvent {
+        use crate::common::browser_events::BrowserEventError;
+
         println!("Waiting for message on Websocket");
-        let message = self.websocket.read().unwrap();
+        let message = self
+            .websocket
+            .read()
+            .expect("failed to read from websocket");
         println!("Processing message");
 
-        let Ok(browser_event) = BrowserEvent::try_from(message) else {
-            panic!("Other text received");
-        };
-        assert!(
-            !(browser_event == BrowserEvent::Close),
-            "Received a Close event"
-        );
-        browser_event
+        BrowserEvent::try_from(message).unwrap_or_else(|e| match e {
+            BrowserEventError::WebsocketClosed => {
+                panic!("Received a Close event")
+            }
+            _ => panic!("Other text received"),
+        })
     }
 
+    // Spawn a thread to handle the timeout
     fn start_timeout_thread() {
-        // Spawn a thread to handle the timeout
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(TIMEOUT * 60));
             println!("Test suite exceeded the maximum allowed time of {TIMEOUT} minutes.");
@@ -79,170 +67,225 @@ impl EnigoTest {
 }
 
 impl Keyboard for EnigoTest {
-    // This does not work for all text or the library does not work properly
     fn fast_text(&mut self, text: &str) -> enigo::InputResult<Option<()>> {
-        self.send_message("ClearText");
-        println!("Attempt to clear the text");
-        assert_eq!(
-            BrowserEvent::ReadyForText,
-            self.read_message(),
-            "Failed to get ready for the text"
-        );
-        let res = self.enigo.text(text);
-        std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
-        self.send_message("GetText");
+        let mut expected_text = text.to_string();
+        self.enigo.text(text).expect("failed to simulate text()");
 
-        let ev = self.read_message();
-        assert_eq!(ev, text);
+        loop {
+            if expected_text.is_empty() {
+                break;
+            }
+            let observed_text = self.read_message().text;
+            match expected_text.strip_prefix(&observed_text) {
+                Some(remainder) => expected_text = remainder.to_string(),
+                None => panic!("failed to simulate text()"),
+            }
+        }
 
-        res.map(Some) // TODO: Check if this is always correct
+        Ok(Some(()))
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> enigo::InputResult<()> {
-        let res = self.enigo.key(key, direction);
-        if direction == Press || direction == Click {
-            let ev = self.read_message();
-            assert_eq!(ev, (key, Press))
+        let expected_key = key;
+        let expected_directions = match direction {
+            Direction::Press => vec![Direction::Press],
+            Direction::Release => vec![Direction::Release],
+            Direction::Click => vec![Direction::Press, Direction::Release],
+        };
+        self.enigo
+            .key(key, direction)
+            .expect("failed to simulate key()");
+
+        // The browser will send a press and release event for Direction::Click, so in
+        // that case we need to make sure we received two correct events
+        for expected_direction in expected_directions {
+            let event = self.read_message().event;
+            let Event::Key {
+                timestamp,
+                key,
+                code,
+                key_code,
+                alt_key,
+                ctrl_key,
+                shift_key,
+                meta_key,
+                direction,
+            } = event
+            else {
+                panic!("wrong event received: {event:?}")
+            };
+            let key = ron::from_str(&code).expect("failed to deserialize key");
+
+            let keys_equal = matches!(
+                (expected_key, key),
+                (Key::Control, Key::LControl)
+                    | (Key::LControl, Key::Control)
+                    | (Key::Shift, Key::LShift)
+                    | (Key::LShift, Key::Shift)
+            ) || expected_key == key;
+
+            assert!(keys_equal);
+            assert_eq!(expected_direction, direction);
         }
-        if direction == Release || direction == Click {
-            std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
-            let ev = self.read_message();
-            assert_eq!(ev, (key, Release));
-        }
-        println!("enigo.key() was a success");
-        res
+
+        Ok(())
     }
 
     fn raw(&mut self, keycode: u16, direction: enigo::Direction) -> enigo::InputResult<()> {
-        todo!()
+        let expected_keycode = keycode;
+        let expected_directions = match direction {
+            Direction::Press => vec![Direction::Press],
+            Direction::Release => vec![Direction::Release],
+            Direction::Click => vec![Direction::Press, Direction::Release],
+        };
+        self.enigo
+            .raw(keycode, direction)
+            .expect("failed to simulate raw()");
+        // The browser will send a press and release event for Direction::Click, so in
+        // that case we need to make sure we received two correct events
+        for expected_direction in expected_directions {
+            let event = self.read_message().event;
+            let Event::Key {
+                timestamp,
+                key,
+                code,
+                key_code,
+                alt_key,
+                ctrl_key,
+                shift_key,
+                meta_key,
+                direction,
+            } = event
+            else {
+                panic!("wrong event received: {event:?}")
+            };
+            assert_eq!((expected_keycode, expected_direction), (keycode, direction));
+        }
+        Ok(())
     }
 }
 
 impl Mouse for EnigoTest {
     fn button(&mut self, button: enigo::Button, direction: Direction) -> enigo::InputResult<()> {
-        let res = self.enigo.button(button, direction);
-        if direction == Press || direction == Click {
-            let ev = self.read_message();
-            if let BrowserEvent::MouseDown(name) = ev {
-                println!("received pressed button: {name}");
-                assert_eq!(button as u32, name);
-            } else {
-                panic!("BrowserEvent was not a MouseDown: {ev:?}");
-            }
-        }
-        if direction == Release || direction == Click {
-            std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
-            let ev = self.read_message();
-            if let BrowserEvent::MouseUp(name) = ev {
-                println!("received released button: {name}");
-                assert_eq!(button as u32, name);
-            } else {
-                panic!("BrowserEvent was not a MouseUp: {ev:?}");
-            }
-        }
-        println!("enigo.button() was a success");
-        res
-    }
-
-    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
-        let res = self.enigo.move_mouse(x, y, coordinate);
-        println!("Executed enigo.move_mouse");
-        std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
-
-        let ev = self.read_message();
-        println!("Done waiting");
-
-        let mouse_position = if let BrowserEvent::MouseMove(pos_rel, pos_abs) = ev {
-            match coordinate {
-                Coordinate::Rel => pos_rel,
-                Coordinate::Abs => pos_abs,
-            }
-        } else {
-            panic!("BrowserEvent was not a MouseMove: {ev:?}");
+        let expected_button = button as u8;
+        let expected_directions = match direction {
+            Direction::Press => vec![Direction::Press],
+            Direction::Release => vec![Direction::Release],
+            Direction::Click => vec![Direction::Press, Direction::Release],
         };
+        self.enigo
+            .button(button, direction)
+            .expect("failed to simulate button()");
+        // The browser will send a press and release event for Direction::Click, so in
+        // that case we need to make sure we received two correct events
+        for expected_direction in expected_directions {
+            let event = self.read_message().event;
+            let Event::Button {
+                timestamp,
+                button,
+                buttons,
+                client_x,
+                client_y,
+                screen_x,
+                screen_y,
+                direction,
+            } = event
+            else {
+                panic!("wrong event received: {event:?}")
+            };
 
-        assert_eq!(x, mouse_position.0);
-        assert_eq!(y, mouse_position.1);
-        println!("enigo.move_mouse() was a success");
-        res
-    }
-
-    fn scroll(&mut self, length: i32, axis: Axis) -> enigo::InputResult<()> {
-        let mut length = length;
-        let res = self.enigo.scroll(length, axis);
-        println!("Executed Enigo");
-        std::thread::sleep(std::time::Duration::from_millis(INPUT_DELAY)); // Wait for input to have an effect
-
-        // On some platforms it is not possible to scroll multiple lines so we
-        // repeatedly scroll. In order for this test to work on all platforms, both
-        // cases are not differentiated
-        let mut mouse_scroll;
-        let mut step;
-        while length > 0 {
-            let ev = self.read_message();
-            println!("Done waiting");
-
-            (mouse_scroll, step) =
-                if let BrowserEvent::MouseScroll(horizontal_scroll, vertical_scroll) = ev {
-                    match axis {
-                        Axis::Horizontal => (horizontal_scroll, SCROLL_STEP.0),
-                        Axis::Vertical => (vertical_scroll, SCROLL_STEP.1),
-                    }
-                } else {
-                    panic!("BrowserEvent was not a MouseScroll: {ev:?}");
-                };
-            length -= mouse_scroll / step;
+            assert_eq!((expected_button, expected_direction), (button, direction));
         }
-
-        println!("enigo.scroll() was a success");
-        res
-    }
-
-    fn main_display(&self) -> enigo::InputResult<(i32, i32)> {
-        let res = self.enigo.main_display();
-        match res {
-            Ok((x, y)) => {
-                let (rdev_x, rdev_y) = rdev_main_display();
-                println!("enigo display: {x},{y}");
-                println!("rdev_display: {rdev_x},{rdev_y}");
-                assert_eq!(x, rdev_x);
-                assert_eq!(y, rdev_y);
-            }
-            Err(_) => todo!(),
-        }
-        res
+        Ok(())
     }
 
     // Edge cases don't work (mouse is at the left most border and can't move one to
     // the left)
-    fn location(&self) -> enigo::InputResult<(i32, i32)> {
-        let res = self.enigo.location();
-        match res {
-            Ok((x, y)) => {
-                let (mouse_x, mouse_y) = mouse_position();
-                println!("enigo_position: {x},{y}");
-                println!("mouse_position: {mouse_x},{mouse_y}");
-                assert_eq!(x, mouse_x);
-                assert_eq!(y, mouse_y);
-            }
-            Err(_) => todo!(),
+    fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
+        self.enigo
+            .move_mouse(x, y, coordinate)
+            .expect("failed to simulate move_mouse()");
+        let event = self.read_message().event;
+        let Event::MouseMove {
+            timestamp,
+            client_x,
+            client_y,
+            movement_x,
+            movement_y,
+        } = event
+        else {
+            panic!("wrong event received: {event:?}")
+        };
+        match coordinate {
+            Coordinate::Abs => assert_eq!((x, y), (client_x, client_y)),
+            Coordinate::Rel => assert_eq!((x, y), (movement_x, movement_y)),
         }
-        res
+
+        Ok(())
+    }
+
+    fn scroll(&mut self, length: i32, axis: Axis) -> enigo::InputResult<()> {
+        self.enigo
+            .scroll(length, axis)
+            .expect("failed to simulate scroll()");
+        let event = self.read_message().event;
+        let Event::Scroll {
+            timestamp,
+            delta_x,
+            delta_y,
+            delta_mode,
+            client_x,
+            client_y,
+        } = event
+        else {
+            panic!("wrong event received: {event:?}")
+        };
+        let delta = match axis {
+            Axis::Horizontal => delta_x,
+            Axis::Vertical => delta_y,
+        };
+        assert_eq!(length as f64, delta);
+        Ok(())
+    }
+
+    fn main_display(&self) -> enigo::InputResult<(i32, i32)> {
+        let enigo_res = self
+            .enigo
+            .main_display()
+            .expect("failed to get dimensions of the main display");
+        let rdev_res = rdev_main_display();
+        assert_eq!(
+            enigo_res, rdev_res,
+            "enigo_res: {enigo_res:?}; rdev_res: {rdev_res:?}"
+        );
+        Ok(enigo_res)
+    }
+
+    fn location(&self) -> enigo::InputResult<(i32, i32)> {
+        let enigo_res = self
+            .enigo
+            .location()
+            .expect("failed to get location of the mouse");
+        let mouse_position_res = mouse_position();
+        assert_eq!(
+            enigo_res, mouse_position_res,
+            "enigo_res: {enigo_res:?}; rdev_res: {mouse_position_res:?}"
+        );
+        Ok(enigo_res)
     }
 }
 
 fn rdev_main_display() -> (i32, i32) {
-    use rdev::display_size;
-    let (x, y) = display_size().unwrap();
-    (x.try_into().unwrap(), y.try_into().unwrap())
+    rdev::display_size()
+        .map(|(x, y)| (x as i32, y as i32))
+        .expect("failed to get the location of the mouse using rdev")
 }
 
 fn mouse_position() -> (i32, i32) {
     use mouse_position::mouse_position::Mouse;
 
-    if let Mouse::Position { x, y } = Mouse::get_mouse_position() {
-        (x, y)
-    } else {
-        panic!("the crate mouse_location was unable to get the position of the mouse");
+    match Mouse::get_mouse_position() {
+        Mouse::Position { x, y } => (x, y),
+        _ => panic!("Unable to get the mouse position"),
     }
 }

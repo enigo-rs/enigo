@@ -1,26 +1,64 @@
-use enigo::{Direction, Key};
-use log::debug;
+use enigo::Direction;
 use serde::{Deserialize, Serialize};
-use tungstenite::{Message, Utf8Bytes};
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BrowserEvent {
-    ReadyForText,
-    Text(String),
-    KeyDown(String, String),
-    KeyUp(String, String),
-    MouseDown(u32),
-    MouseUp(u32),
-    MouseMove((i32, i32), (i32, i32)), // (relative, absolute)
-    MouseScroll(i32, i32),
-    Open,
-    Close,
-}
+use tungstenite::Message;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BrowserEventError {
     UnknownMessageType,
     ParseError,
+    WebsocketClosed,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BrowserEvent {
+    pub text: String,
+    pub event: Event,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "type")] // use the "type" field to decide which variant to pick
+pub enum Event {
+    #[serde(rename_all = "camelCase")]
+    Key {
+        timestamp: f64,
+        key: String,
+        code: String,
+        key_code: u16,
+        alt_key: bool,
+        ctrl_key: bool,
+        shift_key: bool,
+        meta_key: bool,
+        direction: Direction,
+    },
+    #[serde(rename_all = "camelCase")]
+    Button {
+        timestamp: f64,
+        button: u8,
+        buttons: u8,
+        client_x: i32,
+        client_y: i32,
+        screen_x: i32,
+        screen_y: i32,
+        direction: Direction,
+    },
+    #[serde(rename_all = "camelCase")]
+    MouseMove {
+        timestamp: f64,
+        client_x: i32,
+        client_y: i32,
+        movement_x: i32,
+        movement_y: i32,
+    },
+    #[serde(rename_all = "camelCase")]
+    Scroll {
+        timestamp: f64,
+        delta_x: f64,
+        delta_y: f64,
+        delta_mode: i32,
+        client_x: i32,
+        client_y: i32,
+    },
 }
 
 impl TryFrom<Message> for BrowserEvent {
@@ -30,21 +68,21 @@ impl TryFrom<Message> for BrowserEvent {
         match message {
             Message::Close(_) => {
                 println!("Message::Close received");
-                Ok(BrowserEvent::Close)
+                Err(BrowserEventError::WebsocketClosed)
             }
             Message::Text(msg) => {
                 println!("Browser received input");
                 println!("msg: {msg:?}");
 
                 // Attempt to deserialize the text message into a BrowserEvent
-                if let Ok(event) = ron::from_str::<BrowserEvent>(&msg) {
+                if let Ok(event) = serde_json::from_str::<BrowserEvent>(&msg) {
                     Ok(event)
                 } else {
                     println!("Parse error! Message: {msg}");
                     Err(BrowserEventError::ParseError)
                 }
             }
-            _ => {
+            Message::Binary(_) | Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => {
                 println!("Other Message received");
                 Err(BrowserEventError::UnknownMessageType)
             }
@@ -52,114 +90,117 @@ impl TryFrom<Message> for BrowserEvent {
     }
 }
 
-impl PartialEq<(Key, Direction)> for BrowserEvent {
-    fn eq(&self, (key, direction): &(Key, Direction)) -> bool {
-        match self {
-            BrowserEvent::KeyDown(name, debug_data) if *direction == Direction::Press => {
-                let key_name = match key {
-                    Key::Unicode(char) => format!("{char}"),
-                    Key::Shift => "ShiftLeft".to_string(),
-                    Key::LShift => "ShiftLeft".to_string(),
-                    Key::RShift => "ShiftRight".to_string(),
-                    Key::Control => "ControlLeft".to_string(),
-                    Key::LControl => "ControlLeft".to_string(),
-                    Key::RControl => "ControlRight".to_string(),
-                    // TODO: Add the other keys that have a right and left variant here
-                    _ => format!("{key:?}"),
-                };
-                if key_name == *name {
-                    true
-                } else {
-                    debug!("key debug data: {debug_data}");
-                    false
-                }
-            }
-
-            BrowserEvent::KeyUp(name, debug_data) if *direction == Direction::Release => {
-                let key_name = match key {
-                    Key::Unicode(char) => format!("{char}"),
-                    Key::Shift => "ShiftLeft".to_string(),
-                    Key::LShift => "ShiftLeft".to_string(),
-                    Key::RShift => "ShiftRight".to_string(),
-                    Key::Control => "ControlLeft".to_string(),
-                    Key::LControl => "ControlLeft".to_string(),
-                    Key::RControl => "ControlRight".to_string(),
-                    // TODO: Add the other keys that have a right and left variant here
-                    _ => format!("{key:?}"),
-                };
-                if key_name == *name {
-                    true
-                } else {
-                    debug!("{debug_data}");
-                    false
-                }
-            }
-            _ => false,
-        }
-    }
-}
-
-impl PartialEq<&str> for BrowserEvent {
-    fn eq(&self, other: &&str) -> bool {
-        if let BrowserEvent::Text(received_text) = self {
-            other == received_text
-        } else {
-            false
-        }
-    }
-}
-
 #[test]
 fn deserialize_browser_events() {
-    let messages = vec![
+    use enigo::Direction;
+    use tungstenite::Message;
+
+    let cases: Vec<(&str, BrowserEvent)> = vec![
         (
-            Message::Text(Utf8Bytes::from("ReadyForText")),
-            BrowserEvent::ReadyForText,
+            r#"{"text":"hello","event":{"type":"key","timestamp":1000.0,"key":"a","code":"KeyA","keyCode":65,"altKey":false,"ctrlKey":false,"shiftKey":true,"metaKey":false,"direction":"pressed"}}"#,
+            BrowserEvent {
+                text: "hello".into(),
+                event: Event::Key {
+                    timestamp: 1000.0,
+                    key: "a".into(),
+                    code: "KeyA".into(),
+                    key_code: 65,
+                    alt_key: false,
+                    ctrl_key: false,
+                    shift_key: true,
+                    meta_key: false,
+                    direction: Direction::Press,
+                },
+            },
         ),
         (
-            Message::Text(Utf8Bytes::from("Text(\"Testing\")")),
-            BrowserEvent::Text("Testing".to_string()),
+            r#"{"text":"dfdsfsdd","event":{"type":"key","timestamp":1391401.1000000006,"key":"d","code":"KeyD","keyCode":68,"altKey":false,"ctrlKey":false,"shiftKey":false,"metaKey":false,"direction":"released"}}"#,
+            BrowserEvent {
+                text: "dfdsfsdd".into(),
+                event: Event::Key {
+                    timestamp: 1391401.1000000006,
+                    key: "d".into(),
+                    code: "KeyD".into(),
+                    key_code: 68,
+                    alt_key: false,
+                    ctrl_key: false,
+                    shift_key: false,
+                    meta_key: false,
+                    direction: Direction::Release,
+                },
+            },
         ),
         (
-            Message::Text(Utf8Bytes::from("Text(\"Hi how are you?❤️ äüß$3\")")),
-            BrowserEvent::Text("Hi how are you?❤️ äüß$3".to_string()),
+            r#"{"text":"","event":{"type":"button","timestamp":2000.0,"button":0,"buttons":1,"clientX":300,"clientY":400,"screenX":500,"screenY":600,"direction":"pressed"}}"#,
+            BrowserEvent {
+                text: "".into(),
+                event: Event::Button {
+                    timestamp: 2000.0,
+                    button: 0,
+                    buttons: 1,
+                    client_x: 300,
+                    client_y: 400,
+                    screen_x: 500,
+                    screen_y: 600,
+                    direction: Direction::Press,
+                },
+            },
         ),
         (
-            Message::Text(Utf8Bytes::from("KeyDown(\"F11\", \"\")")),
-            BrowserEvent::KeyDown("F11".to_string(), "".to_string()),
+            r#"{"text":"","event":{"type":"button","timestamp":2001.0,"button":0,"buttons":0,"clientX":300,"clientY":400,"screenX":500,"screenY":600,"direction":"released"}}"#,
+            BrowserEvent {
+                text: "".into(),
+                event: Event::Button {
+                    timestamp: 2001.0,
+                    button: 0,
+                    buttons: 0,
+                    client_x: 300,
+                    client_y: 400,
+                    screen_x: 500,
+                    screen_y: 600,
+                    direction: Direction::Release,
+                },
+            },
         ),
         (
-            Message::Text(Utf8Bytes::from("KeyUp(\"F11\", \"\")")),
-            BrowserEvent::KeyUp("F11".to_string(), "".to_string()),
+            r#"{"text":"","event":{"type":"mouseMove","timestamp":1273293.2999999998,"clientX":101,"clientY":260,"movementX":14,"movementY":52}}"#,
+            BrowserEvent {
+                text: "".into(),
+                event: Event::MouseMove {
+                    timestamp: 1273293.2999999998,
+                    client_x: 101,
+                    client_y: 260,
+                    movement_x: 14,
+                    movement_y: 52,
+                },
+            },
         ),
         (
-            Message::Text(Utf8Bytes::from(
-                "KeyDown(\"F1\", \"key: F1, which: 112, charCode: 0, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, repeat: false, isComposing: false, location: 0, bubbles: true, cancelable: true, defaultPrevented: false, composed: true\")",
-            )),
-            BrowserEvent::KeyDown("F1".to_string(),  "key: F1, which: 112, charCode: 0, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, repeat: false, isComposing: false, location: 0, bubbles: true, cancelable: true, defaultPrevented: false, composed: true".to_string()),
-        ),
-        (
-            Message::Text(Utf8Bytes::from("MouseDown(0)")),
-            BrowserEvent::MouseDown(0),
-        ),
-        (
-            Message::Text(Utf8Bytes::from("MouseUp(0)")),
-            BrowserEvent::MouseUp(0),
-        ),
-        (
-            Message::Text(Utf8Bytes::from("MouseMove((-1806, -487), (200, 200))")),
-            BrowserEvent::MouseMove((-1806, -487), (200, 200)),
-        ),
-        (
-            Message::Text(Utf8Bytes::from("MouseScroll(3, -2)")),
-            BrowserEvent::MouseScroll(3, -2),
+            r#"{"text":"","event":{"type":"scroll","timestamp":54321.0,"deltaX":0.0,"deltaY":3.0,"deltaMode":0,"clientX":150,"clientY":250}}"#,
+            BrowserEvent {
+                text: "".into(),
+                event: Event::Scroll {
+                    timestamp: 54321.0,
+                    delta_x: 0.0,
+                    delta_y: 3.0,
+                    delta_mode: 0,
+                    client_x: 150,
+                    client_y: 250,
+                },
+            },
         ),
     ];
 
-    for (msg, event) in messages {
-        let serialized = ron::to_string(&event).unwrap();
-        println!("serialized = {serialized}");
+    for (raw, expected) in cases {
+        // serialize back to JSON for comparison
+        let expected_json = serde_json::to_string(&expected).unwrap();
+        println!("expected = {}", expected_json);
+        println!("raw      = {}\n", raw);
 
-        assert_eq!(BrowserEvent::try_from(msg).unwrap(), event);
+        // parse the JSON
+        let msg = Message::Text(raw.into());
+        let parsed = BrowserEvent::try_from(msg).unwrap();
+
+        assert_eq!(parsed, expected);
     }
 }
