@@ -6,11 +6,6 @@ use enigo::{Axis, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 
 use super::browser_events::{BrowserEvent, Event};
 
-// Number of minutes the test is allowed to run before timing out
-// This is needed, because some of the websocket functions are blocking and
-// would run indefinitely without a timeout if they don't receive a message
-const TIMEOUT: u64 = 5;
-
 pub struct EnigoTest {
     enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
@@ -19,10 +14,14 @@ pub struct EnigoTest {
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
-        EnigoTest::start_timeout_thread();
         let enigo = Enigo::new(settings).expect("failed to create new enigo struct");
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
+
+        websocket
+            .get_ref()
+            .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+            .expect("Unable to set a read timeout");
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
         Self { enigo, websocket }
@@ -55,14 +54,14 @@ impl EnigoTest {
             _ => panic!("Other text received"),
         })
     }
+}
 
-    // Spawn a thread to handle the timeout
-    fn start_timeout_thread() {
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(TIMEOUT * 60));
-            log::debug!("Test suite exceeded the maximum allowed time of {TIMEOUT} minutes.");
-            std::process::exit(1); // Exit with error code
-        });
+/// Make sure the message queue is empty and all messages were processed
+impl Drop for EnigoTest {
+    fn drop(&mut self) {
+        if self.websocket.read().is_ok() {
+            panic!("there were messages left. This should never happen")
+        }
     }
 }
 
