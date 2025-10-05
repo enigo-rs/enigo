@@ -184,7 +184,7 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let pressed = unsafe { NSEvent::pressedMouseButtons() };
+        let pressed = NSEvent::pressedMouseButtons();
         let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
@@ -253,7 +253,7 @@ impl Mouse for Enigo {
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        let pt = unsafe { NSEvent::mouseLocation() };
+        let pt = NSEvent::mouseLocation();
         let (x, y_inv) = (pt.x as i32, pt.y as i32);
         Ok((x, self.display.pixels_high() as i32 - y_inv))
     }
@@ -523,7 +523,7 @@ impl Enigo {
         // set so we also do it (until we know it is wrong)
 
         let double_click_delay = Duration::from_secs(1);
-        let double_click_delay_setting = unsafe { NSEvent::doubleClickInterval() };
+        let double_click_delay_setting = NSEvent::doubleClickInterval();
         // Returns the double click interval (https://developer.apple.com/documentation/appkit/nsevent/1528384-doubleclickinterval). This is a TimeInterval which is a f64 of the number of seconds
         let double_click_delay = double_click_delay.mul_f64(double_click_delay_setting);
 
@@ -586,8 +586,7 @@ impl Enigo {
 
     fn special_keys(&mut self, code: isize, direction: Direction) -> InputResult<()> {
         if direction == Direction::Press || direction == Direction::Click {
-            let event = unsafe {
-                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+            let event = NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
                 NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
                 NSEventModifierFlags::empty(),
@@ -597,8 +596,7 @@ impl Enigo {
                 8,
                 (code << 16) | (0xa << 8),
                 -1
-            )
-            };
+            );
 
             if let Some(event) = event {
                 let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
@@ -617,8 +615,7 @@ impl Enigo {
         }
 
         if direction == Direction::Release || direction == Direction::Click {
-            let event = unsafe {
-                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+            let event = NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
                     NSEventType::SystemDefined, // 14
                 NSPoint::ZERO,
                 NSEventModifierFlags::empty(),
@@ -628,8 +625,7 @@ impl Enigo {
                 8,
                 (code << 16) | (0xb << 8),
                 -1
-            )
-            };
+            );
 
             if let Some(event) = event {
                 let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
