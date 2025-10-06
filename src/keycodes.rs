@@ -421,7 +421,6 @@ pub enum Key {
     NonConvert,
     #[cfg(target_os = "windows")]
     None,
-    #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
     Numlock,
     Numpad0,
     Numpad1,
