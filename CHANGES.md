@@ -2,6 +2,7 @@
 ## Changed
 
 ## Added
+- macOS: Added `Numlock` key
 
 ## Removed
 - win: `EXT` constant was removed, because it was incorrect and obsolete
@@ -10,6 +11,7 @@
 - linux: Added `NumpadEnter` key
 - win: Added `NumpadEnter` key
 - win: Extended keys can now be correctly simulated with the raw() function.
+- macOS: Correctly handle the `CapsLock`, `Help`, `UpArrow` and `DownArrow` keys
 
 # 0.6.1
 ## Fixed
