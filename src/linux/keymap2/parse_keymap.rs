@@ -707,7 +707,7 @@ mod tests {
             aliases: correct_aliases,
         };
 
-        println!("{correct_keycodes_struct}");
+        log::debug!("{correct_keycodes_struct}");
 
         assert_eq!(
             Keycodes::parse(keycodes_str),
@@ -1275,7 +1275,7 @@ xkb_symbols "(unnamed)" {
     r#"Mod4 { <RWIN> }"#.to_string()],
         };
 
-        println!("{correct_symbols}");
+        log::debug!("{correct_symbols}");
 
         assert_eq!(Symbols::parse(symbols_str), Ok(("", correct_symbols)));
     }

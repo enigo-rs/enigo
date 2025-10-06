@@ -30,23 +30,23 @@ impl EnigoTest {
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
         let listener = TcpListener::bind("127.0.0.1:26541").expect("failed to bind to port");
-        println!("TcpListener was created");
+        log::debug!("TcpListener was created");
         let (stream, addr) = listener.accept().expect("Unable to accept the connection");
-        println!("New connection was made from {addr:?}");
+        log::debug!("New connection was made from {addr:?}");
         let websocket = accept(stream).expect("Unable to accept connections on the websocket");
-        println!("WebSocket was successfully created");
+        log::debug!("WebSocket was successfully created");
         websocket
     }
 
     fn read_message(&mut self) -> BrowserEvent {
         use crate::common::browser_events::BrowserEventError;
 
-        println!("Waiting for message on Websocket");
+        log::debug!("Waiting for message on Websocket");
         let message = self
             .websocket
             .read()
             .expect("failed to read from websocket");
-        println!("Processing message");
+        log::debug!("Processing message");
 
         BrowserEvent::try_from(message).unwrap_or_else(|e| match e {
             BrowserEventError::WebsocketClosed => {
@@ -60,7 +60,7 @@ impl EnigoTest {
     fn start_timeout_thread() {
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(TIMEOUT * 60));
-            println!("Test suite exceeded the maximum allowed time of {TIMEOUT} minutes.");
+            log::debug!("Test suite exceeded the maximum allowed time of {TIMEOUT} minutes.");
             std::process::exit(1); // Exit with error code
         });
     }

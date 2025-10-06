@@ -67,23 +67,23 @@ impl TryFrom<Message> for BrowserEvent {
     fn try_from(message: Message) -> Result<Self, Self::Error> {
         match message {
             Message::Close(_) => {
-                println!("Message::Close received");
+                log::debug!("Message::Close received");
                 Err(BrowserEventError::WebsocketClosed)
             }
             Message::Text(msg) => {
-                println!("Browser received input");
-                println!("msg: {msg:?}");
+                log::debug!("Browser received input");
+                log::debug!("msg: {msg:?}");
 
                 // Attempt to deserialize the text message into a BrowserEvent
                 if let Ok(event) = serde_json::from_str::<BrowserEvent>(&msg) {
                     Ok(event)
                 } else {
-                    println!("Parse error! Message: {msg}");
+                    log::debug!("Parse error! Message: {msg}");
                     Err(BrowserEventError::ParseError)
                 }
             }
             Message::Binary(_) | Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => {
-                println!("Other Message received");
+                log::debug!("Other Message received");
                 Err(BrowserEventError::UnknownMessageType)
             }
         }
@@ -194,8 +194,8 @@ fn deserialize_browser_events() {
     for (raw, expected) in cases {
         // serialize back to JSON for comparison
         let expected_json = serde_json::to_string(&expected).unwrap();
-        println!("expected = {}", expected_json);
-        println!("raw      = {}\n", raw);
+        log::debug!("expected = {}", expected_json);
+        log::debug!("raw      = {}\n", raw);
 
         // parse the JSON
         let msg = Message::Text(raw.into());

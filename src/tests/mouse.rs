@@ -92,7 +92,7 @@ fn unit_move_mouse_to_boundaries() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     let display_size = enigo.main_display().unwrap();
-    println!("Display size {} x {}", display_size.0, display_size.1);
+    log::debug!("Display size {} x {}", display_size.0, display_size.1);
 
     // Move the mouse outside of the boundaries of the screen
     let screen_boundaries = vec![
@@ -130,7 +130,7 @@ fn unit_move_mouse_rel_boundaries() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
     let display_size = enigo.main_display().unwrap();
-    println!("Display size {} x {}", display_size.0, display_size.1);
+    log::debug!("Display size {} x {}", display_size.0, display_size.1);
 
     // Move the mouse outside of the boundaries of the screen
     let screen_boundaries = vec![
@@ -170,7 +170,7 @@ fn unit_move_mouse_rel_boundaries() {
 fn unit_display_size() {
     let enigo = Enigo::new(&Settings::default()).unwrap();
     let display_size = enigo.main_display().unwrap();
-    println!("Main display size: {}x{}", display_size.0, display_size.1);
+    log::debug!("Main display size: {}x{}", display_size.0, display_size.1);
     if is_ci() {
         assert_eq!((display_size.0, display_size.1), (1024, 768));
     } else {
