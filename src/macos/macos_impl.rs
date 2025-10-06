@@ -367,6 +367,7 @@ impl Keyboard for Enigo {
                 debug!("special case for handling the VolumeMute key");
                 self.special_keys(7, direction)?;
             }
+            /*
             Key::UpArrow => {
                 debug!("special case for handling the UpArrow key");
                 self.special_keys(8, direction)?;
@@ -375,6 +376,7 @@ impl Keyboard for Enigo {
                 debug!("special case for handling the DownArrow key");
                 self.special_keys(9, direction)?;
             }
+            */
             Key::Numlock => {
                 debug!("special case for handling the Numlock key");
                 self.special_keys(10, direction)?;
