@@ -123,7 +123,14 @@ impl Keyboard for EnigoTest {
             else {
                 panic!("wrong event received: {event:?}")
             };
-            let key = ron::from_str(&code).expect("failed to deserialize key");
+            let key = ron::from_str(&code)
+                // TODO: Check if this is a good idea
+                // It is done because on Windows, "code" is empty for the "Help" key. The "key"
+                // field does contain the correct value though. We cannot always use the "key"
+                // field, because it would make it impossible to differentiate left and right keys
+                // (e.g LControl from RControl)
+                .or_else(|_| ron::from_str(&key))
+                .expect("failed to deserialize key");
 
             let keys_equal = matches!(
                 (expected_key, key),
