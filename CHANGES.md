@@ -10,6 +10,7 @@
 - linux: Added `NumpadEnter` key
 - win: Added `NumpadEnter` key
 - win: Extended keys can now be correctly simulated with the raw() function.
+- macOS: Correctly handle the `Help` key
 
 # 0.6.1
 ## Fixed
