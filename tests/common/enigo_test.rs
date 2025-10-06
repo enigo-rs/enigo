@@ -71,11 +71,21 @@ impl Keyboard for EnigoTest {
         let mut expected_text = text.to_string();
         self.enigo.text(text).expect("failed to simulate text()");
 
-        loop {
-            if expected_text.is_empty() {
-                break;
-            }
-            let observed_text = self.read_message().text;
+        if cfg!(target_os = "macos") {}
+
+        while !expected_text.is_empty() {
+            let browser_event = self.read_message();
+            let BrowserEvent {
+                text: observed_text,
+                event: Event::Key { key, .. },
+            } = browser_event
+            else {
+                panic!("wrong event received: {browser_event:?}")
+            };
+
+            #[cfg(target_os = "macos")]
+            let observed_text = key;
+
             match expected_text.strip_prefix(&observed_text) {
                 Some(remainder) => expected_text = remainder.to_string(),
                 None => panic!("failed to simulate text()"),
