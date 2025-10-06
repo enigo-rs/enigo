@@ -179,6 +179,7 @@ pub enum Key {
     Delete,
     Divide,
     /// down arrow key
+    #[cfg_attr(feature = "serde", serde(alias = "ArrowDown"))]
     DownArrow,
     #[cfg(target_os = "macos")]
     Eject,
@@ -371,6 +372,7 @@ pub enum Key {
     #[cfg_attr(feature = "serde", serde(alias = "ControlLeft"))]
     LControl,
     /// left arrow key
+    #[cfg_attr(feature = "serde", serde(alias = "ArrowLeft"))]
     LeftArrow,
     #[cfg(all(unix, not(target_os = "macos")))]
     Linefeed,
@@ -422,6 +424,7 @@ pub enum Key {
     #[cfg(target_os = "windows")]
     None,
     #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+    #[cfg_attr(feature = "serde", serde(alias = "NumLock"))]
     Numlock,
     Numpad0,
     Numpad1,
@@ -540,6 +543,7 @@ pub enum Key {
     /// return key
     Return,
     /// right arrow key
+    #[cfg_attr(feature = "serde", serde(alias = "ArrowRight"))]
     RightArrow,
     #[cfg(target_os = "windows")]
     RMenu,
@@ -582,6 +586,7 @@ pub enum Key {
     #[cfg(all(unix, not(target_os = "macos")))]
     Undo,
     /// up arrow key
+    #[cfg_attr(feature = "serde", serde(alias = "ArrowUp"))]
     UpArrow,
     #[cfg(target_os = "macos")]
     VidMirror,
