@@ -351,10 +351,12 @@ impl Keyboard for Enigo {
                 debug!("special case for handling the BrightnessDown key");
                 self.special_keys(3, direction)?;
             }
+            /*
             Key::CapsLock => {
                 debug!("special case for handling the CapsLock key");
                 self.special_keys(4, direction)?;
             }
+            */
             Key::Help => {
                 debug!("special case for handling the Help key");
                 self.special_keys(5, direction)?;
