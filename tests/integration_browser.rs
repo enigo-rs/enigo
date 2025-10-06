@@ -13,8 +13,14 @@ fn integration_browser_events() {
 
     enigo.key(Key::UpArrow, Click).unwrap();
     enigo.key(Key::DownArrow, Click).unwrap();
-    enigo.key(Key::CapsLock, Click).unwrap();
-    enigo.key(Key::CapsLock, Click).unwrap();
+
+    // Skip on macOS because Firefox emits another "pressed" event when CapsLock is
+    // released
+    #[cfg(not(target_os = "macos"))]
+    {
+        enigo.key(Key::CapsLock, Click).unwrap();
+        enigo.key(Key::CapsLock, Click).unwrap();
+    }
     enigo.key(Key::Numlock, Click).unwrap();
     enigo.key(Key::Numlock, Click).unwrap();
     enigo.key(Key::Help, Click).unwrap();
