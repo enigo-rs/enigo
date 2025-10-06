@@ -196,7 +196,7 @@ impl Con {
             // TODO: Should all devices start emulating?
             // && device_data.interface::<ei::Keyboard>().is_some()
         }) {
-            println!("Start emulating");
+            debug!("Start emulating");
             if !device.is_alive() {
                 return Err(NewConError::EstablishCon("ei::Device is no longer alive"));
             }
@@ -761,7 +761,7 @@ impl Drop for Con {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
                 && device_data.state == DeviceState::Emulating
         }) {
-            println!("DROPPED");
+            debug!("DROPPED");
             device.stop_emulating(self.last_serial);
             self.last_serial = self.last_serial.wrapping_add(1);
         }

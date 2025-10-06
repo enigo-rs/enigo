@@ -26,7 +26,7 @@ fn integration_browser_events() {
     // https://github.com/jordansissel/xdotool/issues/487
     #[cfg(not(feature = "xdo"))]
     {
-        println!("Test if the left and right versions of keys can get differentiated");
+        log::debug!("Test if the left and right versions of keys can get differentiated");
         enigo.key(Key::Control, Press).unwrap();
         enigo.key(Key::Control, Release).unwrap();
         enigo.key(Key::LControl, Press).unwrap();
@@ -38,7 +38,7 @@ fn integration_browser_events() {
         enigo.key(Key::RShift, Click).unwrap();
     }
 
-    println!("Test mouse");
+    log::debug!("Test mouse");
     // enigo.button(Button::Left, Click).unwrap();
     enigo.move_mouse(100, 100, Abs).unwrap();
     enigo.move_mouse(200, 200, Abs).unwrap();
