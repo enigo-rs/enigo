@@ -60,7 +60,6 @@ impl Enigo {
         let mut connection_established = false;
         #[allow(unused_variables)]
         let Settings {
-            linux_delay,
             x11_display,
             wayland_display,
             release_keys_when_dropped,
@@ -90,7 +89,7 @@ impl Enigo {
             }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        let x11 = match x11::Con::new(x11_display.as_deref(), *linux_delay) {
+        let x11 = match x11::Con::new(x11_display.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("x11 connection established");
@@ -128,29 +127,6 @@ impl Enigo {
             #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
             libei,
         })
-    }
-
-    /// Get the delay per keypress
-    #[must_use]
-    pub fn delay(&self) -> u32 {
-        // On Wayland there is no delay
-
-        #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        if let Some(con) = self.x11.as_ref() {
-            return con.delay();
-        }
-        0
-    }
-
-    /// Set the delay per keypress
-    #[allow(unused_variables)]
-    pub fn set_delay(&mut self, delay: u32) {
-        // On Wayland there is no delay
-
-        #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        if let Some(con) = self.x11.as_mut() {
-            con.set_delay(delay);
-        }
     }
 
     /// Returns a list of all currently pressed keys

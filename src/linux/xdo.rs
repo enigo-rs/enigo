@@ -5,11 +5,10 @@ use std::{
 
 use libc::useconds_t;
 
-use log::debug;
-
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
+use log::{debug, error, trace};
 use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
@@ -70,6 +69,22 @@ unsafe extern "C" {
     ) -> c_int;
 }
 
+// We need XSync from libX11 to flush the server display connection.
+#[link(name = "X11")]
+unsafe extern "C" {
+    // int XSync(Display *display, Bool discard);
+    fn XSync(display: *mut c_void, discard: c_int);
+}
+
+/// Minimal view into the `xdo_t` struct to access the Display*.
+/// This mirrors the layout in xdo's implementation where the first field is the
+/// Display*. If xdo's internal struct changes, this will break
+#[repr(C)]
+struct XdoInternal {
+    xdpy: *mut c_void,
+    // rest ignored
+}
+
 fn mousebutton(button: Button) -> c_int {
     match button {
         Button::Left => 1,
@@ -87,17 +102,15 @@ fn mousebutton(button: Button) -> c_int {
 /// The main struct for handling the event emitting
 pub struct Con {
     xdo: Xdo,
-    delay: u32, // microseconds
 }
 // This is safe, we have a unique pointer.
-// TODO: use Unique<c_char> once stable.
 unsafe impl Send for Con {}
 
 impl Con {
     /// Create a new Enigo instance
     /// If no `dyp_name` is provided, the $DISPLAY environment variable is read
     /// and used instead
-    pub fn new(dyp_name: Option<&str>, delay: u32) -> Result<Self, NewConError> {
+    pub fn new(dyp_name: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdo");
         let xdo = match dyp_name {
             Some(name) => {
@@ -116,21 +129,38 @@ impl Con {
                 "establishing a connection to the display name was unsuccessful",
             ));
         }
-        Ok(Self {
-            xdo,
-            delay: delay * 1000,
-        })
+        Ok(Self { xdo })
     }
 
-    /// Get the delay per keypress in milliseconds
-    #[must_use]
-    pub fn delay(&self) -> u32 {
-        self.delay / 1000
-    }
-
-    /// Set the delay per keypress in milliseconds
-    pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay * 1000;
+    /// Helper: call `XSync` on the Display* inside the xdo struct to ensure the
+    /// X server has processed events. Returns an error if we cannot extract
+    /// a valid Display* from the xdo pointer.
+    fn sync_display(&self) -> Result<(), InputError> {
+        if self.xdo.is_null() {
+            return Err(InputError::Simulate(
+                "internal xdo pointer is NULL; cannot sync display",
+            ));
+        }
+        // SAFETY: we only dereference the first field (xdpy) of the xdo struct.
+        // If xdo internals change, this is unsafe
+        let display = unsafe {
+            let internal = self.xdo as *mut XdoInternal;
+            if internal.is_null() {
+                return Err(InputError::Simulate(
+                    "internal xdo structure pointer is NULL; cannot sync display",
+                ));
+            }
+            (*internal).xdpy
+        };
+        if display.is_null() {
+            return Err(InputError::Simulate(
+                "xdo internal display pointer is NULL; cannot sync display",
+            ));
+        }
+        // SAFETY: XSync is a C call; it doesn't return an error code. We just invoke
+        // it.
+        unsafe { XSync(display, 0) };
+        Ok(())
     }
 }
 
@@ -146,24 +176,17 @@ impl Keyboard for Con {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         let Ok(string) = CString::new(text) else {
             return Err(InputError::InvalidInput(
-                "the text to enter contained a NULL byte ('\\0’), which is not allowed",
+                "the text to enter contained a NULL byte ('\\0'), which is not allowed",
             ));
         };
-        debug!(
-            "xdo_enter_text_window with string {string:?}, delay {}",
-            self.delay
-        );
-        let res = unsafe {
-            xdo_enter_text_window(
-                self.xdo,
-                CURRENT_WINDOW,
-                string.as_ptr(),
-                self.delay as useconds_t,
-            )
-        };
+        debug!("xdo_enter_text_window with string {string:?}");
+        let res = unsafe { xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 0) };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate("unable to enter text"));
+            error!("xdo_enter_text_window returned error code {res}");
+            return Err(InputError::Simulate("unable to enter text via xdo"));
         }
+        // Ensure server processed events
+        self.sync_display()?;
         Ok(Some(()))
     }
 
@@ -181,51 +204,28 @@ impl Keyboard for Con {
 
         let res = match direction {
             Direction::Click => {
-                debug!(
-                    "xdo_send_keysequence_window with string {string:?}, delay {}",
-                    self.delay
-                );
-                unsafe {
-                    xdo_send_keysequence_window(
-                        self.xdo,
-                        CURRENT_WINDOW,
-                        string.as_ptr(),
-                        self.delay as useconds_t,
-                    )
-                }
+                debug!("xdo_send_keysequence_window (click) with string {string:?}");
+                unsafe { xdo_send_keysequence_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 0) }
             }
             Direction::Press => {
-                debug!(
-                    "xdo_send_keysequence_window_down with string {string:?}, delay {}",
-                    self.delay
-                );
+                debug!("xdo_send_keysequence_window_down (press) with string {string:?}");
                 unsafe {
-                    xdo_send_keysequence_window_down(
-                        self.xdo,
-                        CURRENT_WINDOW,
-                        string.as_ptr(),
-                        self.delay as useconds_t,
-                    )
+                    xdo_send_keysequence_window_down(self.xdo, CURRENT_WINDOW, string.as_ptr(), 0)
                 }
             }
             Direction::Release => {
-                debug!(
-                    "xdo_send_keysequence_window_up with string {string:?}, delay {}",
-                    self.delay
-                );
+                debug!("xdo_send_keysequence_window_up (release) with string {string:?}");
                 unsafe {
-                    xdo_send_keysequence_window_up(
-                        self.xdo,
-                        CURRENT_WINDOW,
-                        string.as_ptr(),
-                        self.delay as useconds_t,
-                    )
+                    xdo_send_keysequence_window_up(self.xdo, CURRENT_WINDOW, string.as_ptr(), 0)
                 }
             }
         };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate("unable to enter key"));
+            error!("xdo_send_keysequence returned error code {res}");
+            return Err(InputError::Simulate("unable to enter key via xdo"));
         }
+        // Ensure server processed events
+        self.sync_display()?;
         Ok(())
     }
 
@@ -233,7 +233,9 @@ impl Keyboard for Con {
         // TODO: Lookup the key name for the keycode and then enter that with xdotool.
         // This is a bit weird, because xdotool will then do the reverse. Maybe there is
         // a better way?
-        todo!("You cant enter raw keycodes with xdotool")
+        Err(InputError::InvalidInput(
+            "entering raw keycodes is not supported with xdo backend",
+        ))
     }
 }
 
@@ -255,8 +257,11 @@ impl Mouse for Con {
             }
         };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate("unable to enter mouse button"));
+            error!("xdo mouse call returned error code {res}");
+            return Err(InputError::Simulate("unable to enter mouse button via xdo"));
         }
+        // Ensure server processed events
+        self.sync_display()?;
         Ok(())
     }
 
@@ -267,13 +272,16 @@ impl Mouse for Con {
                 unsafe { xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int) }
             }
             Coordinate::Abs => {
-                debug!("xdo_move_mouse with mouse button with x {x}, y {y}");
+                debug!("xdo_move_mouse with x {x}, y {y}");
                 unsafe { xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0) }
             }
         };
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate("unable to move the mouse"));
+            error!("xdo move mouse returned error code {res}");
+            return Err(InputError::Simulate("unable to move the mouse via xdo"));
         }
+        // Ensure server processed events
+        self.sync_display()?;
         Ok(())
     }
 
@@ -302,7 +310,10 @@ impl Mouse for Con {
         };
 
         if res != XDO_SUCCESS {
-            return Err(InputError::Simulate("unable to get the main display"));
+            error!("xdo_get_viewport_dimensions returned error code {res}");
+            return Err(InputError::Simulate(
+                "unable to get the main display via xdo",
+            ));
         }
         Ok((width, height))
     }

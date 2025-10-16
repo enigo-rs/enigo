@@ -457,8 +457,6 @@ impl Error for NewConError {}
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Settings {
-    /// Sleep delay on Linux X11
-    pub linux_delay: u32,
     /// Display name to connect to when using Linux X11
     pub x11_display: Option<String>,
     /// Display name to connect to when using Linux Wayland
@@ -494,7 +492,6 @@ impl Default for Settings {
     fn default() -> Self {
         debug!("using default settings");
         Self {
-            linux_delay: 12,
             x11_display: None,
             wayland_display: None,
             windows_dw_extra_info: None,
