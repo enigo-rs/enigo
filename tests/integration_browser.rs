@@ -11,6 +11,24 @@ use common::enigo_test::EnigoTest as Enigo;
 fn integration_browser_events() {
     let mut enigo = Enigo::new(&Settings::default());
 
+    enigo.key(Key::UpArrow, Click).unwrap();
+    enigo.key(Key::DownArrow, Click).unwrap();
+
+    // Skip on macOS because Firefox emits another "pressed" event when CapsLock is
+    // released
+    #[cfg(not(target_os = "macos"))]
+    {
+        enigo.key(Key::CapsLock, Click).unwrap();
+        enigo.key(Key::CapsLock, Click).unwrap();
+    }
+    // Skip on macOS because Firefox does not emit an event for them or there is a
+    // bug
+    #[cfg(not(target_os = "macos"))]
+    {
+        enigo.key(Key::Numlock, Click).unwrap();
+        enigo.key(Key::Numlock, Click).unwrap();
+        enigo.key(Key::Help, Click).unwrap();
+    }
     enigo.text("TestText❤️").unwrap();
     enigo.key(Key::F1, Click).unwrap();
     enigo.key(Key::Control, Click).unwrap();
