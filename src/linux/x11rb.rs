@@ -28,7 +28,6 @@ pub struct Con {
     screen: Screen,
     keymap: KeyMap<Keycode>,
     modifiers: [Vec<Keycode>; 8],
-    delay: u32, // milliseconds
 }
 
 impl From<ConnectionError> for NewConError {
@@ -55,14 +54,12 @@ impl Con {
     ///
     /// # Arguments
     ///
-    /// * `delay` - Minimum delay in milliseconds between keypresses in order to
-    ///   properly enter all chars
     /// * `dpy_name` - If no `dpy_name` is provided, the value from $DISPLAY is
     ///   used
     ///
     /// # Errors
     /// TODO
-    pub fn new(dpy_name: Option<&str>, delay: u32) -> Result<Con, NewConError> {
+    pub fn new(dpy_name: Option<&str>) -> Result<Con, NewConError> {
         debug!("using x11rb");
         let (connection, screen_idx) = x11rb::connect(dpy_name)?;
         let setup = connection.setup();
@@ -93,19 +90,7 @@ impl Con {
             screen,
             keymap,
             modifiers,
-            delay,
         })
-    }
-
-    /// Get the delay per keypress in milliseconds
-    #[must_use]
-    pub fn delay(&self) -> u32 {
-        self.delay
-    }
-
-    /// Set the delay in milliseconds per keypress
-    pub fn set_delay(&mut self, delay: u32) {
-        self.delay = delay;
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
@@ -196,14 +181,12 @@ impl Con {
         x11rb::protocol::xinput::list_input_devices(&self.connection)
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when listing input devices with x11rb: {e:?}")
+                InputError::Simulate("error when listing input devices with x11rb")
             })?
             .reply()
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate(
-                    "error with the reply from listing input devices with x11rb: {e:?}",
-                )
+                InputError::Simulate("error with the reply from listing input devices with x11rb")
             })?
             .devices
             .iter()
@@ -211,7 +194,7 @@ impl Con {
             .map_or_else(
                 || {
                     Err(InputError::Simulate(
-                        "error with the reply from listing input devices with x11rb: {e:?}",
+                        "error with the reply from listing input devices with x11rb",
                     ))
                 },
                 |d| Ok(d.device_id),
@@ -272,13 +255,13 @@ impl Keyboard for Con {
                 "Keycode was too large. It has to fit in u8 on X11",
             ));
         };
-        let time = self.keymap.pending_delays();
+        let time = x11rb::CURRENT_TIME; // CURRENT_TIME == 0
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
 
-        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, delay {time}");
+        debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, time {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -292,21 +275,22 @@ impl Keyboard for Con {
                 )
                 .map_err(|e| {
                     error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                    InputError::Simulate("error when using xtest_fake_input with x11rb")
                 })?;
             trace!("press");
-        }
 
-        // TODO: Check if we need to update the delays again
-        // self.keymap.update_delays(keycode);
-        // let time = self.keymap.pending_delays();
+            self.connection.sync() .map_err(|e| {
+                error!("{e}");
+                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
+            })?;
+        }
 
         if direction == Direction::Release || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::KEY_RELEASE_EVENT,
                     keycode,
-                    time, // TODO: Check if there needs to be a delay here
+                    time,
                     root,
                     root_x,
                     root_y,
@@ -314,16 +298,15 @@ impl Keyboard for Con {
                 )
                 .map_err(|e| {
                     error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                    InputError::Simulate("error when using xtest_fake_input with x11rb")
                 })?;
             trace!("released");
-        }
 
-        self.connection.sync()
-            .map_err(|e| {
+            self.connection.sync() .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
             })?;
+        }
 
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys
@@ -346,13 +329,13 @@ impl Mouse for Con {
             Button::Back => 8,
             Button::Forward => 9,
         };
-        let time = self.delay;
+        let time = x11rb::CURRENT_TIME; // CURRENT_TIME == 0
         let root = self.screen.root;
         let root_x = 0;
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
-        debug!("xtest_fake_input with button {detail}, deviceid {deviceid}, delay {time}");
+        debug!("xtest_fake_input with button {detail}, deviceid {deviceid}, time {time}");
         if direction == Direction::Press || direction == Direction::Click {
             self.connection
                 .xtest_fake_input(
@@ -366,16 +349,16 @@ impl Mouse for Con {
                 )
                 .map_err(|e| {
                     error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                    InputError::Simulate("error when using xtest_fake_input with x11rb")
                 })?;
+
+            self.connection.sync()
+            .map_err(|e| {
+                error!("{e}");
+                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
+            })?;
         }
         if direction == Direction::Release || direction == Direction::Click {
-            // Add a delay for the release part of a click
-            // TODO: Maybe calculate here if a delay is needed as well
-            if direction == Direction::Click {
-                // time = DEFAULT_DELAY;
-            }
-
             self.connection
                 .xtest_fake_input(
                     x11rb::protocol::xproto::BUTTON_RELEASE_EVENT,
@@ -388,14 +371,15 @@ impl Mouse for Con {
                 )
                 .map_err(|e| {
                     error!("{e}");
-                    InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                    InputError::Simulate("error when using xtest_fake_input with x11rb")
                 })?;
-        }
-        self.connection.sync()
+
+            self.connection.sync()
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
             })?;
+        }
         Ok(())
     }
 
@@ -405,7 +389,7 @@ impl Mouse for Con {
             Coordinate::Rel => 1,
             Coordinate::Abs => 0,
         };
-        let time = x11rb::CURRENT_TIME;
+        let time = x11rb::CURRENT_TIME; // CURRENT_TIME == 0
         let root = x11rb::NONE; //  the root window of the screen the pointer is currently on
 
         let Ok(root_x) = x.try_into() else {
@@ -421,19 +405,19 @@ impl Mouse for Con {
         let deviceid = self.device_id(DeviceUse::IS_X_POINTER)?;
 
         debug!(
-            "xtest_fake_input with coordinate {detail}, deviceid {deviceid}, x {root_x}, y {root_y}, delay {time}"
+            "xtest_fake_input with coordinate {detail}, deviceid {deviceid}, x {root_x}, y {root_y}, time {time}"
         );
 
         self.connection
             .xtest_fake_input(type_, detail, time, root, root_x, root_y, deviceid) // TODO: Check if using x11rb::protocol::xproto::warp_pointer would be better
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when using xtest_fake_input with x11rb: {e:?}")
+                InputError::Simulate("error when using xtest_fake_input with x11rb")
             })?;
         self.connection.sync()
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}")
+                InputError::Simulate("error when syncing with X server using x11rb after the keyboard mapping was changed")
             })?;
         Ok(())
     }
@@ -459,15 +443,13 @@ impl Mouse for Con {
             .randr_get_screen_resources(self.screen.root)
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate(
-                    "error when requesting randr_get_screen_resources with x11rb: {e:?}",
-                )
+                InputError::Simulate("error when requesting randr_get_screen_resources with x11rb")
             })?
             .reply()
             .map_err(|e| {
                 error!("{e}");
                 InputError::Simulate(
-                    "error with the reply of randr_get_screen_resources with x11rb: {e:?}",
+                    "error with the reply of randr_get_screen_resources with x11rb",
                 )
             })?
             .modes[0];
@@ -481,12 +463,12 @@ impl Mouse for Con {
             .query_pointer(self.screen.root)
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error when requesting query_pointer with x11rb: {e:?}")
+                InputError::Simulate("error when requesting query_pointer with x11rb")
             })?
             .reply()
             .map_err(|e| {
                 error!("{e}");
-                InputError::Simulate("error with the reply of query_pointer with x11rb: {e:?}")
+                InputError::Simulate("error with the reply of query_pointer with x11rb")
             })?;
         Ok((reply.root_x as i32, reply.root_y as i32))
     }
