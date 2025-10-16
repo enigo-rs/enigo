@@ -5,6 +5,8 @@
 
 ## Removed
 - win: `EXT` constant was removed, because it was incorrect and obsolete
+- all: Removed the function `delay` and `set_delay` as they no longer serve a purpose
+- all: Removed the field `linux_delay` from `Settings` struct as it no longer serves a purpose
 
 ## Fixed
 - linux: Added `NumpadEnter` key
