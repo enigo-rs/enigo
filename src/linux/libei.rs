@@ -280,7 +280,8 @@ impl Con {
                 let request = match result {
                     PendingRequestResult::Request(request) => request,
                     PendingRequestResult::ParseError(msg) => {
-                        todo!()
+                        error!("parse error from libei: {msg}");
+                        return Err(InputError::Simulate("failed to parse pending request"));
                     }
                     PendingRequestResult::InvalidObject(object_id) => {
                         // TODO
@@ -362,107 +363,116 @@ impl Con {
                     },
                     ei::Event::Seat(seat, request) => {
                         trace!("connection seat");
-                        let data = self.seats.get_mut(&seat).unwrap();
-                        match request {
-                            ei::seat::Event::Destroyed { serial } => {
-                                debug!("seat was destroyed");
-                                self.seats.remove(&seat);
-                            }
-                            ei::seat::Event::Name { name } => {
-                                data.name = Some(name);
-                            }
-                            ei::seat::Event::Capability { mask, interface } => {
-                                data.capabilities.insert(interface, mask);
-                            }
-                            ei::seat::Event::Done => {
-                                let mut bitmask = 0;
-                                if let Some(bits) = data.capabilities.get("ei_button") {
-                                    bitmask |= bits;
+                        if let Some(data) = self.seats.get_mut(&seat) {
+                            match request {
+                                ei::seat::Event::Destroyed { serial } => {
+                                    debug!("seat was destroyed");
+                                    self.seats.remove(&seat);
                                 }
-                                if let Some(bits) = data.capabilities.get("ei_keyboard") {
-                                    bitmask |= bits;
+                                ei::seat::Event::Name { name } => {
+                                    data.name = Some(name);
                                 }
-                                if let Some(bits) = data.capabilities.get("ei_pointer") {
-                                    bitmask |= bits;
+                                ei::seat::Event::Capability { mask, interface } => {
+                                    data.capabilities.insert(interface, mask);
                                 }
-                                if let Some(bits) = data.capabilities.get("ei_pointer_absolute") {
-                                    bitmask |= bits;
-                                }
-                                if let Some(bits) = data.capabilities.get("ei_scroll") {
-                                    bitmask |= bits;
-                                }
-                                if let Some(bits) = data.capabilities.get("ei_touchscreen") {
-                                    bitmask |= bits;
-                                }
+                                ei::seat::Event::Done => {
+                                    let mut bitmask = 0;
+                                    if let Some(bits) = data.capabilities.get("ei_button") {
+                                        bitmask |= bits;
+                                    }
+                                    if let Some(bits) = data.capabilities.get("ei_keyboard") {
+                                        bitmask |= bits;
+                                    }
+                                    if let Some(bits) = data.capabilities.get("ei_pointer") {
+                                        bitmask |= bits;
+                                    }
+                                    if let Some(bits) = data.capabilities.get("ei_pointer_absolute")
+                                    {
+                                        bitmask |= bits;
+                                    }
+                                    if let Some(bits) = data.capabilities.get("ei_scroll") {
+                                        bitmask |= bits;
+                                    }
+                                    if let Some(bits) = data.capabilities.get("ei_touchscreen") {
+                                        bitmask |= bits;
+                                    }
 
-                                seat.bind(bitmask);
-                                trace!("done binding to seat");
+                                    seat.bind(bitmask);
+                                    trace!("done binding to seat");
+                                }
+                                ei::seat::Event::Device { device } => {
+                                    self.devices.insert(device, DeviceData::default());
+                                }
+                                _ => {
+                                    warn!("Unknown seat event");
+                                }
                             }
-                            ei::seat::Event::Device { device } => {
-                                self.devices.insert(device, DeviceData::default());
-                            }
-                            _ => {
-                                warn!("Unknown seat event");
-                            }
+                        } else {
+                            warn!("received Seat event for unknown seat");
                         }
                     }
                     ei::Event::Device(device, request) => {
                         trace!("device event");
-                        let data = self.devices.get_mut(&device).unwrap();
-                        match request {
-                            ei::device::Event::Destroyed { serial } => {
-                                debug!("device was destroyed");
-                                self.devices.remove(&device);
-                            }
-                            ei::device::Event::Name { name } => {
-                                trace!("device name");
-                                data.name = Some(name);
-                            }
-                            ei::device::Event::DeviceType { device_type } => {
-                                trace!("device type");
-                                data.device_type = Some(device_type);
-                            }
-                            ei::device::Event::Dimensions { width, height } => {
-                                trace!("device type");
-                                data.dimensions = Some((width, height));
-                            }
-                            ei::device::Event::Region {
-                                offset_x,
-                                offset_y,
-                                width,
-                                hight: height,
-                                scale,
-                            } => {
-                                trace!("device type");
-                                data.regions.push(DeviceRegion {
+                        if let Some(data) = self.devices.get_mut(&device) {
+                            match request {
+                                ei::device::Event::Destroyed { serial } => {
+                                    debug!("device with serial {serial} was destroyed");
+                                    self.devices.remove(&device);
+                                }
+                                ei::device::Event::Name { name } => {
+                                    trace!("device name: {name}");
+                                    data.name = Some(name);
+                                }
+                                ei::device::Event::DeviceType { device_type } => {
+                                    trace!("device type: {device_type:?}");
+                                    data.device_type = Some(device_type);
+                                }
+                                ei::device::Event::Dimensions { width, height } => {
+                                    trace!("device dimensions: {width}, {height}");
+                                    data.dimensions = Some((width, height));
+                                }
+                                ei::device::Event::Region {
                                     offset_x,
                                     offset_y,
                                     width,
-                                    height,
+                                    hight: height,
                                     scale,
-                                });
+                                } => {
+                                    trace!(
+                                        "device region: {offset_x}, {offset_y}, {width}, {height}, {scale}"
+                                    );
+                                    data.regions.push(DeviceRegion {
+                                        offset_x,
+                                        offset_y,
+                                        width,
+                                        height,
+                                        scale,
+                                    });
+                                }
+                                ei::device::Event::Interface { object } => {
+                                    trace!("device interface: {}", object.interface());
+                                    data.interfaces
+                                        .insert(object.interface().to_string(), object);
+                                }
+                                ei::device::Event::Done => {
+                                    trace!("device done");
+                                }
+                                ei::device::Event::Resumed { serial } => {
+                                    debug!("device resumed serial: {serial}");
+                                    self.last_serial = serial;
+                                    data.state = DeviceState::Resumed;
+                                }
+                                ei::device::Event::Paused { serial } => {
+                                    debug!("device paused serial: {serial}");
+                                    self.last_serial = serial;
+                                    data.state = DeviceState::Paused;
+                                }
+                                _ => {
+                                    warn!("device else");
+                                }
                             }
-                            ei::device::Event::Interface { object } => {
-                                trace!("device interface");
-                                data.interfaces
-                                    .insert(object.interface().to_string(), object);
-                            }
-                            ei::device::Event::Done => {
-                                trace!("device done");
-                            }
-                            ei::device::Event::Resumed { serial } => {
-                                debug!("device resumed");
-                                self.last_serial = serial;
-                                data.state = DeviceState::Resumed;
-                            }
-                            ei::device::Event::Paused { serial } => {
-                                debug!("device paused");
-                                self.last_serial = serial;
-                                data.state = DeviceState::Paused;
-                            }
-                            _ => {
-                                warn!("device else");
-                            }
+                        } else {
+                            warn!("received Device event for unknown device");
                         }
                     }
                     ei::Event::Keyboard(keyboard, request) => {
@@ -479,22 +489,35 @@ impl Con {
                             } => {
                                 if keymap_type != ei::keyboard::KeymapType::Xkb {
                                     error!("The keymap is of the wrong type");
+                                    continue;
                                 }
                                 let context = xkb::Context::new(0);
-                                self.keyboards.insert(
-                                    keyboard,
-                                    unsafe {
-                                        xkb::Keymap::new_from_fd(
-                                            &context,
-                                            keymap,
-                                            size as _,
-                                            xkb::KEYMAP_FORMAT_TEXT_V1,
-                                            0,
-                                        )
+                                // xkb::Keymap::new_from_fd returns Result<Option<Keymap>, _>
+                                match unsafe {
+                                    xkb::Keymap::new_from_fd(
+                                        &context,
+                                        keymap,
+                                        size as _,
+                                        xkb::KEYMAP_FORMAT_TEXT_V1,
+                                        0,
+                                    )
+                                } {
+                                    Ok(Some(k)) => {
+                                        self.keyboards.insert(keyboard, k);
                                     }
-                                    .unwrap()
-                                    .unwrap(),
-                                );
+                                    Ok(None) => {
+                                        error!("xkb returned None when creating keymap");
+                                        return Err(InputError::Simulate(
+                                            "failed to create keymap",
+                                        ));
+                                    }
+                                    Err(_) => {
+                                        error!("xkb returned error when creating keymap");
+                                        return Err(InputError::Simulate(
+                                            "failed to create keymap",
+                                        ));
+                                    }
+                                }
                             }
                             ei::keyboard::Event::Modifiers {
                                 serial,
@@ -502,7 +525,8 @@ impl Con {
                                 locked,
                                 latched,
                                 group,
-                            } => { // TODO: Handle updated modifiers
+                            } => {
+                                // TODO: Handle updated modifiers
                                 // Notification that the EIS
                                 // implementation has changed modifier states
                                 // on this device. Future ei_keyboard.key
@@ -531,8 +555,7 @@ impl Con {
             trace!("update flush");
             trace!("update done");
 
-            // We can stop looking for updates if there was no event to be handled
-            // previously
+            // Stop looking if there were no pending events
             if !had_pending_events {
                 break;
             }
