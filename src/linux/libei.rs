@@ -92,40 +92,79 @@ pub struct Con {
 unsafe impl Send for Con {}
 
 impl Con {
-    async fn open_connection() -> ei::Context {
+    async fn open_connection() -> Result<ei::Context, NewConError> {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
-        if let Some(context) = ei::Context::connect_to_env().unwrap() {
-            trace!("done open_connection after connect_to_env");
-            context
-        } else {
-            debug!("Unable to find ei socket. Trying xdg desktop portal.");
-            let remote_desktop = RemoteDesktop::new().await.unwrap();
-            trace!("New desktop");
 
-            // device_bitmask |= DeviceType::Touchscreen;
-            let session = remote_desktop.create_session().await.unwrap();
-            remote_desktop
-                .select_devices(
-                    &session,
-                    DeviceType::Keyboard | DeviceType::Pointer,
-                    None, // TODO: Allow passing the restore_token via the EnigoSettings
-                    ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
-                           * restore_token via the
-                           * EnigoSettings */
-                ) // TODO: Add DeviceType::Touchscreen once we support it in enigo
-                .await
-                .unwrap();
-            trace!("new session");
-            remote_desktop.start(&session, None).await.unwrap();
-            trace!("start session");
-            let fd = remote_desktop.connect_to_eis(&session).await.unwrap();
-            let stream = UnixStream::from(fd);
-            stream.set_nonblocking(true).unwrap(); // TODO: Check if this is a good idea
-            trace!("done open_connection");
-            ei::Context::new(stream).unwrap()
+        match ei::Context::connect_to_env() {
+            Ok(Some(context)) => {
+                trace!("done open_connection after connect_to_env");
+                return Ok(context);
+            }
+            Ok(None) => {
+                debug!("Unable to find ei socket. Trying xdg desktop portal.");
+            }
+            Err(e) => {
+                error! {"{e}"}
+                return Err(NewConError::EstablishCon("error while checking ei env"));
+            }
         }
+
+        // Fallback: use portal
+        let remote_desktop = RemoteDesktop::new().await.map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("failed to create RemoteDesktop")
+        })?;
+        trace!("New desktop");
+
+        let session = remote_desktop.create_session().await.map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("failed to create remote desktop session")
+        })?;
+
+        remote_desktop
+            .select_devices(
+                &session,
+                // TODO: Add DeviceType::Touchscreen once we support it in enigo
+                DeviceType::Keyboard | DeviceType::Pointer,
+                None, // TODO: Allow passing the restore_token via the EnigoSettings
+                ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
+                       * restore_token via the
+                       * EnigoSettings */
+            )
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to select devices")
+            })?;
+        trace!("new session");
+
+        remote_desktop.start(&session, None).await.map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("failed to start remote desktop session")
+        })?;
+        trace!("start session");
+
+        let fd = remote_desktop.connect_to_eis(&session).await.map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("failed to connect to EIS")
+        })?;
+        // fd is a raw descriptor returned by portal; construct UnixStream
+        let stream = UnixStream::from(fd);
+        stream
+            // TODO: Check if this is a good idea
+            .set_nonblocking(true)
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to set nonblocking on stream")
+            })?;
+        trace!("done open_connection");
+
+        ei::Context::new(stream).map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("failed to create ei context")
+        })
     }
 
     #[allow(unnecessary_wraps)] // The wrap is needed for the libei_tokio feature
@@ -135,7 +174,10 @@ impl Con {
             return Ok(tokio::runtime::Builder::new_current_thread()
                 .enable_io()
                 .build()
-                .map_err(|_| NewConError::EstablishCon("failed to create tokio runtime"))?
+                .map_err(|e| {
+                    error! {"{e}"};
+                    NewConError::EstablishCon("failed to create tokio runtime")
+                })?
                 .block_on(f));
         }
         Ok(futures::executor::block_on(f))
@@ -155,7 +197,8 @@ impl Con {
         let sequence = 0;
         let time_created = Instant::now();
 
-        let context = Self::custom_block_on(Self::open_connection())?;
+        // open_connection now returns Result<ei::Context, NewConError>
+        let context = Self::custom_block_on(Self::open_connection())??;
 
         let HandshakeResp {
             connection,
@@ -166,13 +209,17 @@ impl Con {
             libei_name,
             ei::handshake::ContextType::Sender,
         )
-        .unwrap();
+        .map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("handshake failed")
+        })?;
 
         trace!("main: handshake");
 
-        context
-            .flush()
-            .map_err(|_| NewConError::EstablishCon("unable to flush the libei context"))?;
+        context.flush().map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("unable to flush the libei context")
+        })?;
         trace!("main: flushed");
 
         let mut con = Self {
@@ -187,8 +234,10 @@ impl Con {
             time_created,
         };
 
-        con.update(libei_name)
-            .map_err(|_| NewConError::EstablishCon("unable to update the libei connection"))?;
+        con.update(libei_name).map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("unable to update the libei connection")
+        })?;
 
         for (device, device_data) in con.devices.iter_mut().filter(|(_, device_data)| {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
@@ -205,8 +254,10 @@ impl Con {
             device_data.state = DeviceState::Emulating;
         }
 
-        con.update(libei_name)
-            .map_err(|_| NewConError::EstablishCon("unable to update the libei connection"))?;
+        con.update(libei_name).map_err(|e| {
+            error! {"{e}"};
+            NewConError::EstablishCon("unable to update the libei connection")
+        })?;
 
         Ok(con)
     }
