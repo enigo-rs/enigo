@@ -30,6 +30,9 @@ fn integration_browser_events() {
         enigo.key(Key::Help, Click).unwrap();
     }
     enigo.text("TestText❤️").unwrap();
+    #[cfg(not(any(target_os = "macos", all(feature = "xdo", target_os = "linux"))))]
+    // The simulation fails for these variants
+    enigo.key(Key::Unicode('❤'), Click).unwrap();
     enigo.key(Key::F1, Click).unwrap();
     enigo.key(Key::Control, Click).unwrap();
     enigo.key(Key::Backspace, Click).unwrap();
