@@ -8,7 +8,7 @@ use libc::useconds_t;
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
-use log::{debug, error, trace};
+use log::{debug, error};
 use xkeysym::Keysym;
 
 const CURRENT_WINDOW: c_ulong = 0;
@@ -22,7 +22,6 @@ unsafe extern "C" {
     fn xdo_free(xdo: Xdo);
     fn xdo_new(display: *const c_char) -> Xdo;
 
-    fn xdo_click_window(xdo: Xdo, window: Window, button: c_int) -> c_int;
     fn xdo_mouse_down(xdo: Xdo, window: Window, button: c_int) -> c_int;
     fn xdo_mouse_up(xdo: Xdo, window: Window, button: c_int) -> c_int;
     fn xdo_move_mouse(xdo: Xdo, x: c_int, y: c_int, screen: c_int) -> c_int;
@@ -252,8 +251,17 @@ impl Mouse for Con {
                 unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
             Direction::Click => {
-                debug!("xdo_click_window with mouse button {button}");
-                unsafe { xdo_click_window(self.xdo, CURRENT_WINDOW, button) }
+                debug!("xdo_mouse_down with mouse button {button}");
+                // Don't use `xdo_mouse_click` here to avoid the bug with the delay
+                let res = unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) };
+                if res != XDO_SUCCESS {
+                    error!("xdo mouse call returned error code {res}");
+                    return Err(InputError::Simulate("unable to enter mouse button via xdo"));
+                }
+                self.sync_display()?;
+
+                debug!("xdo_mouse_up with mouse button {button}");
+                unsafe { xdo_mouse_up(self.xdo, CURRENT_WINDOW, button) }
             }
         };
         if res != XDO_SUCCESS {
