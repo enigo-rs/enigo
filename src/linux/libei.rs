@@ -573,172 +573,260 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        if let Some((device, device_data)) = self
+        // Find a device that exposes a keyboard interface
+        let (device, device_data) = self
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-        {
-            if let Some((keyboard, keymap)) = self.keyboards.iter().next() {
-                let keycode = key_to_keycode(keymap, key)?;
+            .ok_or_else(|| {
+                InputError::Simulate(
+                    "cannot simulate key event: no device implementing the `ei::Keyboard` \
+                    interface was found on any connected device",
+                )
+            })?;
 
-                if !keyboard.is_alive() {
-                    return Err(InputError::Simulate("ei::Keyboard is no longer alive"));
-                }
+        // Find the first available keyboard keymap
+        let (keyboard, keymap) = self.keyboards.iter().next().ok_or_else(|| {
+            InputError::Simulate(
+                "cannot simulate key event: no keyboard keymap available (no `ei::Keyboard` \
+                    object registered in the connection)",
+            )
+        })?;
 
-                if direction == Direction::Press || direction == Direction::Click {
-                    keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+        // Map the Key to a keycode using the retrieved keymap
+        let keycode = key_to_keycode(keymap, key).map_err(|e| {
+            error! {"{e}"};
+            InputError::InvalidInput(
+                "failed to map the requested key to a keycode: the provided key is not mapped in \
+                 the current xkb keymap",
+            )
+        })?;
 
-                    // It is a client bug to send more than one key request for the same key within
-                    // the same ei_device.frame and the EIS implementation may ignore either or all
-                    // key state changes and/or disconnect the client
-                    // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_keyboard/index.html#ei_keyboardkey).
-                    // That's why we need to call frame for the press and the release
-                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-                    device.frame(self.sequence, elapsed);
-                    self.sequence = self.sequence.wrapping_add(1);
-                }
-                if direction == Direction::Release || direction == Direction::Click {
-                    keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
-
-                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-                    device.frame(self.sequence, elapsed);
-                    self.sequence = self.sequence.wrapping_add(1);
-                }
-
-                self.update("enigo").map_err(|_| {
-                    InputError::Simulate("unable to update the libei connection to scroll")
-                })?;
-            }
+        // Ensure the keyboard object is still alive
+        if !keyboard.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate key event: the `ei::Keyboard` object is no longer alive",
+            ));
         }
+
+        // Press
+        if direction == Direction::Press || direction == Direction::Click {
+            keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+
+            // It is a client bug to send more than one key request for the same key within
+            // the same ei_device.frame and the EIS implementation may ignore either or all
+            // key state changes and/or disconnect the client
+            // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_keyboard/index.html#ei_keyboardkey).
+            // That's why we need to call frame for the press and the release
+            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+            device.frame(self.sequence, elapsed);
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+
+        // Release
+        if direction == Direction::Release || direction == Direction::Click {
+            keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
+
+            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+            device.frame(self.sequence, elapsed);
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+
+        self.update("enigo").map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending key events: the update call \
+                 returned an error",
+            )
+        })?;
+
         Ok(())
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         let keycode = keycode as u32;
 
-        if let Some((device, device_data)) = self
+        // Find a device that exposes a keyboard interface
+        let (device, device_data) = self
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-        {
-            let keyboard = device_data.interface::<ei::Keyboard>().unwrap();
-            if !keyboard.is_alive() {
-                return Err(InputError::Simulate("ei::Keyboard is no longer alive"));
-            }
-
-            if direction == Direction::Press || direction == Direction::Click {
-                keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
-            }
-            if direction == Direction::Release || direction == Direction::Click {
-                keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
-            }
-
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-            device.frame(self.sequence, elapsed);
-            self.sequence = self.sequence.wrapping_add(1);
-            self.update("enigo").map_err(|_| {
-                InputError::Simulate("unable to update the libei connection to scroll")
+            .ok_or_else(|| {
+                InputError::Simulate(
+                    "cannot simulate raw key event: no device implementing the `ei::Keyboard` \
+                    interface was found on any connected device",
+                )
             })?;
+
+        // Acquire the keyboard interface object from the device data
+        let keyboard = device_data.interface::<ei::Keyboard>().ok_or_else(|| {
+            InputError::Simulate(
+                "cannot simulate raw key event: device lost its `ei::Keyboard` interface before \
+                 the request could be sent",
+            )
+        })?;
+
+        if !keyboard.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate raw key event: the `ei::Keyboard` interface is no longer alive",
+            ));
         }
+
+        // Press
+        if direction == Direction::Press || direction == Direction::Click {
+            keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+        }
+
+        // Release
+        if direction == Direction::Release || direction == Direction::Click {
+            keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
+        }
+
+        let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+
+        device.frame(self.sequence, elapsed);
+        self.sequence = self.sequence.wrapping_add(1);
+
+        self.update("enigo").map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending raw key events: the update \
+                 call returned an error",
+            )
+        })?;
+
         Ok(())
     }
 }
 
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
-        if let Some((device, device_data)) = self
+        let (device, device_data) = self
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Button>().is_some())
-        {
-            // Do nothing if one of the mouse scroll buttons was released
-            // Releasing one of the scroll mouse buttons has no effect
-            if direction == Direction::Release {
-                match button {
-                    Button::Left
-                    | Button::Right
-                    | Button::Back
-                    | Button::Forward
-                    | Button::Middle => {}
-                    Button::ScrollDown
-                    | Button::ScrollUp
-                    | Button::ScrollRight
-                    | Button::ScrollLeft => return Ok(()),
+            .ok_or_else(|| {
+                InputError::Simulate(
+                    "cannot simulate button event: no device implementing the `ei::Button` \
+                    interface was found on any connected device",
+                )
+            })?;
+
+        // Do nothing if one of the mouse scroll buttons was released
+        // Releasing one of the scroll mouse buttons has no effect
+        if direction == Direction::Release {
+            match button {
+                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
+                Button::ScrollDown
+                | Button::ScrollUp
+                | Button::ScrollRight
+                | Button::ScrollLeft => {
+                    return Ok(());
                 }
             }
-
-            let button = match button {
-                // Taken from /linux/input-event-codes.h
-                Button::Left => 0x110,
-                Button::Right => 0x111,
-                Button::Back => 0x116,
-                Button::Forward => 0x115,
-                Button::Middle => 0x112,
-                Button::ScrollDown => return self.scroll(1, Axis::Vertical),
-                Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
-                Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
-                Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
-            };
-
-            let vp = device_data.interface::<ei::Button>().unwrap();
-            if !vp.is_alive() {
-                return Err(InputError::Simulate("ei::Button is no longer alive"));
-            }
-
-            if direction == Direction::Press || direction == Direction::Click {
-                trace!("vp.button({button}, ei::button::ButtonState::Pressed)");
-                vp.button(button, ei::button::ButtonState::Press);
-                // self.update("enigo");
-                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-                device.frame(self.sequence, elapsed);
-                self.sequence = self.sequence.wrapping_add(1);
-            }
-
-            if direction == Direction::Release || direction == Direction::Click {
-                trace!("vp.button({button}, ei::button::ButtonState::Released)");
-                vp.button(button, ei::button::ButtonState::Released);
-                // self.update("enigo");
-                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-                device.frame(self.sequence, elapsed);
-                self.sequence = self.sequence.wrapping_add(1);
-            }
-            self.update("enigo").map_err(|_| {
-                InputError::Simulate("unable to update the libei connection to simulate a button")
-            })?;
         }
+
+        let button = match button {
+            // Taken from /linux/input-event-codes.h
+            Button::Left => 0x110,
+            Button::Right => 0x111,
+            Button::Back => 0x116,
+            Button::Forward => 0x115,
+            Button::Middle => 0x112,
+            Button::ScrollDown => return self.scroll(1, Axis::Vertical),
+            Button::ScrollUp => return self.scroll(-1, Axis::Vertical),
+            Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
+            Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
+        };
+
+        let vp = device_data.interface::<ei::Button>().ok_or_else(|| {
+            InputError::Simulate(
+                "cannot simulate button event: the device lost its `ei::Button` interface \
+                 before the operation could be performed",
+            )
+        })?;
+
+        if !vp.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate button event: the `ei::Button` interface is no longer alive",
+            ));
+        }
+
+        if direction == Direction::Press || direction == Direction::Click {
+            trace!("vp.button({button}, ei::button::ButtonState::Press)");
+            vp.button(button, ei::button::ButtonState::Press);
+            // self.update("enigo");
+            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+            device.frame(self.sequence, elapsed);
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+
+        if direction == Direction::Release || direction == Direction::Click {
+            trace!("vp.button({button}, ei::button::ButtonState::Released)");
+            vp.button(button, ei::button::ButtonState::Released);
+            // self.update("enigo");
+            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+            device.frame(self.sequence, elapsed);
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+
+        self.update("enigo").map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending button events: the update call \
+                 returned an error",
+            )
+        })?;
+
         Ok(())
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         #[allow(clippy::cast_precision_loss)]
         let (x, y) = (x as f32, y as f32);
+
         match coordinate {
             Coordinate::Rel => {
                 trace!("vp.motion_relative({x}, {y})");
-                if let Some((device, device_data)) = self
+                let (device, device_data) = self
                     .devices
                     .iter()
                     .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
-                {
-                    let vp = device_data.interface::<ei::Pointer>().unwrap();
-                    if !vp.is_alive() {
-                        return Err(InputError::Simulate("ei::Pointer is no longer alive"));
-                    }
-                    vp.motion_relative(x, y);
-
-                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-                    device.frame(self.sequence, elapsed);
-                    self.sequence = self.sequence.wrapping_add(1);
-
-                    self.update("enigo").map_err(|_| {
+                    .ok_or_else(|| {
                         InputError::Simulate(
-                            "unable to update the libei connection to move the mouse",
+                            "cannot move mouse relatively: no device implementing the `ei::Pointer` \
+                             interface was found on any connected device",
                         )
                     })?;
-                    return Ok(());
+
+                let vp = device_data.interface::<ei::Pointer>().ok_or_else(|| {
+                    InputError::Simulate(
+                        "cannot move mouse relatively: the device lost its `ei::Pointer` \
+                         interface before the operation could be performed",
+                    )
+                })?;
+
+                if !vp.is_alive() {
+                    return Err(InputError::Simulate(
+                        "cannot move mouse relatively: the `ei::Pointer` interface is no longer alive",
+                    ));
                 }
+
+                vp.motion_relative(x, y);
+
+                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+
+                device.frame(self.sequence, elapsed);
+                self.sequence = self.sequence.wrapping_add(1);
+
+                self.update("enigo").map_err(|e| {
+                    error! {"{e}"};
+                    InputError::Simulate(
+                        "failed to update libei connection after sending relative pointer events: \
+                         the update call returned an error",
+                    )
+                })?;
+                Ok(())
             }
             Coordinate::Abs => {
                 if x < 0.0 || y < 0.0 {
@@ -746,69 +834,101 @@ impl Mouse for Con {
                         "the absolute coordinates cannot be negative",
                     ));
                 }
-                trace!("vp.motion_absolute({x}, {y}, u32::MAX, u32::MAX)");
-                if let Some((device, device_data)) = self.devices.iter().find(|(_, device_data)| {
-                    device_data.interface::<ei::PointerAbsolute>().is_some()
-                }) {
-                    let vp = device_data.interface::<ei::PointerAbsolute>().unwrap();
-                    if !vp.is_alive() {
-                        return Err(InputError::Simulate(
-                            "ei::PointerAbsolute is no longer alive",
-                        ));
-                    }
-                    vp.motion_absolute(x, y);
 
-                    let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+                trace!("vp.motion_absolute({x}, {y})");
 
-                    device.frame(self.sequence, elapsed);
-                    self.sequence = self.sequence.wrapping_add(1);
-
-                    self.update("enigo").map_err(|_| {
+                // Find a device exposing the absolute pointer interface
+                let (device, device_data) = self
+                    .devices
+                    .iter()
+                    .find(|(_, device_data)| {
+                        device_data.interface::<ei::PointerAbsolute>().is_some()
+                    })
+                    .ok_or_else(|| {
                         InputError::Simulate(
-                            "unable to update the libei connection to move the mouse",
+                            "cannot move mouse absolutely: no device implementing the \
+                             `ei::PointerAbsolute` interface was found on any connected device",
                         )
                     })?;
-                    return Ok(());
+
+                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or_else(|| {
+                    InputError::Simulate(
+                        "cannot move mouse absolutely: the device lost its `ei::PointerAbsolute` \
+                         interface before the operation could be performed",
+                    )
+                })?;
+
+                if !vp.is_alive() {
+                    return Err(InputError::Simulate(
+                        "cannot move mouse absolutely: the `ei::PointerAbsolute` interface is no longer alive",
+                    ));
                 }
+                vp.motion_absolute(x, y);
+
+                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+
+                device.frame(self.sequence, elapsed);
+                self.sequence = self.sequence.wrapping_add(1);
+
+                self.update("enigo").map_err(|e| {
+                    error! {"{e}"};
+                    InputError::Simulate(
+                        "failed to update libei connection after sending absolute pointer events: \
+                         the update call returned an error",
+                    )
+                })?;
+                Ok(())
             }
         }
-        // TODO: Improve the error
-        Err(InputError::Simulate(
-            "None of the devices implements the move mouse interface so there is no way to move it",
-        ))
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         #[allow(clippy::cast_precision_loss)]
         let length = length as f32;
-        if let Some((device, device_data)) = self
+
+        let (device, device_data) = self
             .devices
             .iter()
             .find(|(_, device_data)| device_data.interface::<ei::Scroll>().is_some())
-        {
-            let (x, y) = match axis {
-                Axis::Horizontal => (length, 0.0),
-                Axis::Vertical => (0.0, length),
-            };
-            trace!("vp.scroll({x}, {y})");
-            let vp = device_data.interface::<ei::Scroll>().unwrap();
-            if !vp.is_alive() {
-                return Err(InputError::Simulate("ei::Scroll is no longer alive"));
-            }
-            vp.scroll(x, y);
-
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-            device.frame(self.sequence, elapsed);
-            self.sequence = self.sequence.wrapping_add(1);
-            self.update("enigo").map_err(|_| {
-                InputError::Simulate("unable to update the libei connection to scroll")
+            .ok_or_else(|| {
+                InputError::Simulate(
+                    "cannot scroll: no device implementing the `ei::Scroll` interface was found \
+                     on any connected device",
+                )
             })?;
-            return Ok(());
+
+        let (x, y) = match axis {
+            Axis::Horizontal => (length, 0.0),
+            Axis::Vertical => (0.0, length),
+        };
+        trace!("vp.scroll({x}, {y})");
+
+        let vp = device_data.interface::<ei::Scroll>().ok_or_else(|| {
+            InputError::Simulate(
+                "cannot scroll: the device lost its `ei::Scroll` interface before the operation \
+                 could be performed",
+            )
+        })?;
+
+        if !vp.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot scroll: the `ei::Scroll` interface is no longer alive",
+            ));
         }
-        Err(InputError::Simulate(
-            "None of the devices implements the Scroll interface so there is no way to scroll",
-        ))
+        vp.scroll(x, y);
+
+        let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
+
+        device.frame(self.sequence, elapsed);
+        self.sequence = self.sequence.wrapping_add(1);
+        self.update("enigo").map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending scroll events: the update call \
+                 returned an error",
+            )
+        })?;
+        Ok(())
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
@@ -816,7 +936,9 @@ impl Mouse for Con {
         error!(
             "You tried to get the dimensions of the main display. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
         );
-        Err(InputError::Simulate("Not implemented yet"))
+        Err(InputError::Simulate(
+            "main_display is not implemented: Wayland does not provide a protocol to query the main display size",
+        ))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
@@ -824,7 +946,9 @@ impl Mouse for Con {
         error!(
             "You tried to get the mouse location. I don't know how this is possible under Wayland. Let me know if there is a new protocol"
         );
-        Err(InputError::Simulate("Not implemented yet"))
+        Err(InputError::Simulate(
+            "location is not implemented: Wayland does not provide a protocol to query the global pointer location",
+        ))
     }
 }
 
@@ -835,7 +959,7 @@ impl Drop for Con {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
                 && device_data.state == DeviceState::Emulating
         }) {
-            debug!("DROPPED");
+            debug!("stopping emulation for device during Drop");
             device.stop_emulating(self.last_serial);
             self.last_serial = self.last_serial.wrapping_add(1);
         }
@@ -860,6 +984,5 @@ fn key_to_keycode(keymap: &xkb::Keymap, key: Key) -> InputResult<Keycode> {
             }
         }
     }
-    // Panics if the keysym was not mapped
     keycode.ok_or(crate::InputError::InvalidInput("Key is not mapped"))
 }
