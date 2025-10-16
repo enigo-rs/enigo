@@ -67,6 +67,7 @@ impl Drop for EnigoTest {
 
 impl Keyboard for EnigoTest {
     fn fast_text(&mut self, text: &str) -> enigo::InputResult<Option<()>> {
+        log::debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         let mut expected_text = text.to_string();
         self.enigo.text(text).expect("failed to simulate text()");
 
@@ -95,6 +96,7 @@ impl Keyboard for EnigoTest {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> enigo::InputResult<()> {
+        log::debug!("\x1b[93mkey(key: {key:?}, direction: {direction:?})\x1b[0m");
         let expected_key = key;
         let expected_directions = match direction {
             Direction::Press => vec![Direction::Press],
