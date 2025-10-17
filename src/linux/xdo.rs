@@ -179,7 +179,8 @@ impl Keyboard for Con {
             ));
         };
         debug!("xdo_enter_text_window with string {string:?}");
-        let res = unsafe { xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 0) };
+        let res =
+            unsafe { xdo_enter_text_window(self.xdo, CURRENT_WINDOW, string.as_ptr(), 20_000) };
         if res != XDO_SUCCESS {
             error!("xdo_enter_text_window returned error code {res}");
             return Err(InputError::Simulate("unable to enter text via xdo"));
