@@ -110,20 +110,24 @@ impl Keyboard for EnigoTest {
         // The browser will send a press and release event for Direction::Click, so in
         // that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
-            let event = self.read_message().event;
-            let Event::Key {
-                timestamp,
-                key,
-                code,
-                key_code,
-                alt_key,
-                ctrl_key,
-                shift_key,
-                meta_key,
-                direction,
-            } = event
+            let browser_event = self.read_message();
+            let BrowserEvent {
+                text,
+                event:
+                    Event::Key {
+                        timestamp,
+                        key,
+                        code,
+                        key_code,
+                        alt_key,
+                        ctrl_key,
+                        shift_key,
+                        meta_key,
+                        direction,
+                    },
+            } = browser_event
             else {
-                panic!("wrong event received: {event:?}")
+                panic!("wrong event received: {browser_event:?}")
             };
             let key = ron::from_str(&code)
                 // TODO: Check if this is a good idea
@@ -131,7 +135,17 @@ impl Keyboard for EnigoTest {
                 // field does contain the correct value though. We cannot always use the "key"
                 // field, because it would make it impossible to differentiate left and right keys
                 // (e.g LControl from RControl)
+                .or_else(|_| decode_utf8_escaped(&key))
                 .or_else(|_| ron::from_str(&key))
+                // Firefox returns an event with an empty code and key field on windows. The only
+                // way to check if it was successful is by checking text
+                .or_else(|_| {
+                    if direction == Direction::Release {
+                        decode_utf8_escaped(&text)
+                    } else {
+                        Err(())
+                    }
+                })
                 .expect("failed to deserialize key");
 
             let keys_equal = matches!(
@@ -305,5 +319,98 @@ fn mouse_position() -> (i32, i32) {
     match Mouse::get_mouse_position() {
         Mouse::Position { x, y } => (x, y),
         _ => panic!("Unable to get the mouse position"),
+    }
+}
+
+fn decode_utf8_escaped(input: &str) -> Result<Key, ()> {
+    // Fast path: detect \xNN style explicitly
+    if input.starts_with("\\x") {
+        // Parse a sequence like \xE2\x9D\xA4 into bytes
+        let mut bytes = Vec::new();
+        let mut chars = input.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            if c == '\\' && chars.peek() == Some(&'x') {
+                chars.next(); // skip 'x'
+
+                let h1 = chars.next().ok_or(())?;
+                let h2 = chars.next().ok_or(())?;
+
+                let hex = format!("{}{}", h1, h2);
+                let byte = u8::from_str_radix(&hex, 16).map_err(|_| ())?;
+                bytes.push(byte);
+            } else {
+                return Err(()); // invalid format
+            }
+        }
+
+        let string = String::from_utf8(bytes).map_err(|_| ())?;
+        let mut chars = string.chars();
+        let ch = chars.next().ok_or(())?;
+        if chars.next().is_none() {
+            return Ok(Key::Unicode(ch));
+        } else {
+            return Err(()); // More than one Unicode scalar
+        }
+    }
+
+    // Fallback: Let serde_json handle \uXXXX and normal escape rules
+    let json = format!("\"{}\"", input);
+    let string: String = serde_json::from_str(&json).map_err(|_| ())?;
+    let mut chars = string.chars();
+    let ch = chars.next().ok_or(())?;
+    if chars.next().is_some() {
+        return Err(());
+    }
+    Ok(Key::Unicode(ch))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_utf8_escaped;
+    use enigo::Key;
+
+    #[test]
+    fn test_single_ascii() {
+        assert_eq!(decode_utf8_escaped("A"), Ok(Key::Unicode('A')));
+    }
+
+    #[test]
+    fn test_hex_escape_ascii() {
+        assert_eq!(decode_utf8_escaped("\\x41"), Ok(Key::Unicode('A'))); // 0x41 = 'A'
+    }
+
+    #[test]
+    fn test_hex_escape_utf8_multibyte() {
+        assert_eq!(
+            decode_utf8_escaped("\\xE2\\x9D\\xA4"),
+            Ok(Key::Unicode('❤'))
+        ); // U+2764
+    }
+
+    #[test]
+    fn test_unicode_escape() {
+        assert_eq!(decode_utf8_escaped("\\u2764"), Ok(Key::Unicode('❤')));
+    }
+
+    #[test]
+    fn test_invalid_escape() {
+        assert_eq!(decode_utf8_escaped("\\xZZ"), Err(()));
+    }
+
+    #[test]
+    fn test_plain_string_multiple_chars() {
+        assert_eq!(decode_utf8_escaped("AB"), Err(()));
+    }
+
+    #[test]
+    fn test_combined_emoji_rejected() {
+        // "❤️" = U+2764 + U+FE0F → should be rejected under strict single-char rules
+        assert_eq!(decode_utf8_escaped("\\u2764\\uFE0F"), Err(()));
+    }
+
+    #[test]
+    fn test_empty_input() {
+        assert_eq!(decode_utf8_escaped(""), Err(()));
     }
 }
