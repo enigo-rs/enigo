@@ -151,10 +151,6 @@
                     break;
             }
 
-            // 🔹 Clear the textarea after each keyup
-            if (e.type === "keyup") {
-                textArea.value = "";
-            }
 
             const msg = { text, event: token };
             console.log("prepared message:", msg);
