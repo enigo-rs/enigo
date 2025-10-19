@@ -103,6 +103,8 @@ impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
+
+        self.wait();
         let (current_x, current_y) = self.location()?;
 
         if direction == Direction::Click || direction == Direction::Press {
@@ -184,6 +186,8 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
+
+        self.wait();
         let pressed = NSEvent::pressedMouseButtons();
         let (current_x, current_y) = self.location()?;
 
@@ -922,6 +926,12 @@ impl Enigo {
             + Duration::from_millis(20);
         self.last_event = (now, wait_time);
     }
+
+    /// Wait for the events to be processed and reset the last event
+    fn wait(&mut self) {
+        thread::sleep(self.last_event.1);
+        self.last_event = (Instant::now(), Duration::from_secs(0));
+    }
 }
 
 /// Converts a `Key` to a `CGKeyCode`
@@ -1176,7 +1186,6 @@ impl Drop for Enigo {
         // This sleep is needed because all events that have not been
         // processed until this point would just get ignored when the
         // struct is dropped
-        self.update_wait_time();
-        thread::sleep(self.last_event.1.saturating_sub(Duration::from_millis(20)));
+        self.wait();
     }
 }
