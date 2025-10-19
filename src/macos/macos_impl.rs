@@ -351,6 +351,16 @@ impl Keyboard for Enigo {
                 debug!("special case for handling the BrightnessDown key");
                 self.special_keys(3, direction)?;
             }
+            /*
+            Key::CapsLock => {
+                debug!("special case for handling the CapsLock key");
+                self.special_keys(4, direction)?;
+            }
+            */
+            Key::Help => {
+                debug!("special case for handling the Help key");
+                self.special_keys(5, direction)?;
+            }
             Key::Power => {
                 debug!("special case for handling the Power key");
                 self.special_keys(6, direction)?;
@@ -359,7 +369,20 @@ impl Keyboard for Enigo {
                 debug!("special case for handling the VolumeMute key");
                 self.special_keys(7, direction)?;
             }
+            /*
+            Key::UpArrow => {
+                debug!("special case for handling the UpArrow key");
+                self.special_keys(8, direction)?;
+            }
+            Key::DownArrow => {
+                debug!("special case for handling the DownArrow key");
+                self.special_keys(9, direction)?;
+            }
 
+            Key::Numlock => {
+                debug!("special case for handling the Numlock key");
+                self.special_keys(10, direction)?;
+            }*/
             Key::ContrastUp => {
                 debug!("special case for handling the ContrastUp key");
                 self.special_keys(11, direction)?;
@@ -1020,6 +1043,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             | Key::MediaPlayPause
             | Key::MediaPrevTrack
             | Key::MediaRewind
+            //| Key::Numlock
             | Key::Power
             | Key::VidMirror => return Err(()),
         };
