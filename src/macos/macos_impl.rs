@@ -82,6 +82,9 @@ pub struct Enigo {
     // Instant when the last event was sent and the duration that needs to be waited for after that
     // instant to make sure all events were handled by the OS
     last_event: (Instant, Duration),
+    // List of the currently pressed mouse buttons so we can check if a button is currently pressed
+    // when moving the mouse to simulate a drag (we ignore scroll buttons here)
+    pressed_mouse_buttons: [(bool, Instant); 5],
     // The last location the mouse was programmatically moved to and then instant when it happened
     last_mouse_move: (CGPoint, Instant),
     // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is stabilized
@@ -207,23 +210,13 @@ impl Mouse for Enigo {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
 
-        let pressed = NSEvent::pressedMouseButtons();
+        let (event_type, button) = self.move_type();
         let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
             Coordinate::Abs => ((x, y), (current_x - x, current_y - y)),
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
-        };
-
-        let (event_type, button) = if pressed & 1 > 0 {
-            (CGEventType::LeftMouseDragged, CGMouseButton::Left)
-        } else if pressed & 2 > 0 {
-            (CGEventType::RightMouseDragged, CGMouseButton::Right)
-        } else {
-            (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button
-            // here is ignored so
-            // it can be anything
         };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
@@ -574,6 +567,9 @@ impl Enigo {
 
         let last_event = (Instant::now(), Duration::from_secs(0));
 
+        let old_instant = Instant::now() - Duration::from_millis(100);
+        let pressed_mouse_buttons = [(false, old_instant); 5];
+
         let event = CGEvent::new(event_source.clone())
             .map_err(|()| NewConError::EstablishCon("failed to create CGEvent"))?;
         let last_mouse_move = (event.location(), Instant::now());
@@ -585,6 +581,7 @@ impl Enigo {
             event_flags,
             double_click_delay,
             last_event,
+            pressed_mouse_buttons,
             last_mouse_move,
             last_mouse_click: [(0, Instant::now()); 9],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
@@ -970,6 +967,77 @@ impl Enigo {
             let event = CGEvent::new(self.event_source.clone())
                 .map_err(|()| InputError::Simulate("failed to create CGEvent"))?;
             Ok(event.location())
+        }
+    }
+
+    fn move_type(&self) -> (CGEventType, CGMouseButton) {
+        // Find the longest pressed mouse button
+        if let Some((idx, _)) = self
+            .pressed_mouse_buttons
+            .iter()
+            .enumerate()
+            .filter(|(idx, (pressed, _))| *pressed)
+            .min_by_key(|(_, (_, ts))| *ts)
+        {
+            let event_type = match idx {
+                0 => (CGEventType::LeftMouseDragged, CGMouseButton::Left),
+                1 => (CGEventType::RightMouseDragged, CGMouseButton::Right),
+                2 => (CGEventType::OtherMouseDragged, CGMouseButton::Center),
+                3 => (CGEventType::OtherMouseDragged, CGMouseButton(3)),
+                4 => (CGEventType::OtherMouseDragged, CGMouseButton(4)),
+                _ => {
+                    unreachable!("impossible button last clicked");
+                }
+            };
+            return event_type;
+        }
+
+        // Check if a button was recently released and the OS would falsely report it as
+        // pressed
+        if self
+            .pressed_mouse_buttons
+            .iter()
+            .any(|(_, ts)| ts.elapsed() < Duration::from_millis(60))
+        {
+            // No button is pressed *now*, but a state change was recent
+            // The mouse button here is ignored so it can be anything
+            return (CGEventType::MouseMoved, CGMouseButton::Left);
+        }
+
+        // Otherwise, fall back to the OS
+        let mask = NSEvent::pressedMouseButtons();
+        if mask == 0 {
+            // The mouse button here is ignored so it can be anything
+            return (CGEventType::MouseMoved, CGMouseButton::Left);
+        }
+
+        // Find the lowest-index pressed button
+        let idx = mask.trailing_zeros() as usize;
+        let button = CGMouseButton(idx);
+
+        let event_type = match idx {
+            0 => CGEventType::LeftMouseDragged,
+            1 => CGEventType::RightMouseDragged,
+            _ => CGEventType::OtherMouseDragged, // applies to 2..31
+        };
+
+        (event_type, button)
+    }
+
+    fn update_button_state(&mut self, button: Button, down: bool) {
+        let idx = match button {
+            Button::Left => 0,
+            Button::Right => 1,
+            Button::Middle => 2,
+            Button::Back => 3,
+            Button::Forward => 4,
+            _ => return, // scroll buttons not tracked
+        };
+
+        if down {
+            self.pressed_mouse_buttons[idx] = (true, Instant::now());
+        } else {
+            self.pressed_mouse_buttons[idx] = (false, Instant::now());
         }
     }
 

@@ -14,6 +14,7 @@
 - win: Extended keys can now be correctly simulated with the raw() function.
 - macos: `move_mouse` no longer needs a sleep.
 - macos: always get the current main display and not the main display when the `enigo` struct was created
+- macos: allow dragging all mouse buttons
 
 # 0.6.1
 ## Fixed
