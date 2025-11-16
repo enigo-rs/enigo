@@ -435,11 +435,10 @@ impl Keyboard for Enigo {
                 self.special_keys(23, direction)?;
             }
             _ => {
-                let Ok(keycode) = CGKeyCode::try_from(key) else {
-                    return Err(InputError::InvalidInput(
-                        "virtual keycodes on macOS have to fit into u16",
-                    ));
-                };
+                let keycode = CGKeyCode::try_from(key).map_err(|()| {
+                    InputError::InvalidInput("virtual keycodes on macOS have to fit into u16")
+                })?;
+
                 self.raw(keycode, direction)?;
             }
         }
@@ -1053,12 +1052,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
             Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()),
-            Key::Other(v) => {
-                let Ok(v) = u16::try_from(v) else {
-                    return Err(());
-                };
-                v
-            }
+            Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
             Key::BrightnessDown
             | Key::BrightnessUp
