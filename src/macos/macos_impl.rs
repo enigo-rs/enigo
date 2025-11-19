@@ -11,18 +11,15 @@ use core_foundation::{
     dictionary::{CFDictionary, CFDictionaryRef},
     string::{CFString, CFStringRef, UniChar},
 };
-use core_graphics::{
-    display::{CGDisplay, CGPoint},
-    event::{
-        CGEvent, CGEventFlags, CGEventRef, CGEventTapLocation, CGEventType, CGKeyCode,
-        CGMouseButton, CGScrollEventUnit, EventField, KeyCode, ScrollEventUnit,
-    },
-    event_source::{CGEventSource, CGEventSourceStateID},
-};
-use foreign_types_shared::ForeignTypeRef as _;
+use core_graphics::{display::CGDisplay, event::KeyCode};
 use log::{debug, error, info};
-use objc2::msg_send;
+use objc2::rc::Retained;
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
+use objc2_core_foundation::{CFRetained, CGPoint};
+use objc2_core_graphics::{
+    CGEvent, CGEventField, CGEventFlags, CGEventSource, CGEventSourceStateID, CGEventTapLocation,
+    CGEventType, CGKeyCode, CGMouseButton, CGScrollEventUnit,
+};
 use objc2_foundation::NSPoint;
 
 use crate::{
@@ -76,7 +73,7 @@ unsafe extern "C" {
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
-    event_source: CGEventSource,
+    event_source: CFRetained<CGEventSource>,
     display: CGDisplay,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     event_source_user_data: i64,
@@ -120,24 +117,35 @@ impl Mouse for Enigo {
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
 
-            let Ok(event) =
-                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-            else {
+            let event =
+                CGEvent::new_mouse_event(Some(&self.event_source), event_type, dest, button);
+
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to enter mouse button",
                 ));
-            };
+            }
 
             if let Some(button_number) = button_number {
-                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+                CGEvent::set_integer_value_field(
+                    event.as_deref(),
+                    CGEventField::MouseEventButtonNumber,
+                    button_number,
+                );
             }
-            event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-            event.set_integer_value_field(
-                EventField::EVENT_SOURCE_USER_DATA,
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::MouseEventClickState,
+                click_count,
+            );
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
                 self.event_source_user_data,
             );
-            event.set_flags(self.event_flags);
-            event.post(CGEventTapLocation::HID);
+
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
         if direction == Direction::Click || direction == Direction::Release {
@@ -159,24 +167,33 @@ impl Mouse for Enigo {
                 }
             };
             let dest = CGPoint::new(current_x as f64, current_y as f64);
-            let Ok(event) =
-                CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-            else {
+            let event =
+                CGEvent::new_mouse_event(Some(&self.event_source), event_type, dest, button);
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to enter mouse button",
                 ));
-            };
+            }
 
             if let Some(button_number) = button_number {
-                event.set_integer_value_field(EventField::MOUSE_EVENT_BUTTON_NUMBER, button_number);
+                CGEvent::set_integer_value_field(
+                    event.as_deref(),
+                    CGEventField::MouseEventButtonNumber,
+                    button_number,
+                );
             }
-            event.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, click_count);
-            event.set_integer_value_field(
-                EventField::EVENT_SOURCE_USER_DATA,
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::MouseEventClickState,
+                click_count,
+            );
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
                 self.event_source_user_data,
             );
-            event.set_flags(self.event_flags);
-            event.post(CGEventTapLocation::HID);
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
         Ok(())
@@ -204,43 +221,45 @@ impl Mouse for Enigo {
         };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
-        let Ok(event) =
-            CGEvent::new_mouse_event(self.event_source.clone(), event_type, dest, button)
-        else {
+        let event = CGEvent::new_mouse_event(Some(&self.event_source), event_type, dest, button);
+        if event.is_none() {
             return Err(InputError::Simulate(
                 "failed creating event to move the mouse",
             ));
-        };
+        }
 
         // Add information by how much the mouse was moved
-        event.set_integer_value_field(
-            core_graphics::event::EventField::MOUSE_EVENT_DELTA_X,
+        CGEvent::set_integer_value_field(
+            event.as_deref(),
+            CGEventField::MouseEventDeltaX,
             relative.0.into(),
         );
-        event.set_integer_value_field(
-            core_graphics::event::EventField::MOUSE_EVENT_DELTA_Y,
+        CGEvent::set_integer_value_field(
+            event.as_deref(),
+            CGEventField::MouseEventDeltaY,
             relative.1.into(),
         );
 
-        event.set_integer_value_field(
-            EventField::EVENT_SOURCE_USER_DATA,
+        CGEvent::set_integer_value_field(
+            event.as_deref(),
+            CGEventField::EventSourceUserData,
             self.event_source_user_data,
         );
-        event.set_flags(self.event_flags);
-        event.post(CGEventTapLocation::HID);
+        CGEvent::set_flags(event.as_deref(), self.event_flags);
+        CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
         self.update_wait_time();
         Ok(())
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
-        self.scroll_unit(length, ScrollEventUnit::LINE, axis)
+        self.scroll_unit(length, CGScrollEventUnit::Line, axis)
     }
 
     #[cfg(all(feature = "platform_specific", target_os = "macos"))]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
-        self.scroll_unit(length, ScrollEventUnit::PIXEL, axis)
+        self.scroll_unit(length, CGScrollEventUnit::Pixel, axis)
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
@@ -286,11 +305,12 @@ impl Keyboard for Enigo {
         // The CGEventKeyboardSetUnicodeString function (used inside of
         // event.set_string(chunk)) truncates strings down to 20 characters
         for mut chunk in chunks(text, 20) {
-            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), 0, true) else {
+            let event = CGEvent::new_keyboard_event(Some(&self.event_source), 0, true);
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to enter the text",
                 ));
-            };
+            }
             // WORKAROUND: This is a fix for issue https://github.com/enigo-rs/enigo/issues/260
             // This is needed to get rid of all leading line feed, tab and carriage return
             // characters. event.set_string(chunk)) silently fails if the chunk
@@ -314,14 +334,18 @@ impl Keyboard for Enigo {
                 break;
             }
 
-            event.set_string(chunk);
-            event.set_integer_value_field(
-                EventField::EVENT_SOURCE_USER_DATA,
+            let buf: Vec<u16> = chunk.encode_utf16().collect();
+            let buflen = buf.len() as core::ffi::c_ulong;
+            unsafe { CGEvent::keyboard_set_unicode_string(event.as_deref(), buflen, buf.as_ptr()) };
+
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
                 self.event_source_user_data,
             );
             // We want to ignore all modifiers when entering text
-            event.set_flags(CGEventFlags::CGEventFlagNull);
-            event.post(CGEventTapLocation::HID);
+            CGEvent::set_flags(event.as_deref(), CGEventFlags::empty());
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
         Ok(Some(()))
@@ -443,38 +467,40 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
         if direction == Direction::Click || direction == Direction::Press {
-            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, true)
-            else {
+            let event = CGEvent::new_keyboard_event(Some(&self.event_source), keycode, true);
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to press the key",
                 ));
-            };
+            }
 
-            event.set_integer_value_field(
-                EventField::EVENT_SOURCE_USER_DATA,
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
                 self.event_source_user_data,
             );
             self.add_event_flag(keycode, Direction::Press);
-            event.set_flags(self.event_flags);
-            event.post(CGEventTapLocation::HID);
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
 
         if direction == Direction::Click || direction == Direction::Release {
-            let Ok(event) = CGEvent::new_keyboard_event(self.event_source.clone(), keycode, false)
-            else {
+            let event = CGEvent::new_keyboard_event(Some(&self.event_source), keycode, false);
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to release the key",
                 ));
-            };
+            }
 
-            event.set_integer_value_field(
-                EventField::EVENT_SOURCE_USER_DATA,
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
                 self.event_source_user_data,
             );
             self.add_event_flag(keycode, Direction::Release);
-            event.set_flags(self.event_flags);
-            event.post(CGEventTapLocation::HID);
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
 
@@ -518,7 +544,7 @@ impl Enigo {
 
         let held = (Vec::new(), Vec::new());
 
-        let mut event_flags = CGEventFlags::CGEventFlagNonCoalesced;
+        let mut event_flags = CGEventFlags::MaskNonCoalesced;
         event_flags.set(CGEventFlags::from_bits_retain(0x2000_0000), true); // I don't know if this is needed or what this flag does. Correct events have it
         // set so we also do it (until we know it is wrong)
 
@@ -532,7 +558,7 @@ impl Enigo {
         } else {
             CGEventSourceStateID::CombinedSessionState
         };
-        let Ok(event_source) = CGEventSource::new(event_source_state) else {
+        let Some(event_source) = CGEventSource::new(event_source_state) else {
             return Err(NewConError::EstablishCon("failed creating event source"));
         };
 
@@ -598,20 +624,21 @@ impl Enigo {
                 -1
             );
 
-            if let Some(event) = event {
-                let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
-                cg_event.set_integer_value_field(
-                    EventField::EVENT_SOURCE_USER_DATA,
-                    self.event_source_user_data,
-                );
-                cg_event.set_flags(self.event_flags);
-                cg_event.post(CGEventTapLocation::HID);
-                self.update_wait_time();
-            } else {
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to press special key",
                 ));
             }
+
+            let event = Self::ns_event_cg_event(event);
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
+                self.event_source_user_data,
+            );
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
+            self.update_wait_time();
         }
 
         if direction == Direction::Release || direction == Direction::Click {
@@ -627,28 +654,30 @@ impl Enigo {
                 -1
             );
 
-            if let Some(event) = event {
-                let cg_event = unsafe { Self::ns_event_cg_event(&event).to_owned() };
-                cg_event.set_integer_value_field(
-                    EventField::EVENT_SOURCE_USER_DATA,
-                    self.event_source_user_data,
-                );
-                cg_event.set_flags(self.event_flags);
-                cg_event.post(CGEventTapLocation::HID);
-                self.update_wait_time();
-            } else {
+            if event.is_none() {
                 return Err(InputError::Simulate(
                     "failed creating event to release special key",
                 ));
             }
+
+            let event = Self::ns_event_cg_event(event);
+            CGEvent::set_integer_value_field(
+                event.as_deref(),
+                CGEventField::EventSourceUserData,
+                self.event_source_user_data,
+            );
+            CGEvent::set_flags(event.as_deref(), self.event_flags);
+            CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
+            self.update_wait_time();
         }
 
         Ok(())
     }
 
-    unsafe fn ns_event_cg_event(event: &NSEvent) -> &CGEventRef {
-        let ptr: *mut c_void = unsafe { msg_send![event, CGEvent] };
-        unsafe { CGEventRef::from_ptr(ptr.cast()) }
+    fn ns_event_cg_event(event: Option<Retained<NSEvent>>) -> Option<Retained<CGEvent>> {
+        let event = event?;
+        let event_ref: &NSEvent = event.as_ref();
+        event_ref.CGEvent()
     }
 
     // TODO: Remove this once the values for KeyCode were upstreamed: https://github.com/servo/core-foundation-rs/pull/712
@@ -683,184 +712,184 @@ impl Enigo {
             KeyCode::RIGHT_COMMAND => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagCommand | NX_DEVICERCMDKEYMASK,
+                CGEventFlags::MaskCommand | NX_DEVICERCMDKEYMASK,
             ),
             KeyCode::COMMAND => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagCommand | NX_DEVICELCMDKEYMASK,
+                CGEventFlags::MaskCommand | NX_DEVICELCMDKEYMASK,
             ),
             KeyCode::SHIFT => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagShift | NX_DEVICELSHIFTKEYMASK,
+                CGEventFlags::MaskShift | NX_DEVICELSHIFTKEYMASK,
             ),
             KeyCode::CAPS_LOCK => (
                 CGEventFlags::toggle,
                 no_op,
-                CGEventFlags::CGEventFlagAlphaShift | NX_DEVICE_ALPHASHIFT_STATELESS_MASK, /* TODO: The NX_DEVICE_ALPHASHIFT_STATELESS_MASK did not get set when simulating CapsLock with the old implementation, but I'll go out on a limb and set it anyway. */
+                CGEventFlags::MaskAlphaShift | NX_DEVICE_ALPHASHIFT_STATELESS_MASK, /* TODO: The NX_DEVICE_ALPHASHIFT_STATELESS_MASK did not get set when simulating CapsLock with the old implementation, but I'll go out on a limb and set it anyway. */
             ),
             KeyCode::OPTION => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagAlternate | NX_DEVICELALTKEYMASK,
+                CGEventFlags::MaskAlternate | NX_DEVICELALTKEYMASK,
             ),
             KeyCode::CONTROL => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagControl | NX_DEVICELCTLKEYMASK,
+                CGEventFlags::MaskControl | NX_DEVICELCTLKEYMASK,
             ),
             KeyCode::RIGHT_SHIFT => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagShift | NX_DEVICERSHIFTKEYMASK,
+                CGEventFlags::MaskShift | NX_DEVICERSHIFTKEYMASK,
             ),
             KeyCode::RIGHT_OPTION => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagAlternate | NX_DEVICERALTKEYMASK,
+                CGEventFlags::MaskAlternate | NX_DEVICERALTKEYMASK,
             ),
             KeyCode::RIGHT_CONTROL => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagControl | NX_DEVICERCTLKEYMASK,
+                CGEventFlags::MaskControl | NX_DEVICERCTLKEYMASK,
             ),
             KeyCode::FUNCTION => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F17 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::ANSI_KEYPAD_DECIMAL => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_MULTIPLY => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_PLUS => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_CLEAR => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::ANSI_KEYPAD_DIVIDE => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_ENTER => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_MINUS => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::F18 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F19 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::ANSI_KEYPAD_EQUAL..=KeyCode::ANSI_KEYPAD_7 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::ANSI_KEYPAD_8..=KeyCode::ANSI_KEYPAD_9 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskNumericPad,
             ),
             KeyCode::F5..=KeyCode::F9 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F11 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F13..=KeyCode::F14 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F10 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F12 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::F15 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::HELP => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagHelp,
+                CGEventFlags::MaskSecondaryFn | CGEventFlags::MaskHelp,
             ),
             KeyCode::HOME..KeyCode::LEFT_ARROW => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             KeyCode::LEFT_ARROW..0x7f => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn | CGEventFlags::CGEventFlagNumericPad,
+                CGEventFlags::MaskSecondaryFn | CGEventFlags::MaskNumericPad,
             ),
             0x81..0x84 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             0x90 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             0x91 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             0xa0 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
             0xb0..0xb3 => (
                 CGEventFlags::insert,
                 CGEventFlags::remove,
-                CGEventFlags::CGEventFlagSecondaryFn,
+                CGEventFlags::MaskSecondaryFn,
             ),
-            _ => (no_op, no_op, CGEventFlags::CGEventFlagNull),
+            _ => (no_op, no_op, CGEventFlags::empty()),
         };
 
         let flag_fn = match direction {
@@ -887,23 +916,25 @@ impl Enigo {
             Axis::Vertical => (1, -length, 0),
         };
 
-        let Ok(event) = CGEvent::new_scroll_event(
-            self.event_source.clone(),
+        let event = CGEvent::new_scroll_wheel_event2(
+            Some(&self.event_source),
             scroll_event_unit,
             ax,
             len_x,
             len_y,
             0,
-        ) else {
+        );
+        if event.is_none() {
             return Err(InputError::Simulate("failed creating event to scroll"));
-        };
+        }
 
-        event.set_integer_value_field(
-            EventField::EVENT_SOURCE_USER_DATA,
+        CGEvent::set_integer_value_field(
+            event.as_deref(),
+            CGEventField::EventSourceUserData,
             self.event_source_user_data,
         );
-        event.set_flags(self.event_flags);
-        event.post(CGEventTapLocation::HID);
+        CGEvent::set_flags(event.as_deref(), self.event_flags);
+        CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
         self.update_wait_time();
         Ok(())
     }

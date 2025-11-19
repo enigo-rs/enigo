@@ -72,12 +72,18 @@ windows = { version = "0.62", features = [
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
 core-graphics = { version = "0.25", features = ["highsierra"] }
+objc2-core-graphics = { version = "0.3.2", features = [
+    "CGEventTypes",
+    "CGRemoteOperation",
+] }
 objc2 = { version = "0.6", features = ["relax-void-encoding"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
     "std",
     "NSEvent",
     "NSGraphicsContext",
+    "objc2-core-graphics",
 ] }
+objc2-core-foundation = { version = "0.3.2", features = ["CFCGTypes"] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
     "std",
     "objc2-core-foundation",
@@ -114,7 +120,7 @@ serde = { version = "1", features = ["derive"] }
 tungstenite = "0.28"
 url = "2"
 webbrowser = "1.0"
-ron = "0.11"
+ron = "0.12"
 serde_json = "1.0"
 strum = "0.27"
 strum_macros = "0.27"
