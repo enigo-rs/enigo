@@ -4,13 +4,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-use core_foundation::{
-    array::CFIndex,
-    base::{CFRelease, OSStatus, TCFType, UInt8, UInt16, UInt32},
-    data::{CFDataGetBytePtr, CFDataRef},
-    dictionary::{CFDictionary, CFDictionaryRef},
-    string::{CFString, CFStringRef, UniChar},
+use objc2_foundation::{
+    CFIndex,
+    NSData,
+    NSDictionary,
+    NSString,
+    OSStatus,
+    // You may still need TCFType/CFRelease depending on your APIs:
+    base::{CFRelease, TCFType, UInt8, UInt16, UInt32},
 };
+
+// CoreGraphics equivalents from objc2-core-graphics
+use objc2_core_graphics::{
+    CGEvent, CGEventFlags, CGEventRef, CGEventTapLocation, CGEventType, CGMouseButton,
+    CGScrollEventUnit,
+    display::CGDisplay,
+    event_source::{CGEventSource, CGEventSourceStateID},
+    geometry::CGPoint,
+};
+
 use core_graphics::{
     display::{CGDisplay, CGPoint},
     event::{
@@ -24,6 +36,13 @@ use log::{debug, error, info};
 use objc2::msg_send;
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType};
 use objc2_foundation::NSPoint;
+use objc2_foundation::{
+    CFIndex,
+    base::{CFRelease, OSStatus, TCFType, UInt8, UInt16, UInt32},
+    data::{CFDataGetBytePtr, CFDataRef},
+    dictionary::{CFDictionary, CFDictionaryRef},
+    string::{CFString, CFStringRef, UniChar},
+};
 
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
