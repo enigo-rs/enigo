@@ -74,7 +74,6 @@ unsafe extern "C" {
 /// The main struct for handling the event emitting
 pub struct Enigo {
     event_source: CFRetained<CGEventSource>,
-    display: CGDisplay,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     event_source_user_data: i64,
     release_keys_when_dropped: bool,
@@ -83,6 +82,11 @@ pub struct Enigo {
     // Instant when the last event was sent and the duration that needs to be waited for after that
     // instant to make sure all events were handled by the OS
     last_event: (Instant, Duration),
+    // List of the currently pressed mouse buttons so we can check if a button is currently pressed
+    // when moving the mouse to simulate a drag (we ignore scroll buttons here)
+    pressed_mouse_buttons: [(bool, Instant); 5],
+    // The last location the mouse was programmatically moved to and then instant when it happened
+    last_mouse_move: (CGPoint, Instant),
     // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is stabilized
     last_mouse_click: [(i64, Instant); 9], /* For each of the nine Button variants, we
                                             * store the last time the button was clicked and
@@ -100,7 +104,8 @@ impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
-        let (current_x, current_y) = self.location()?;
+
+        let dest = self.mouse_location()?;
 
         if direction == Direction::Click || direction == Direction::Press {
             let click_count = self.nth_button_press(button, Direction::Press);
@@ -115,7 +120,6 @@ impl Mouse for Enigo {
                 Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
                 Button::ScrollRight => return self.scroll(1, Axis::Horizontal),
             };
-            let dest = CGPoint::new(current_x as f64, current_y as f64);
 
             let event =
                 CGEvent::new_mouse_event(Some(&self.event_source), event_type, dest, button);
@@ -145,6 +149,8 @@ impl Mouse for Enigo {
             );
 
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            // No need to do self.update_event_location(&event) because it gets created with
+            // the correct coordinates
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -166,7 +172,7 @@ impl Mouse for Enigo {
                     return Ok(());
                 }
             };
-            let dest = CGPoint::new(current_x as f64, current_y as f64);
+
             let event =
                 CGEvent::new_mouse_event(Some(&self.event_source), event_type, dest, button);
             if event.is_none() {
@@ -193,6 +199,8 @@ impl Mouse for Enigo {
                 self.event_source_user_data,
             );
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            // No need to do self.update_event_location(&event) because it gets created with
+            // the correct coordinates
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -201,23 +209,14 @@ impl Mouse for Enigo {
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let pressed = NSEvent::pressedMouseButtons();
+
+        let (event_type, button) = self.move_type();
         let (current_x, current_y) = self.location()?;
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
             Coordinate::Abs => ((x, y), (current_x - x, current_y - y)),
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
-        };
-
-        let (event_type, button) = if pressed & 1 > 0 {
-            (CGEventType::LeftMouseDragged, CGMouseButton::Left)
-        } else if pressed & 2 > 0 {
-            (CGEventType::RightMouseDragged, CGMouseButton::Right)
-        } else {
-            (CGEventType::MouseMoved, CGMouseButton::Left) // The mouse button
-            // here is ignored so
-            // it can be anything
         };
 
         let dest = CGPoint::new(absolute.0 as f64, absolute.1 as f64);
@@ -246,7 +245,10 @@ impl Mouse for Enigo {
             self.event_source_user_data,
         );
         CGEvent::set_flags(event.as_deref(), self.event_flags);
+        // No need to do self.update_event_location(&event) because it gets created with
+        // the correct coordinates
         CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
+        self.last_mouse_move = (dest, Instant::now());
         self.update_wait_time();
         Ok(())
     }
@@ -264,17 +266,14 @@ impl Mouse for Enigo {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
-        Ok((
-            self.display.pixels_wide() as i32,
-            self.display.pixels_high() as i32,
-        ))
+        let display = CGDisplay::main();
+        Ok((display.pixels_wide() as i32, display.pixels_high() as i32))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        let pt = NSEvent::mouseLocation();
-        let (x, y_inv) = (pt.x as i32, pt.y as i32);
-        Ok((x, self.display.pixels_high() as i32 - y_inv))
+        let location = self.mouse_location()?;
+        Ok(location.x as i32, location.y as i32);
     }
 }
 
@@ -345,6 +344,7 @@ impl Keyboard for Enigo {
             );
             // We want to ignore all modifiers when entering text
             CGEvent::set_flags(event.as_deref(), CGEventFlags::empty());
+            // TODO: check if we have to do: self.update_event_location(&event);
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -437,11 +437,10 @@ impl Keyboard for Enigo {
                 self.special_keys(23, direction)?;
             }
             _ => {
-                let Ok(keycode) = CGKeyCode::try_from(key) else {
-                    return Err(InputError::InvalidInput(
-                        "virtual keycodes on macOS have to fit into u16",
-                    ));
-                };
+                let keycode = CGKeyCode::try_from(key).map_err(|()| {
+                    InputError::InvalidInput("virtual keycodes on macOS have to fit into u16")
+                })?;
+
                 self.raw(keycode, direction)?;
             }
         }
@@ -481,6 +480,7 @@ impl Keyboard for Enigo {
             );
             self.add_event_flag(keycode, Direction::Press);
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            self.update_event_location(&event);
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -500,6 +500,7 @@ impl Keyboard for Enigo {
             );
             self.add_event_flag(keycode, Direction::Release);
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            self.update_event_location(&event);
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -565,14 +566,23 @@ impl Enigo {
         debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
         let last_event = (Instant::now(), Duration::from_secs(0));
+
+        let old_instant = Instant::now() - Duration::from_millis(100);
+        let pressed_mouse_buttons = [(false, old_instant); 5];
+
+        let event = CGEvent::new(event_source.clone())
+            .map_err(|()| NewConError::EstablishCon("failed to create CGEvent"))?;
+        let last_mouse_move = (event.location(), Instant::now());
+
         Ok(Enigo {
             event_source,
-            display: CGDisplay::main(),
             held,
             release_keys_when_dropped: *release_keys_when_dropped,
             event_flags,
             double_click_delay,
             last_event,
+            pressed_mouse_buttons,
+            last_mouse_move,
             last_mouse_click: [(0, Instant::now()); 9],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
         })
@@ -622,7 +632,8 @@ impl Enigo {
                 8,
                 (code << 16) | (0xa << 8),
                 -1
-            );
+            )
+            .ok_or(InputError::Simulate("failed creating event to press special key"))?;
 
             if event.is_none() {
                 return Err(InputError::Simulate(
@@ -637,6 +648,7 @@ impl Enigo {
                 self.event_source_user_data,
             );
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            self.update_event_location(&cg_event);
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -652,7 +664,7 @@ impl Enigo {
                 8,
                 (code << 16) | (0xb << 8),
                 -1
-            );
+            ).ok_or(InputError::Simulate("failed creating event to release special key"))?;
 
             if event.is_none() {
                 return Err(InputError::Simulate(
@@ -667,6 +679,7 @@ impl Enigo {
                 self.event_source_user_data,
             );
             CGEvent::set_flags(event.as_deref(), self.event_flags);
+            self.update_event_location(&cg_event);
             CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
             self.update_wait_time();
         }
@@ -934,9 +947,107 @@ impl Enigo {
             self.event_source_user_data,
         );
         CGEvent::set_flags(event.as_deref(), self.event_flags);
+        self.update_event_location(&event);
         CGEvent::post(CGEventTapLocation::HIDEventTap, event.as_deref());
         self.update_wait_time();
         Ok(())
+    }
+
+    // Moving the mouse programmatically takes a few milli seconds. In order to
+    // avoid sleeping until all events are processed, we internally keep track of
+    // where the mouse was last moved to programmatically and return that location
+    // if the mouse move happened within the last few milliseconds. If it has been
+    // more than that, we query the current mouse location. That is because the user
+    // might have moved the mouse since then
+    fn mouse_location(&self) -> InputResult<CGPoint> {
+        let last_time = self.last_mouse_move.1;
+        if last_time.elapsed() < Duration::from_millis(60) {
+            Ok(self.last_mouse_move.0)
+        } else {
+            let event = CGEvent::new(self.event_source.clone())
+                .map_err(|()| InputError::Simulate("failed to create CGEvent"))?;
+            Ok(event.location())
+        }
+    }
+
+    fn move_type(&self) -> (CGEventType, CGMouseButton) {
+        // Find the longest pressed mouse button
+        if let Some((idx, _)) = self
+            .pressed_mouse_buttons
+            .iter()
+            .enumerate()
+            .filter(|(idx, (pressed, _))| *pressed)
+            .min_by_key(|(_, (_, ts))| *ts)
+        {
+            let event_type = match idx {
+                0 => (CGEventType::LeftMouseDragged, CGMouseButton::Left),
+                1 => (CGEventType::RightMouseDragged, CGMouseButton::Right),
+                2 => (CGEventType::OtherMouseDragged, CGMouseButton::Center),
+                3 => (CGEventType::OtherMouseDragged, CGMouseButton(3)),
+                4 => (CGEventType::OtherMouseDragged, CGMouseButton(4)),
+                _ => {
+                    unreachable!("impossible button last clicked");
+                }
+            };
+            return event_type;
+        }
+
+        // Check if a button was recently released and the OS would falsely report it as
+        // pressed
+        if self
+            .pressed_mouse_buttons
+            .iter()
+            .any(|(_, ts)| ts.elapsed() < Duration::from_millis(60))
+        {
+            // No button is pressed *now*, but a state change was recent
+            // The mouse button here is ignored so it can be anything
+            return (CGEventType::MouseMoved, CGMouseButton::Left);
+        }
+
+        // Otherwise, fall back to the OS
+        let mask = NSEvent::pressedMouseButtons();
+        if mask == 0 {
+            // The mouse button here is ignored so it can be anything
+            return (CGEventType::MouseMoved, CGMouseButton::Left);
+        }
+
+        // Find the lowest-index pressed button
+        let idx = mask.trailing_zeros() as usize;
+        let button = CGMouseButton(idx);
+
+        let event_type = match idx {
+            0 => CGEventType::LeftMouseDragged,
+            1 => CGEventType::RightMouseDragged,
+            _ => CGEventType::OtherMouseDragged, // applies to 2..31
+        };
+
+        (event_type, button)
+    }
+
+    fn update_button_state(&mut self, button: Button, down: bool) {
+        let idx = match button {
+            Button::Left => 0,
+            Button::Right => 1,
+            Button::Middle => 2,
+            Button::Back => 3,
+            Button::Forward => 4,
+            _ => return, // scroll buttons not tracked
+        };
+
+        if down {
+            self.pressed_mouse_buttons[idx] = (true, Instant::now());
+        } else {
+            self.pressed_mouse_buttons[idx] = (false, Instant::now());
+        }
+    }
+
+    // Manually update the location of an event if the OS did not yet have time to
+    // handle a simulated mouse move
+    fn update_event_location(&mut self, event: &CGEvent) {
+        let last_time = self.last_mouse_move.1;
+        if last_time.elapsed() < Duration::from_millis(60) {
+            event.set_location(self.last_mouse_move.0);
+        }
     }
 
     /// Save the current Instant and calculate the remaining waiting time
@@ -1030,12 +1141,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
             Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()),
-            Key::Other(v) => {
-                let Ok(v) = u16::try_from(v) else {
-                    return Err(());
-                };
-                v
-            }
+            Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
             Key::BrightnessDown
             | Key::BrightnessUp
@@ -1207,7 +1313,6 @@ impl Drop for Enigo {
         // This sleep is needed because all events that have not been
         // processed until this point would just get ignored when the
         // struct is dropped
-        self.update_wait_time();
-        thread::sleep(self.last_event.1.saturating_sub(Duration::from_millis(20)));
+        thread::sleep(self.last_event.1);
     }
 }
