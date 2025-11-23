@@ -1130,10 +1130,12 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
 fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
     let mut pressed_keycode = 0;
 
+    let layout = current_keyboard_layout().unwrap();
+
     // loop through every keycode (0 - 127)
     for keycode in 0..128 {
         // no modifier
-        if let Ok(key_string) = keycode_to_string(keycode, 0x100) {
+        if let Ok(key_string) = keycode_to_string(keycode, 0x100, layout) {
             // debug!("{:?}", string);
             if string == key_string {
                 pressed_keycode = keycode;
@@ -1141,7 +1143,7 @@ fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
         }
 
         // shift modifier
-        if let Ok(key_string) = keycode_to_string(keycode, 0x20102) {
+        if let Ok(key_string) = keycode_to_string(keycode, 0x20102, layout) {
             // debug!("{:?}", string);
             if string == key_string {
                 pressed_keycode = keycode;
@@ -1149,11 +1151,11 @@ fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
         }
 
         // alt modifier
-        // if let Some(string) = keycode_to_string(keycode, 0x80120) {
+        // if let Some(string) = keycode_to_string(keycode, 0x80120, layout) {
         //     debug!("{:?}", string);
         // }
         // alt + shift modifier
-        // if let Some(string) = keycode_to_string(keycode, 0xa0122) {
+        // if let Some(string) = keycode_to_string(keycode, 0xa0122, layout) {
         //     debug!("{:?}", string);
         // }
     }
@@ -1161,39 +1163,54 @@ fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
     pressed_keycode
 }
 
-fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
-    let mut current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
+fn current_keyboard_layout() -> Result<CFDataRef, String> {
+    let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
     let mut layout_data =
         unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
-    if layout_data.is_null() {
-        debug!(
-            "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL"
-        );
-        unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
-        // TISGetInputSourceProperty returns null with some keyboard layout.
-        // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
-        // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
-        current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
-        layout_data = unsafe {
-            TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
-        };
-        if layout_data.is_null() {
-            debug!(
-                "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
-            );
-            unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
-            current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
-            layout_data = unsafe {
-                TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
-            };
-            debug_assert!(!layout_data.is_null());
-            debug!("Using layout of the TISCopyCurrentASCIICapableKeyboardLayoutInputSource");
-        }
+    if !layout_data.is_null() {
+        return Ok(layout_data);
     }
 
-    let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
+    debug!(
+        "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL"
+    );
 
+    // TISGetInputSourceProperty returns null with some keyboard layout.
+    // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
+    // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
+    let current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
+    layout_data =
+        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
+    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+
+    if !layout_data.is_null() {
+        return Ok(layout_data);
+    }
+
+    debug!(
+        "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
+    );
+    let current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
+    let layout_data =
+        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
+    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+
+    if layout_data.is_null() {
+        Err("Failed to get the current keyboard layout".to_string())
+    } else {
+        debug!("Using layout of the TISCopyCurrentASCIICapableKeyboardLayoutInputSource");
+        Ok(layout_data)
+    }
+}
+
+fn keycode_to_string(
+    keycode: u16,
+    modifier: u32,
+    layout_data: CFDataRef,
+) -> Result<String, String> {
+    let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
     let mut keys_down: UInt32 = 0;
     let mut chars: [UniChar; 1] = [0];
     let mut real_length = 0;
@@ -1211,7 +1228,6 @@ fn keycode_to_string(keycode: u16, modifier: u32) -> Result<String, String> {
             chars.as_mut_ptr(),
         )
     };
-    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
     if status != 0 {
         error!("UCKeyTranslate failed with status: {status}");
