@@ -70,6 +70,13 @@ fn integration_browser_events() {
     enigo.move_mouse(20, -20, Rel).unwrap();
     enigo.move_mouse(-20, -20, Rel).unwrap();
 
+    // Ensure mouse events don't need a sleep afterwards to work
+    enigo.move_mouse(137, 59, Abs).unwrap();
+    enigo.key(Key::Return, Click).unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+    let (x, y) = enigo.location().unwrap();
+    assert_eq!((137, 59), (x, y));
+
     // Stalls on Windows, macOS and Linux with x11rb
     // enigo.scroll(1, Vertical).unwrap();
     // enigo.scroll(1, Horizontal).unwrap();
