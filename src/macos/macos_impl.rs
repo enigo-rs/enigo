@@ -1103,7 +1103,7 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
             Key::VolumeDown => KeyCode::VOLUME_DOWN,
             Key::VolumeUp => KeyCode::VOLUME_UP,
             Key::VolumeMute => KeyCode::MUTE,
-            Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()),
+            Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()).ok_or(())?,
             Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
             Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
             Key::BrightnessDown
@@ -1127,40 +1127,23 @@ impl TryFrom<Key> for core_graphics::event::CGKeyCode {
     }
 }
 
-fn get_layoutdependent_keycode(string: &str) -> CGKeyCode {
-    let mut pressed_keycode = 0;
+fn get_layoutdependent_keycode(string: &str) -> Option<CGKeyCode> {
+    let layout = current_keyboard_layout().ok()?;
+    let modifiers = [0x100, 0x20102]; // no modifiers, shift modifier (others: 0x80120 -> alt modifier, 0xa0122 -> alt + shift modifier)
 
-    let layout = current_keyboard_layout().unwrap();
-
-    // loop through every keycode (0 - 127)
+    // loop through every possible keycode (0 - 127)
     for keycode in 0..128 {
-        // no modifier
-        if let Ok(key_string) = keycode_to_string(keycode, 0x100, layout) {
-            // debug!("{:?}", string);
-            if string == key_string {
-                pressed_keycode = keycode;
+        for modifier in modifiers {
+            // no modifier
+            if let Ok(key_string) = keycode_to_string(keycode, modifier, layout) {
+                if string == key_string {
+                    return Some(keycode);
+                }
             }
         }
-
-        // shift modifier
-        if let Ok(key_string) = keycode_to_string(keycode, 0x20102, layout) {
-            // debug!("{:?}", string);
-            if string == key_string {
-                pressed_keycode = keycode;
-            }
-        }
-
-        // alt modifier
-        // if let Some(string) = keycode_to_string(keycode, 0x80120, layout) {
-        //     debug!("{:?}", string);
-        // }
-        // alt + shift modifier
-        // if let Some(string) = keycode_to_string(keycode, 0xa0122, layout) {
-        //     debug!("{:?}", string);
-        // }
     }
 
-    pressed_keycode
+    None
 }
 
 fn current_keyboard_layout() -> Result<CFDataRef, String> {
