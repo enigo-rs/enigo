@@ -72,7 +72,7 @@ windows = { version = "0.62", features = [
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
 core-graphics = { version = "0.25", features = ["highsierra"] }
-objc2-core-graphics = { version = "0.3.2", features = [
+objc2-core-graphics = { version = "0.3", features = [
     "CGEventTypes",
     "CGRemoteOperation",
 ] }
@@ -83,13 +83,14 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
     "NSGraphicsContext",
     "objc2-core-graphics",
 ] }
-objc2-core-foundation = { version = "0.3.2", features = ["CFCGTypes"] }
+objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
     "std",
     "objc2-core-foundation",
     "NSGeometry",
 ] }
 foreign-types-shared = "0.3"
+dispatch2 = "0.3"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"

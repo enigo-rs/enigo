@@ -7,7 +7,7 @@ use std::{
 use core_foundation::{
     array::CFIndex,
     base::{CFRelease, OSStatus, TCFType, UInt8, UInt16, UInt32},
-    data::{CFDataGetBytePtr, CFDataRef},
+    data::CFDataRef,
     dictionary::{CFDictionary, CFDictionaryRef},
     string::{CFString, CFStringRef, UniChar},
 };
@@ -97,6 +97,8 @@ pub struct Enigo {
                                             * determine double clicks and handle cases where
                                             * another button is clicked while the other one has
                                             * not yet been released */
+    has_run_loop: bool, /* main thread is running an event loop with dispatch_main,
+                         * UIApplicationMain, NSApplicationMain, CFRunLoop or similar */
 }
 
 // TODO: Double check this is safe
@@ -418,7 +420,7 @@ impl Keyboard for Enigo {
                 self.special_keys(23, direction)?;
             }
             _ => {
-                let keycode = CGKeyCode::try_from(key).map_err(|()| {
+                let keycode = try_from_key_to_cgkeycode(key, self.has_run_loop).map_err(|()| {
                     InputError::InvalidInput("virtual keycodes on macOS have to fit into u16")
                 })?;
 
@@ -514,6 +516,12 @@ impl Enigo {
             ..
         } = settings;
 
+        // Check if the dispatch2::run_on_main can be used
+        let (tx, rx) = std::sync::mpsc::channel();
+        dispatch2::DispatchQueue::main().exec_async(move || {
+            let _ = tx.send(());
+        });
+
         if !has_permission(*open_prompt_to_get_permissions) {
             error!("The application does not have the permission to simulate input!");
             return Err(NewConError::NoPermission);
@@ -554,6 +562,17 @@ impl Enigo {
             Instant::now(),
         );
 
+        // Give it a small timeout
+        let has_run_loop = rx
+            .recv_timeout(std::time::Duration::from_millis(10))
+            .is_ok();
+
+        if has_run_loop {
+            debug!("Main-thread runloop seems alive.");
+        } else {
+            debug!("Probably no active main-thread runloop.");
+        }
+
         debug!("\x1b[93mconnection established on macOS\x1b[0m");
 
         Ok(Enigo {
@@ -567,6 +586,7 @@ impl Enigo {
             last_mouse_move,
             last_mouse_click: [(0, Instant::now()); 9],
             event_source_user_data: event_source_user_data.unwrap_or(crate::EVENT_MARKER as i64),
+            has_run_loop,
         })
     }
 
@@ -1029,113 +1049,113 @@ impl Enigo {
     }
 }
 
-/// Converts a `Key` to a `CGKeyCode`
-impl TryFrom<Key> for core_graphics::event::CGKeyCode {
-    type Error = ();
-
-    #[allow(clippy::too_many_lines)]
-    fn try_from(key: Key) -> Result<Self, Self::Error> {
-        // A list of names is available at:
-        // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
-        // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
-        let key = match key {
-            Key::Add => KeyCode::ANSI_KEYPAD_PLUS,
-            Key::Alt | Key::Option => KeyCode::OPTION,
-            Key::Backspace => KeyCode::DELETE,
-            Key::CapsLock => KeyCode::CAPS_LOCK,
-            Key::Control | Key::LControl => KeyCode::CONTROL,
-            Key::Decimal => KeyCode::ANSI_KEYPAD_DECIMAL,
-            Key::Delete => KeyCode::FORWARD_DELETE,
-            Key::Divide => KeyCode::ANSI_KEYPAD_DIVIDE,
-            Key::DownArrow => KeyCode::DOWN_ARROW,
-            Key::End => KeyCode::END,
-            Key::Escape => KeyCode::ESCAPE,
-            Key::F1 => KeyCode::F1,
-            Key::F2 => KeyCode::F2,
-            Key::F3 => KeyCode::F3,
-            Key::F4 => KeyCode::F4,
-            Key::F5 => KeyCode::F5,
-            Key::F6 => KeyCode::F6,
-            Key::F7 => KeyCode::F7,
-            Key::F8 => KeyCode::F8,
-            Key::F9 => KeyCode::F9,
-            Key::F10 => KeyCode::F10,
-            Key::F11 => KeyCode::F11,
-            Key::F12 => KeyCode::F12,
-            Key::F13 => KeyCode::F13,
-            Key::F14 => KeyCode::F14,
-            Key::F15 => KeyCode::F15,
-            Key::F16 => KeyCode::F16,
-            Key::F17 => KeyCode::F17,
-            Key::F18 => KeyCode::F18,
-            Key::F19 => KeyCode::F19,
-            Key::F20 => KeyCode::F20,
-            Key::Function => KeyCode::FUNCTION,
-            Key::Help => KeyCode::HELP,
-            Key::Home => KeyCode::HOME,
-            Key::Launchpad => 131,
-            Key::LeftArrow => KeyCode::LEFT_ARROW,
-            Key::MissionControl => 160,
-            Key::Multiply => KeyCode::ANSI_KEYPAD_MULTIPLY,
-            Key::Numpad0 => KeyCode::ANSI_KEYPAD_0,
-            Key::Numpad1 => KeyCode::ANSI_KEYPAD_1,
-            Key::Numpad2 => KeyCode::ANSI_KEYPAD_2,
-            Key::Numpad3 => KeyCode::ANSI_KEYPAD_3,
-            Key::Numpad4 => KeyCode::ANSI_KEYPAD_4,
-            Key::Numpad5 => KeyCode::ANSI_KEYPAD_5,
-            Key::Numpad6 => KeyCode::ANSI_KEYPAD_6,
-            Key::Numpad7 => KeyCode::ANSI_KEYPAD_7,
-            Key::Numpad8 => KeyCode::ANSI_KEYPAD_8,
-            Key::Numpad9 => KeyCode::ANSI_KEYPAD_9,
-            Key::PageDown => KeyCode::PAGE_DOWN,
-            Key::PageUp => KeyCode::PAGE_UP,
-            Key::RCommand => KeyCode::RIGHT_COMMAND,
-            Key::RControl => KeyCode::RIGHT_CONTROL,
-            Key::Return => KeyCode::RETURN,
-            Key::RightArrow => KeyCode::RIGHT_ARROW,
-            Key::RShift => KeyCode::RIGHT_SHIFT,
-            Key::ROption => KeyCode::RIGHT_OPTION,
-            Key::Shift | Key::LShift => KeyCode::SHIFT,
-            Key::Space => KeyCode::SPACE,
-            Key::Subtract => KeyCode::ANSI_KEYPAD_MINUS,
-            Key::Tab => KeyCode::TAB,
-            Key::UpArrow => KeyCode::UP_ARROW,
-            Key::VolumeDown => KeyCode::VOLUME_DOWN,
-            Key::VolumeUp => KeyCode::VOLUME_UP,
-            Key::VolumeMute => KeyCode::MUTE,
-            Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string()).ok_or(())?,
-            Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
-            Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
-            Key::BrightnessDown
-            | Key::BrightnessUp
-            | Key::ContrastUp
-            | Key::ContrastDown
-            | Key::Eject
-            | Key::IlluminationDown
-            | Key::IlluminationUp
-            | Key::IlluminationToggle
-            | Key::LaunchPanel
-            | Key::MediaFast
-            | Key::MediaNextTrack
-            | Key::MediaPlayPause
-            | Key::MediaPrevTrack
-            | Key::MediaRewind
-            | Key::Power
-            | Key::VidMirror => return Err(()),
-        };
-        Ok(key)
-    }
+#[allow(clippy::too_many_lines)]
+fn try_from_key_to_cgkeycode(key: Key, has_run_loop: bool) -> Result<CGKeyCode, ()> {
+    // A list of names is available at:
+    // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
+    // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
+    let key = match key {
+        Key::Add => KeyCode::ANSI_KEYPAD_PLUS,
+        Key::Alt | Key::Option => KeyCode::OPTION,
+        Key::Backspace => KeyCode::DELETE,
+        Key::CapsLock => KeyCode::CAPS_LOCK,
+        Key::Control | Key::LControl => KeyCode::CONTROL,
+        Key::Decimal => KeyCode::ANSI_KEYPAD_DECIMAL,
+        Key::Delete => KeyCode::FORWARD_DELETE,
+        Key::Divide => KeyCode::ANSI_KEYPAD_DIVIDE,
+        Key::DownArrow => KeyCode::DOWN_ARROW,
+        Key::End => KeyCode::END,
+        Key::Escape => KeyCode::ESCAPE,
+        Key::F1 => KeyCode::F1,
+        Key::F2 => KeyCode::F2,
+        Key::F3 => KeyCode::F3,
+        Key::F4 => KeyCode::F4,
+        Key::F5 => KeyCode::F5,
+        Key::F6 => KeyCode::F6,
+        Key::F7 => KeyCode::F7,
+        Key::F8 => KeyCode::F8,
+        Key::F9 => KeyCode::F9,
+        Key::F10 => KeyCode::F10,
+        Key::F11 => KeyCode::F11,
+        Key::F12 => KeyCode::F12,
+        Key::F13 => KeyCode::F13,
+        Key::F14 => KeyCode::F14,
+        Key::F15 => KeyCode::F15,
+        Key::F16 => KeyCode::F16,
+        Key::F17 => KeyCode::F17,
+        Key::F18 => KeyCode::F18,
+        Key::F19 => KeyCode::F19,
+        Key::F20 => KeyCode::F20,
+        Key::Function => KeyCode::FUNCTION,
+        Key::Help => KeyCode::HELP,
+        Key::Home => KeyCode::HOME,
+        Key::Launchpad => 131,
+        Key::LeftArrow => KeyCode::LEFT_ARROW,
+        Key::MissionControl => 160,
+        Key::Multiply => KeyCode::ANSI_KEYPAD_MULTIPLY,
+        Key::Numpad0 => KeyCode::ANSI_KEYPAD_0,
+        Key::Numpad1 => KeyCode::ANSI_KEYPAD_1,
+        Key::Numpad2 => KeyCode::ANSI_KEYPAD_2,
+        Key::Numpad3 => KeyCode::ANSI_KEYPAD_3,
+        Key::Numpad4 => KeyCode::ANSI_KEYPAD_4,
+        Key::Numpad5 => KeyCode::ANSI_KEYPAD_5,
+        Key::Numpad6 => KeyCode::ANSI_KEYPAD_6,
+        Key::Numpad7 => KeyCode::ANSI_KEYPAD_7,
+        Key::Numpad8 => KeyCode::ANSI_KEYPAD_8,
+        Key::Numpad9 => KeyCode::ANSI_KEYPAD_9,
+        Key::PageDown => KeyCode::PAGE_DOWN,
+        Key::PageUp => KeyCode::PAGE_UP,
+        Key::RCommand => KeyCode::RIGHT_COMMAND,
+        Key::RControl => KeyCode::RIGHT_CONTROL,
+        Key::Return => KeyCode::RETURN,
+        Key::RightArrow => KeyCode::RIGHT_ARROW,
+        Key::RShift => KeyCode::RIGHT_SHIFT,
+        Key::ROption => KeyCode::RIGHT_OPTION,
+        Key::Shift | Key::LShift => KeyCode::SHIFT,
+        Key::Space => KeyCode::SPACE,
+        Key::Subtract => KeyCode::ANSI_KEYPAD_MINUS,
+        Key::Tab => KeyCode::TAB,
+        Key::UpArrow => KeyCode::UP_ARROW,
+        Key::VolumeDown => KeyCode::VOLUME_DOWN,
+        Key::VolumeUp => KeyCode::VOLUME_UP,
+        Key::VolumeMute => KeyCode::MUTE,
+        Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string(), has_run_loop).ok_or(())?,
+        Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
+        Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
+        Key::BrightnessDown
+        | Key::BrightnessUp
+        | Key::ContrastUp
+        | Key::ContrastDown
+        | Key::Eject
+        | Key::IlluminationDown
+        | Key::IlluminationUp
+        | Key::IlluminationToggle
+        | Key::LaunchPanel
+        | Key::MediaFast
+        | Key::MediaNextTrack
+        | Key::MediaPlayPause
+        | Key::MediaPrevTrack
+        | Key::MediaRewind
+        | Key::Power
+        | Key::VidMirror => return Err(()),
+    };
+    Ok(key)
 }
 
-fn get_layoutdependent_keycode(string: &str) -> Option<CGKeyCode> {
-    let layout = current_keyboard_layout().ok()?;
+fn get_layoutdependent_keycode(string: &str, has_run_loop: bool) -> Option<CGKeyCode> {
+    let layout = if has_run_loop {
+        dispatch2::run_on_main(|_| current_keyboard_layout())
+    } else {
+        current_keyboard_layout()
+    }
+    .ok()?;
     let modifiers = [0x100, 0x20102]; // no modifiers, shift modifier (others: 0x80120 -> alt modifier, 0xa0122 -> alt + shift modifier)
 
     // loop through every possible keycode (0 - 127)
     for keycode in 0..128 {
         for modifier in modifiers {
             // no modifier
-            if let Ok(key_string) = keycode_to_string(keycode, modifier, layout) {
+            if let Ok(key_string) = keycode_to_string(keycode, modifier, &layout) {
                 if string == key_string {
                     return Some(keycode);
                 }
@@ -1146,14 +1166,24 @@ fn get_layoutdependent_keycode(string: &str) -> Option<CGKeyCode> {
     None
 }
 
-fn current_keyboard_layout() -> Result<CFDataRef, String> {
+/// Must be executed on the main thread
+fn current_keyboard_layout() -> Result<Vec<u8>, String> {
+    #[inline]
+    fn cfdata_to_vec(d: CFDataRef) -> Vec<u8> {
+        unsafe {
+            let ptr = core_foundation::data::CFDataGetBytePtr(d);
+            let len = core_foundation::data::CFDataGetLength(d) as usize;
+            std::slice::from_raw_parts(ptr, len).to_vec()
+        }
+    }
+
     let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
     let mut layout_data =
         unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
     unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
     if !layout_data.is_null() {
-        return Ok(layout_data);
+        return Ok(cfdata_to_vec(layout_data));
     }
 
     debug!(
@@ -1169,7 +1199,7 @@ fn current_keyboard_layout() -> Result<CFDataRef, String> {
     unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
     if !layout_data.is_null() {
-        return Ok(layout_data);
+        return Ok(cfdata_to_vec(layout_data));
     }
 
     debug!(
@@ -1184,16 +1214,12 @@ fn current_keyboard_layout() -> Result<CFDataRef, String> {
         Err("Failed to get the current keyboard layout".to_string())
     } else {
         debug!("Using layout of the TISCopyCurrentASCIICapableKeyboardLayoutInputSource");
-        Ok(layout_data)
+        Ok(cfdata_to_vec(layout_data))
     }
 }
 
-fn keycode_to_string(
-    keycode: u16,
-    modifier: u32,
-    layout_data: CFDataRef,
-) -> Result<String, String> {
-    let keyboard_layout = unsafe { CFDataGetBytePtr(layout_data) };
+fn keycode_to_string(keycode: u16, modifier: u32, layout_data: &[u8]) -> Result<String, String> {
+    let keyboard_layout = layout_data.as_ptr();
     let mut keys_down: UInt32 = 0;
     let mut chars: [UniChar; 1] = [0];
     let mut real_length = 0;
