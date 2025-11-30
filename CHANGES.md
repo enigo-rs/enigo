@@ -17,6 +17,7 @@
 - macos: always get the current main display and not the main display when the `enigo` struct was created
 - macos: allow dragging all mouse buttons
 - macos: fix crash by executing TIS keyboard layout retrieval on the main thread
+- linux: retry with a different protocol when encountering an error
 
 # 0.6.1
 ## Fixed
