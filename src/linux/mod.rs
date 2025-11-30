@@ -139,13 +139,6 @@ impl Mouse for Enigo {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut success = false;
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try sending button event via libei");
-            con.button(button, direction)?;
-            debug!("sent button event via libei");
-            success = true;
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try sending button event via wayland");
@@ -160,6 +153,13 @@ impl Mouse for Enigo {
             debug!("sent button event via x11");
             success = true;
         }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try sending button event via libei");
+            con.button(button, direction)?;
+            debug!("sent button event via libei");
+            success = true;
+        }
         if success {
             debug!("sent button event");
             Ok(())
@@ -171,13 +171,6 @@ impl Mouse for Enigo {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let mut success = false;
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try moving the mouse via libei");
-            con.move_mouse(x, y, coordinate)?;
-            debug!("moved the mouse via libei");
-            success = true;
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try moving the mouse via wayland");
@@ -192,6 +185,13 @@ impl Mouse for Enigo {
             debug!("moved the mouse via x11");
             success = true;
         }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try moving the mouse via libei");
+            con.move_mouse(x, y, coordinate)?;
+            debug!("moved the mouse via libei");
+            success = true;
+        }
         if success {
             debug!("moved the mouse");
             Ok(())
@@ -203,13 +203,6 @@ impl Mouse for Enigo {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let mut success = false;
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try scrolling via libei");
-            con.scroll(length, axis)?;
-            debug!("scrolled via libei");
-            success = true;
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try scrolling via wayland");
@@ -224,6 +217,13 @@ impl Mouse for Enigo {
             debug!("scrolled via x11");
             success = true;
         }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try scrolling via libei");
+            con.scroll(length, axis)?;
+            debug!("scrolled via libei");
+            success = true;
+        }
         if success {
             debug!("scrolled");
             Ok(())
@@ -234,11 +234,6 @@ impl Mouse for Enigo {
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_ref() {
-            trace!("try getting the dimensions of the display via libei");
-            return con.main_display();
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the dimensions of the display via wayland");
@@ -249,16 +244,16 @@ impl Mouse for Enigo {
             trace!("try getting the dimensions of the display via x11");
             return con.main_display();
         }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_ref() {
+            trace!("try getting the dimensions of the display via libei");
+            return con.main_display();
+        }
         Err(InputError::Simulate("No protocol to enter the result"))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_ref() {
-            trace!("try getting the mouse location via libei");
-            return con.location();
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the mouse location via wayland");
@@ -269,6 +264,11 @@ impl Mouse for Enigo {
             trace!("try getting the mouse location via x11");
             return con.location();
         }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_ref() {
+            trace!("try getting the mouse location via libei");
+            return con.location();
+        }
         Err(InputError::Simulate("No protocol to enter the result"))
     }
 }
@@ -277,11 +277,6 @@ impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
 
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try entering text fast via libei");
-            con.text(text)?;
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
@@ -290,6 +285,11 @@ impl Keyboard for Enigo {
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering text fast via x11");
+            con.text(text)?;
+        }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try entering text fast via libei");
             con.text(text)?;
         }
         debug!("entered the text fast");
@@ -304,13 +304,6 @@ impl Keyboard for Enigo {
             return Ok(());
         }
 
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try entering the key via libei");
-            con.key(key, direction)?;
-            debug!("entered the key via libei");
-        }
-
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the key via wayland");
@@ -322,6 +315,12 @@ impl Keyboard for Enigo {
             trace!("try entering the key via x11");
             con.key(key, direction)?;
             debug!("entered the key via x11");
+        }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try entering the key via libei");
+            con.key(key, direction)?;
+            debug!("entered the key via libei");
         }
 
         match direction {
@@ -343,12 +342,6 @@ impl Keyboard for Enigo {
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try entering the keycode via libei");
-            con.raw(keycode, direction)?;
-            debug!("entered the keycode via libei");
-        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the keycode via wayland");
@@ -360,6 +353,12 @@ impl Keyboard for Enigo {
             trace!("try entering the keycode via x11");
             con.raw(keycode, direction)?;
             debug!("entered the keycode via x11");
+        }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try entering the keycode via libei");
+            con.raw(keycode, direction)?;
+            debug!("entered the keycode via libei");
         }
 
         match direction {

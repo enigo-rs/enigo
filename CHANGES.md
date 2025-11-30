@@ -1,5 +1,6 @@
 # Unreleased
 ## Changed
+- linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
 
 ## Added
 
