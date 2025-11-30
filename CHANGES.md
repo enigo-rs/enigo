@@ -15,6 +15,7 @@
 - macos: `move_mouse` no longer needs a sleep.
 - macos: always get the current main display and not the main display when the `enigo` struct was created
 - macos: allow dragging all mouse buttons
+- macos: fix crash by executing TIS keyboard layout retrieval on the main thread
 
 # 0.6.1
 ## Fixed
