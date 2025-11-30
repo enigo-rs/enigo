@@ -41,10 +41,27 @@ impl EnigoTest {
         use crate::common::browser_events::BrowserEventError;
 
         log::debug!("Waiting for message on Websocket");
-        let message = self
-            .websocket
-            .read()
-            .expect("failed to read from websocket");
+
+        let mut message = None;
+
+        for i in 0..3 {
+            match self.websocket.read() {
+                Ok(msg) => {
+                    message = Some(msg);
+                    break;
+                }
+                Err(tungstenite::error::Error::Io(e))
+                    if e.kind() == std::io::ErrorKind::WouldBlock =>
+                {
+                    log::debug!("No message yet, retrying...");
+                    std::thread::sleep(std::time::Duration::from_millis((i + 1) * 10));
+                }
+                Err(e) => panic!("failed to read from websocket: {:?}", e),
+            }
+        }
+
+        let message = message.expect("failed to read from websocket");
+
         log::debug!("Processing message");
 
         BrowserEvent::try_from(message).unwrap_or_else(|e| match e {
