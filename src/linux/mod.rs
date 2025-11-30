@@ -138,138 +138,171 @@ impl Enigo {
 impl Mouse for Enigo {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
-        let mut success = false;
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try sending button event via wayland");
-            con.button(button, direction)?;
-            debug!("sent button event via wayland");
-            success = true;
+            res = con.button(button, direction);
+            if res.is_ok() {
+                debug!("successfully sent button event via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try sending button event via x11");
-            con.button(button, direction)?;
-            debug!("sent button event via x11");
-            success = true;
+            res = con.button(button, direction);
+            if res.is_ok() {
+                debug!("successfully sent button event via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try sending button event via libei");
-            con.button(button, direction)?;
-            debug!("sent button event via libei");
-            success = true;
+            res = con.button(button, direction);
+            if res.is_ok() {
+                debug!("successfully sent button event via libei");
+                return res;
+            }
         }
-        if success {
-            debug!("sent button event");
-            Ok(())
-        } else {
-            Err(InputError::Simulate("No protocol to enter the result"))
-        }
+        res
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
-        let mut success = false;
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try moving the mouse via wayland");
-            con.move_mouse(x, y, coordinate)?;
-            debug!("moved the mouse via wayland");
-            success = true;
+            res = con.move_mouse(x, y, coordinate);
+            if res.is_ok() {
+                debug!("successfully moved the mouse via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try moving the mouse via x11");
-            con.move_mouse(x, y, coordinate)?;
-            debug!("moved the mouse via x11");
-            success = true;
+            res = con.move_mouse(x, y, coordinate);
+            if res.is_ok() {
+                debug!("successfully moved the mouse via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try moving the mouse via libei");
-            con.move_mouse(x, y, coordinate)?;
-            debug!("moved the mouse via libei");
-            success = true;
+            res = con.move_mouse(x, y, coordinate);
+            if res.is_ok() {
+                debug!("successfully moved the mouse via libei");
+                return res;
+            }
         }
-        if success {
-            debug!("moved the mouse");
-            Ok(())
-        } else {
-            Err(InputError::Simulate("No protocol to enter the result"))
-        }
+        res
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
-        let mut success = false;
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try scrolling via wayland");
-            con.scroll(length, axis)?;
-            debug!("scrolled via wayland");
-            success = true;
+            res = con.scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully scrolled via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try scrolling via x11");
-            con.scroll(length, axis)?;
-            debug!("scrolled via x11");
-            success = true;
+            res = con.scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully scrolled via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try scrolling via libei");
-            con.scroll(length, axis)?;
-            debug!("scrolled via libei");
-            success = true;
+            res = con.scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully scrolled via libei");
+                return res;
+            }
         }
-        if success {
-            debug!("scrolled");
-            Ok(())
-        } else {
-            Err(InputError::Simulate("No protocol to enter the result"))
-        }
+        res
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
+        let mut res = Err(InputError::Simulate(
+            "No protocol to get the main display dimensions",
+        ));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the dimensions of the display via wayland");
-            return con.main_display();
+            res = con.main_display();
+            if res.is_ok() {
+                debug!("successfully got the dimensions");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
             trace!("try getting the dimensions of the display via x11");
-            return con.main_display();
+            res = con.main_display();
+            if res.is_ok() {
+                debug!("successfully got the dimensions");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_ref() {
             trace!("try getting the dimensions of the display via libei");
-            return con.main_display();
+            res = con.main_display();
+            if res.is_ok() {
+                debug!("successfully got the dimensions");
+                return res;
+            }
         }
-        Err(InputError::Simulate("No protocol to enter the result"))
+        res
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
+        let mut res = Err(InputError::Simulate(
+            "No protocol to get the mouse location",
+        ));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the mouse location via wayland");
-            return con.location();
+            res = con.location();
+            if res.is_ok() {
+                debug!("successfully got the mouse location");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_ref() {
             trace!("try getting the mouse location via x11");
-            return con.location();
+            res = con.location();
+            if res.is_ok() {
+                debug!("successfully got the mouse location");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_ref() {
             trace!("try getting the mouse location via libei");
-            return con.location();
+            res = con.location();
+            if res.is_ok() {
+                debug!("successfully got the mouse location");
+                return res;
+            }
         }
-        Err(InputError::Simulate("No protocol to enter the result"))
+        res
     }
 }
 
@@ -277,23 +310,35 @@ impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
 
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
-            con.text(text)?;
+            res = con.fast_text(text);
+            if res.is_ok() {
+                debug!("successfully entered text fast via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering text fast via x11");
-            con.text(text)?;
+            res = con.fast_text(text);
+            if res.is_ok() {
+                debug!("successfully entered text fast via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering text fast via libei");
-            con.text(text)?;
+            res = con.fast_text(text);
+            if res.is_ok() {
+                debug!("successfully entered text fast via libei");
+                return res;
+            }
         }
-        debug!("entered the text fast");
-        Ok(Some(()))
+        res
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
@@ -304,23 +349,34 @@ impl Keyboard for Enigo {
             return Ok(());
         }
 
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the key via wayland");
-            con.key(key, direction)?;
-            debug!("entered the key via wayland");
+            res = con.key(key, direction);
+            if res.is_ok() {
+                debug!("successfully entered the key via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering the key via x11");
-            con.key(key, direction)?;
-            debug!("entered the key via x11");
+            res = con.key(key, direction);
+            if res.is_ok() {
+                debug!("successfully entered the key via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering the key via libei");
-            con.key(key, direction)?;
-            debug!("entered the key via libei");
+            res = con.key(key, direction);
+            if res.is_ok() {
+                debug!("successfully entered the key via libei");
+                return res;
+            }
         }
 
         match direction {
@@ -335,30 +391,39 @@ impl Keyboard for Enigo {
             Direction::Click => (),
         }
 
-        debug!("entered the key");
-        Ok(())
+        res
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
+        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the keycode via wayland");
-            con.raw(keycode, direction)?;
-            debug!("entered the keycode via wayland");
+            res = con.raw(keycode, direction);
+            if res.is_ok() {
+                debug!("successfully entered the raw key via wayland");
+                return res;
+            }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering the keycode via x11");
-            con.raw(keycode, direction)?;
-            debug!("entered the keycode via x11");
+            res = con.raw(keycode, direction);
+            if res.is_ok() {
+                debug!("successfully entered the raw key via x11");
+                return res;
+            }
         }
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering the keycode via libei");
-            con.raw(keycode, direction)?;
-            debug!("entered the keycode via libei");
+            res = con.raw(keycode, direction);
+            if res.is_ok() {
+                debug!("successfully entered the raw key via libei");
+                return res;
+            }
         }
 
         match direction {
@@ -373,8 +438,7 @@ impl Keyboard for Enigo {
             Direction::Click => (),
         }
 
-        debug!("entered the keycode");
-        Ok(())
+        res
     }
 }
 
