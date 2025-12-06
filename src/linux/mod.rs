@@ -134,6 +134,15 @@ impl Enigo {
     pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
     }
+
+    /// Returns the restore_token so callers can retrieve and reuse the token
+    pub fn restore_token(&self) -> Option<String> {
+        if cfg!(any(feature = "libei_tokio", feature = "libei_smol")) {
+            self.libei.as_ref().and_then(|c| c.restore_token())
+        } else {
+            None
+        }
+    }
 }
 
 impl Mouse for Enigo {

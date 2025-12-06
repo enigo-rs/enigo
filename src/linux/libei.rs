@@ -85,6 +85,7 @@ pub struct Con {
     context: ei::Context,
     connection: Connection,
     time_created: Instant,
+    restore_token: Option<String>,
 }
 
 // This is safe, we have a unique pointer.
@@ -92,7 +93,9 @@ pub struct Con {
 unsafe impl Send for Con {}
 
 impl Con {
-    async fn open_connection(restore_token: Option<&str>) -> Result<ei::Context, NewConError> {
+    async fn open_connection(
+        restore_token: Option<&str>,
+    ) -> Result<(ei::Context, Option<String>), NewConError> {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
@@ -100,7 +103,7 @@ impl Con {
         match ei::Context::connect_to_env() {
             Ok(Some(context)) => {
                 trace!("done open_connection after connect_to_env");
-                return Ok(context);
+                return Ok((context, None));
             }
             Ok(None) => {
                 debug!("Unable to find ei socket. Trying xdg desktop portal.");
@@ -140,10 +143,20 @@ impl Con {
             })?;
         trace!("new session");
 
-        remote_desktop.start(&session, None).await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to start remote desktop session")
-        })?;
+        let restore_token = remote_desktop
+            .start(&session, None)
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to start remote desktop session")
+            })?
+            .response()
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to start remote desktop session")
+            })?
+            .restore_token()
+            .map(str::to_owned);
         trace!("start session");
 
         let fd = remote_desktop.connect_to_eis(&session).await.map_err(|e| {
@@ -161,10 +174,11 @@ impl Con {
             })?;
         trace!("done open_connection");
 
-        ei::Context::new(stream).map_err(|e| {
+        let context = ei::Context::new(stream).map_err(|e| {
             error! {"{e}"};
             NewConError::EstablishCon("failed to create ei context")
-        })
+        })?;
+        Ok((context, restore_token))
     }
 
     #[allow(unnecessary_wraps)] // The wrap is needed for the libei_tokio feature
@@ -198,7 +212,8 @@ impl Con {
         let time_created = Instant::now();
 
         // open_connection now returns Result<ei::Context, NewConError>
-        let context = Self::custom_block_on(Self::open_connection(restore_token))??;
+        let (context, restore_token) =
+            Self::custom_block_on(Self::open_connection(restore_token))??;
 
         let HandshakeResp {
             connection,
@@ -232,6 +247,7 @@ impl Con {
             context,
             connection,
             time_created,
+            restore_token,
         };
 
         con.update(libei_name).map_err(|e| {
@@ -260,6 +276,11 @@ impl Con {
         })?;
 
         Ok(con)
+    }
+
+    /// Returns the restore_token so callers can retrieve and reuse the token
+    pub fn restore_token(&self) -> Option<String> {
+        self.restore_token.clone()
     }
 
     #[allow(clippy::too_many_lines)]
