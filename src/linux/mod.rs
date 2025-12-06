@@ -63,6 +63,7 @@ impl Enigo {
             x11_display,
             wayland_display,
             release_keys_when_dropped,
+            restore_token,
             ..
         } = settings;
 
@@ -101,7 +102,7 @@ impl Enigo {
             }
         };
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        let libei = match libei::Con::new() {
+        let libei = match libei::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("libei connection established");

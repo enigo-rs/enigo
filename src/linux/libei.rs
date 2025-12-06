@@ -92,7 +92,7 @@ pub struct Con {
 unsafe impl Send for Con {}
 
 impl Con {
-    async fn open_connection() -> Result<ei::Context, NewConError> {
+    async fn open_connection(restore_token: Option<&str>) -> Result<ei::Context, NewConError> {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
@@ -128,10 +128,10 @@ impl Con {
                 &session,
                 // TODO: Add DeviceType::Touchscreen once we support it in enigo
                 DeviceType::Keyboard | DeviceType::Pointer,
-                None, // TODO: Allow passing the restore_token via the EnigoSettings
+                restore_token,
                 ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
-                       * restore_token via the
-                       * EnigoSettings */
+                                                           * restore_token via the
+                                                           * EnigoSettings */
             )
             .await
             .map_err(|e| {
@@ -185,7 +185,7 @@ impl Con {
 
     #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
-    pub fn new() -> Result<Self, NewConError> {
+    pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using libei");
 
         let libei_name = "enigo";
@@ -198,7 +198,7 @@ impl Con {
         let time_created = Instant::now();
 
         // open_connection now returns Result<ei::Context, NewConError>
-        let context = Self::custom_block_on(Self::open_connection())??;
+        let context = Self::custom_block_on(Self::open_connection(restore_token))??;
 
         let HandshakeResp {
             connection,
