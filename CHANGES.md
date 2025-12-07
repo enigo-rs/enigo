@@ -3,6 +3,8 @@
 - linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
 
 ## Added
+- linux: libei: support passing a `restore_token` when establishing a connection, avoiding repeated user prompts for input simulation
+- linux: libei: expose a `restore_token()` getter so callers can retrieve and reuse the token
 
 ## Removed
 - win: `EXT` constant was removed, because it was incorrect and obsolete

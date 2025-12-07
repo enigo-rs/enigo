@@ -63,6 +63,7 @@ impl Enigo {
             x11_display,
             wayland_display,
             release_keys_when_dropped,
+            restore_token,
             ..
         } = settings;
 
@@ -101,7 +102,7 @@ impl Enigo {
             }
         };
         #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
-        let libei = match libei::Con::new() {
+        let libei = match libei::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("libei connection established");
@@ -132,6 +133,19 @@ impl Enigo {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
+    }
+
+    /// Returns the `restore_token` so callers can retrieve and reuse the token
+    #[must_use]
+    pub fn restore_token(&self) -> Option<String> {
+        #[cfg(not(any(feature = "libei_tokio", feature = "libei_smol")))]
+        {
+            None
+        }
+        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        {
+            self.libei.as_ref().and_then(libei::Con::restore_token)
+        }
     }
 }
 

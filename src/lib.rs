@@ -486,6 +486,7 @@ pub struct Settings {
     /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoA`
     /// function. The default value is false.
     pub windows_subject_to_mouse_speed_and_acceleration_level: bool,
+    pub restore_token: Option<String>,
 }
 
 impl Default for Settings {
@@ -500,6 +501,7 @@ impl Default for Settings {
             open_prompt_to_get_permissions: true,
             independent_of_keyboard_state: true,
             windows_subject_to_mouse_speed_and_acceleration_level: false,
+            restore_token: None,
         }
     }
 }
