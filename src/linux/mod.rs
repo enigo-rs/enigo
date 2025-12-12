@@ -309,8 +309,8 @@ impl Mouse for Enigo {
 impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
-
-        let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+        #[allow(unused_mut)]
+        let mut res = Ok(None); // Don't return an error here so it can be retried entering individual letters
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
@@ -320,7 +320,8 @@ impl Keyboard for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        //#[cfg(any(feature = "x11rb", feature = "xdo"))] // Not possible on x11rb
+        #[cfg(feature = "xdo")]
         if let Some(con) = self.x11.as_mut() {
             trace!("try entering text fast via x11");
             res = con.fast_text(text);
