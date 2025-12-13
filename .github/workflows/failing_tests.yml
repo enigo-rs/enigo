@@ -36,20 +36,22 @@ jobs:
           - macos-latest
         features: 
           # The tests will fail on Ubuntu for libei and wayland, because the compositor of the Github runner does not support it
-          #- "libei,tokio,wayland,xdo,x11rb"
-          #- "libei,smol,wayland,xdo,x11rb"
+          #- "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
+          #- "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - "default"
           #- "libei,smol"
           #- "libei,tokio"
           #- "wayland"
           - "xdo"
           - "x11rb"
+          #- "xdg_desktop,tokio"
+          #- "xdg_desktop,smol"
         exclude:
           # The implementation on Windows and macOS does not have any features so we can reduce the number of combinations
           #- platform: windows-latest
-          #  features: "libei,tokio,wayland,xdo,x11rb"
+          #  features: "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           #- platform: windows-latest
-          #  features: "libei,smol,wayland,xdo,x11rb"
+          #  features: "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           #- platform: windows-latest
           #  features: "libei,tokio"
           #- platform: windows-latest
@@ -60,10 +62,14 @@ jobs:
             features: "xdo"
           - platform: windows-latest
             features: "x11rb"
+          #- platform: windows-latest
+          #  features: "xdg_desktop,tokio"
+          #- platform: windows-latest
+          #  features: "xdg_desktop,smol"
           #- platform: macos-latest
-          #  features: "libei,tokio,wayland,xdo,x11rb"
+          #  features: "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           #- platform: macos-latest
-          #  features: "libei,smol,wayland,xdo,x11rb"
+          #  features: "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           #- platform: macos-latest
           #  features: "libei,tokio"
           #- platform: macos-latest
@@ -74,6 +80,10 @@ jobs:
             features: "xdo"
           - platform: macos-latest
             features: "x11rb"
+          #- platform: macos-latest
+          #  features: "xdg_desktop,tokio"
+          #- platform: macos-latest
+          #  features: "xdg_desktop,smol"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6

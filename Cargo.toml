@@ -43,6 +43,7 @@ wayland = [
 ]
 xdo = []
 x11rb = ["dep:x11rb", "dep:nom"]
+xdg_desktop = ["dep:futures", "dep:nom"]
 
 [dependencies]
 log = "0.4"

@@ -4,6 +4,7 @@
 - linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
 
 ## Added
+- linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
 
 ## Removed
 - win: `EXT` constant was removed, because it was incorrect and obsolete

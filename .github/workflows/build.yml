@@ -37,19 +37,21 @@ jobs:
           - windows-latest
           - macos-latest
         features:
-          - "libei,tokio,wayland,xdo,x11rb"
-          - "libei,smol,wayland,xdo,x11rb"
+          - "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
+          - "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - "default"
           - "libei,tokio"
           - "libei,smol"
           - "wayland"
           - "xdo"
           - "x11rb"
+          - "xdg_desktop,tokio"
+          - "xdg_desktop,smol"
         exclude:
           - platform: windows-latest
-            features: "libei,tokio,wayland,xdo,x11rb"
+            features: "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           - platform: windows-latest
-            features: "libei,smol,wayland,xdo,x11rb"
+            features: "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - platform: windows-latest
             features: "libei,tokio"
           - platform: windows-latest
@@ -60,10 +62,14 @@ jobs:
             features: "xdo"
           - platform: windows-latest
             features: "x11rb"
+          - platform: windows-latest
+            features: "xdg_desktop,tokio"
+          - platform: windows-latest
+            features: "xdg_desktop,smol"
           - platform: macos-latest
-            features: "libei,tokio,wayland,xdo,x11rb"
+            features: "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           - platform: macos-latest
-            features: "libei,smol,wayland,xdo,x11rb"
+            features: "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - platform: macos-latest
             features: "libei,tokio"
           - platform: macos-latest
@@ -74,6 +80,10 @@ jobs:
             features: "xdo"
           - platform: macos-latest
             features: "x11rb"
+          - platform: macos-latest
+            features: "xdg_desktop,tokio"
+          - platform: macos-latest
+            features: "xdg_desktop,smol"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6

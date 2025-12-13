@@ -27,11 +27,14 @@ use crate::{
 type ScanCode = u16;
 
 /// The main struct for handling the event emitting
-pub struct Enigo {
+pub struct Enigo<'a> {
     held: (Vec<Key>, Vec<ScanCode>), // Currently held keys
     release_keys_when_dropped: bool,
     dw_extra_info: usize,
     windows_subject_to_mouse_speed_and_acceleration_level: bool,
+    _phantom: std::marker::PhantomData<&'a ()>, /* Needed to fix compiler complaining about
+                                                 * unused lifetime
+                                                 * parameter */
 }
 
 fn send_input(input: &[INPUT]) -> InputResult<()> {
@@ -102,7 +105,7 @@ fn keybd_event(
     }
 }
 
-impl Mouse for Enigo {
+impl Mouse for Enigo<'_> {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
@@ -264,7 +267,7 @@ impl Mouse for Enigo {
     }
 }
 
-impl Keyboard for Enigo {
+impl Keyboard for Enigo<'_> {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
@@ -368,7 +371,7 @@ impl Keyboard for Enigo {
     }
 }
 
-impl Enigo {
+impl Enigo<'_> {
     /// Create a new Enigo struct to establish the connection to simulate input
     /// with the specified settings
     ///
@@ -393,6 +396,7 @@ impl Enigo {
             dw_extra_info: dw_extra_info.unwrap_or(crate::EVENT_MARKER as usize),
             windows_subject_to_mouse_speed_and_acceleration_level:
                 *windows_subject_to_mouse_speed_and_acceleration_level,
+            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -582,7 +586,7 @@ pub fn set_dpi_awareness() -> Result<(), ()> {
     unsafe { SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE) }.map_err(|_| ())
 }
 
-impl Drop for Enigo {
+impl Drop for Enigo<'_> {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         if !self.release_keys_when_dropped {
