@@ -1103,10 +1103,5 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-#[cfg(any(
-    feature = "wayland",
-    feature = "x11rb",
-    feature = "libei_tokio",
-    feature = "libei_smol"
-))]
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei",))]
 pub(crate) type ModifierBitflag = u32;

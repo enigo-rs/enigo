@@ -10,19 +10,31 @@ use crate::{
     feature = "wayland",
     feature = "x11rb",
     feature = "xdo",
-    feature = "libei_tokio",
-    feature = "libei_smol"
+    feature = "libei"
 )))]
 compile_error!(
-    "either feature `wayland`, `x11rb`, `xdo`, `libei_tokio` or `libei_smol` must be enabled for this crate when using linux"
+    "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
 );
 
-#[cfg(all(feature = "libei_tokio", feature = "libei_smol"))]
+#[cfg(all(any(feature = "tokio", feature = "smol"), not(feature = "libei")))]
 compile_error!(
-    "the features `libei_tokio` and `libei_smol` are mutually exclusive! You have to chose which async runtime you want to use"
+    "You activated a feature (`tokio` or `smol`) to provide an async runtime but did not activate a protocol that needs it"
 );
 
-#[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+#[cfg(all(feature = "tokio", feature = "smol"))]
+compile_error!(
+    "the features `tokio` and `smol` are mutually exclusive! You have to chose which async runtime you want to use"
+);
+
+#[cfg(all(feature = "libei", not(any(feature = "tokio", feature = "smol"))))]
+compile_error!(
+    "the libei feature can only be used if either feature `tokio` or `smol` is enabled to provide an async runtime"
+);
+
+#[cfg(any(
+    all(feature = "libei", feature = "tokio"),
+    all(feature = "libei", feature = "smol")
+))]
 mod libei;
 
 #[cfg(feature = "wayland")]
@@ -45,7 +57,10 @@ pub struct Enigo {
     wayland: Option<wayland::Con>,
     #[cfg(any(feature = "x11rb", feature = "xdo"))]
     x11: Option<x11::Con>,
-    #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+    #[cfg(any(
+        all(feature = "libei", feature = "tokio"),
+        all(feature = "libei", feature = "smol")
+    ))]
     libei: Option<libei::Con>,
 }
 
@@ -100,7 +115,10 @@ impl Enigo {
                 None
             }
         };
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         let libei = match libei::Con::new() {
             Ok(con) => {
                 connection_established = true;
@@ -124,7 +142,10 @@ impl Enigo {
             wayland,
             #[cfg(any(feature = "x11rb", feature = "xdo"))]
             x11,
-            #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+            #[cfg(any(
+                all(feature = "libei", feature = "tokio"),
+                all(feature = "libei", feature = "smol")
+            ))]
             libei,
         })
     }
@@ -157,7 +178,10 @@ impl Mouse for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try sending button event via libei");
             res = con.button(button, direction);
@@ -190,7 +214,10 @@ impl Mouse for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try moving the mouse via libei");
             res = con.move_mouse(x, y, coordinate);
@@ -223,7 +250,10 @@ impl Mouse for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try scrolling via libei");
             res = con.scroll(length, axis);
@@ -258,7 +288,10 @@ impl Mouse for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_ref() {
             trace!("try getting the dimensions of the display via libei");
             res = con.main_display();
@@ -293,7 +326,10 @@ impl Mouse for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_ref() {
             trace!("try getting the mouse location via libei");
             res = con.location();
@@ -330,7 +366,10 @@ impl Keyboard for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering text fast via libei");
             res = con.fast_text(text);
@@ -370,7 +409,10 @@ impl Keyboard for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering the key via libei");
             res = con.key(key, direction);
@@ -417,7 +459,10 @@ impl Keyboard for Enigo {
                 return res;
             }
         }
-        #[cfg(any(feature = "libei_tokio", feature = "libei_smol"))]
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
         if let Some(con) = self.libei.as_mut() {
             trace!("try entering the keycode via libei");
             res = con.raw(keycode, direction);

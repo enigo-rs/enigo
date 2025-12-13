@@ -24,26 +24,14 @@ license = "MIT"
 exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
-features = ["x11rb", "wayland", "libei_smol", "platform_specific", "serde"]
+features = ["x11rb", "wayland", "libei", "smol", "platform_specific", "serde"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["x11rb"]
-libei_tokio = [
-    "dep:reis",
-    "dep:ashpd",
-    "ashpd/tokio",
-    "tokio",
-    "dep:futures",
-    "dep:nom",
-]
-libei_smol = [
-    "dep:reis",
-    "dep:ashpd",
-    "ashpd/async-std",
-    "dep:futures",
-    "dep:nom",
-]
+tokio = ["ashpd/tokio", "dep:tokio"]
+smol = ["ashpd/async-std"]
+libei = ["dep:reis", "dep:futures", "dep:nom"]
 platform_specific = []
 serde = ["dep:serde"]
 wayland = [
