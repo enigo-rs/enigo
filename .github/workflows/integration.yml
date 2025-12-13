@@ -35,23 +35,23 @@ jobs:
           - windows-latest
           - macos-latest
         features:
-         # - "libei_tokio,wayland,xdo,x11rb"
-         # - "libei_smol,wayland,xdo,x11rb"
+         # - "libei,tokio,wayland,xdo,x11rb"
+         # - "libei,smol,wayland,xdo,x11rb"
           - "default"
-         # - "libei_tokio"
-         # - "libei_smol"
+         # - "libei,tokio"
+         # - "libei,smol"
          # - "wayland"
           - "xdo"
           - "x11rb"
         exclude:
          # - platform: windows-latest
-         #   features: "libei_tokio,wayland,xdo,x11rb"
+         #   features: "libei,tokio,wayland,xdo,x11rb"
          # - platform: windows-latest
-         #   features: "libei_smol,wayland,xdo,x11rb"
+         #   features: "libei,smol,wayland,xdo,x11rb"
          # - platform: windows-latest
-         #   features: "libei_tokio"
+         #   features: "libei,tokio"
          # - platform: windows-latest
-         #   features: "libei_smol"
+         #   features: "libei,smol"
          # - platform: windows-latest
          #   features: "wayland"
           - platform: windows-latest
@@ -59,13 +59,13 @@ jobs:
           - platform: windows-latest
             features: "x11rb"
          # - platform: macos-latest
-         #   features: "libei_tokio,wayland,xdo,x11rb"
+         #   features: "libei,tokio,wayland,xdo,x11rb"
          # - platform: macos-latest
-         #   features: "libei_smol,wayland,xdo,x11rb"
+         #   features: "libei,smol,wayland,xdo,x11rb"
          # - platform: macos-latest
-         #   features: "libei_tokio"
+         #   features: "libei,tokio"
          # - platform: macos-latest
-         #   features: "libei_smol"
+         #   features: "libei,smol"
          # - platform: macos-latest
          #   features: "wayland"
           - platform: macos-latest
@@ -93,7 +93,7 @@ jobs:
         run: brew install --cask firefox
 
       - name: Run integration tests in release mode
-        if: matrix.features != 'wayland' && matrix.features != 'libei_tokio' && matrix.features != 'libei_smol' && matrix.features != 'libei_tokio,wayland,xdo,x11rb'&& matrix.features != 'libei_smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
+        if: matrix.features != 'wayland' && matrix.features != 'libei,tokio' && matrix.features != 'libei,smol' && matrix.features != 'libei,tokio,wayland,xdo,x11rb'&& matrix.features != 'libei,smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
         run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --test-threads=1 --nocapture --include-ignored
 
       - name: Take screenshot

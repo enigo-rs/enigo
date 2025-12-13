@@ -1,6 +1,7 @@
 # Unreleased
 ## Changed
 - linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
+- linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
 
 ## Added
 

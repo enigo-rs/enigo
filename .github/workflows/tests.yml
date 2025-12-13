@@ -36,24 +36,24 @@ jobs:
           - macos-latest
         features: 
           # The tests will fail on Ubuntu for libei and wayland, because the compositor of the Github runner does not support it
-          #- "libei_tokio,wayland,xdo,x11rb"
-          #- "libei_smol,wayland,xdo,x11rb"
+          #- "libei,tokio,wayland,xdo,x11rb"
+          #- "libei,smol,wayland,xdo,x11rb"
           - "default"
-          #- "libei_tokio"
-          #- "libei_smol"
+          #- "libei,tokio"
+          #- "libei,smol"
           #- "wayland"
           - "xdo"
           - "x11rb"
         exclude:
           # The implementation on Windows and macOS does not have any features so we can reduce the number of combinations
           #- platform: windows-latest
-          #  features: "libei_tokio,wayland,xdo,x11rb"
+          #  features: "libei,tokio,wayland,xdo,x11rb"
           #- platform: windows-latest
-          #  features: "libei_smol,wayland,xdo,x11rb"
+          #  features: "libei,smol,wayland,xdo,x11rb"
           #- platform: windows-latest
-          #  features: "libei_tokio"
+          #  features: "libei,tokio"
           #- platform: windows-latest
-          #  features: "libei_smol"
+          #  features: "libei,smol"
           #- platform: windows-latest
           #  features: "wayland"
           - platform: windows-latest
@@ -61,13 +61,13 @@ jobs:
           - platform: windows-latest
             features: "x11rb"
           #- platform: macos-latest
-          #  features: "libei_tokio,wayland,xdo,x11rb"
+          #  features: "libei,tokio,wayland,xdo,x11rb"
           #- platform: macos-latest
-          #  features: "libei_smol,wayland,xdo,x11rb"
+          #  features: "libei,smol,wayland,xdo,x11rb"
           #- platform: macos-latest
-          #  features: "libei_tokio"
+          #  features: "libei,tokio"
           #- platform: macos-latest
-          #  features: "libei_smol"
+          #  features: "libei,smol"
           #- platform: macos-latest
           #  features: "wayland"
           - platform: macos-latest

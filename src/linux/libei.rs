@@ -167,9 +167,9 @@ impl Con {
         })
     }
 
-    #[allow(unnecessary_wraps)] // The wrap is needed for the libei_tokio feature
+    #[allow(unnecessary_wraps)] // The wrap is needed for the tokio feature
     fn custom_block_on<F: Future>(f: F) -> Result<F::Output, NewConError> {
-        #[cfg(feature = "libei_tokio")]
+        #[cfg(feature = "tokio")]
         if tokio::runtime::Handle::try_current().is_err() {
             return Ok(tokio::runtime::Builder::new_current_thread()
                 .enable_io()
