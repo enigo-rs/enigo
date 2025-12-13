@@ -10,13 +10,17 @@ use crate::{
     feature = "wayland",
     feature = "x11rb",
     feature = "xdo",
-    feature = "libei"
+    feature = "libei",
+    feature = "xdg_desktop"
 )))]
 compile_error!(
     "either feature `wayland`, `x11rb`, `xdo` or `libei` must be enabled for this crate when using linux"
 );
 
-#[cfg(all(any(feature = "tokio", feature = "smol"), not(feature = "libei")))]
+#[cfg(all(
+    any(feature = "tokio", feature = "smol"),
+    not(any(feature = "libei", feature = "xdg_desktop"))
+))]
 compile_error!(
     "You activated a feature (`tokio` or `smol`) to provide an async runtime but did not activate a protocol that needs it"
 );
@@ -24,6 +28,11 @@ compile_error!(
 #[cfg(all(feature = "tokio", feature = "smol"))]
 compile_error!(
     "the features `tokio` and `smol` are mutually exclusive! You have to chose which async runtime you want to use"
+);
+
+#[cfg(all(feature = "xdg_desktop", not(any(feature = "tokio", feature = "smol"))))]
+compile_error!(
+    "the xdg_desktop feature can only be used if either feature `tokio` or `smol` is enabled to provide an async runtime"
 );
 
 #[cfg(all(feature = "libei", not(any(feature = "tokio", feature = "smol"))))]
@@ -44,13 +53,16 @@ mod wayland;
 #[cfg_attr(not(feature = "x11rb"), path = "xdo.rs")]
 mod x11;
 
+#[cfg(feature = "xdg_desktop")]
+mod xdg_desktop;
+
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
 mod keymap;
 
 #[cfg(feature = "wayland")]
 pub mod keymap2;
 
-pub struct Enigo {
+pub struct Enigo<'a> {
     held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes
     release_keys_when_dropped: bool,
     #[cfg(feature = "wayland")]
@@ -62,9 +74,21 @@ pub struct Enigo {
         all(feature = "libei", feature = "smol")
     ))]
     libei: Option<libei::Con>,
+    #[cfg(any(
+        all(feature = "xdg_desktop", feature = "tokio"),
+        all(feature = "xdg_desktop", feature = "smol")
+    ))]
+    xdg_desktop: Option<xdg_desktop::Con<'a>>,
+    #[cfg(not(any(
+        all(feature = "xdg_desktop", feature = "tokio"),
+        all(feature = "xdg_desktop", feature = "smol")
+    )))]
+    _phantom: std::marker::PhantomData<&'a ()>, /* Needed to fix compiler complaining about
+                                                 * unused lifetime
+                                                 * parameter */
 }
 
-impl Enigo {
+impl Enigo<'_> {
     /// Create a new Enigo struct to establish the connection to simulate input
     /// with the specified settings
     ///
@@ -82,6 +106,22 @@ impl Enigo {
         } = settings;
 
         let held = (Vec::new(), Vec::new());
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        let xdg_desktop = match xdg_desktop::Con::new() {
+            Ok(con) => {
+                connection_established = true;
+                debug!("xdg_desktop connection established");
+                Some(con)
+            }
+            Err(e) => {
+                warn!("{e}");
+                None
+            }
+        };
         #[cfg(feature = "wayland")]
         let wayland = match wayland::Con::new(wayland_display.as_deref()) {
             Ok(con) => {
@@ -147,6 +187,16 @@ impl Enigo {
                 all(feature = "libei", feature = "smol")
             ))]
             libei,
+            #[cfg(any(
+                all(feature = "xdg_desktop", feature = "tokio"),
+                all(feature = "xdg_desktop", feature = "smol")
+            ))]
+            xdg_desktop,
+            #[cfg(not(any(
+                all(feature = "xdg_desktop", feature = "tokio"),
+                all(feature = "xdg_desktop", feature = "smol")
+            )))]
+            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -156,10 +206,23 @@ impl Enigo {
     }
 }
 
-impl Mouse for Enigo {
+impl Mouse for Enigo<'_> {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try sending button event via xdg_desktop");
+            res = con.button(button, direction);
+            if res.is_ok() {
+                debug!("successfully sent button event via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try sending button event via wayland");
@@ -196,6 +259,18 @@ impl Mouse for Enigo {
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
         debug!("\x1b[93mmove_mouse(x: {x:?}, y: {y:?}, coordinate:{coordinate:?})\x1b[0m");
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try moving the mouse via xdg_desktop");
+            res = con.move_mouse(x, y, coordinate);
+            if res.is_ok() {
+                debug!("successfully moved the mouse via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try moving the mouse via wayland");
@@ -232,6 +307,19 @@ impl Mouse for Enigo {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try scrolling via xdg_desktop");
+            res = con.scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully scrolled via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try scrolling via wayland");
@@ -270,6 +358,19 @@ impl Mouse for Enigo {
         let mut res = Err(InputError::Simulate(
             "No protocol to get the main display dimensions",
         ));
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_ref() {
+            trace!("try getting the dimensions of the display via xdg_desktop");
+            res = con.main_display();
+            if res.is_ok() {
+                debug!("successfully got the dimensions");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the dimensions of the display via wayland");
@@ -308,6 +409,19 @@ impl Mouse for Enigo {
         let mut res = Err(InputError::Simulate(
             "No protocol to get the mouse location",
         ));
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_ref() {
+            trace!("try getting the mouse location via xdg_desktop");
+            res = con.location();
+            if res.is_ok() {
+                debug!("successfully got the mouse location");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_ref() {
             trace!("try getting the mouse location via wayland");
@@ -342,11 +456,25 @@ impl Mouse for Enigo {
     }
 }
 
-impl Keyboard for Enigo {
+impl Keyboard for Enigo<'_> {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         #[allow(unused_mut)]
         let mut res = Ok(None); // Don't return an error here so it can be retried entering individual letters
+
+        /*
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try entering text fast via xdg_desktop");
+            res = con.fast_text(text);
+            if res.is_ok() {
+                debug!("successfully entered text fast via xdg_desktop");
+                return res;
+            }
+        }*/
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering text fast via wayland");
@@ -391,6 +519,18 @@ impl Keyboard for Enigo {
 
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
 
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try entering the key via xdg_desktop");
+            res = con.key(key, direction);
+            if res.is_ok() {
+                debug!("successfully entered the key via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the key via wayland");
@@ -441,6 +581,19 @@ impl Keyboard for Enigo {
         debug!("\x1b[93mraw(keycode: {keycode:?}, direction: {direction:?})\x1b[0m");
 
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
+
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try entering the keycode via xdg_desktop");
+            res = con.raw(keycode, direction);
+            if res.is_ok() {
+                debug!("successfully entered the raw key via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try entering the keycode via wayland");
@@ -488,7 +641,7 @@ impl Keyboard for Enigo {
     }
 }
 
-impl Drop for Enigo {
+impl Drop for Enigo<'_> {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         if !self.release_keys_when_dropped {
