@@ -217,28 +217,26 @@ impl Mouse for Con<'_> {
                     InputError::Simulate("Failed to notify pointer motion absolute")
                 })?;
                 */
-                return Err(InputError::Simulate(
-                    "currently not possible with xdg_desktop",
-                ));
-            }
-            Coordinate::Rel => {
-                Self::custom_block_on(self.remote_desktop.notify_pointer_motion(
-                    &self.session,
-                    x as f64,
-                    y as f64,
-                ))
-                .map_err(|e| {
-                    log::error!("{e}");
-                    InputError::Simulate("Failed in custom_block_on")
-                })?
-                .map_err(|e| {
-                    log::error!("{e}");
-                    InputError::Simulate("Failed to notify pointer motion relative")
-                })?;
-            }
-        }
 
-        Ok(())
+                // Stupid hack to circumvent the limitation of the portal. You cannot move the
+                // mouse to an absolute coordinate without starting a screen cast
+                self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
+                self.move_mouse(x, y, Coordinate::Rel)
+            }
+            Coordinate::Rel => Self::custom_block_on(self.remote_desktop.notify_pointer_motion(
+                &self.session,
+                x as f64,
+                y as f64,
+            ))
+            .map_err(|e| {
+                log::error!("{e}");
+                InputError::Simulate("Failed in custom_block_on")
+            })?
+            .map_err(|e| {
+                log::error!("{e}");
+                InputError::Simulate("Failed to notify pointer motion relative")
+            }),
+        }
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
