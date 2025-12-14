@@ -60,7 +60,7 @@ impl Con<'_> {
         Ok((session, remote_desktop))
     }
 
-    #[allow(unnecessary_wraps)]
+    #[allow(clippy::unnecessary_wraps)]
     fn custom_block_on<F>(f: F) -> Result<F::Output, std::io::Error>
     where
         F: Future,
@@ -263,10 +263,45 @@ impl Mouse for Con<'_> {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        error!(
-            "You tried to get the main display. I don't think that is possible with xdg_desktop"
-        );
-        Err(InputError::Simulate("Not possible with this protocol"))
+        let (width, height) = Self::custom_block_on(async {
+            let response = ashpd::desktop::screenshot::Screenshot::request()
+                .interactive(false)
+                .modal(true) // I don't see a modal and it prevents a scary warning
+                .send()
+                .await
+                .map_err(|_| InputError::Simulate("Screenshot request failed"))?
+                .response()
+                .map_err(|_| InputError::Simulate("Screenshot response failed"))?;
+
+            let uri = response.uri();
+
+            // Expect file:// URI
+            let path = uri
+                .to_file_path()
+                .map_err(|()| InputError::Simulate("Unexpected screenshot URI"))?;
+
+            let img = image::open(&path)
+                .map_err(|_| InputError::Simulate("Failed to open screenshot image"))?;
+            if std::fs::remove_file(&path).is_err() {
+                log::error!(
+                    "error deleting the temporary screenshot to get the dimensions of the screen"
+                );
+            }
+
+            let (x, y) = (img.width() as i32, img.height() as i32);
+
+            Ok((x, y))
+        })
+        .map_err(|e| {
+            log::error!("{e}");
+            InputError::Simulate("Failed in custom_block_on")
+        })?
+        .map_err(|e: InputError| {
+            log::error!("{e}");
+            InputError::Simulate("Failed to scroll")
+        })?;
+
+        Ok((width, height))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {

@@ -167,7 +167,7 @@ impl Con {
         })
     }
 
-    #[allow(unnecessary_wraps)] // The wrap is needed for the tokio feature
+    #[allow(clippy::unnecessary_wraps)] // The wrap is needed for the tokio feature
     fn custom_block_on<F: Future>(f: F) -> Result<F::Output, NewConError> {
         #[cfg(feature = "tokio")]
         if tokio::runtime::Handle::try_current().is_err() {
