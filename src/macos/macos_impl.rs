@@ -176,7 +176,7 @@ impl Mouse for Enigo<'_> {
                     .ok_or(InputError::Simulate(
                         "failed creating event to enter mouse button",
                     ))?;
-            self.update_button_state(button, true);
+            self.update_button_state(button, false);
 
             CGEvent::set_integer_value_field(
                 Some(&event),
