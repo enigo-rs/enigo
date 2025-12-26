@@ -93,6 +93,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
+      - name: Cargo Update
+        run: cargo update
+        
       - name: Check the code format
         if: matrix.rust == 'nightly' # Avoid differences between the versions
         run: cargo fmt -- --check
@@ -101,6 +104,7 @@ jobs:
         run: cargo clippy --no-default-features --features ${{ matrix.features }} -- -D clippy::pedantic
       - name: Check clippy lints for the examples
         run: cargo clippy --no-default-features --features ${{ matrix.features }} --examples -- -D clippy::pedantic
+
 
       - name: Build the code
         run: cargo build --no-default-features --features ${{ matrix.features }}
