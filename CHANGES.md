@@ -2,6 +2,7 @@
 ## Changed
 - linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
 - linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
+- all: MSRV is 1.87
 
 ## Added
 - linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
