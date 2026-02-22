@@ -34,7 +34,7 @@ pub enum Token {
     ),
     /// Call the [`Mouse::move_mouse`] fn. The first i32 is the value to move on
     /// the x-axis and the second i32 is the value to move on the y-axis. The
-    /// coordinate defines if the given coordinates are absolute of relative to
+    /// coordinate defines if the given coordinates are absolute or relative to
     /// the current position of the mouse.
     #[cfg_attr(feature = "serde", serde(alias = "M"))]
     #[cfg_attr(feature = "serde", serde(alias = "m"))]
