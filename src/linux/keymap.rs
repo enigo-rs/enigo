@@ -68,13 +68,11 @@ where
         }
     }
 
-    fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
+    fn keysym_to_keycode(&self, keysym: Keysym) -> Option<(Keycode, u8)> {
         let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
         let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
 
-        // TODO: Change this range to 0..self.keysyms_per_keycode once we find out how
-        // to detect the level and switch it
-        for j in 0..1 {
+        for j in 0..self.keymap_mapping.keysyms_per_keycode {
             for i in keycode_min..=keycode_max {
                 let i: u32 = i.try_into().unwrap();
                 let min_keycode: u32 = keycode_min.try_into().unwrap();
@@ -91,7 +89,7 @@ where
                         let i: usize = i.try_into().unwrap();
                         let i: Keycode = i.try_into().unwrap();
                         trace!("found keysym in row {i}, col {j}");
-                        return Some(i);
+                        return Some((i, j));
                     }
                 }
             }
@@ -101,11 +99,15 @@ where
 
     // Try to enter the key
     #[allow(clippy::unnecessary_wraps)]
-    pub fn key_to_keycode<C: Bind<Keycode>>(&mut self, c: &C, key: Key) -> InputResult<Keycode> {
+    pub fn key_to_keycode<C: Bind<Keycode>>(
+        &mut self,
+        c: &C,
+        key: Key,
+    ) -> InputResult<(Keycode, u8)> {
         let sym = Keysym::from(key);
 
-        if let Some(keycode) = self.keysym_to_keycode(sym) {
-            return Ok(keycode);
+        if let Some((keycode, level)) = self.keysym_to_keycode(sym) {
+            return Ok((keycode, level));
         }
 
         let keycode = {
@@ -121,7 +123,13 @@ where
             }
         };
 
-        Ok(keycode)
+        // bind_key maps to both levels, so level 0 is fine
+        Ok((keycode, 0))
+    }
+
+    /// Check if a keycode is currently held
+    pub fn is_keycode_held(&self, keycode: &Keycode) -> bool {
+        self.keymap_state.held_keycodes.contains(keycode)
     }
 
     /// Add the Keysym to the keymap

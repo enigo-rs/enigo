@@ -229,13 +229,28 @@ impl Bind<Keycode> for CompositorConnection {
     }
 }
 
+impl Con {
+    /// Return the modifier keycode needed for a given keysym level.
+    /// Level 0 needs no modifier; level 1 needs Shift (modifier index 0 in X11).
+    fn modifier_keycode_for_level(&self, level: u8) -> Option<Keycode> {
+        match level {
+            0 => None,
+            1 => self.modifiers[0].first().copied(), // Shift = modifier index 0 in X11
+            _ => {
+                warn!("modifier for keysym level {level} not yet supported");
+                None
+            }
+        }
+    }
+}
+
 impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
+        let (keycode, level) = self.keymap.key_to_keycode(&self.connection, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
             for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
@@ -245,7 +260,38 @@ impl Keyboard for Con {
             }
         }
 
-        self.raw(keycode.into(), direction)
+        let modifier_kc = self.modifier_keycode_for_level(level);
+
+        if let Some(mod_kc) = modifier_kc {
+            let shift_already_held = self.keymap.is_keycode_held(&mod_kc);
+
+            match direction {
+                Direction::Click => {
+                    if !shift_already_held {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Click)?;
+                    if !shift_already_held {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+                Direction::Press => {
+                    if !shift_already_held {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Press)?;
+                }
+                Direction::Release => {
+                    self.raw(keycode.into(), Direction::Release)?;
+                    if !shift_already_held {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+            }
+            Ok(())
+        } else {
+            self.raw(keycode.into(), direction)
+        }
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
