@@ -72,8 +72,16 @@ where
         let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
         let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
 
-        for j in 0..self.keymap_mapping.keysyms_per_keycode {
-            for i in keycode_min..=keycode_max {
+        // Iterate keycodes in the outer loop, levels in the inner loop.
+        // This ensures we find keysyms at the lowest keycode first (standard
+        // keyboard range), even at a higher level (e.g. Shift), rather than
+        // finding them at XWayland's extended high keycodes at level 0.
+        // On XWayland, uppercase keysyms like 'H' exist both at high keycodes
+        // (e.g. 219) at level 0 and at the standard 'h' keycode (43) at level 1.
+        // The standard keycode + Shift translates correctly through XWayland,
+        // while the high keycodes do not.
+        for i in keycode_min..=keycode_max {
+            for j in 0..self.keymap_mapping.keysyms_per_keycode {
                 let i: u32 = i.try_into().unwrap();
                 let min_keycode: u32 = keycode_min.try_into().unwrap();
                 let keycode = KeyCode::from(i);
