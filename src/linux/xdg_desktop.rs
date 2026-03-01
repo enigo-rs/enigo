@@ -12,13 +12,15 @@ use crate::{
 pub struct Con<'a> {
     session: Session<'a, RemoteDesktop<'a>>,
     remote_desktop: RemoteDesktop<'a>,
+    restore_token: Option<String>,
 }
 
 unsafe impl Send for Con<'_> {}
 
 impl Con<'_> {
-    async fn open_connection<'a>()
-    -> Result<(Session<'a, RemoteDesktop<'a>>, RemoteDesktop<'a>), NewConError> {
+    async fn open_connection<'a>(
+        restore_token: Option<&str>,
+    ) -> Result<(Session<'a, RemoteDesktop<'a>>, RemoteDesktop<'a>, Option<String>), NewConError> {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
@@ -40,10 +42,8 @@ impl Con<'_> {
                 &session,
                 // TODO: Add DeviceType::Touchscreen once we support it in enigo
                 DeviceType::Keyboard | DeviceType::Pointer,
-                None, // TODO: Allow passing the restore_token via the EnigoSettings
-                ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
-                       * restore_token via the
-                       * EnigoSettings */
+                restore_token,
+                ashpd::desktop::PersistMode::Application,
             )
             .await
             .map_err(|e| {
@@ -52,12 +52,22 @@ impl Con<'_> {
             })?;
         trace!("new session");
 
-        remote_desktop.start(&session, None).await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to start remote desktop session")
-        })?;
+        let restore_token = remote_desktop
+            .start(&session, None)
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to start remote desktop session")
+            })?
+            .response()
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to get remote desktop session response")
+            })?
+            .restore_token()
+            .map(str::to_owned);
         trace!("start session");
-        Ok((session, remote_desktop))
+        Ok((session, remote_desktop, restore_token))
     }
 
     #[allow(clippy::unnecessary_wraps)]
@@ -78,17 +88,26 @@ impl Con<'_> {
 
     #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
-    pub fn new() -> Result<Self, NewConError> {
+    pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdg desktop");
-        let (session, remote_desktop) =
-            Self::custom_block_on(Self::open_connection()).map_err(|e| {
+        let (session, remote_desktop, restore_token) =
+            Self::custom_block_on(Self::open_connection(restore_token)).map_err(|e| {
                 error! {"{e}"};
                 NewConError::EstablishCon("failed to create tokio runtime")
             })??;
         Ok(Self {
             session,
             remote_desktop,
+            restore_token,
         })
+    }
+
+    /// Returns the restore token from the portal session, if one was issued.
+    /// Callers should save this token and pass it via `Settings::restore_token`
+    /// on the next connection to skip the permission dialog.
+    #[must_use]
+    pub fn restore_token(&self) -> Option<String> {
+        self.restore_token.clone()
     }
 }
 
