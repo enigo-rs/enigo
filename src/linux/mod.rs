@@ -102,6 +102,7 @@ impl Enigo<'_> {
             x11_display,
             wayland_display,
             release_keys_when_dropped,
+            restore_token,
             ..
         } = settings;
 
@@ -111,7 +112,7 @@ impl Enigo<'_> {
             all(feature = "xdg_desktop", feature = "tokio"),
             all(feature = "xdg_desktop", feature = "smol")
         ))]
-        let xdg_desktop = match xdg_desktop::Con::new() {
+        let xdg_desktop = match xdg_desktop::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("xdg_desktop connection established");
@@ -159,7 +160,7 @@ impl Enigo<'_> {
             all(feature = "libei", feature = "tokio"),
             all(feature = "libei", feature = "smol")
         ))]
-        let libei = match libei::Con::new() {
+        let libei = match libei::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("libei connection established");
@@ -203,6 +204,32 @@ impl Enigo<'_> {
     /// Returns a list of all currently pressed keys
     pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
+    }
+
+    /// Returns the restore token from the portal session, if available.
+    /// Save this token and pass it via `Settings::restore_token` on the next
+    /// connection to avoid the permission dialog.
+    #[must_use]
+    pub fn restore_token(&self) -> Option<String> {
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(token) = self
+            .xdg_desktop
+            .as_ref()
+            .and_then(xdg_desktop::Con::restore_token)
+        {
+            return Some(token);
+        }
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
+        if let Some(token) = self.libei.as_ref().and_then(libei::Con::restore_token) {
+            return Some(token);
+        }
+        None
     }
 }
 

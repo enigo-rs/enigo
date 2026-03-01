@@ -5,6 +5,8 @@
 - all: MSRV is 1.87
 
 ## Added
+- linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
+- linux: libei/xdg_desktop: expose a `restore_token()` getter so callers can retrieve and reuse the token
 - linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
 
 ## Removed
