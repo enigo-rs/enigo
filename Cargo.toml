@@ -108,7 +108,7 @@ image = { version = "0.25", optional = true }
 [dev-dependencies]
 env_logger = "0.11"
 serde = { version = "1", features = ["derive"] }
-tungstenite = "0.28"
+tungstenite = "0.29"
 url = "2"
 webbrowser = "1.0"
 ron = "0.12"
