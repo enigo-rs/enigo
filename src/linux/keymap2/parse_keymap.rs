@@ -182,7 +182,7 @@ impl Display for ParsedKeymap {
         writeln!(f, "xkb_keymap {{")?;
         writeln!(f, "{}", self.keycodes)?;
         if let Some(types) = &self.types {
-            writeln!(f, "xkb_types {types}\n}};\n",)?;
+            writeln!(f, "xkb_types {types}\n}};\n")?;
         }
         if let Some(compatibility) = &self.compatibility {
             writeln!(f, "xkb_compatibility {compatibility}\n}};\n")?;

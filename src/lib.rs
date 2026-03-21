@@ -139,7 +139,7 @@ pub enum Button {
     ScrollRight,
 }
 
-impl fmt::Debug for Enigo<'_> {
+impl fmt::Debug for Enigo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Enigo")
     }
@@ -486,6 +486,12 @@ pub struct Settings {
     /// `windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoA`
     /// function. The default value is false.
     pub windows_subject_to_mouse_speed_and_acceleration_level: bool,
+    /// A restore token from a previous XDG `RemoteDesktop` portal session.
+    /// When provided, the portal will attempt to restore the previous session
+    /// without showing a permission dialog to the user. After connecting, call
+    /// `restore_token()` to get the new token (tokens rotate) and save it for
+    /// next time. Only used by the libei and `xdg_desktop` backends on Linux.
+    pub restore_token: Option<String>,
 }
 
 impl Default for Settings {
@@ -500,6 +506,7 @@ impl Default for Settings {
             open_prompt_to_get_permissions: true,
             independent_of_keyboard_state: true,
             windows_subject_to_mouse_speed_and_acceleration_level: false,
+            restore_token: None,
         }
     }
 }

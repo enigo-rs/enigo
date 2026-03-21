@@ -1,4 +1,7 @@
-use ashpd::desktop::remote_desktop::RemoteDesktop;
+use ashpd::desktop::{
+    CreateSessionOptions,
+    remote_desktop::{ConnectToEISOptions, RemoteDesktop, SelectDevicesOptions, StartOptions},
+};
 use log::{debug, error, trace, warn};
 use reis::{
     PendingRequestResult,
@@ -79,12 +82,13 @@ pub struct Con {
     devices: HashMap<ei::Device, DeviceData>,
     keyboards: HashMap<ei::Keyboard, xkb::Keymap>,
     /// `None` if there was no disconnect
-    disconnect: Option<(ei::connection::DisconnectReason, String)>,
+    disconnect: Option<(ei::connection::DisconnectReason, Option<String>)>,
     sequence: u32,
     last_serial: u32,
     context: ei::Context,
     connection: Connection,
     time_created: Instant,
+    restore_token: Option<String>,
 }
 
 // This is safe, we have a unique pointer.
@@ -92,7 +96,9 @@ pub struct Con {
 unsafe impl Send for Con {}
 
 impl Con {
-    async fn open_connection() -> Result<ei::Context, NewConError> {
+    async fn open_connection(
+        restore_token: Option<&str>,
+    ) -> Result<(ei::Context, Option<String>), NewConError> {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
@@ -100,7 +106,7 @@ impl Con {
         match ei::Context::connect_to_env() {
             Ok(Some(context)) => {
                 trace!("done open_connection after connect_to_env");
-                return Ok(context);
+                return Ok((context, None));
             }
             Ok(None) => {
                 debug!("Unable to find ei socket. Trying xdg desktop portal.");
@@ -118,21 +124,23 @@ impl Con {
         })?;
         trace!("New desktop");
 
-        let session = remote_desktop.create_session().await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to create remote desktop session")
-        })?;
+        let session = remote_desktop
+            .create_session(CreateSessionOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to create remote desktop session")
+            })?;
+
+        let mut options = SelectDevicesOptions::default()
+            .set_devices(DeviceType::Keyboard | DeviceType::Pointer)
+            .set_persist_mode(ashpd::desktop::PersistMode::Application);
+        if let Some(restore_token) = restore_token {
+            options = options.set_restore_token(restore_token);
+        }
 
         remote_desktop
-            .select_devices(
-                &session,
-                // TODO: Add DeviceType::Touchscreen once we support it in enigo
-                DeviceType::Keyboard | DeviceType::Pointer,
-                None, // TODO: Allow passing the restore_token via the EnigoSettings
-                ashpd::desktop::PersistMode::Application, /* TODO: Allow passing the
-                       * restore_token via the
-                       * EnigoSettings */
-            )
+            .select_devices(&session, options)
             .await
             .map_err(|e| {
                 error! {"{e}"};
@@ -140,16 +148,29 @@ impl Con {
             })?;
         trace!("new session");
 
-        remote_desktop.start(&session, None).await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to start remote desktop session")
-        })?;
+        let restore_token = remote_desktop
+            .start(&session, None, StartOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to start remote desktop session")
+            })?
+            .response()
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to get remote desktop session response")
+            })?
+            .restore_token()
+            .map(str::to_owned);
         trace!("start session");
 
-        let fd = remote_desktop.connect_to_eis(&session).await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to connect to EIS")
-        })?;
+        let fd = remote_desktop
+            .connect_to_eis(&session, ConnectToEISOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to connect to EIS")
+            })?;
         // fd is a raw descriptor returned by portal; construct UnixStream
         let stream = UnixStream::from(fd);
         stream
@@ -161,10 +182,11 @@ impl Con {
             })?;
         trace!("done open_connection");
 
-        ei::Context::new(stream).map_err(|e| {
+        let context = ei::Context::new(stream).map_err(|e| {
             error! {"{e}"};
             NewConError::EstablishCon("failed to create ei context")
-        })
+        })?;
+        Ok((context, restore_token))
     }
 
     #[allow(clippy::unnecessary_wraps)] // The wrap is needed for the tokio feature
@@ -185,7 +207,7 @@ impl Con {
 
     #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
-    pub fn new() -> Result<Self, NewConError> {
+    pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using libei");
 
         let libei_name = "enigo";
@@ -197,8 +219,8 @@ impl Con {
         let sequence = 0;
         let time_created = Instant::now();
 
-        // open_connection now returns Result<ei::Context, NewConError>
-        let context = Self::custom_block_on(Self::open_connection())??;
+        let (context, restore_token) =
+            Self::custom_block_on(Self::open_connection(restore_token))??;
 
         let HandshakeResp {
             connection,
@@ -232,6 +254,7 @@ impl Con {
             context,
             connection,
             time_created,
+            restore_token,
         };
 
         con.update(libei_name).map_err(|e| {
@@ -260,6 +283,14 @@ impl Con {
         })?;
 
         Ok(con)
+    }
+
+    /// Returns the restore token from the portal session, if one was issued.
+    /// Callers should save this token and pass it via `Settings::restore_token`
+    /// on the next connection to skip the permission dialog.
+    #[must_use]
+    pub fn restore_token(&self) -> Option<String> {
+        self.restore_token.clone()
     }
 
     #[allow(clippy::too_many_lines)]
@@ -578,15 +609,15 @@ impl Keyboard for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate key event: no device implementing the `ei::Keyboard` \
-                    interface was found on any connected device",
+                     interface was found on any connected device",
                 )
             })?;
 
         // Find the first available keyboard keymap
-        let (keyboard, keymap) = self.keyboards.iter().next().ok_or_else(|| {
+        let (keyboard, keymap) = self.keyboards.iter().next().ok_or({
             InputError::Simulate(
                 "cannot simulate key event: no keyboard keymap available (no `ei::Keyboard` \
                     object registered in the connection)",
@@ -651,7 +682,7 @@ impl Keyboard for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate raw key event: no device implementing the `ei::Keyboard` \
                     interface was found on any connected device",
@@ -659,7 +690,7 @@ impl Keyboard for Con {
             })?;
 
         // Acquire the keyboard interface object from the device data
-        let keyboard = device_data.interface::<ei::Keyboard>().ok_or_else(|| {
+        let keyboard = device_data.interface::<ei::Keyboard>().ok_or({
             InputError::Simulate(
                 "cannot simulate raw key event: device lost its `ei::Keyboard` interface before \
                  the request could be sent",
@@ -705,7 +736,7 @@ impl Mouse for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Button>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate button event: no device implementing the `ei::Button` \
                     interface was found on any connected device",
@@ -739,7 +770,7 @@ impl Mouse for Con {
             Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
         };
 
-        let vp = device_data.interface::<ei::Button>().ok_or_else(|| {
+        let vp = device_data.interface::<ei::Button>().ok_or({
             InputError::Simulate(
                 "cannot simulate button event: the device lost its `ei::Button` interface \
                  before the operation could be performed",
@@ -792,14 +823,14 @@ impl Mouse for Con {
                     .devices
                     .iter()
                     .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
-                    .ok_or_else(|| {
+                    .ok_or({
                         InputError::Simulate(
                             "cannot move mouse relatively: no device implementing the `ei::Pointer` \
                              interface was found on any connected device",
                         )
                     })?;
 
-                let vp = device_data.interface::<ei::Pointer>().ok_or_else(|| {
+                let vp = device_data.interface::<ei::Pointer>().ok_or({
                     InputError::Simulate(
                         "cannot move mouse relatively: the device lost its `ei::Pointer` \
                          interface before the operation could be performed",
@@ -844,14 +875,14 @@ impl Mouse for Con {
                     .find(|(_, device_data)| {
                         device_data.interface::<ei::PointerAbsolute>().is_some()
                     })
-                    .ok_or_else(|| {
+                    .ok_or({
                         InputError::Simulate(
                             "cannot move mouse absolutely: no device implementing the \
                              `ei::PointerAbsolute` interface was found on any connected device",
                         )
                     })?;
 
-                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or_else(|| {
+                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or({
                     InputError::Simulate(
                         "cannot move mouse absolutely: the device lost its `ei::PointerAbsolute` \
                          interface before the operation could be performed",
@@ -890,7 +921,7 @@ impl Mouse for Con {
             .devices
             .iter()
             .find(|(_, device_data)| device_data.interface::<ei::Scroll>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot scroll: no device implementing the `ei::Scroll` interface was found \
                      on any connected device",
@@ -903,7 +934,7 @@ impl Mouse for Con {
         };
         trace!("vp.scroll({x}, {y})");
 
-        let vp = device_data.interface::<ei::Scroll>().ok_or_else(|| {
+        let vp = device_data.interface::<ei::Scroll>().ok_or({
             InputError::Simulate(
                 "cannot scroll: the device lost its `ei::Scroll` interface before the operation \
                  could be performed",

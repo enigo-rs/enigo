@@ -62,7 +62,7 @@ mod keymap;
 #[cfg(feature = "wayland")]
 pub mod keymap2;
 
-pub struct Enigo<'a> {
+pub struct Enigo {
     held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes
     release_keys_when_dropped: bool,
     #[cfg(feature = "wayland")]
@@ -78,17 +78,17 @@ pub struct Enigo<'a> {
         all(feature = "xdg_desktop", feature = "tokio"),
         all(feature = "xdg_desktop", feature = "smol")
     ))]
-    xdg_desktop: Option<xdg_desktop::Con<'a>>,
+    xdg_desktop: Option<xdg_desktop::Con>,
     #[cfg(not(any(
         all(feature = "xdg_desktop", feature = "tokio"),
         all(feature = "xdg_desktop", feature = "smol")
     )))]
-    _phantom: std::marker::PhantomData<&'a ()>, /* Needed to fix compiler complaining about
-                                                 * unused lifetime
-                                                 * parameter */
+    _phantom: std::marker::PhantomData<()>, /* Needed to fix compiler complaining about
+                                             * unused lifetime
+                                             * parameter */
 }
 
-impl Enigo<'_> {
+impl Enigo {
     /// Create a new Enigo struct to establish the connection to simulate input
     /// with the specified settings
     ///
@@ -102,6 +102,7 @@ impl Enigo<'_> {
             x11_display,
             wayland_display,
             release_keys_when_dropped,
+            restore_token,
             ..
         } = settings;
 
@@ -111,7 +112,7 @@ impl Enigo<'_> {
             all(feature = "xdg_desktop", feature = "tokio"),
             all(feature = "xdg_desktop", feature = "smol")
         ))]
-        let xdg_desktop = match xdg_desktop::Con::new() {
+        let xdg_desktop = match xdg_desktop::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("xdg_desktop connection established");
@@ -159,7 +160,7 @@ impl Enigo<'_> {
             all(feature = "libei", feature = "tokio"),
             all(feature = "libei", feature = "smol")
         ))]
-        let libei = match libei::Con::new() {
+        let libei = match libei::Con::new(restore_token.as_deref()) {
             Ok(con) => {
                 connection_established = true;
                 debug!("libei connection established");
@@ -204,9 +205,35 @@ impl Enigo<'_> {
     pub fn held(&mut self) -> (Vec<Key>, Vec<u16>) {
         self.held.clone()
     }
+
+    /// Returns the restore token from the portal session, if available.
+    /// Save this token and pass it via `Settings::restore_token` on the next
+    /// connection to avoid the permission dialog.
+    #[must_use]
+    pub fn restore_token(&self) -> Option<String> {
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(token) = self
+            .xdg_desktop
+            .as_ref()
+            .and_then(xdg_desktop::Con::restore_token)
+        {
+            return Some(token);
+        }
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
+        if let Some(token) = self.libei.as_ref().and_then(libei::Con::restore_token) {
+            return Some(token);
+        }
+        None
+    }
 }
 
-impl Mouse for Enigo<'_> {
+impl Mouse for Enigo {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
@@ -456,7 +483,7 @@ impl Mouse for Enigo<'_> {
     }
 }
 
-impl Keyboard for Enigo<'_> {
+impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         #[allow(unused_mut)]
@@ -641,7 +668,7 @@ impl Keyboard for Enigo<'_> {
     }
 }
 
-impl Drop for Enigo<'_> {
+impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         if !self.release_keys_when_dropped {

@@ -6,12 +6,12 @@ use enigo::{Axis, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 
 use super::browser_events::{BrowserEvent, Event};
 
-pub struct EnigoTest<'a> {
-    enigo: Enigo<'a>,
+pub struct EnigoTest {
+    enigo: Enigo,
     websocket: tungstenite::WebSocket<TcpStream>,
 }
 
-impl<'a> EnigoTest<'a> {
+impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         let enigo = Enigo::new(settings).expect("failed to create new enigo struct");
@@ -74,7 +74,7 @@ impl<'a> EnigoTest<'a> {
 }
 
 /// Make sure the message queue is empty and all messages were processed
-impl<'a> Drop for EnigoTest<'a> {
+impl Drop for EnigoTest {
     fn drop(&mut self) {
         if self.websocket.read().is_ok() {
             panic!("there were messages left. This should never happen")
@@ -82,7 +82,7 @@ impl<'a> Drop for EnigoTest<'a> {
     }
 }
 
-impl<'a> Keyboard for EnigoTest<'a> {
+impl Keyboard for EnigoTest {
     fn fast_text(&mut self, text: &str) -> enigo::InputResult<Option<()>> {
         log::debug!("\x1b[93mfast_text(text: {text})\x1b[0m");
         let mut expected_text = text.to_string();
@@ -214,7 +214,7 @@ impl<'a> Keyboard for EnigoTest<'a> {
     }
 }
 
-impl<'a> Mouse for EnigoTest<'a> {
+impl Mouse for EnigoTest {
     fn button(&mut self, button: enigo::Button, direction: Direction) -> enigo::InputResult<()> {
         let expected_button = button as u8;
         let expected_directions = match direction {

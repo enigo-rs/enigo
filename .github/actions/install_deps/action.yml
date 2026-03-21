@@ -7,7 +7,7 @@ runs:
     - name:  Install dependencies
       run:   |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get update -q -y && sudo apt-get upgrade -y
+          # sudo apt-get update -q -y && sudo apt-get upgrade -y
           sudo apt-get install -y libxdo-dev libxkbcommon-dev libxi-dev libxtst-dev
           echo "$RUNNER_OS"
         elif [ "$RUNNER_OS" == "Windows" ]; then

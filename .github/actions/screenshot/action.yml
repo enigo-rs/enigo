@@ -38,7 +38,7 @@ runs:
         $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
         $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
         $bitmap.Save("${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg", [System.Drawing.Imaging.ImageFormat]::Jpeg)
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
         path: '${{ inputs.platform }}_${{ inputs.rust }}_${{ inputs.feature }}.jpg'
