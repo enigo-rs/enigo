@@ -599,15 +599,15 @@ impl Keyboard for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate key event: no device implementing the `ei::Keyboard` \
-                    interface was found on any connected device",
+                     interface was found on any connected device",
                 )
             })?;
 
         // Find the first available keyboard keymap
-        let (keyboard, keymap) = self.keyboards.iter().next().ok_or_else(|| {
+        let (keyboard, keymap) = self.keyboards.iter().next().ok_or({
             InputError::Simulate(
                 "cannot simulate key event: no keyboard keymap available (no `ei::Keyboard` \
                     object registered in the connection)",
@@ -672,7 +672,7 @@ impl Keyboard for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate raw key event: no device implementing the `ei::Keyboard` \
                     interface was found on any connected device",
@@ -680,7 +680,7 @@ impl Keyboard for Con {
             })?;
 
         // Acquire the keyboard interface object from the device data
-        let keyboard = device_data.interface::<ei::Keyboard>().ok_or_else(|| {
+        let keyboard = device_data.interface::<ei::Keyboard>().ok_or({
             InputError::Simulate(
                 "cannot simulate raw key event: device lost its `ei::Keyboard` interface before \
                  the request could be sent",
@@ -726,7 +726,7 @@ impl Mouse for Con {
             .devices
             .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Button>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot simulate button event: no device implementing the `ei::Button` \
                     interface was found on any connected device",
@@ -760,7 +760,7 @@ impl Mouse for Con {
             Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
         };
 
-        let vp = device_data.interface::<ei::Button>().ok_or_else(|| {
+        let vp = device_data.interface::<ei::Button>().ok_or({
             InputError::Simulate(
                 "cannot simulate button event: the device lost its `ei::Button` interface \
                  before the operation could be performed",
@@ -813,14 +813,14 @@ impl Mouse for Con {
                     .devices
                     .iter()
                     .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
-                    .ok_or_else(|| {
+                    .ok_or({
                         InputError::Simulate(
                             "cannot move mouse relatively: no device implementing the `ei::Pointer` \
                              interface was found on any connected device",
                         )
                     })?;
 
-                let vp = device_data.interface::<ei::Pointer>().ok_or_else(|| {
+                let vp = device_data.interface::<ei::Pointer>().ok_or({
                     InputError::Simulate(
                         "cannot move mouse relatively: the device lost its `ei::Pointer` \
                          interface before the operation could be performed",
@@ -865,14 +865,14 @@ impl Mouse for Con {
                     .find(|(_, device_data)| {
                         device_data.interface::<ei::PointerAbsolute>().is_some()
                     })
-                    .ok_or_else(|| {
+                    .ok_or({
                         InputError::Simulate(
                             "cannot move mouse absolutely: no device implementing the \
                              `ei::PointerAbsolute` interface was found on any connected device",
                         )
                     })?;
 
-                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or_else(|| {
+                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or({
                     InputError::Simulate(
                         "cannot move mouse absolutely: the device lost its `ei::PointerAbsolute` \
                          interface before the operation could be performed",
@@ -911,7 +911,7 @@ impl Mouse for Con {
             .devices
             .iter()
             .find(|(_, device_data)| device_data.interface::<ei::Scroll>().is_some())
-            .ok_or_else(|| {
+            .ok_or({
                 InputError::Simulate(
                     "cannot scroll: no device implementing the `ei::Scroll` interface was found \
                      on any connected device",
@@ -924,7 +924,7 @@ impl Mouse for Con {
         };
         trace!("vp.scroll({x}, {y})");
 
-        let vp = device_data.interface::<ei::Scroll>().ok_or_else(|| {
+        let vp = device_data.interface::<ei::Scroll>().ok_or({
             InputError::Simulate(
                 "cannot scroll: the device lost its `ei::Scroll` interface before the operation \
                  could be performed",
