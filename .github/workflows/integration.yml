@@ -84,12 +84,12 @@ jobs:
           #  features: "xdg_desktop,smol"
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # If manually triggered, use the current commit (GITHUB_SHA), otherwise use the head_sha from the Build workflow
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: ./.github/actions/install_deps
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master branch
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
