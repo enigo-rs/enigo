@@ -20,7 +20,14 @@ unsafe impl Send for Con<'_> {}
 impl Con<'_> {
     async fn open_connection<'a>(
         restore_token: Option<&str>,
-    ) -> Result<(Session<'a, RemoteDesktop<'a>>, RemoteDesktop<'a>, Option<String>), NewConError> {
+    ) -> Result<
+        (
+            Session<'a, RemoteDesktop<'a>>,
+            RemoteDesktop<'a>,
+            Option<String>,
+        ),
+        NewConError,
+    > {
         use ashpd::desktop::remote_desktop::DeviceType;
 
         trace!("open_connection");
