@@ -1,6 +1,10 @@
 use ashpd::desktop::{
-    Session,
-    remote_desktop::{KeyState, RemoteDesktop},
+    CreateSessionOptions, Session,
+    remote_desktop::{
+        DeviceType, KeyState, NotifyKeyboardKeycodeOptions, NotifyKeyboardKeysymOptions,
+        NotifyPointerAxisDiscreteOptions, NotifyPointerButtonOptions, NotifyPointerMotionOptions,
+        RemoteDesktop, SelectDevicesOptions, StartOptions,
+    },
 };
 use log::{debug, error, trace, warn};
 
@@ -9,27 +13,18 @@ use crate::{
 };
 
 /// The main struct for handling the event emitting
-pub struct Con<'a> {
-    session: Session<'a, RemoteDesktop<'a>>,
-    remote_desktop: RemoteDesktop<'a>,
+pub struct Con {
+    session: Session<RemoteDesktop>,
+    remote_desktop: RemoteDesktop,
     restore_token: Option<String>,
 }
 
-unsafe impl Send for Con<'_> {}
+unsafe impl Send for Con {}
 
-impl Con<'_> {
-    async fn open_connection<'a>(
+impl Con {
+    async fn open_connection(
         restore_token: Option<&str>,
-    ) -> Result<
-        (
-            Session<'a, RemoteDesktop<'a>>,
-            RemoteDesktop<'a>,
-            Option<String>,
-        ),
-        NewConError,
-    > {
-        use ashpd::desktop::remote_desktop::DeviceType;
-
+    ) -> Result<(Session<RemoteDesktop>, RemoteDesktop, Option<String>), NewConError> {
         trace!("open_connection");
 
         // Fallback: use portal
@@ -39,19 +34,23 @@ impl Con<'_> {
         })?;
         trace!("New desktop");
 
-        let session = remote_desktop.create_session().await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to create remote desktop session")
-        })?;
+        let session = remote_desktop
+            .create_session(CreateSessionOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to create remote desktop session")
+            })?;
+
+        let mut options = SelectDevicesOptions::default()
+            .set_devices(DeviceType::Keyboard | DeviceType::Pointer)
+            .set_persist_mode(ashpd::desktop::PersistMode::Application);
+        if let Some(restore_token) = restore_token {
+            options = options.set_restore_token(restore_token);
+        }
 
         remote_desktop
-            .select_devices(
-                &session,
-                // TODO: Add DeviceType::Touchscreen once we support it in enigo
-                DeviceType::Keyboard | DeviceType::Pointer,
-                restore_token,
-                ashpd::desktop::PersistMode::Application,
-            )
+            .select_devices(&session, options)
             .await
             .map_err(|e| {
                 error! {"{e}"};
@@ -60,7 +59,7 @@ impl Con<'_> {
         trace!("new session");
 
         let restore_token = remote_desktop
-            .start(&session, None)
+            .start(&session, None, StartOptions::default())
             .await
             .map_err(|e| {
                 error! {"{e}"};
@@ -118,7 +117,7 @@ impl Con<'_> {
     }
 }
 
-impl Keyboard for Con<'_> {
+impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         warn!("fast text entry is not yet implemented with xdg_desktop");
         // TODO: Add fast method
@@ -142,6 +141,7 @@ impl Keyboard for Con<'_> {
                 &self.session,
                 keysym,
                 key_state,
+                NotifyKeyboardKeysymOptions::default(),
             ))
             .map_err(|e| {
                 log::error!("{e}");
@@ -168,6 +168,7 @@ impl Keyboard for Con<'_> {
                 &self.session,
                 keycode.into(),
                 key_state,
+                NotifyKeyboardKeycodeOptions::default(),
             ))
             .map_err(|e| {
                 log::error!("{e}");
@@ -183,7 +184,7 @@ impl Keyboard for Con<'_> {
     }
 }
 
-impl Mouse for Con<'_> {
+impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         let code = match button {
             // Taken from /linux/input-event-codes.h
@@ -209,6 +210,7 @@ impl Mouse for Con<'_> {
                 &self.session,
                 code,
                 key_state,
+                NotifyPointerButtonOptions::default(),
             ))
             .map_err(|e| {
                 log::error!("{e}");
@@ -253,6 +255,7 @@ impl Mouse for Con<'_> {
                 &self.session,
                 x as f64,
                 y as f64,
+                NotifyPointerMotionOptions::default(),
             ))
             .map_err(|e| {
                 log::error!("{e}");
@@ -275,6 +278,7 @@ impl Mouse for Con<'_> {
             &self.session,
             axis,
             length,
+            NotifyPointerAxisDiscreteOptions::default(),
         ))
         .map_err(|e| {
             log::error!("{e}");
@@ -299,16 +303,12 @@ impl Mouse for Con<'_> {
                 .response()
                 .map_err(|_| InputError::Simulate("Screenshot response failed"))?;
 
-            let uri = response.uri();
-
             // Expect file:// URI
-            let path = uri
-                .to_file_path()
-                .map_err(|()| InputError::Simulate("Unexpected screenshot URI"))?;
+            let path = response.uri().as_str();
 
-            let img = image::open(&path)
+            let img = image::open(path)
                 .map_err(|_| InputError::Simulate("Failed to open screenshot image"))?;
-            if std::fs::remove_file(&path).is_err() {
+            if std::fs::remove_file(path).is_err() {
                 log::error!(
                     "error deleting the temporary screenshot to get the dimensions of the screen"
                 );

@@ -118,4 +118,4 @@ where
     }
 }
 
-impl Agent for Enigo<'_> {}
+impl Agent for Enigo {}
