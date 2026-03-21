@@ -1,4 +1,7 @@
-use ashpd::desktop::remote_desktop::RemoteDesktop;
+use ashpd::desktop::{
+    CreateSessionOptions,
+    remote_desktop::{ConnectToEISOptions, RemoteDesktop, SelectDevicesOptions, StartOptions},
+};
 use log::{debug, error, trace, warn};
 use reis::{
     PendingRequestResult,
@@ -121,19 +124,23 @@ impl Con {
         })?;
         trace!("New desktop");
 
-        let session = remote_desktop.create_session().await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to create remote desktop session")
-        })?;
+        let session = remote_desktop
+            .create_session(CreateSessionOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to create remote desktop session")
+            })?;
+
+        let mut options = SelectDevicesOptions::default()
+            .set_devices(DeviceType::Keyboard | DeviceType::Pointer)
+            .set_persist_mode(ashpd::desktop::PersistMode::Application);
+        if let Some(restore_token) = restore_token {
+            options = options.set_restore_token(restore_token);
+        }
 
         remote_desktop
-            .select_devices(
-                &session,
-                // TODO: Add DeviceType::Touchscreen once we support it in enigo
-                DeviceType::Keyboard | DeviceType::Pointer,
-                restore_token,
-                ashpd::desktop::PersistMode::Application,
-            )
+            .select_devices(&session, options)
             .await
             .map_err(|e| {
                 error! {"{e}"};
@@ -142,7 +149,7 @@ impl Con {
         trace!("new session");
 
         let restore_token = remote_desktop
-            .start(&session, None)
+            .start(&session, None, StartOptions::default())
             .await
             .map_err(|e| {
                 error! {"{e}"};
@@ -157,10 +164,13 @@ impl Con {
             .map(str::to_owned);
         trace!("start session");
 
-        let fd = remote_desktop.connect_to_eis(&session).await.map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("failed to connect to EIS")
-        })?;
+        let fd = remote_desktop
+            .connect_to_eis(&session, ConnectToEISOptions::default())
+            .await
+            .map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("failed to connect to EIS")
+            })?;
         // fd is a raw descriptor returned by portal; construct UnixStream
         let stream = UnixStream::from(fd);
         stream

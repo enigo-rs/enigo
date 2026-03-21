@@ -72,7 +72,7 @@ unsafe extern "C" {
 }
 
 /// The main struct for handling the event emitting
-pub struct Enigo<'a> {
+pub struct Enigo {
     event_source: CFRetained<CGEventSource>,
     held: (Vec<Key>, Vec<CGKeyCode>), // Currently held keys
     event_source_user_data: i64,
@@ -99,15 +99,15 @@ pub struct Enigo<'a> {
                                             * not yet been released */
     has_run_loop: bool, /* main thread is running an event loop with dispatch_main,
                          * UIApplicationMain, NSApplicationMain, CFRunLoop or similar */
-    _phantom: std::marker::PhantomData<&'a ()>, /* Needed to fix compiler complaining about
-                                                 * unused lifetime
-                                                 * parameter */
+    _phantom: std::marker::PhantomData<()>, /* Needed to fix compiler complaining about
+                                             * unused lifetime
+                                             * parameter */
 }
 
 // TODO: Double check this is safe
-unsafe impl Send for Enigo<'_> {}
+unsafe impl Send for Enigo {}
 
-impl Mouse for Enigo<'_> {
+impl Mouse for Enigo {
     // Sends a button event to the X11 server via `XTest` extension
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         debug!("\x1b[93mbutton(button: {button:?}, direction: {direction:?})\x1b[0m");
@@ -266,7 +266,7 @@ impl Mouse for Enigo<'_> {
 }
 
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
-impl Keyboard for Enigo<'_> {
+impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
         // Fn to create an iterator over sub slices of a str that have the specified
         // length
@@ -503,7 +503,7 @@ impl Keyboard for Enigo<'_> {
     }
 }
 
-impl Enigo<'_> {
+impl Enigo {
     /// Create a new Enigo struct to establish the connection to simulate input
     /// with the specified settings
     ///
@@ -1282,7 +1282,7 @@ pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
     unsafe { AXIsProcessTrustedWithOptions(options) }
 }
 
-impl Drop for Enigo<'_> {
+impl Drop for Enigo {
     // Release the held keys before the connection is dropped
     fn drop(&mut self) {
         if self.release_keys_when_dropped {

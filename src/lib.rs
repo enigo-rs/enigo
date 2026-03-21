@@ -139,7 +139,7 @@ pub enum Button {
     ScrollRight,
 }
 
-impl fmt::Debug for Enigo<'_> {
+impl fmt::Debug for Enigo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Enigo")
     }
