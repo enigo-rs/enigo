@@ -79,7 +79,7 @@ pub struct Con {
     devices: HashMap<ei::Device, DeviceData>,
     keyboards: HashMap<ei::Keyboard, xkb::Keymap>,
     /// `None` if there was no disconnect
-    disconnect: Option<(ei::connection::DisconnectReason, String)>,
+    disconnect: Option<(ei::connection::DisconnectReason, Option<String>)>,
     sequence: u32,
     last_serial: u32,
     context: ei::Context,
