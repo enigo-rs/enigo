@@ -229,13 +229,64 @@ impl Bind<Keycode> for CompositorConnection {
     }
 }
 
+impl Con {
+    /// Return the modifier keycodes needed for a given keysym level.
+    ///
+    /// X11 keymap columns map to groups and levels:
+    /// - Column 0: Group 1, no modifier
+    /// - Column 1: Group 1, Shift
+    /// - Column 2: Group 1, Level3 (`AltGr/Mode_switch`) or Group 2
+    /// - Column 3: Group 1, Level3 + Shift or Group 2 + Shift
+    /// - Column 4+: higher levels, typically ISO_Level3_Shift-based
+    ///
+    /// On most Linux systems, `AltGr` is at Mod5 (modifier index 7).
+    fn modifier_keycodes_for_level(&self, level: u8) -> Vec<Keycode> {
+        match level {
+            0 => vec![],
+            1 => self.modifiers[0].first().copied().into_iter().collect(), // Shift
+            2 | 4 => {
+                // AltGr / ISO_Level3_Shift / Mode_switch - typically Mod5 (index 7)
+                // Fall back to Mod3 (index 5) if Mod5 is empty
+                if let Some(&kc) = self.modifiers[7].first() {
+                    vec![kc]
+                } else if let Some(&kc) = self.modifiers[5].first() {
+                    vec![kc]
+                } else {
+                    warn!("no AltGr modifier found for keysym level {level}");
+                    vec![]
+                }
+            }
+            3 | 5 => {
+                // AltGr + Shift
+                let mut mods = vec![];
+                if let Some(&kc) = self.modifiers[7].first() {
+                    mods.push(kc);
+                } else if let Some(&kc) = self.modifiers[5].first() {
+                    mods.push(kc);
+                }
+                if let Some(&kc) = self.modifiers[0].first() {
+                    mods.push(kc);
+                }
+                if mods.is_empty() {
+                    warn!("no modifiers found for keysym level {level}");
+                }
+                mods
+            }
+            _ => {
+                warn!("modifier for keysym level {level} not yet supported");
+                vec![]
+            }
+        }
+    }
+}
+
 impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
+        let (keycode, level) = self.keymap.key_to_keycode(&self.connection, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
             for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
@@ -245,7 +296,43 @@ impl Keyboard for Con {
             }
         }
 
-        self.raw(keycode.into(), direction)
+        let mod_keycodes = self.modifier_keycodes_for_level(level);
+
+        if mod_keycodes.is_empty() {
+            self.raw(keycode.into(), direction)
+        } else {
+            // Track which modifiers we actually need to press (skip already-held ones)
+            let mods_to_press: Vec<Keycode> = mod_keycodes
+                .iter()
+                .copied()
+                .filter(|kc| !self.keymap.is_keycode_held(kc))
+                .collect();
+
+            match direction {
+                Direction::Click => {
+                    for &mod_kc in &mods_to_press {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Click)?;
+                    for &mod_kc in mods_to_press.iter().rev() {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+                Direction::Press => {
+                    for &mod_kc in &mods_to_press {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Press)?;
+                }
+                Direction::Release => {
+                    self.raw(keycode.into(), Direction::Release)?;
+                    for &mod_kc in mods_to_press.iter().rev() {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+            }
+            Ok(())
+        }
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
