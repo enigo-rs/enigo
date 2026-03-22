@@ -235,11 +235,11 @@ impl Con {
     /// X11 keymap columns map to groups and levels:
     /// - Column 0: Group 1, no modifier
     /// - Column 1: Group 1, Shift
-    /// - Column 2: Group 1, Level3 (AltGr/Mode_switch) or Group 2
+    /// - Column 2: Group 1, Level3 (`AltGr/Mode_switch`) or Group 2
     /// - Column 3: Group 1, Level3 + Shift or Group 2 + Shift
     /// - Column 4+: higher levels, typically ISO_Level3_Shift-based
     ///
-    /// On most Linux systems, AltGr is at Mod5 (modifier index 7).
+    /// On most Linux systems, `AltGr` is at Mod5 (modifier index 7).
     fn modifier_keycodes_for_level(&self, level: u8) -> Vec<Keycode> {
         match level {
             0 => vec![],
