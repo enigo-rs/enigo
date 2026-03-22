@@ -206,8 +206,8 @@ impl Enigo {
         self.held.clone()
     }
 
-    /// Returns the restore token from the portal session when using libei or
-    /// xdg_desktop, if available. Save this token and pass it via
+    /// Returns the restore token from the portal session when using `libei` or
+    /// `xdg_desktop`, if available. Save this token and pass it via
     /// `Settings::restore_token` on the next connection to avoid the
     /// permission dialog.
     #[must_use]
