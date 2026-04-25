@@ -211,11 +211,10 @@ impl Enigo {
     /// `Settings::restore_token` on the next connection to avoid the
     /// permission dialog.
     #[must_use]
+    #[cfg(feature = "platform_specific")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "platform_specific")))]
     pub fn restore_token(&self) -> Option<String> {
-        #[cfg(any(
-            all(feature = "xdg_desktop", feature = "tokio"),
-            all(feature = "xdg_desktop", feature = "smol")
-        ))]
+        #[cfg(feature = "xdg_desktop")]
         if let Some(token) = self
             .xdg_desktop
             .as_ref()
@@ -223,10 +222,7 @@ impl Enigo {
         {
             return Some(token);
         }
-        #[cfg(any(
-            all(feature = "libei", feature = "tokio"),
-            all(feature = "libei", feature = "smol")
-        ))]
+        #[cfg(feature = "libei")]
         if let Some(token) = self.libei.as_ref().and_then(libei::Con::restore_token) {
             return Some(token);
         }

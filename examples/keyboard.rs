@@ -10,7 +10,14 @@ fn main() {
     let token_path = "/tmp/restore_token.txt";
 
     // Load saved token to only see the permissions dialog once
-    let saved_token = std::fs::read_to_string(token_path).ok();
+    let saved_token = if cfg!(all(
+        feature = "platform_specific",
+        any(feature = "libei", feature = "xdg_desktop")
+    )) {
+        std::fs::read_to_string(token_path).ok()
+    } else {
+        None
+    };
 
     let settings = enigo::Settings {
         restore_token: saved_token,
@@ -31,6 +38,10 @@ fn main() {
     enigo.key(Key::Control, Release).unwrap();
 
     // Save the new token (tokens rotate on each session)
+    #[cfg(all(
+        feature = "platform_specific",
+        any(feature = "libei", feature = "xdg_desktop")
+    ))]
     if let Some(token) = enigo.restore_token() {
         std::fs::write(token_path, token).unwrap();
     }
