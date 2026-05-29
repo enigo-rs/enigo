@@ -7,6 +7,7 @@ use x11rb::{
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
+        xkb::{self, ConnectionExt as _},
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
@@ -28,6 +29,12 @@ pub struct Con {
     screen: Screen,
     keymap: KeyMap<Keycode>,
     modifiers: [Vec<Keycode>; 8],
+    min_keycode: Keycode,
+    /// XKB key types, indexed by key type index
+    key_types: Vec<xkb::KeyType>,
+    /// XKB key type indices per group for every keycode, indexed by
+    /// `keycode - min_keycode`
+    key_type_indices: Vec<[u8; 4]>,
 }
 
 impl From<ConnectionError> for NewConError {
@@ -85,12 +92,67 @@ impl Con {
         // Get the keycodes of the modifiers
         let modifiers = Self::find_modifier_keycodes(&connection)?;
 
+        // Get the XKB key types so the modifiers needed to reach a keysym level
+        // can be derived from the keymap instead of being hardcoded
+        let (key_types, key_type_indices) = Self::get_key_types(&connection)?;
+
         Ok(Con {
             connection,
             screen,
             keymap,
             modifiers,
+            min_keycode,
+            key_types,
+            key_type_indices,
         })
+    }
+
+    /// Get the XKB key types and the key type assigned to every keycode.
+    ///
+    /// A key type describes, for each keysym level, the modifier combination
+    /// that selects it. Together with the key type assigned to each key, this
+    /// is the keymap's own description of which modifiers switch to which
+    /// level, so it can be used instead of assuming fixed modifiers.
+    fn get_key_types(
+        connection: &CompositorConnection,
+    ) -> Result<(Vec<xkb::KeyType>, Vec<[u8; 4]>), NewConError> {
+        // The XKB extension has to be initialized before any of its requests
+        // can be used
+        connection.xkb_use_extension(1, 0)?.reply()?;
+
+        let reply = connection
+            .xkb_get_map(
+                xkb::ID::USE_CORE_KBD.into(),
+                xkb::MapPart::KEY_TYPES | xkb::MapPart::KEY_SYMS, // return these fully
+                xkb::MapPart::from(0u16),                         // nothing partially
+                0,                                                // first_type
+                0,                                                // n_types
+                0,                                                // first_key_sym
+                0,                                                // n_key_syms
+                0,                                                // first_key_action
+                0,                                                // n_key_actions
+                0,                                                // first_key_behavior
+                0,                                                // n_key_behaviors
+                xkb::VMod::from(0u16),
+                0, // first_key_explicit
+                0, // n_key_explicit
+                0, // first_mod_map_key
+                0, // n_mod_map_keys
+                0, // first_v_mod_map_key
+                0, // n_v_mod_map_keys
+            )?
+            .reply()?;
+
+        let key_types = reply.map.types_rtrn.unwrap_or_default();
+        let key_type_indices = reply
+            .map
+            .syms_rtrn
+            .unwrap_or_default()
+            .iter()
+            .map(|sym_map| sym_map.kt_index)
+            .collect();
+
+        Ok((key_types, key_type_indices))
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
@@ -230,53 +292,60 @@ impl Bind<Keycode> for CompositorConnection {
 }
 
 impl Con {
-    /// Return the modifier keycodes needed for a given keysym level.
+    /// Return the modifier keycodes needed to reach `level` for `keycode`.
     ///
-    /// X11 keymap columns map to groups and levels:
-    /// - Column 0: Group 1, no modifier
-    /// - Column 1: Group 1, Shift
-    /// - Column 2: Group 1, Level3 (`AltGr/Mode_switch`) or Group 2
-    /// - Column 3: Group 1, Level3 + Shift or Group 2 + Shift
-    /// - Column 4+: higher levels, typically ISO_Level3_Shift-based
+    /// The level-to-modifier relationship is read from the XKB key types
+    /// instead of being hardcoded, because it is not guaranteed to be the same
+    /// for every keymap (e.g. `AltGr` is not always mapped to the same
+    /// modifier).
     ///
-    /// On most Linux systems, `AltGr` is at Mod5 (modifier index 7).
-    fn modifier_keycodes_for_level(&self, level: u8) -> Vec<Keycode> {
-        match level {
-            0 => vec![],
-            1 => self.modifiers[0].first().copied().into_iter().collect(), // Shift
-            2 | 4 => {
-                // AltGr / ISO_Level3_Shift / Mode_switch - typically Mod5 (index 7)
-                // Fall back to Mod3 (index 5) if Mod5 is empty
-                if let Some(&kc) = self.modifiers[7].first() {
-                    vec![kc]
-                } else if let Some(&kc) = self.modifiers[5].first() {
-                    vec![kc]
-                } else {
-                    warn!("no AltGr modifier found for keysym level {level}");
-                    vec![]
-                }
+    /// Each key type lists, for every level, the real modifier mask that
+    /// selects it. We resolve the key type assigned to the key's base group,
+    /// look up the mask for the requested level and translate that mask into
+    /// the keycodes of the corresponding modifiers.
+    fn modifier_keycodes_for_level(&self, keycode: Keycode, level: u8) -> Vec<Keycode> {
+        // The base level never needs a modifier
+        if level == 0 {
+            return vec![];
+        }
+
+        let Some(mods_mask) = self.level_modifier_mask(keycode, level) else {
+            warn!("no key type modifier mapping found for keycode {keycode} at level {level}");
+            return vec![];
+        };
+
+        // Translate the real modifier mask into the keycodes of those
+        // modifiers. Bit i of the mask corresponds to self.modifiers[i]
+        // (0: Shift, 1: Lock, 2: Control, 3-7: Mod1-Mod5).
+        let mut mod_keycodes = vec![];
+        for (i, keycodes) in self.modifiers.iter().enumerate() {
+            if mods_mask & (1u16 << i) == 0 {
+                continue;
             }
-            3 | 5 => {
-                // AltGr + Shift
-                let mut mods = vec![];
-                if let Some(&kc) = self.modifiers[7].first() {
-                    mods.push(kc);
-                } else if let Some(&kc) = self.modifiers[5].first() {
-                    mods.push(kc);
-                }
-                if let Some(&kc) = self.modifiers[0].first() {
-                    mods.push(kc);
-                }
-                if mods.is_empty() {
-                    warn!("no modifiers found for keysym level {level}");
-                }
-                mods
-            }
-            _ => {
-                warn!("modifier for keysym level {level} not yet supported");
-                vec![]
+            if let Some(&kc) = keycodes.first() {
+                mod_keycodes.push(kc);
+            } else {
+                warn!("modifier no {i} selects level {level} but has no keycode mapped");
             }
         }
+        mod_keycodes
+    }
+
+    /// Look up the real modifier mask that selects `level` for `keycode` in the
+    /// XKB key types.
+    fn level_modifier_mask(&self, keycode: Keycode, level: u8) -> Option<u16> {
+        let index = usize::from(keycode.checked_sub(self.min_keycode)?);
+        let kt_index = self.key_type_indices.get(index)?;
+        // Use the base group (group 1). Reaching a level in a higher group
+        // would additionally require a group-switch modifier, which the levels
+        // resolved here do not use.
+        let key_type = self.key_types.get(usize::from(kt_index[0]))?;
+
+        key_type
+            .map
+            .iter()
+            .find(|entry| entry.active && entry.level == level)
+            .map(|entry| u16::from(entry.mods_mask))
     }
 }
 
@@ -296,7 +365,7 @@ impl Keyboard for Con {
             }
         }
 
-        let mod_keycodes = self.modifier_keycodes_for_level(level);
+        let mod_keycodes = self.modifier_keycodes_for_level(keycode, level);
 
         if mod_keycodes.is_empty() {
             self.raw(keycode.into(), direction)
