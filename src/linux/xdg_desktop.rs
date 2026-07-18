@@ -16,6 +16,7 @@ use crate::{
 pub struct Con {
     session: Session<RemoteDesktop>,
     remote_desktop: RemoteDesktop,
+    #[cfg(feature = "platform_specific")]
     restore_token: Option<String>,
 }
 
@@ -101,9 +102,12 @@ impl Con {
                 error! {"{e}"};
                 NewConError::EstablishCon("failed to create tokio runtime")
             })??;
+        #[cfg(not(feature = "platform_specific"))]
+        let _ = restore_token;
         Ok(Self {
             session,
             remote_desktop,
+            #[cfg(feature = "platform_specific")]
             restore_token,
         })
     }
@@ -112,6 +116,7 @@ impl Con {
     /// Callers should save this token and pass it via `Settings::restore_token`
     /// on the next connection to skip the permission dialog.
     #[must_use]
+    #[cfg(feature = "platform_specific")]
     pub fn restore_token(&self) -> Option<String> {
         self.restore_token.clone()
     }

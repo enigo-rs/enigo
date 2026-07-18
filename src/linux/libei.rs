@@ -78,6 +78,7 @@ pub struct Con {
     last_serial: u32,
     context: ei::Context,
     connection: Connection,
+    #[cfg(feature = "platform_specific")]
     restore_token: Option<String>,
 }
 
@@ -211,6 +212,8 @@ impl Con {
 
         let (context, restore_token) =
             Self::custom_block_on(Self::open_connection(restore_token))??;
+        #[cfg(not(feature = "platform_specific"))]
+        let _ = restore_token;
 
         let HandshakeResp {
             connection,
@@ -245,6 +248,7 @@ impl Con {
             last_serial: serial,
             context,
             connection,
+            #[cfg(feature = "platform_specific")]
             restore_token,
         };
 
@@ -300,6 +304,7 @@ impl Con {
     /// Callers should save this token and pass it via `Settings::restore_token`
     /// on the next connection to skip the permission dialog.
     #[must_use]
+    #[cfg(feature = "platform_specific")]
     pub fn restore_token(&self) -> Option<String> {
         self.restore_token.clone()
     }
