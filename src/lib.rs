@@ -489,8 +489,9 @@ pub struct Settings {
     /// A restore token from a previous XDG `RemoteDesktop` portal session.
     /// When provided, the portal will attempt to restore the previous session
     /// without showing a permission dialog to the user. After connecting, call
-    /// `restore_token()` to get the new token (tokens rotate) and save it for
-    /// next time. Only used by the libei and `xdg_desktop` backends on Linux.
+    /// `Enigo::restore_token()` (requires the `platform_specific` feature) to
+    /// get the new token (tokens rotate) and save it for next time. Only used
+    /// by the libei and `xdg_desktop` backends on Linux.
     pub restore_token: Option<String>,
 }
 
