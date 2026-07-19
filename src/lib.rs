@@ -342,11 +342,14 @@ pub trait Mouse {
     #[doc(alias = "mouse_scroll_x", alias = "mouse_scroll_y")]
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
-    /// Smooth scroll using pixel-based scrolling on macOS
+    /// Smooth scroll using pixel-based scrolling
     ///
     /// This function provides pixel-level precision for scrolling
     /// offering smoother scrolling behavior compared to the
     /// standard line-based scrolling.
+    ///
+    /// Available on macOS and on Linux via libei when the
+    /// `platform_specific` feature is enabled.
     ///
     /// # Arguments
     /// * `length` - The number of pixels to scroll. Positive values scroll
@@ -357,7 +360,7 @@ pub trait Mouse {
     /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
     #[cfg_attr(docsrs, doc(cfg(feature = "platform_specific")))]
-    #[cfg(all(feature = "platform_specific", any(target_os = "macos", doc)))]
+    #[cfg(all(feature = "platform_specific", any(unix, doc)))]
     #[doc(alias = "mouse_smooth_scroll_x", alias = "mouse_smooth_scroll_y")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         unimplemented!()

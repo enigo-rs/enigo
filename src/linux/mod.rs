@@ -377,6 +377,26 @@ impl Mouse for Enigo {
         res
     }
 
+    #[cfg(feature = "platform_specific")]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
+
+        #[cfg(any(
+            all(feature = "libei", feature = "tokio"),
+            all(feature = "libei", feature = "smol")
+        ))]
+        if let Some(con) = self.libei.as_mut() {
+            trace!("try smooth scrolling via libei");
+            let res = con.smooth_scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully smooth scrolled via libei");
+            }
+            return res;
+        }
+
+        Err(InputError::Simulate("No protocol to simulate the input"))
+    }
+
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
         let mut res = Err(InputError::Simulate(

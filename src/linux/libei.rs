@@ -952,6 +952,28 @@ impl Mouse for Con {
         self.update()
     }
 
+    #[cfg(feature = "platform_specific")]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        self.ensure_connected()?;
+
+        // Pixel-precise scrolling uses ei_scroll.scroll with logical pixels
+        #[allow(clippy::cast_precision_loss)]
+        let (x, y) = match axis {
+            Axis::Horizontal => (length as f32, 0.0),
+            Axis::Vertical => (0.0, length as f32),
+        };
+        trace!("vp.scroll({x}, {y})");
+
+        let (device, vp) = self
+            .device_with::<ei::Scroll>()?
+            .ok_or(InputError::Simulate(
+                "no connected device implements the required interface",
+            ))?;
+        vp.scroll(x, y);
+        device.frame(self.last_serial, now_monotonic_micros());
+        self.update()
+    }
+
     fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO Implement this
         error!(
