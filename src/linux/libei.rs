@@ -23,6 +23,7 @@ const EI_TEXT_MAX_UTF8_LEN: usize = 254;
 struct SeatData {
     name: Option<String>,
     capabilities: HashMap<String, u64>,
+    devices: Vec<ei::Device>,
 }
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
@@ -63,7 +64,6 @@ pub struct Con {
     // XXX best way to handle data associated with object?
     // TODO: Release seat when dropped, so compositor knows it wont be used anymore
     seats: HashMap<ei::Seat, SeatData>,
-    // XXX association with seat?
     // TODO: Release device when dropped, so compositor knows it wont be used anymore
     devices: HashMap<ei::Device, DeviceData>,
     keyboards: HashMap<ei::Keyboard, xkb::Keymap>,
@@ -337,15 +337,39 @@ impl Con {
         Ok(Some((device, iface)))
     }
 
+    fn forget_device(&mut self, device: &ei::Device) {
+        if let Some(data) = self.devices.remove(device) {
+            if let Some(keyboard) = data.interface::<ei::Keyboard>() {
+                self.keyboards.remove(&keyboard);
+            }
+        }
+        for seat in self.seats.values_mut() {
+            seat.devices.retain(|d| d != device);
+        }
+    }
+
+    fn forget_seat(&mut self, seat: &ei::Seat) {
+        let Some(data) = self.seats.remove(seat) else {
+            return;
+        };
+        for device in &data.devices {
+            self.forget_device(device);
+        }
+    }
+
     /// Drop any seat/device/keyboard/interface we track for `object_id`.
     /// Returns whether anything was removed.
     fn drop_object_by_id(&mut self, object_id: u64) -> bool {
         // Object IDs are unique, so seat/device can return as soon as they match.
         // A keyboard id may appear in both `devices.interfaces` and `keyboards`, so
         // those two maps are cleaned together before returning.
-        if self.seats.keys().any(|seat| seat.as_object().id() == object_id) {
-            self.seats
-                .retain(|seat, _| seat.as_object().id() != object_id);
+        if let Some(seat) = self
+            .seats
+            .keys()
+            .find(|seat| seat.as_object().id() == object_id)
+            .cloned()
+        {
+            self.forget_seat(&seat);
             return true;
         }
 
@@ -355,11 +379,7 @@ impl Con {
             .find(|device| device.as_object().id() == object_id)
             .cloned()
         {
-            if let Some(data) = self.devices.remove(&device) {
-                if let Some(keyboard) = data.interface::<ei::Keyboard>() {
-                    self.keyboards.remove(&keyboard);
-                }
-            }
+            self.forget_device(&device);
             return true;
         }
 
@@ -483,7 +503,7 @@ impl Con {
                                 ei::seat::Event::Destroyed { serial } => {
                                     debug!("seat was destroyed");
                                     self.last_serial = serial;
-                                    self.seats.remove(&seat);
+                                    self.forget_seat(&seat);
                                 }
                                 ei::seat::Event::Name { name } => {
                                     data.name = Some(name);
@@ -500,6 +520,7 @@ impl Con {
                                     trace!("done binding to seat");
                                 }
                                 ei::seat::Event::Device { device } => {
+                                    data.devices.push(device.clone());
                                     self.devices.insert(device, DeviceData::default());
                                 }
                                 _ => {
@@ -519,11 +540,7 @@ impl Con {
                                     self.last_serial = serial;
                                     // Drop associated keymaps too; the compositor may tear
                                     // down the device without a separate keyboard.destroyed
-                                    if let Some(data) = self.devices.remove(&device) {
-                                        if let Some(keyboard) = data.interface::<ei::Keyboard>() {
-                                            self.keyboards.remove(&keyboard);
-                                        }
-                                    }
+                                    self.forget_device(&device);
                                 }
                                 ei::device::Event::Name { name } => {
                                     trace!("device name: {name}");
