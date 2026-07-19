@@ -965,17 +965,18 @@ impl Mouse for Con {
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        // Wheel-style scrolling uses axis_discrete:
+        // - `discrete` is the number of wheel clicks (`length`)
+        // - `value` is the continuous axis value in degrees of wheel rotation (libinput
+        //   default: 15° per click; see https://wayland.freedesktop.org/libinput/doc/latest/api/group__event__pointer.html)
+        const DEGREES_PER_WHEEL_CLICK: f64 = 15.0;
+
         let vp = self
             .state
             .virtual_pointer
             .as_ref()
             .ok_or(InputError::Simulate("no way to scroll"))?;
 
-        // Wheel-style scrolling uses axis_discrete:
-        // - `discrete` is the number of wheel clicks (`length`)
-        // - `value` is the continuous axis value in degrees of wheel rotation (libinput
-        //   default: 15° per click; see https://wayland.freedesktop.org/libinput/doc/latest/api/group__event__pointer.html)
-        const DEGREES_PER_WHEEL_CLICK: f64 = 15.0;
         let time = self.get_time();
         let axis = match axis {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
@@ -984,7 +985,7 @@ impl Mouse for Con {
         let value = f64::from(length) * DEGREES_PER_WHEEL_CLICK;
         trace!("vp.axis_source(Wheel); vp.axis_discrete(time, axis, {value}, {length})");
         vp.axis_source(wl_pointer::AxisSource::Wheel);
-        vp.axis_discrete(time, axis, value.into(), length);
+        vp.axis_discrete(time, axis, value, length);
         vp.frame();
 
         self.flush()

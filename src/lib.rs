@@ -348,7 +348,7 @@ pub trait Mouse {
     ///
     /// Units depend on the platform; prefer the finest scroll the backend
     /// supports:
-    /// - **macOS / libei / xdg_desktop / Wayland:** pixels / logical pixels
+    /// - **macOS / libei / `xdg_desktop` / Wayland:** pixels / logical pixels
     ///   (continuous axis; Wayland uses `AxisSource::Continuous`)
     /// - **Windows:** high-resolution wheel delta where [`WHEEL_DELTA`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel)
     ///   (`120`) equals one notch — the finest injection Windows exposes via
