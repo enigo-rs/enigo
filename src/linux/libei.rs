@@ -677,6 +677,66 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly and is
+        // independent of the keymap, so even keys that are not mapped on the current
+        // layout can be simulated
+        let text_device = self.devices.iter_mut().find_map(|(device, data)| {
+            let text_iface = data.interface::<ei::Text>()?;
+            Some((device.clone(), text_iface, data))
+        });
+
+        if let Some((device, text_iface, device_data)) = text_device {
+            if !device.is_alive() {
+                return Err(InputError::Simulate(
+                    "cannot simulate key event: the `ei::Device` is no longer alive",
+                ));
+            }
+            if !text_iface.is_alive() {
+                return Err(InputError::Simulate(
+                    "cannot simulate key event: the `ei::Text` interface is no longer alive",
+                ));
+            }
+
+            ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
+
+            let keysym = xkb::Keysym::from(key).raw();
+
+            // Press
+            if direction == Direction::Press || direction == Direction::Click {
+                trace!("ei_text.keysym({keysym:#x}, Press)");
+                text_iface.keysym(keysym, ei::keyboard::KeyState::Press);
+
+                // It is a client bug to send more than one key request for the same keysym
+                // within the same ei_device.frame and the EIS implementation may ignore
+                // either or all keysym state changes and/or disconnect the client
+                // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_text/index.html#ei_textkeysym).
+                // That's why we need to call frame for the press and the release
+                device.frame(self.sequence, now_monotonic_micros());
+                self.sequence = self.sequence.wrapping_add(1);
+            }
+
+            // Release
+            if direction == Direction::Release || direction == Direction::Click {
+                trace!("ei_text.keysym({keysym:#x}, Released)");
+                text_iface.keysym(keysym, ei::keyboard::KeyState::Released);
+
+                device.frame(self.sequence, now_monotonic_micros());
+                self.sequence = self.sequence.wrapping_add(1);
+            }
+
+            self.update("enigo").map_err(|e| {
+                error! {"{e}"};
+                InputError::Simulate(
+                    "failed to update libei connection after sending key events: the update call \
+                     returned an error",
+                )
+            })?;
+
+            return Ok(());
+        }
+
+        debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
+
         // Find a device that exposes a keyboard interface
         let (device, device_data) = self
             .devices
