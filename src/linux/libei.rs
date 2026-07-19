@@ -851,20 +851,23 @@ impl Mouse for Con {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         self.ensure_connected()?;
 
-        #[allow(clippy::cast_precision_loss)]
-        let length = length as f32;
+        // Wheel-style scrolling uses ei_scroll.scroll_discrete, where one logical
+        // scroll unit (one wheel click) is 120
+        let delta = length.checked_mul(120).ok_or(InputError::InvalidInput(
+            "scroll length is too large for ei_scroll.scroll_discrete",
+        ))?;
         let (x, y) = match axis {
-            Axis::Horizontal => (length, 0.0),
-            Axis::Vertical => (0.0, length),
+            Axis::Horizontal => (delta, 0),
+            Axis::Vertical => (0, delta),
         };
-        trace!("vp.scroll({x}, {y})");
+        trace!("vp.scroll_discrete({x}, {y})");
 
         let (device, vp) = self
             .device_with::<ei::Scroll>()?
             .ok_or(InputError::Simulate(
                 "no connected device implements the required interface",
             ))?;
-        vp.scroll(x, y);
+        vp.scroll_discrete(x, y);
         device.frame(self.last_serial, now_monotonic_micros());
         self.flush_events()
     }
