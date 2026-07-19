@@ -474,7 +474,13 @@ impl Con {
                                 ei::device::Event::Destroyed { serial } => {
                                     debug!("device with serial {serial} was destroyed");
                                     self.last_serial = serial;
-                                    self.devices.remove(&device);
+                                    // Drop associated keymaps too; the compositor may tear
+                                    // down the device without a separate keyboard.destroyed
+                                    if let Some(data) = self.devices.remove(&device) {
+                                        if let Some(keyboard) = data.interface::<ei::Keyboard>() {
+                                            self.keyboards.remove(&keyboard);
+                                        }
+                                    }
                                 }
                                 ei::device::Event::Name { name } => {
                                     trace!("device name: {name}");
