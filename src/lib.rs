@@ -350,7 +350,7 @@ pub trait Mouse {
     ///
     /// # Arguments
     /// * `length` - The number of pixels to scroll. Positive values scroll
-    /// down/right, negative values scroll up/left.
+    ///   down/right, negative values scroll up/left.
     /// * `axis` - The axis to scroll along (Horizontal or Vertical)
     ///
     /// # Errors

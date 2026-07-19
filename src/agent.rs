@@ -48,7 +48,7 @@ pub enum Token {
     #[cfg_attr(feature = "serde", serde(alias = "s"))]
     Scroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
     /// Call the [`Mouse::smooth_scroll`] fn.
-    /// Only available on macOS with platform_specific feature.
+    /// Only available on macOS with the `platform_specific` feature.
     #[cfg(all(feature = "platform_specific", target_os = "macos"))]
     #[cfg_attr(feature = "serde", serde(alias = "SS"))]
     #[cfg_attr(feature = "serde", serde(alias = "ss"))]
