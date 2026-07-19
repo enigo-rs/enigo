@@ -314,6 +314,43 @@ impl Con {
         Ok(())
     }
 
+    /// Find a device exposing interface `T` and ensure it is emulating.
+    /// Returns `Ok(None)` if no such device exists
+    fn device_with<T: Interface>(&mut self) -> InputResult<Option<(ei::Device, T)>> {
+        let Some((device, iface, data)) =
+            self.devices.iter_mut().find_map(|(device, data)| {
+                let iface = data.interface::<T>()?;
+                Some((device.clone(), iface, data))
+            })
+        else {
+            return Ok(None);
+        };
+
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate input: the `ei::Device` is no longer alive",
+            ));
+        }
+        if !iface.as_object().is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate input: the device interface is no longer alive",
+            ));
+        }
+
+        ensure_emulating(&device, data, &mut self.sequence, self.last_serial)?;
+        Ok(Some((device, iface)))
+    }
+
+    fn flush_events(&mut self) -> InputResult<()> {
+        self.update().map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending events: the update call \
+                 returned an error",
+            )
+        })
+    }
+
     #[allow(clippy::too_many_lines)]
     fn update(&mut self) -> InputResult<()> {
         self.ensure_connected()?;
@@ -615,46 +652,20 @@ impl Keyboard for Con {
             ));
         }
 
-        // Find a device that exposes the ei_text interface (libei 1.6+).
-        let Some((device, text_iface, device_data)) =
-            self.devices.iter_mut().find_map(|(device, data)| {
-                let text_iface = data.interface::<ei::Text>()?;
-                Some((device.clone(), text_iface, data))
-            })
-        else {
+        // libei 1.6+: prefer ei_text when the seat advertises it
+        let Some((device, text_iface)) = self.device_with::<ei::Text>()? else {
             debug!("fast text entry not available: no device with ei_text");
             return Ok(None);
         };
 
-        if !device.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate text: the `ei::Device` is no longer alive",
-            ));
-        }
-        if !text_iface.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate text: the `ei::Text` interface is no longer alive",
-            ));
-        }
-
-        ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
-
         for chunk in utf8_byte_chunks(text, EI_TEXT_MAX_UTF8_LEN) {
             trace!("ei_text.utf8({chunk:?})");
             text_iface.utf8(chunk);
-
-            // At most one utf8 request per frame.
+            // At most one utf8 request per frame
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update().map_err(|e| {
-            error! {"{e}"};
-            InputError::Simulate(
-                "failed to update libei connection after sending text events: the update call \
-                 returned an error",
-            )
-        })?;
-
+        self.flush_events()?;
         Ok(Some(()))
     }
 
@@ -664,82 +675,36 @@ impl Keyboard for Con {
         // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly and is
         // independent of the keymap, so even keys that are not mapped on the current
         // layout can be simulated
-        let text_device = self.devices.iter_mut().find_map(|(device, data)| {
-            let text_iface = data.interface::<ei::Text>()?;
-            Some((device.clone(), text_iface, data))
-        });
-
-        if let Some((device, text_iface, device_data)) = text_device {
-            if !device.is_alive() {
-                return Err(InputError::Simulate(
-                    "cannot simulate key event: the `ei::Device` is no longer alive",
-                ));
-            }
-            if !text_iface.is_alive() {
-                return Err(InputError::Simulate(
-                    "cannot simulate key event: the `ei::Text` interface is no longer alive",
-                ));
-            }
-
-            ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
-
+        if let Some((device, text_iface)) = self.device_with::<ei::Text>()? {
             let keysym = xkb::Keysym::from(key).raw();
 
-            // Press
             if direction == Direction::Press || direction == Direction::Click {
                 trace!("ei_text.keysym({keysym:#x}, Press)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Press);
-
                 // Press and release of the same keysym must be in separate frames
                 device.frame(self.last_serial, now_monotonic_micros());
             }
-
-            // Release
             if direction == Direction::Release || direction == Direction::Click {
                 trace!("ei_text.keysym({keysym:#x}, Released)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Released);
-
                 device.frame(self.last_serial, now_monotonic_micros());
             }
 
-            self.update().map_err(|e| {
-                error! {"{e}"};
-                InputError::Simulate(
-                    "failed to update libei connection after sending key events: the update call \
-                     returned an error",
-                )
-            })?;
-
-            return Ok(());
+            return self.flush_events();
         }
 
         debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
 
-        // Find a device that exposes a keyboard interface
-        let (device, keyboard, device_data) = self
-            .devices
-            .iter_mut()
-            .find_map(|(device, data)| {
-                let keyboard = data.interface::<ei::Keyboard>()?;
-                Some((device.clone(), keyboard, data))
-            })
-            .ok_or({
-                InputError::Simulate(
-                    "cannot simulate key event: no device implementing the `ei::Keyboard` \
-                     interface was found on any connected device",
-                )
-            })?;
+        let (device, keyboard) = self.device_with::<ei::Keyboard>()?.ok_or(
+            InputError::Simulate("no connected device implements the required interface"),
+        )?;
 
-        // Use the keymap of the keyboard the key event will be sent on. Using any
-        // other keymap could calculate the wrong keycode and the key event would be
-        // framed on the wrong device
+        // Use the keymap of the keyboard the key event will be sent on
         let keymap = self.keyboards.get(&keyboard).ok_or({
             InputError::Simulate(
                 "cannot simulate key event: no keymap was received for the keyboard",
             )
         })?;
-
-        // Map the Key to a keycode using the retrieved keymap
         let keycode = key_to_keycode(keymap, key).map_err(|e| {
             error! {"{e}"};
             InputError::InvalidInput(
@@ -748,44 +713,17 @@ impl Keyboard for Con {
             )
         })?;
 
-        if !device.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate key event: the `ei::Device` is no longer alive",
-            ));
-        }
-        // Ensure the keyboard object is still alive
-        if !keyboard.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate key event: the `ei::Keyboard` object is no longer alive",
-            ));
-        }
-
-        ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
-
-        // Press
         if direction == Direction::Press || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
-
             // Press and release of the same key must be in separate frames
             device.frame(self.last_serial, now_monotonic_micros());
         }
-
-        // Release
         if direction == Direction::Release || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
-
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update().map_err(|e| {
-            error! {"{e}"};
-            InputError::Simulate(
-                "failed to update libei connection after sending key events: the update call \
-                 returned an error",
-            )
-        })?;
-
-        Ok(())
+        self.flush_events()
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
@@ -798,63 +736,21 @@ impl Keyboard for Con {
             InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
         })?;
 
-        // Find a device that exposes a keyboard interface
-        let (device, device_data) = self
-            .devices
-            .iter_mut()
-            .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
-            .ok_or({
-                InputError::Simulate(
-                    "cannot simulate raw key event: no device implementing the `ei::Keyboard` \
-                    interface was found on any connected device",
-                )
-            })?;
+        let (device, keyboard) = self.device_with::<ei::Keyboard>()?.ok_or(
+            InputError::Simulate("no connected device implements the required interface"),
+        )?;
 
-        // Acquire the keyboard interface object from the device data
-        let keyboard = device_data.interface::<ei::Keyboard>().ok_or({
-            InputError::Simulate(
-                "cannot simulate raw key event: device lost its `ei::Keyboard` interface before \
-                 the request could be sent",
-            )
-        })?;
-
-        if !device.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate raw key event: the `ei::Device` is no longer alive",
-            ));
-        }
-        if !keyboard.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate raw key event: the `ei::Keyboard` interface is no longer alive",
-            ));
-        }
-
-        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
-
-        // Press
         if direction == Direction::Press || direction == Direction::Click {
             keyboard.key(keycode, ei::keyboard::KeyState::Press);
-
             // Press and release of the same key must be in separate frames
             device.frame(self.last_serial, now_monotonic_micros());
         }
-
-        // Release
         if direction == Direction::Release || direction == Direction::Click {
             keyboard.key(keycode, ei::keyboard::KeyState::Released);
-
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update().map_err(|e| {
-            error! {"{e}"};
-            InputError::Simulate(
-                "failed to update libei connection after sending raw key events: the update \
-                 call returned an error",
-            )
-        })?;
-
-        Ok(())
+        self.flush_events()
     }
 }
 
@@ -862,28 +758,18 @@ impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
         self.ensure_connected()?;
 
-        let (device, device_data) = self
-            .devices
-            .iter_mut()
-            .find(|(_, device_data)| device_data.interface::<ei::Button>().is_some())
-            .ok_or({
-                InputError::Simulate(
-                    "cannot simulate button event: no device implementing the `ei::Button` \
-                    interface was found on any connected device",
-                )
-            })?;
-
-        // Do nothing if one of the mouse scroll buttons was released
-        // Releasing one of the scroll mouse buttons has no effect
+        // Releasing a scroll "button" has no effect
         if direction == Direction::Release {
             match button {
-                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
                 Button::ScrollDown
                 | Button::ScrollUp
                 | Button::ScrollRight
-                | Button::ScrollLeft => {
-                    return Ok(());
-                }
+                | Button::ScrollLeft => return Ok(()),
+                Button::Left
+                | Button::Right
+                | Button::Back
+                | Button::Forward
+                | Button::Middle => {}
             }
         }
 
@@ -900,25 +786,9 @@ impl Mouse for Con {
             Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
         };
 
-        let vp = device_data.interface::<ei::Button>().ok_or({
-            InputError::Simulate(
-                "cannot simulate button event: the device lost its `ei::Button` interface \
-                 before the operation could be performed",
-            )
-        })?;
-
-        if !device.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate button event: the `ei::Device` is no longer alive",
-            ));
-        }
-        if !vp.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot simulate button event: the `ei::Button` interface is no longer alive",
-            ));
-        }
-
-        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+        let (device, vp) = self.device_with::<ei::Button>()?.ok_or(
+            InputError::Simulate("no connected device implements the required interface"),
+        )?;
 
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Press)");
@@ -926,22 +796,13 @@ impl Mouse for Con {
             // Press and release of the same button must be in separate frames
             device.frame(self.last_serial, now_monotonic_micros());
         }
-
         if direction == Direction::Release || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Released)");
             vp.button(button, ei::button::ButtonState::Released);
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update().map_err(|e| {
-            error! {"{e}"};
-            InputError::Simulate(
-                "failed to update libei connection after sending button events: the update call \
-                 returned an error",
-            )
-        })?;
-
-        Ok(())
+        self.flush_events()
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
@@ -953,49 +814,12 @@ impl Mouse for Con {
         match coordinate {
             Coordinate::Rel => {
                 trace!("vp.motion_relative({x}, {y})");
-                let (device, device_data) = self
-                    .devices
-                    .iter_mut()
-                    .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
-                    .ok_or({
-                        InputError::Simulate(
-                            "cannot move mouse relatively: no device implementing the `ei::Pointer` \
-                             interface was found on any connected device",
-                        )
-                    })?;
-
-                let vp = device_data.interface::<ei::Pointer>().ok_or({
-                    InputError::Simulate(
-                        "cannot move mouse relatively: the device lost its `ei::Pointer` \
-                         interface before the operation could be performed",
-                    )
-                })?;
-
-                if !device.is_alive() {
-                    return Err(InputError::Simulate(
-                        "cannot move mouse relatively: the `ei::Device` is no longer alive",
-                    ));
-                }
-                if !vp.is_alive() {
-                    return Err(InputError::Simulate(
-                        "cannot move mouse relatively: the `ei::Pointer` interface is no longer alive",
-                    ));
-                }
-
-                ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
-
+                let (device, vp) = self.device_with::<ei::Pointer>()?.ok_or(
+                    InputError::Simulate("no connected device implements the required interface"),
+                )?;
                 vp.motion_relative(x, y);
-
                 device.frame(self.last_serial, now_monotonic_micros());
-
-                self.update().map_err(|e| {
-                    error! {"{e}"};
-                    InputError::Simulate(
-                        "failed to update libei connection after sending relative pointer events: \
-                         the update call returned an error",
-                    )
-                })?;
-                Ok(())
+                self.flush_events()
             }
             Coordinate::Abs => {
                 if x < 0.0 || y < 0.0 {
@@ -1005,53 +829,12 @@ impl Mouse for Con {
                 }
 
                 trace!("vp.motion_absolute({x}, {y})");
-
-                // Find a device exposing the absolute pointer interface
-                let (device, device_data) = self
-                    .devices
-                    .iter_mut()
-                    .find(|(_, device_data)| {
-                        device_data.interface::<ei::PointerAbsolute>().is_some()
-                    })
-                    .ok_or({
-                        InputError::Simulate(
-                            "cannot move mouse absolutely: no device implementing the \
-                             `ei::PointerAbsolute` interface was found on any connected device",
-                        )
-                    })?;
-
-                let vp = device_data.interface::<ei::PointerAbsolute>().ok_or({
-                    InputError::Simulate(
-                        "cannot move mouse absolutely: the device lost its `ei::PointerAbsolute` \
-                         interface before the operation could be performed",
-                    )
-                })?;
-
-                if !device.is_alive() {
-                    return Err(InputError::Simulate(
-                        "cannot move mouse absolutely: the `ei::Device` is no longer alive",
-                    ));
-                }
-                if !vp.is_alive() {
-                    return Err(InputError::Simulate(
-                        "cannot move mouse absolutely: the `ei::PointerAbsolute` interface is no longer alive",
-                    ));
-                }
-
-                ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
-
+                let (device, vp) = self.device_with::<ei::PointerAbsolute>()?.ok_or(
+                    InputError::Simulate("no connected device implements the required interface"),
+                )?;
                 vp.motion_absolute(x, y);
-
                 device.frame(self.last_serial, now_monotonic_micros());
-
-                self.update().map_err(|e| {
-                    error! {"{e}"};
-                    InputError::Simulate(
-                        "failed to update libei connection after sending absolute pointer events: \
-                         the update call returned an error",
-                    )
-                })?;
-                Ok(())
+                self.flush_events()
             }
         }
     }
@@ -1061,55 +844,18 @@ impl Mouse for Con {
 
         #[allow(clippy::cast_precision_loss)]
         let length = length as f32;
-
-        let (device, device_data) = self
-            .devices
-            .iter_mut()
-            .find(|(_, device_data)| device_data.interface::<ei::Scroll>().is_some())
-            .ok_or({
-                InputError::Simulate(
-                    "cannot scroll: no device implementing the `ei::Scroll` interface was found \
-                     on any connected device",
-                )
-            })?;
-
         let (x, y) = match axis {
             Axis::Horizontal => (length, 0.0),
             Axis::Vertical => (0.0, length),
         };
         trace!("vp.scroll({x}, {y})");
 
-        let vp = device_data.interface::<ei::Scroll>().ok_or({
-            InputError::Simulate(
-                "cannot scroll: the device lost its `ei::Scroll` interface before the operation \
-                 could be performed",
-            )
-        })?;
-
-        if !device.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot scroll: the `ei::Device` is no longer alive",
-            ));
-        }
-        if !vp.is_alive() {
-            return Err(InputError::Simulate(
-                "cannot scroll: the `ei::Scroll` interface is no longer alive",
-            ));
-        }
-
-        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
-
+        let (device, vp) = self.device_with::<ei::Scroll>()?.ok_or(
+            InputError::Simulate("no connected device implements the required interface"),
+        )?;
         vp.scroll(x, y);
-
         device.frame(self.last_serial, now_monotonic_micros());
-        self.update().map_err(|e| {
-            error! {"{e}"};
-            InputError::Simulate(
-                "failed to update libei connection after sending scroll events: the update call \
-                 returned an error",
-            )
-        })?;
-        Ok(())
+        self.flush_events()
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
