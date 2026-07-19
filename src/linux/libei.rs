@@ -99,14 +99,14 @@ impl Con {
                 debug!("Unable to find ei socket. Trying xdg desktop portal.");
             }
             Err(e) => {
-                error! {"{e}"}
+                error!("{e}");
                 return Err(NewConError::EstablishCon("error while checking ei env"));
             }
         }
 
         // Fallback: use portal
         let remote_desktop = RemoteDesktop::new().await.map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             NewConError::EstablishCon("failed to create RemoteDesktop")
         })?;
         trace!("New desktop");
@@ -115,7 +115,7 @@ impl Con {
             .create_session(CreateSessionOptions::default())
             .await
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to create remote desktop session")
             })?;
 
@@ -130,7 +130,7 @@ impl Con {
             .select_devices(&session, options)
             .await
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to select devices")
             })?;
         trace!("new session");
@@ -139,12 +139,12 @@ impl Con {
             .start(&session, None, StartOptions::default())
             .await
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to start remote desktop session")
             })?
             .response()
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to get remote desktop session response")
             })?
             .restore_token()
@@ -155,7 +155,7 @@ impl Con {
             .connect_to_eis(&session, ConnectToEISOptions::default())
             .await
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to connect to EIS")
             })?;
         // fd is a raw descriptor returned by portal; construct UnixStream
@@ -164,13 +164,13 @@ impl Con {
             // TODO: Check if this is a good idea
             .set_nonblocking(true)
             .map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("failed to set nonblocking on stream")
             })?;
         trace!("done open_connection");
 
         let context = ei::Context::new(stream).map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             NewConError::EstablishCon("failed to create ei context")
         })?;
         Ok((context, restore_token))
@@ -184,7 +184,7 @@ impl Con {
                 .enable_io()
                 .build()
                 .map_err(|e| {
-                    error! {"{e}"};
+                    error!("{e}");
                     NewConError::EstablishCon("failed to create tokio runtime")
                 })?
                 .block_on(f));
@@ -217,14 +217,14 @@ impl Con {
             ei::handshake::ContextType::Sender,
         )
         .map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             NewConError::EstablishCon("handshake failed")
         })?;
 
         trace!("main: handshake");
 
         context.flush().map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             NewConError::EstablishCon("unable to flush the libei context")
         })?;
         trace!("main: flushed");
@@ -249,7 +249,7 @@ impl Con {
         let mut saw_resumed_device = false;
         for _ in 0..50 {
             con.update().map_err(|e| {
-                error! {"{e}"};
+                error!("{e}");
                 NewConError::EstablishCon("unable to update the libei connection")
             })?;
             if con
@@ -284,7 +284,7 @@ impl Con {
         }
 
         con.update().map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             NewConError::EstablishCon("unable to update the libei connection")
         })?;
 
@@ -304,9 +304,7 @@ impl Con {
     /// implementing …" error after `Disconnected` cleared the device maps
     fn ensure_connected(&self) -> InputResult<()> {
         if let Some((reason, explanation)) = &self.disconnect {
-            error!(
-                "EIS disconnected the client: reason={reason:?}, explanation={explanation:?}"
-            );
+            error!("EIS disconnected the client: reason={reason:?}, explanation={explanation:?}");
             return Err(InputError::Simulate(
                 "cannot simulate input: the EIS implementation disconnected the client",
             ));
@@ -317,12 +315,10 @@ impl Con {
     /// Find a device exposing interface `T` and ensure it is emulating.
     /// Returns `Ok(None)` if no such device exists
     fn device_with<T: Interface>(&mut self) -> InputResult<Option<(ei::Device, T)>> {
-        let Some((device, iface, data)) =
-            self.devices.iter_mut().find_map(|(device, data)| {
-                let iface = data.interface::<T>()?;
-                Some((device.clone(), iface, data))
-            })
-        else {
+        let Some((device, iface, data)) = self.devices.iter_mut().find_map(|(device, data)| {
+            let iface = data.interface::<T>()?;
+            Some((device.clone(), iface, data))
+        }) else {
             return Ok(None);
         };
 
@@ -343,7 +339,7 @@ impl Con {
 
     fn flush_events(&mut self) -> InputResult<()> {
         self.update().map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             InputError::Simulate(
                 "failed to update libei connection after sending events: the update call \
                  returned an error",
@@ -362,7 +358,7 @@ impl Con {
             // look for replies. Previously a sleep was used to paper over sending
             // before flushing
             if let Err(e) = self.context.flush() {
-                error! {"{e}"};
+                error!("{e}");
                 return Err(InputError::Simulate("Failed to flush libei context"));
             }
 
@@ -438,7 +434,7 @@ impl Con {
                         }
                     },
                     ei::Event::Seat(seat, request) => {
-                        trace!("connection seat");
+                        trace!("seat event");
                         if let Some(data) = self.seats.get_mut(&seat) {
                             match request {
                                 ei::seat::Event::Destroyed { serial } => {
@@ -535,11 +531,11 @@ impl Con {
                                     data.state = DeviceState::Paused;
                                 }
                                 _ => {
-                                    warn!("device else");
+                                    warn!("unknown device event");
                                 }
                             }
                         } else {
-                            warn!("received Device event for unknown device");
+                            warn!("received device event for unknown device");
                         }
                     }
                     ei::Event::Keyboard(keyboard, request) => {
@@ -602,25 +598,32 @@ impl Con {
                                 // requests must take the new modifier state
                                 // into account.
                             }
-                            _ => {}
+                            _ => {
+                                warn!("unknown keyboard event");
+                            }
                         }
                     }
                     ei::Event::Text(text, request) => {
                         // The keysym/utf8 events are only sent to receiver contexts. As a
                         // sender, we only expect the destructor.
-                        if let ei::text::Event::Destroyed { serial } = request {
-                            debug!("text interface was destroyed");
-                            self.last_serial = serial;
-                            // Remove the stale object so fast_text falls back to per-key
-                            // entry instead of erroring
-                            for data in self.devices.values_mut() {
-                                data.interfaces
-                                    .retain(|_, object| *object != *text.as_object());
+                        match request {
+                            ei::text::Event::Destroyed { serial } => {
+                                debug!("text interface was destroyed");
+                                self.last_serial = serial;
+                                // Remove the stale object so fast_text falls back to per-key
+                                // entry instead of erroring
+                                for data in self.devices.values_mut() {
+                                    data.interfaces
+                                        .retain(|_, object| *object != *text.as_object());
+                                }
+                            }
+                            _ => {
+                                warn!("unknown text event");
                             }
                         }
                     }
                     _ => {
-                        warn!("else");
+                        warn!("unhandled libei event");
                     }
                 }
             }
@@ -695,9 +698,11 @@ impl Keyboard for Con {
 
         debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
 
-        let (device, keyboard) = self.device_with::<ei::Keyboard>()?.ok_or(
-            InputError::Simulate("no connected device implements the required interface"),
-        )?;
+        let (device, keyboard) =
+            self.device_with::<ei::Keyboard>()?
+                .ok_or(InputError::Simulate(
+                    "no connected device implements the required interface",
+                ))?;
 
         // Use the keymap of the keyboard the key event will be sent on
         let keymap = self.keyboards.get(&keyboard).ok_or({
@@ -706,7 +711,7 @@ impl Keyboard for Con {
             )
         })?;
         let keycode = key_to_keycode(keymap, key).map_err(|e| {
-            error! {"{e}"};
+            error!("{e}");
             InputError::InvalidInput(
                 "failed to map the requested key to a keycode: the provided key is not mapped in \
                  the current xkb keymap",
@@ -736,9 +741,11 @@ impl Keyboard for Con {
             InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
         })?;
 
-        let (device, keyboard) = self.device_with::<ei::Keyboard>()?.ok_or(
-            InputError::Simulate("no connected device implements the required interface"),
-        )?;
+        let (device, keyboard) =
+            self.device_with::<ei::Keyboard>()?
+                .ok_or(InputError::Simulate(
+                    "no connected device implements the required interface",
+                ))?;
 
         if direction == Direction::Press || direction == Direction::Click {
             keyboard.key(keycode, ei::keyboard::KeyState::Press);
@@ -765,11 +772,7 @@ impl Mouse for Con {
                 | Button::ScrollUp
                 | Button::ScrollRight
                 | Button::ScrollLeft => return Ok(()),
-                Button::Left
-                | Button::Right
-                | Button::Back
-                | Button::Forward
-                | Button::Middle => {}
+                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
             }
         }
 
@@ -786,9 +789,11 @@ impl Mouse for Con {
             Button::ScrollLeft => return self.scroll(-1, Axis::Horizontal),
         };
 
-        let (device, vp) = self.device_with::<ei::Button>()?.ok_or(
-            InputError::Simulate("no connected device implements the required interface"),
-        )?;
+        let (device, vp) = self
+            .device_with::<ei::Button>()?
+            .ok_or(InputError::Simulate(
+                "no connected device implements the required interface",
+            ))?;
 
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Press)");
@@ -814,9 +819,11 @@ impl Mouse for Con {
         match coordinate {
             Coordinate::Rel => {
                 trace!("vp.motion_relative({x}, {y})");
-                let (device, vp) = self.device_with::<ei::Pointer>()?.ok_or(
-                    InputError::Simulate("no connected device implements the required interface"),
-                )?;
+                let (device, vp) =
+                    self.device_with::<ei::Pointer>()?
+                        .ok_or(InputError::Simulate(
+                            "no connected device implements the required interface",
+                        ))?;
                 vp.motion_relative(x, y);
                 device.frame(self.last_serial, now_monotonic_micros());
                 self.flush_events()
@@ -829,9 +836,11 @@ impl Mouse for Con {
                 }
 
                 trace!("vp.motion_absolute({x}, {y})");
-                let (device, vp) = self.device_with::<ei::PointerAbsolute>()?.ok_or(
-                    InputError::Simulate("no connected device implements the required interface"),
-                )?;
+                let (device, vp) =
+                    self.device_with::<ei::PointerAbsolute>()?
+                        .ok_or(InputError::Simulate(
+                            "no connected device implements the required interface",
+                        ))?;
                 vp.motion_absolute(x, y);
                 device.frame(self.last_serial, now_monotonic_micros());
                 self.flush_events()
@@ -850,9 +859,11 @@ impl Mouse for Con {
         };
         trace!("vp.scroll({x}, {y})");
 
-        let (device, vp) = self.device_with::<ei::Scroll>()?.ok_or(
-            InputError::Simulate("no connected device implements the required interface"),
-        )?;
+        let (device, vp) = self
+            .device_with::<ei::Scroll>()?
+            .ok_or(InputError::Simulate(
+                "no connected device implements the required interface",
+            ))?;
         vp.scroll(x, y);
         device.frame(self.last_serial, now_monotonic_micros());
         self.flush_events()
