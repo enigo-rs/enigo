@@ -97,8 +97,10 @@ pub struct Con {
     restore_token: Option<String>,
 }
 
-// This is safe, we have a unique pointer.
-// TODO: use Unique<c_char> once stable.
+// SAFETY: `Con` is not auto-`Send` only because `xkb::Keymap` wraps a
+// non-atomic `*mut xkb_keymap`. Moving a `Con` between threads is fine as
+// long as it remains the sole owner of that keymap, which it does: `Con` is
+// not `Clone`, and nothing else shares the `Keymap` values stored here.
 unsafe impl Send for Con {}
 
 impl Con {
