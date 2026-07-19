@@ -337,6 +337,53 @@ impl Con {
         Ok(Some((device, iface)))
     }
 
+    /// Drop any seat/device/keyboard/interface we track for `object_id`.
+    /// Returns whether anything was removed.
+    fn drop_object_by_id(&mut self, object_id: u64) -> bool {
+        // Object IDs are unique, so seat/device can return as soon as they match.
+        // A keyboard id may appear in both `devices.interfaces` and `keyboards`, so
+        // those two maps are cleaned together before returning.
+        if self.seats.keys().any(|seat| seat.as_object().id() == object_id) {
+            self.seats
+                .retain(|seat, _| seat.as_object().id() != object_id);
+            return true;
+        }
+
+        if let Some(device) = self
+            .devices
+            .keys()
+            .find(|device| device.as_object().id() == object_id)
+            .cloned()
+        {
+            if let Some(data) = self.devices.remove(&device) {
+                if let Some(keyboard) = data.interface::<ei::Keyboard>() {
+                    self.keyboards.remove(&keyboard);
+                }
+            }
+            return true;
+        }
+
+        let had_interface = self
+            .devices
+            .values()
+            .any(|data| data.interfaces.values().any(|object| object.id() == object_id));
+        let had_keyboard = self
+            .keyboards
+            .keys()
+            .any(|keyboard| keyboard.as_object().id() == object_id);
+        if !had_interface && !had_keyboard {
+            return false;
+        }
+
+        for data in self.devices.values_mut() {
+            data.interfaces
+                .retain(|_, object| object.id() != object_id);
+        }
+        self.keyboards
+            .retain(|keyboard, _| keyboard.as_object().id() != object_id);
+        true
+    }
+
     #[allow(clippy::too_many_lines)]
     fn update(&mut self) -> InputResult<()> {
         self.ensure_connected()?;
@@ -370,8 +417,13 @@ impl Con {
                         return Err(InputError::Simulate("failed to parse pending request"));
                     }
                     PendingRequestResult::InvalidObject(object_id) => {
-                        // TODO
+                        // Event for an object already gone from the wire map. Drop any
+                        // leftover local state; if nothing matched this is usually a late
+                        // event after Destroyed and can be ignored.
                         error!("invalid object with id {object_id}");
+                        if self.drop_object_by_id(object_id) {
+                            debug!("dropped local state for invalid object {object_id}");
+                        }
                         continue;
                     }
                 };
@@ -404,11 +456,12 @@ impl Con {
                             last_serial,
                             invalid_id,
                         } => {
-                            // TODO: Try to recover?
                             error!(
                                 "the serial {last_serial} contained an invalid object with the id {invalid_id}"
                             );
                             self.last_serial = last_serial;
+                            // Unwind any local state for the object the EIS rejected
+                            let _ = self.drop_object_by_id(invalid_id);
                         }
                         ei::connection::Event::Ping { ping } => {
                             debug!("ping");
