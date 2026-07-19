@@ -346,14 +346,18 @@ pub trait Mouse {
     ///
     /// This function provides finer scrolling than [`Mouse::scroll`].
     ///
-    /// On macOS and Linux (xdg_desktop, Wayland, libei) the `length` is
-    /// typically interpreted in pixels / logical pixels. On Windows it is a
-    /// high-resolution wheel delta where
-    /// [`WHEEL_DELTA`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel)
-    /// (`120`) equals one notch. Windows has no separate pixel-scroll injection
-    /// API; this uses the same `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` path
-    /// as [`Mouse::scroll`], but without multiplying by 120. On Linux with only
-    /// X11, this is not supported and returns an error.
+    /// Units depend on the platform:
+    /// - **macOS / libei / xdg_desktop:** pixels / logical pixels
+    /// - **Wayland:** continuous axis value with a wheel source (same source as
+    ///   [`Mouse::scroll`], but without discrete steps). Not a guaranteed
+    ///   pixel mapping; compositors may treat it like high-resolution wheel
+    ///   motion.
+    /// - **Windows:** high-resolution wheel delta where
+    ///   [`WHEEL_DELTA`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel)
+    ///   (`120`) equals one notch. Same `MOUSEEVENTF_WHEEL` /
+    ///   `MOUSEEVENTF_HWHEEL` path as [`Mouse::scroll`], without multiplying by
+    ///   120.
+    /// - **Linux X11 only:** not supported; returns an error.
     ///
     /// **Windows caveat:** whether a value smaller than 120 actually produces
     /// finer scrolling depends on the target application. Apps that handle

@@ -307,7 +307,9 @@ impl Mouse for Con {
             &self.session,
             dx,
             dy,
-            NotifyPointerAxisOptions::default(),
+            // One-shot smooth scroll: mark the sequence finished so compositors
+            // don't keep waiting for further axis events / kinetic scroll.
+            NotifyPointerAxisOptions::default().set_finish(true),
         ))
         .map_err(|e| {
             log::error!("{e}");

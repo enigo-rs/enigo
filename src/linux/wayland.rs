@@ -998,8 +998,10 @@ impl Mouse for Con {
             .as_ref()
             .ok_or(InputError::Simulate("no way to scroll"))?;
 
-        // Pixel-precise scrolling uses continuous axis events (same Wheel source
-        // as scroll(), but without axis_discrete).
+        // Continuous axis with the same Wheel source as scroll(), but without
+        // axis_discrete. This is finer than notch scrolling; compositors may
+        // still interpret the value as high-resolution wheel motion rather than
+        // literal pixels.
         let time = self.get_time();
         let axis = match axis {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
