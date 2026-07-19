@@ -337,16 +337,6 @@ impl Con {
         Ok(Some((device, iface)))
     }
 
-    fn flush_events(&mut self) -> InputResult<()> {
-        self.update().map_err(|e| {
-            error!("{e}");
-            InputError::Simulate(
-                "failed to update libei connection after sending events: the update call \
-                 returned an error",
-            )
-        })
-    }
-
     #[allow(clippy::too_many_lines)]
     fn update(&mut self) -> InputResult<()> {
         self.ensure_connected()?;
@@ -674,7 +664,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.flush_events()?;
+        self.update()?;
         Ok(Some(()))
     }
 
@@ -699,7 +689,7 @@ impl Keyboard for Con {
                 device.frame(self.last_serial, now_monotonic_micros());
             }
 
-            return self.flush_events();
+            return self.update();
         }
 
         debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
@@ -739,7 +729,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.flush_events()
+        self.update()
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
@@ -768,7 +758,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.flush_events()
+        self.update()
     }
 }
 
@@ -818,7 +808,7 @@ impl Mouse for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.flush_events()
+        self.update()
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
@@ -837,7 +827,7 @@ impl Mouse for Con {
                         ))?;
                 vp.motion_relative(x, y);
                 device.frame(self.last_serial, now_monotonic_micros());
-                self.flush_events()
+                self.update()
             }
             Coordinate::Abs => {
                 if x < 0.0 || y < 0.0 {
@@ -854,7 +844,7 @@ impl Mouse for Con {
                         ))?;
                 vp.motion_absolute(x, y);
                 device.frame(self.last_serial, now_monotonic_micros());
-                self.flush_events()
+                self.update()
             }
         }
     }
@@ -880,7 +870,7 @@ impl Mouse for Con {
             ))?;
         vp.scroll_discrete(x, y);
         device.frame(self.last_serial, now_monotonic_micros());
-        self.flush_events()
+        self.update()
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
