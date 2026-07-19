@@ -346,17 +346,14 @@ pub trait Mouse {
     ///
     /// This function provides finer scrolling than [`Mouse::scroll`].
     ///
-    /// Units depend on the platform:
-    /// - **macOS / libei / xdg_desktop:** pixels / logical pixels
-    /// - **Wayland:** continuous axis value with a wheel source (same source as
-    ///   [`Mouse::scroll`], but without discrete steps). Not a guaranteed
-    ///   pixel mapping; compositors may treat it like high-resolution wheel
-    ///   motion.
+    /// Units depend on the platform; prefer the finest scroll the backend
+    /// supports:
+    /// - **macOS / libei / xdg_desktop / Wayland:** pixels / logical pixels
+    ///   (continuous axis; Wayland uses `AxisSource::Continuous`)
     /// - **Windows:** high-resolution wheel delta where
     ///   [`WHEEL_DELTA`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel)
-    ///   (`120`) equals one notch. Same `MOUSEEVENTF_WHEEL` /
-    ///   `MOUSEEVENTF_HWHEEL` path as [`Mouse::scroll`], without multiplying by
-    ///   120.
+    ///   (`120`) equals one notch — the finest injection Windows exposes via
+    ///   `SendInput` (not true pixels)
     /// - **Linux X11 only:** not supported; returns an error.
     ///
     /// **Windows caveat:** whether a value smaller than 120 actually produces

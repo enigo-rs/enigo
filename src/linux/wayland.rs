@@ -998,17 +998,17 @@ impl Mouse for Con {
             .as_ref()
             .ok_or(InputError::Simulate("no way to scroll"))?;
 
-        // Continuous axis with the same Wheel source as scroll(), but without
-        // axis_discrete. This is finer than notch scrolling; compositors may
-        // still interpret the value as high-resolution wheel motion rather than
-        // literal pixels.
+        // Fine-grained continuous scroll (no axis_discrete). The protocol
+        // describes `axis` values as touchpad/surface coordinates — as fine as
+        // zwlr_virtual_pointer allows. Use Continuous rather than Wheel so
+        // clients don't treat this as notch/degree wheel motion.
         let time = self.get_time();
         let axis = match axis {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
-        trace!("vp.axis_source(Wheel); vp.axis(time, axis, {length}.into())");
-        vp.axis_source(wl_pointer::AxisSource::Wheel);
+        trace!("vp.axis_source(Continuous); vp.axis(time, axis, {length}.into())");
+        vp.axis_source(wl_pointer::AxisSource::Continuous);
         vp.axis(time, axis, length.into());
         vp.frame();
 

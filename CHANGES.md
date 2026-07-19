@@ -11,7 +11,7 @@
 ## Added
 - win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
 - linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis`
-- linux: wayland: added smooth scrolling via continuous `axis` events
+- linux: wayland: added smooth scrolling via continuous `axis` events (`AxisSource::Continuous`)
 - linux: libei: added smooth scrolling via `ei_scroll.scroll`
 - linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
 - linux: libei/xdg_desktop: expose a `restore_token()` getter so callers can retrieve and reuse the token
