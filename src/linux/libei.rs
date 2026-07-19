@@ -16,27 +16,6 @@ use crate::{
 };
 pub type Keycode = u32;
 
-// Keep in sync with the versions advertised by `reis::handshake` / libei 1.6.
-static INTERFACES: std::sync::LazyLock<HashMap<&'static str, u32>> =
-    std::sync::LazyLock::new(|| {
-        [
-            (ei::Button::NAME, ei::Button::VERSION),
-            (ei::Callback::NAME, ei::Callback::VERSION),
-            (ei::Connection::NAME, ei::Connection::VERSION),
-            (ei::Device::NAME, ei::Device::VERSION),
-            (ei::Keyboard::NAME, ei::Keyboard::VERSION),
-            (ei::Pingpong::NAME, ei::Pingpong::VERSION),
-            (ei::Pointer::NAME, ei::Pointer::VERSION),
-            (ei::PointerAbsolute::NAME, ei::PointerAbsolute::VERSION),
-            (ei::Scroll::NAME, ei::Scroll::VERSION),
-            (ei::Seat::NAME, ei::Seat::VERSION),
-            (ei::Touchscreen::NAME, ei::Touchscreen::VERSION),
-            (ei::Text::NAME, ei::Text::VERSION),
-        ]
-        .into_iter()
-        .collect()
-    });
-
 /// `ei_text.utf8` allows at most 254 bytes (255 including the terminating NUL).
 const EI_TEXT_MAX_UTF8_LEN: usize = 254;
 
@@ -269,7 +248,7 @@ impl Con {
         // device is resumed (or we time out)
         let mut saw_resumed_device = false;
         for _ in 0..50 {
-            con.update(libei_name).map_err(|e| {
+            con.update().map_err(|e| {
                 error! {"{e}"};
                 NewConError::EstablishCon("unable to update the libei connection")
             })?;
@@ -304,7 +283,7 @@ impl Con {
             device_data.state = DeviceState::Emulating;
         }
 
-        con.update(libei_name).map_err(|e| {
+        con.update().map_err(|e| {
             error! {"{e}"};
             NewConError::EstablishCon("unable to update the libei connection")
         })?;
@@ -336,7 +315,7 @@ impl Con {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn update(&mut self, libei_name: &str) -> InputResult<()> {
+    fn update(&mut self) -> InputResult<()> {
         self.ensure_connected()?;
 
         loop {
@@ -376,32 +355,8 @@ impl Con {
 
                 trace!("found request");
                 match request {
-                    ei::Event::Handshake(handshake, request) => match request {
-                        ei::handshake::Event::HandshakeVersion { version: _ } => {
-                            trace!("handshake version");
-                            handshake.handshake_version(1);
-                            handshake.name(libei_name);
-                            handshake.context_type(ei::handshake::ContextType::Sender);
-                            for (interface, version) in INTERFACES.iter() {
-                                handshake.interface_version(interface, *version);
-                            }
-                            handshake.finish();
-                        }
-                        ei::handshake::Event::InterfaceVersion { name, version } => {
-                            // TODO: Use the interface versions
-                            trace!("Received: interface {name}, version {version}");
-                        }
-                        ei::handshake::Event::Connection {
-                            connection: _,
-                            serial,
-                        } => {
-                            trace!("handshake connection");
-                            self.last_serial = serial;
-                        }
-                        _ => {
-                            warn!("handshake else");
-                        }
-                    },
+                    // Handshake events are handled by `reis::handshake` before
+                    // `update` is ever called
                     ei::Event::Connection(connection, request) => match request {
                         ei::connection::Event::Disconnected {
                             last_serial,
@@ -712,7 +667,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update("enigo").map_err(|e| {
+        self.update().map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
                 "failed to update libei connection after sending text events: the update call \
@@ -767,7 +722,7 @@ impl Keyboard for Con {
                 device.frame(self.last_serial, now_monotonic_micros());
             }
 
-            self.update("enigo").map_err(|e| {
+            self.update().map_err(|e| {
                 error! {"{e}"};
                 InputError::Simulate(
                     "failed to update libei connection after sending key events: the update call \
@@ -842,7 +797,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update("enigo").map_err(|e| {
+        self.update().map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
                 "failed to update libei connection after sending key events: the update call \
@@ -911,7 +866,7 @@ impl Keyboard for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update("enigo").map_err(|e| {
+        self.update().map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
                 "failed to update libei connection after sending raw key events: the update \
@@ -998,7 +953,7 @@ impl Mouse for Con {
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
-        self.update("enigo").map_err(|e| {
+        self.update().map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
                 "failed to update libei connection after sending button events: the update call \
@@ -1053,7 +1008,7 @@ impl Mouse for Con {
 
                 device.frame(self.last_serial, now_monotonic_micros());
 
-                self.update("enigo").map_err(|e| {
+                self.update().map_err(|e| {
                     error! {"{e}"};
                     InputError::Simulate(
                         "failed to update libei connection after sending relative pointer events: \
@@ -1109,7 +1064,7 @@ impl Mouse for Con {
 
                 device.frame(self.last_serial, now_monotonic_micros());
 
-                self.update("enigo").map_err(|e| {
+                self.update().map_err(|e| {
                     error! {"{e}"};
                     InputError::Simulate(
                         "failed to update libei connection after sending absolute pointer events: \
@@ -1167,7 +1122,7 @@ impl Mouse for Con {
         vp.scroll(x, y);
 
         device.frame(self.last_serial, now_monotonic_micros());
-        self.update("enigo").map_err(|e| {
+        self.update().map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
                 "failed to update libei connection after sending scroll events: the update call \
