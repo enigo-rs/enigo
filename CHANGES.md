@@ -15,6 +15,7 @@
 - all: Removed the field `linux_delay` from `Settings` struct as it no longer serves a purpose
 
 ## Fixed
+- linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
 - linux: Added `NumpadEnter` key
 - win: Added `NumpadEnter` key
 - win: Extended keys can now be correctly simulated with the raw() function.

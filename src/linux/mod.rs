@@ -555,50 +555,55 @@ impl Keyboard for Enigo {
             res = con.key(key, direction);
             if res.is_ok() {
                 debug!("successfully entered the key via xdg_desktop");
-                return res;
             }
         }
         #[cfg(feature = "wayland")]
-        if let Some(con) = self.wayland.as_mut() {
-            trace!("try entering the key via wayland");
-            res = con.key(key, direction);
-            if res.is_ok() {
-                debug!("successfully entered the key via wayland");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.wayland.as_mut() {
+                trace!("try entering the key via wayland");
+                res = con.key(key, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the key via wayland");
+                }
             }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        if let Some(con) = self.x11.as_mut() {
-            trace!("try entering the key via x11");
-            res = con.key(key, direction);
-            if res.is_ok() {
-                debug!("successfully entered the key via x11");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.x11.as_mut() {
+                trace!("try entering the key via x11");
+                res = con.key(key, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the key via x11");
+                }
             }
         }
         #[cfg(any(
             all(feature = "libei", feature = "tokio"),
             all(feature = "libei", feature = "smol")
         ))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try entering the key via libei");
-            res = con.key(key, direction);
-            if res.is_ok() {
-                debug!("successfully entered the key via libei");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.libei.as_mut() {
+                trace!("try entering the key via libei");
+                res = con.key(key, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the key via libei");
+                }
             }
         }
 
-        match direction {
-            Direction::Press => {
-                debug!("added the key {key:?} to the held keys");
-                self.held.0.push(key);
+        // Record held keys only after a successful press/release
+        if res.is_ok() {
+            match direction {
+                Direction::Press => {
+                    debug!("added the key {key:?} to the held keys");
+                    self.held.0.push(key);
+                }
+                Direction::Release => {
+                    debug!("removed the key {key:?} from the held keys");
+                    self.held.0.retain(|&k| k != key);
+                }
+                Direction::Click => (),
             }
-            Direction::Release => {
-                debug!("removed the key {key:?} from the held keys");
-                self.held.0.retain(|&k| k != key);
-            }
-            Direction::Click => (),
         }
 
         res
@@ -618,50 +623,55 @@ impl Keyboard for Enigo {
             res = con.raw(keycode, direction);
             if res.is_ok() {
                 debug!("successfully entered the raw key via xdg_desktop");
-                return res;
             }
         }
         #[cfg(feature = "wayland")]
-        if let Some(con) = self.wayland.as_mut() {
-            trace!("try entering the keycode via wayland");
-            res = con.raw(keycode, direction);
-            if res.is_ok() {
-                debug!("successfully entered the raw key via wayland");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.wayland.as_mut() {
+                trace!("try entering the keycode via wayland");
+                res = con.raw(keycode, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the raw key via wayland");
+                }
             }
         }
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
-        if let Some(con) = self.x11.as_mut() {
-            trace!("try entering the keycode via x11");
-            res = con.raw(keycode, direction);
-            if res.is_ok() {
-                debug!("successfully entered the raw key via x11");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.x11.as_mut() {
+                trace!("try entering the keycode via x11");
+                res = con.raw(keycode, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the raw key via x11");
+                }
             }
         }
         #[cfg(any(
             all(feature = "libei", feature = "tokio"),
             all(feature = "libei", feature = "smol")
         ))]
-        if let Some(con) = self.libei.as_mut() {
-            trace!("try entering the keycode via libei");
-            res = con.raw(keycode, direction);
-            if res.is_ok() {
-                debug!("successfully entered the raw key via libei");
-                return res;
+        if res.is_err() {
+            if let Some(con) = self.libei.as_mut() {
+                trace!("try entering the keycode via libei");
+                res = con.raw(keycode, direction);
+                if res.is_ok() {
+                    debug!("successfully entered the raw key via libei");
+                }
             }
         }
 
-        match direction {
-            Direction::Press => {
-                debug!("added the keycode {keycode:?} to the held keys");
-                self.held.1.push(keycode);
+        // Record held keycodes only after a successful press/release
+        if res.is_ok() {
+            match direction {
+                Direction::Press => {
+                    debug!("added the keycode {keycode:?} to the held keys");
+                    self.held.1.push(keycode);
+                }
+                Direction::Release => {
+                    debug!("removed the keycode {keycode:?} from the held keys");
+                    self.held.1.retain(|&k| k != keycode);
+                }
+                Direction::Click => (),
             }
-            Direction::Release => {
-                debug!("removed the keycode {keycode:?} from the held keys");
-                self.held.1.retain(|&k| k != keycode);
-            }
-            Direction::Click => (),
         }
 
         res
