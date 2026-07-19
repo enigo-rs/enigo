@@ -991,6 +991,29 @@ impl Mouse for Con {
         self.flush()
     }
 
+    #[cfg(feature = "platform_specific")]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        let vp = self
+            .state
+            .virtual_pointer
+            .as_ref()
+            .ok_or(InputError::Simulate("no way to scroll"))?;
+
+        // Pixel-precise scrolling uses continuous axis events (same Wheel source
+        // as scroll(), but without axis_discrete).
+        let time = self.get_time();
+        let axis = match axis {
+            Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
+            Axis::Vertical => wl_pointer::Axis::VerticalScroll,
+        };
+        trace!("vp.axis_source(Wheel); vp.axis(time, axis, {length}.into())");
+        vp.axis_source(wl_pointer::AxisSource::Wheel);
+        vp.axis(time, axis, length.into());
+        vp.frame();
+
+        self.flush()
+    }
+
     fn main_display(&self) -> InputResult<(i32, i32)> {
         // TODO: The assumption here is that the output we store in the first position
         // is the main display. This likely can be wrong
