@@ -2,6 +2,8 @@
 ## Changed
 - linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
 - linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
+- linux: libei: Prefer `ei_text.keysym` / `ei_text.utf8` when available; fall back to keymap `ei_keyboard` only when needed
+- linux: libei: Use `ei_scroll.scroll_discrete` with 120-unit notches for wheel scrolling instead of smooth `scroll`
 - all: MSRV is 1.87
 
 ## Added
@@ -13,9 +15,18 @@
 - win: `EXT` constant was removed, because it was incorrect and obsolete
 - all: Removed the function `delay` and `set_delay` as they no longer serve a purpose
 - all: Removed the field `linux_delay` from `Settings` struct as it no longer serves a purpose
+- linux: libei: Removed `Clone` derive from `Con`
 
 ## Fixed
 - linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
+- linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
+- linux: libei: Fix `frame` / `start_emulating` serial vs sequence handling
+- linux: libei: Re-send `start_emulating` after pause/resume so events are not silently discarded
+- linux: libei: Use the keymap and active layout group of the keyboard that receives the event
+- linux: libei: Don't underflow when converting X11 keycodes below 8 in `raw()` and keymap `key()`
+- linux: libei: Surface EIS disconnect instead of a generic "no device" error
+- linux: libei: Drop keymap/device/seat state on destroy and invalid-object paths
+- linux: libei: Don't sleep on every `update()`; flush then drain until idle
 - linux: Added `NumpadEnter` key
 - win: Added `NumpadEnter` key
 - win: Extended keys can now be correctly simulated with the raw() function.
