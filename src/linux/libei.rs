@@ -62,7 +62,8 @@ impl DeviceData {
 struct KeyboardData {
     keymap: xkb::Keymap,
     /// Layout group from the last `ei_keyboard.modifiers` event.
-    /// Modifier masks from that event are ignored for now; see `key_to_keycode`.
+    /// Modifier masks from that event are ignored for now; see
+    /// `key_to_keycode`.
     group: xkb::LayoutIndex,
 }
 
@@ -387,10 +388,11 @@ impl Con {
             return true;
         }
 
-        let had_interface = self
-            .devices
-            .values()
-            .any(|data| data.interfaces.values().any(|object| object.id() == object_id));
+        let had_interface = self.devices.values().any(|data| {
+            data.interfaces
+                .values()
+                .any(|object| object.id() == object_id)
+        });
         let had_keyboard = self
             .keyboards
             .keys()
@@ -400,8 +402,7 @@ impl Con {
         }
 
         for data in self.devices.values_mut() {
-            data.interfaces
-                .retain(|_, object| object.id() != object_id);
+            data.interfaces.retain(|_, object| object.id() != object_id);
         }
         self.keyboards
             .retain(|keyboard, _| keyboard.as_object().id() != object_id);
@@ -637,10 +638,8 @@ impl Con {
                                     )
                                 } {
                                     Ok(Some(keymap)) => {
-                                        self.keyboards.insert(
-                                            keyboard,
-                                            KeyboardData { keymap, group: 0 },
-                                        );
+                                        self.keyboards
+                                            .insert(keyboard, KeyboardData { keymap, group: 0 });
                                     }
                                     Ok(None) => {
                                         error!("xkb returned None when creating keymap");
@@ -986,17 +985,13 @@ impl Drop for Con {
     }
 }
 
-// TODO(platforms): keymap key() is best-effort w.r.t. modifiers/levels. We pick a
-// keycode that can produce the keysym in the active layout group (levels 0..=1) but
-// do not press the modifiers that level needs (e.g. `!` → KEY_1 without Shift) and
-// do not account for modifiers already held by the EIS (Shift held → `a` types `A`).
-// Fix this consistently across backends (synthesize needed mods, or prefer keysym
-// entry where available).
-fn key_to_keycode(
-    keymap: &xkb::Keymap,
-    group: xkb::LayoutIndex,
-    key: Key,
-) -> InputResult<Keycode> {
+// TODO(platforms): keymap key() is best-effort w.r.t. modifiers/levels. We pick
+// a keycode that can produce the keysym in the active layout group (levels
+// 0..=1) but do not press the modifiers that level needs (e.g. `!` → KEY_1
+// without Shift) and do not account for modifiers already held by the EIS
+// (Shift held → `a` types `A`). Fix this consistently across backends
+// (synthesize needed mods, or prefer keysym entry where available).
+fn key_to_keycode(keymap: &xkb::Keymap, group: xkb::LayoutIndex, key: Key) -> InputResult<Keycode> {
     let keysym = xkb::Keysym::from(key);
     (keymap.min_keycode().raw()..keymap.max_keycode().raw())
         .find(|&keycode| {
