@@ -39,6 +39,8 @@ By default, enigo currently works on Windows, macOS and Linux (X11). If you want
 
 There are multiple ways how to simulate input on Linux and not all systems support everything. Enigo can also use wayland protocols and libei to simulate input but there are currently some bugs with it. That is why they are hidden behind feature flags.
 
+On Windows, mouse coordinates and display size use physical pixels. Enigo temporarily switches the calling thread to per-monitor DPI awareness for those queries, so you do not need to change the process DPI awareness mode.
+
 ## Runtime dependencies
 
 Linux users may have to install `libxdo-dev` if they are using the `xdo` feature. For example, on Debian-based distros:

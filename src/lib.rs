@@ -74,9 +74,6 @@ pub mod agent;
 mod platform;
 pub use platform::Enigo;
 
-#[cfg(target_os = "windows")]
-pub use platform::set_dpi_awareness;
-
 mod keycodes;
 /// Contains the available keycodes
 pub use keycodes::Key;
@@ -379,6 +376,10 @@ pub trait Mouse {
     /// Get the (width, height) of the main display in pixels. This currently
     /// only works on the main display
     ///
+    /// On Windows, the size is reported in physical pixels. Enigo temporarily
+    /// switches the calling thread to per-monitor DPI awareness for the query,
+    /// so the result does not depend on the process DPI awareness mode.
+    ///
     /// # Errors
     /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
@@ -386,6 +387,11 @@ pub trait Mouse {
     fn main_display(&self) -> InputResult<(i32, i32)>;
 
     /// Get the location of the mouse in pixels
+    ///
+    /// On Windows, the position is reported in physical pixels. Enigo
+    /// temporarily switches the calling thread to per-monitor DPI awareness for
+    /// the query, so the result does not depend on the process DPI awareness
+    /// mode.
     ///
     /// # Errors
     /// Have a look at the documentation of [`InputError`] to see under which

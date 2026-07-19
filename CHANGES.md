@@ -7,6 +7,7 @@
 - linux: wayland: Use `axis_discrete` with a wheel axis source for `scroll()` instead of continuous `axis`
 - all: `Mouse::smooth_scroll` is no longer gated behind the `platform_specific` feature (supported on macOS, Windows, and Linux via xdg_desktop/Wayland/libei; X11 returns an error)
 - all: MSRV is 1.87
+- win: `main_display()` and `location()` temporarily use a per-monitor DPI awareness thread context so coordinates stay correct without changing the process DPI mode
 
 ## Added
 - win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
@@ -18,12 +19,14 @@
 - linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
 
 ## Removed
+- win: Removed `set_dpi_awareness()`. Enigo now handles DPI awareness internally where needed
 - win: `EXT` constant was removed, because it was incorrect and obsolete
 - all: Removed the function `delay` and `set_delay` as they no longer serve a purpose
 - all: Removed the field `linux_delay` from `Settings` struct as it no longer serves a purpose
 - linux: libei: Removed `Clone` derive from `Con`
 
 ## Fixed
+- win: Mouse coordinates and display size are no longer wrong when the process is not DPI aware
 - linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
 - linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
 - linux: libei: Fix `frame` / `start_emulating` serial vs sequence handling

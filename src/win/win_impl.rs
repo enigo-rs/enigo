@@ -15,6 +15,9 @@ use windows::Win32::UI::{
     WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
 
+use windows::Win32::UI::HiDpi::{
+    DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE, SetThreadDpiAwarenessContext,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN, WHEEL_DELTA,
 };
@@ -25,6 +28,37 @@ use crate::{
 };
 
 type ScanCode = u16;
+
+/// Temporarily switches the calling thread to per-monitor DPI awareness so that
+/// screen metrics and cursor coordinates are not virtualized by Windows.
+///
+/// The previous DPI awareness context is restored when the guard is dropped, so
+/// the rest of the application keeps its own DPI mode.
+struct ThreadDpiAwarenessGuard {
+    previous: Option<DPI_AWARENESS_CONTEXT>,
+}
+
+impl ThreadDpiAwarenessGuard {
+    fn per_monitor() -> Self {
+        // NULL means the context was invalid and the thread was not updated.
+        // See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setthreaddpiawarenesscontext
+        let previous =
+            unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE) };
+        Self {
+            previous: (!previous.0.is_null()).then_some(previous),
+        }
+    }
+}
+
+impl Drop for ThreadDpiAwarenessGuard {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            unsafe {
+                SetThreadDpiAwarenessContext(previous);
+            }
+        }
+    }
+}
 
 /// The main struct for handling the event emitting
 pub struct Enigo {
@@ -238,8 +272,14 @@ impl Mouse for Enigo {
         self.scroll_wheel(length, axis)
     }
 
+    /// Returns the main display size in physical pixels.
+    ///
+    /// Uses a temporary per-monitor DPI awareness thread context so the values
+    /// are not virtualized when the process itself is not DPI aware.
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
+        // GetSystemMetrics returns virtualized values unless the thread is DPI aware
+        let _dpi_guard = ThreadDpiAwarenessGuard::per_monitor();
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
         let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         if w == 0 || h == 0 {
@@ -253,8 +293,14 @@ impl Mouse for Enigo {
         }
     }
 
+    /// Returns the cursor location in physical pixels.
+    ///
+    /// Uses a temporary per-monitor DPI awareness thread context so the values
+    /// are not virtualized when the process itself is not DPI aware.
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
+        // GetCursorPos returns virtualized values unless the thread is DPI aware
+        let _dpi_guard = ThreadDpiAwarenessGuard::per_monitor();
         let mut point = POINT { x: 0, y: 0 };
         if unsafe { GetCursorPos(&raw mut point) }.is_ok() {
             Ok((point.x, point.y))
@@ -568,30 +614,6 @@ impl Enigo {
             _ => false,
         }
     }
-}
-
-/// Sets the current process to a specified dots per inch (dpi) awareness
-/// context [see official documentation](https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness)
-/// If you want your applications to respect the users scaling, you need to set
-/// this. Otherwise the mouse coordinates and screen dimensions will be off.
-///
-/// It is recommended that you set the process-default DPI awareness via
-/// application manifest, not an API call. See [Setting the default DPI awareness for a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext) for more information. Setting the process-default DPI
-/// awareness via API call can lead to unexpected application behavior.
-/// It also needs to be set before any APIs are used that depend on the DPI and
-/// before a UI is created.
-/// Enigo is a library and should not set this, because
-/// it will lead to unexpected scaling of the application. Only use it for
-/// examples or if you know about the consequences
-///
-/// # Errors
-/// An error is thrown if the default API awareness mode for the process has
-/// already been set (via a previous API call or within the application
-/// manifest)
-pub fn set_dpi_awareness() -> Result<(), ()> {
-    use windows::Win32::UI::HiDpi::{PROCESS_PER_MONITOR_DPI_AWARE, SetProcessDpiAwareness};
-
-    unsafe { SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE) }.map_err(|_| ())
 }
 
 impl Drop for Enigo {
