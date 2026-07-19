@@ -973,9 +973,8 @@ impl Mouse for Con {
 
         // Wheel-style scrolling uses axis_discrete:
         // - `discrete` is the number of wheel clicks (`length`)
-        // - `value` is the continuous axis value in degrees of wheel rotation
-        //   (libinput default: 15° per click; see
-        //   https://wayland.freedesktop.org/libinput/doc/latest/api/group__event__pointer.html)
+        // - `value` is the continuous axis value in degrees of wheel rotation (libinput
+        //   default: 15° per click; see https://wayland.freedesktop.org/libinput/doc/latest/api/group__event__pointer.html)
         const DEGREES_PER_WHEEL_CLICK: f64 = 15.0;
         let time = self.get_time();
         let axis = match axis {
