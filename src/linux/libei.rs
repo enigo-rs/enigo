@@ -80,7 +80,6 @@ impl DeviceData {
 }
 
 /// The main struct for handling the event emitting
-#[derive(Clone)]
 pub struct Con {
     // XXX best way to handle data associated with object?
     // TODO: Release seat when dropped, so compositor knows it wont be used anymore
