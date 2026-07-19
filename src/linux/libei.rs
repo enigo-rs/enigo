@@ -717,14 +717,19 @@ impl Keyboard for Con {
                  the current xkb keymap",
             )
         })?;
+        // XKB keycodes in the keymap are X11-style; ei_keyboard.key expects evdev
+        // codes (X11 keycode − 8)
+        let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
+            "the mapped keycode must be at least 8 (X11 keycode offset)",
+        ))?;
 
         if direction == Direction::Press || direction == Direction::Click {
-            keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+            keyboard.key(keycode, ei::keyboard::KeyState::Press);
             // Press and release of the same key must be in separate frames
             device.frame(self.last_serial, now_monotonic_micros());
         }
         if direction == Direction::Release || direction == Direction::Click {
-            keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
+            keyboard.key(keycode, ei::keyboard::KeyState::Released);
             device.frame(self.last_serial, now_monotonic_micros());
         }
 
