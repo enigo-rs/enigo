@@ -416,30 +416,10 @@ impl Con {
                                     data.capabilities.insert(interface, mask);
                                 }
                                 ei::seat::Event::Done => {
-                                    let mut bitmask = 0;
-                                    if let Some(bits) = data.capabilities.get("ei_button") {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_keyboard") {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_pointer") {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_pointer_absolute")
-                                    {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_scroll") {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_touchscreen") {
-                                        bitmask |= bits;
-                                    }
-                                    if let Some(bits) = data.capabilities.get("ei_text") {
-                                        bitmask |= bits;
-                                    }
-
+                                    // Bind every capability the seat advertised. Unknown
+                                    // interfaces are ignored when their events arrive
+                                    let bitmask =
+                                        data.capabilities.values().fold(0u64, |a, b| a | b);
                                     seat.bind(bitmask);
                                     trace!("done binding to seat");
                                 }
