@@ -213,7 +213,6 @@ impl Con {
         Ok(futures::executor::block_on(f))
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
     pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using libei");
@@ -321,8 +320,25 @@ impl Con {
         self.restore_token.clone()
     }
 
+    /// Return an error if the EIS implementation has disconnected us. Without
+    /// this check, later send paths would fail with a misleading "no device
+    /// implementing …" error after `Disconnected` cleared the device maps
+    fn ensure_connected(&self) -> InputResult<()> {
+        if let Some((reason, explanation)) = &self.disconnect {
+            error!(
+                "EIS disconnected the client: reason={reason:?}, explanation={explanation:?}"
+            );
+            return Err(InputError::Simulate(
+                "cannot simulate input: the EIS implementation disconnected the client",
+            ));
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, libei_name: &str) -> InputResult<()> {
+        self.ensure_connected()?;
+
         loop {
             debug!("update");
 
@@ -639,6 +655,10 @@ impl Con {
 
             trace!("devices: {:?}", self.devices);
 
+            // If a Disconnected event was just processed, report it instead of
+            // failing on the closed socket in the next iteration
+            self.ensure_connected()?;
+
             // No more events available: return immediately on the hot path. If we
             // handled events (and may have queued replies such as ping.done), loop
             // to flush and drain follow-ups without sleeping
@@ -652,6 +672,8 @@ impl Con {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
+        self.ensure_connected()?;
+
         if text.contains('\0') {
             return Err(InputError::InvalidInput(
                 "the text to enter contained a NULL byte ('\\0'), which is not allowed",
@@ -702,6 +724,8 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        self.ensure_connected()?;
+
         // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly and is
         // independent of the keymap, so even keys that are not mapped on the current
         // layout can be simulated
@@ -830,6 +854,8 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        self.ensure_connected()?;
+
         // The keycode is an X11 keycode, which is offset by 8 from the evdev keycode
         // that ei_keyboard.key expects. Subtracting from a keycode < 8 would
         // underflow
@@ -899,6 +925,8 @@ impl Keyboard for Con {
 
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        self.ensure_connected()?;
+
         let (device, device_data) = self
             .devices
             .iter_mut()
@@ -982,6 +1010,8 @@ impl Mouse for Con {
     }
 
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> InputResult<()> {
+        self.ensure_connected()?;
+
         #[allow(clippy::cast_precision_loss)]
         let (x, y) = (x as f32, y as f32);
 
@@ -1092,6 +1122,8 @@ impl Mouse for Con {
     }
 
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        self.ensure_connected()?;
+
         #[allow(clippy::cast_precision_loss)]
         let length = length as f32;
 
