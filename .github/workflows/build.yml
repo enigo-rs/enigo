@@ -98,18 +98,28 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Check clippy lints
-        run: cargo clippy --no-default-features --features ${{ matrix.features }} -- -D clippy::pedantic
+        run: |
+          cargo clippy --no-default-features --features ${{ matrix.features }} -- -D clippy::pedantic
+          cargo clippy --no-default-features --features ${{ matrix.features }},platform_specific -- -D clippy::pedantic
       - name: Check clippy lints for the examples
-        run: cargo clippy --no-default-features --features ${{ matrix.features }} --examples -- -D clippy::pedantic
+        run: |
+          cargo clippy --no-default-features --features ${{ matrix.features }} --examples -- -D clippy::pedantic
+          cargo clippy --no-default-features --features ${{ matrix.features }},platform_specific --examples -- -D clippy::pedantic
 
       - name: Build the code
-        run: cargo build --no-default-features --features ${{ matrix.features }}
+        run: |
+          cargo build --no-default-features --features ${{ matrix.features }}
+          cargo build --no-default-features --features ${{ matrix.features }},platform_specific
 
       - name: Build the docs
-        run: cargo doc --no-deps --no-default-features --features ${{ matrix.features }}
+        run: |
+          cargo doc --no-deps --no-default-features --features ${{ matrix.features }}
+          cargo doc --no-deps --no-default-features --features ${{ matrix.features }},platform_specific
 
       - name: Build the examples
-        run: cargo build --examples --no-default-features --features ${{ matrix.features }}
+        run: |
+          cargo build --examples --no-default-features --features ${{ matrix.features }}
+          cargo build --examples --no-default-features --features ${{ matrix.features }},platform_specific
 
       - name: Build the examples in release mode
         run: cargo build --release --examples --no-default-features --features ${{ matrix.features }}
