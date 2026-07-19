@@ -382,6 +382,18 @@ impl Mouse for Enigo {
         debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
 
+        #[cfg(any(
+            all(feature = "xdg_desktop", feature = "tokio"),
+            all(feature = "xdg_desktop", feature = "smol")
+        ))]
+        if let Some(con) = self.xdg_desktop.as_mut() {
+            trace!("try smooth scrolling via xdg_desktop");
+            res = con.smooth_scroll(length, axis);
+            if res.is_ok() {
+                debug!("successfully smooth scrolled via xdg_desktop");
+                return res;
+            }
+        }
         #[cfg(feature = "wayland")]
         if let Some(con) = self.wayland.as_mut() {
             trace!("try smooth scrolling via wayland");

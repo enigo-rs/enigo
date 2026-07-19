@@ -348,8 +348,8 @@ pub trait Mouse {
     /// offering smoother scrolling behavior compared to the
     /// standard line-based scrolling.
     ///
-    /// Available on macOS and on Linux via Wayland or libei when the
-    /// `platform_specific` feature is enabled.
+    /// Available on macOS and on Linux via xdg_desktop, Wayland, or libei when
+    /// the `platform_specific` feature is enabled.
     ///
     /// # Arguments
     /// * `length` - The number of pixels to scroll. Positive values scroll

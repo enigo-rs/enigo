@@ -2,8 +2,8 @@ use ashpd::desktop::{
     CreateSessionOptions, Session,
     remote_desktop::{
         DeviceType, KeyState, NotifyKeyboardKeycodeOptions, NotifyKeyboardKeysymOptions,
-        NotifyPointerAxisDiscreteOptions, NotifyPointerButtonOptions, NotifyPointerMotionOptions,
-        RemoteDesktop, SelectDevicesOptions, StartOptions,
+        NotifyPointerAxisDiscreteOptions, NotifyPointerAxisOptions, NotifyPointerButtonOptions,
+        NotifyPointerMotionOptions, RemoteDesktop, SelectDevicesOptions, StartOptions,
     },
 };
 use log::{debug, error, trace, warn};
@@ -292,6 +292,31 @@ impl Mouse for Con {
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
+        })?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "platform_specific")]
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        let (dx, dy) = match axis {
+            Axis::Horizontal => (f64::from(length), 0.0),
+            Axis::Vertical => (0.0, f64::from(length)),
+        };
+
+        Self::custom_block_on(self.remote_desktop.notify_pointer_axis(
+            &self.session,
+            dx,
+            dy,
+            NotifyPointerAxisOptions::default(),
+        ))
+        .map_err(|e| {
+            log::error!("{e}");
+            InputError::Simulate("Failed in custom_block_on")
+        })?
+        .map_err(|e| {
+            log::error!("{e}");
+            InputError::Simulate("Failed to smooth scroll")
         })?;
 
         Ok(())

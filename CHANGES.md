@@ -8,6 +8,7 @@
 - all: MSRV is 1.87
 
 ## Added
+- linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis` (available with the `platform_specific` feature, same API as on macOS)
 - linux: wayland: added smooth scrolling via continuous `axis` events (available with the `platform_specific` feature, same API as on macOS)
 - linux: libei: added smooth scrolling via `ei_scroll.scroll` (available with the `platform_specific` feature, same API as on macOS)
 - linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
