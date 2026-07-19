@@ -256,7 +256,9 @@ impl Con {
             keyboards,
             disconnect,
             sequence,
-            last_serial: serial.wrapping_add(1),
+            // The serial of the ei_handshake.connection event is the start of the EIS
+            // implementation's serial number sequence
+            last_serial: serial,
             context,
             connection,
             restore_token,
@@ -349,7 +351,6 @@ impl Con {
                         } => {
                             trace!("handshake connection");
                             self.last_serial = serial;
-                            self.sequence = serial;
                         }
                         _ => {
                             warn!("handshake else");
@@ -383,6 +384,7 @@ impl Con {
                             error!(
                                 "the serial {last_serial} contained an invalid object with the id {invalid_id}"
                             );
+                            self.last_serial = last_serial;
                         }
                         ei::connection::Event::Ping { ping } => {
                             debug!("ping");
@@ -403,6 +405,7 @@ impl Con {
                             match request {
                                 ei::seat::Event::Destroyed { serial } => {
                                     debug!("seat was destroyed");
+                                    self.last_serial = serial;
                                     self.seats.remove(&seat);
                                 }
                                 ei::seat::Event::Name { name } => {
@@ -456,6 +459,7 @@ impl Con {
                             match request {
                                 ei::device::Event::Destroyed { serial } => {
                                     debug!("device with serial {serial} was destroyed");
+                                    self.last_serial = serial;
                                     self.devices.remove(&device);
                                 }
                                 ei::device::Event::Name { name } => {
@@ -525,6 +529,7 @@ impl Con {
                         match request {
                             ei::keyboard::Event::Destroyed { serial } => {
                                 debug!("keyboard was destroyed");
+                                self.last_serial = serial;
                                 self.keyboards.remove(&keyboard);
                             }
                             ei::keyboard::Event::Keymap {
@@ -571,6 +576,7 @@ impl Con {
                                 latched,
                                 group,
                             } => {
+                                self.last_serial = serial;
                                 // TODO: Handle updated modifiers
                                 // Notification that the EIS
                                 // implementation has changed modifier states
@@ -661,8 +667,7 @@ impl Keyboard for Con {
             text_iface.utf8(chunk);
 
             // At most one utf8 request per frame.
-            device.frame(self.sequence, now_monotonic_micros());
-            self.sequence = self.sequence.wrapping_add(1);
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         self.update("enigo").map_err(|e| {
@@ -706,13 +711,8 @@ impl Keyboard for Con {
                 trace!("ei_text.keysym({keysym:#x}, Press)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Press);
 
-                // It is a client bug to send more than one key request for the same keysym
-                // within the same ei_device.frame and the EIS implementation may ignore
-                // either or all keysym state changes and/or disconnect the client
-                // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_text/index.html#ei_textkeysym).
-                // That's why we need to call frame for the press and the release
-                device.frame(self.sequence, now_monotonic_micros());
-                self.sequence = self.sequence.wrapping_add(1);
+                // Press and release of the same keysym must be in separate frames
+                device.frame(self.last_serial, now_monotonic_micros());
             }
 
             // Release
@@ -720,8 +720,7 @@ impl Keyboard for Con {
                 trace!("ei_text.keysym({keysym:#x}, Released)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Released);
 
-                device.frame(self.sequence, now_monotonic_micros());
-                self.sequence = self.sequence.wrapping_add(1);
+                device.frame(self.last_serial, now_monotonic_micros());
             }
 
             self.update("enigo").map_err(|e| {
@@ -784,21 +783,15 @@ impl Keyboard for Con {
         if direction == Direction::Press || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
 
-            // It is a client bug to send more than one key request for the same key within
-            // the same ei_device.frame and the EIS implementation may ignore either or all
-            // key state changes and/or disconnect the client
-            // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_keyboard/index.html#ei_keyboardkey).
-            // That's why we need to call frame for the press and the release
-            device.frame(self.sequence, now_monotonic_micros());
-            self.sequence = self.sequence.wrapping_add(1);
+            // Press and release of the same key must be in separate frames
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         // Release
         if direction == Direction::Release || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
 
-            device.frame(self.sequence, now_monotonic_micros());
-            self.sequence = self.sequence.wrapping_add(1);
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         self.update("enigo").map_err(|e| {
@@ -851,15 +844,17 @@ impl Keyboard for Con {
         // Press
         if direction == Direction::Press || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+
+            // Press and release of the same key must be in separate frames
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         // Release
         if direction == Direction::Release || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
-        }
 
-        device.frame(self.sequence, now_monotonic_micros());
-        self.sequence = self.sequence.wrapping_add(1);
+            device.frame(self.last_serial, now_monotonic_micros());
+        }
 
         self.update("enigo").map_err(|e| {
             error! {"{e}"};
@@ -936,17 +931,14 @@ impl Mouse for Con {
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Press)");
             vp.button(button, ei::button::ButtonState::Press);
-            // self.update("enigo");
-            device.frame(self.sequence, now_monotonic_micros());
-            self.sequence = self.sequence.wrapping_add(1);
+            // Press and release of the same button must be in separate frames
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         if direction == Direction::Release || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Released)");
             vp.button(button, ei::button::ButtonState::Released);
-            // self.update("enigo");
-            device.frame(self.sequence, now_monotonic_micros());
-            self.sequence = self.sequence.wrapping_add(1);
+            device.frame(self.last_serial, now_monotonic_micros());
         }
 
         self.update("enigo").map_err(|e| {
@@ -1000,8 +992,7 @@ impl Mouse for Con {
 
                 vp.motion_relative(x, y);
 
-                device.frame(self.sequence, now_monotonic_micros());
-                self.sequence = self.sequence.wrapping_add(1);
+                device.frame(self.last_serial, now_monotonic_micros());
 
                 self.update("enigo").map_err(|e| {
                     error! {"{e}"};
@@ -1057,8 +1048,7 @@ impl Mouse for Con {
 
                 vp.motion_absolute(x, y);
 
-                device.frame(self.sequence, now_monotonic_micros());
-                self.sequence = self.sequence.wrapping_add(1);
+                device.frame(self.last_serial, now_monotonic_micros());
 
                 self.update("enigo").map_err(|e| {
                     error! {"{e}"};
@@ -1115,8 +1105,7 @@ impl Mouse for Con {
 
         vp.scroll(x, y);
 
-        device.frame(self.sequence, now_monotonic_micros());
-        self.sequence = self.sequence.wrapping_add(1);
+        device.frame(self.last_serial, now_monotonic_micros());
         self.update("enigo").map_err(|e| {
             error! {"{e}"};
             InputError::Simulate(
@@ -1157,7 +1146,6 @@ impl Drop for Con {
         }) {
             debug!("stopping emulation for device during Drop");
             device.stop_emulating(self.last_serial);
-            self.last_serial = self.last_serial.wrapping_add(1);
         }
         self.connection.disconnect(); // Let the server know we voluntarily disconnected
 
