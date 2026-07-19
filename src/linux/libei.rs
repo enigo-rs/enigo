@@ -4,11 +4,11 @@ use ashpd::desktop::{
 };
 use log::{debug, error, trace, warn};
 use reis::{
-    PendingRequestResult,
+    Interface, PendingRequestResult,
     ei::{self, Connection},
     handshake::HandshakeResp,
 };
-use std::{collections::HashMap, os::unix::net::UnixStream, time::Instant};
+use std::{collections::HashMap, os::unix::net::UnixStream};
 use xkbcommon::xkb;
 
 use crate::{
@@ -16,21 +16,29 @@ use crate::{
 };
 pub type Keycode = u32;
 
+// Keep in sync with the versions advertised by `reis::handshake` / libei 1.6.
 static INTERFACES: std::sync::LazyLock<HashMap<&'static str, u32>> =
     std::sync::LazyLock::new(|| {
-        let mut m = HashMap::new();
-        m.insert("ei_button", 1);
-        m.insert("ei_callback", 1);
-        m.insert("ei_connection", 1);
-        m.insert("ei_device", 2);
-        m.insert("ei_keyboard", 1);
-        m.insert("ei_pingpong", 1);
-        m.insert("ei_pointer", 1);
-        m.insert("ei_pointer_absolute", 1);
-        m.insert("ei_scroll", 1);
-        m.insert("ei_seat", 1);
-        m
+        [
+            (ei::Button::NAME, ei::Button::VERSION),
+            (ei::Callback::NAME, ei::Callback::VERSION),
+            (ei::Connection::NAME, ei::Connection::VERSION),
+            (ei::Device::NAME, ei::Device::VERSION),
+            (ei::Keyboard::NAME, ei::Keyboard::VERSION),
+            (ei::Pingpong::NAME, ei::Pingpong::VERSION),
+            (ei::Pointer::NAME, ei::Pointer::VERSION),
+            (ei::PointerAbsolute::NAME, ei::PointerAbsolute::VERSION),
+            (ei::Scroll::NAME, ei::Scroll::VERSION),
+            (ei::Seat::NAME, ei::Seat::VERSION),
+            (ei::Touchscreen::NAME, ei::Touchscreen::VERSION),
+            (ei::Text::NAME, ei::Text::VERSION),
+        ]
+        .into_iter()
+        .collect()
     });
+
+/// `ei_text.utf8` allows at most 254 bytes (255 including the terminating NUL).
+const EI_TEXT_MAX_UTF8_LEN: usize = 254;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 struct SeatData {
@@ -87,7 +95,6 @@ pub struct Con {
     last_serial: u32,
     context: ei::Context,
     connection: Connection,
-    time_created: Instant,
     restore_token: Option<String>,
 }
 
@@ -217,7 +224,6 @@ impl Con {
         let keyboards = HashMap::new();
         let disconnect = None;
         let sequence = 0;
-        let time_created = Instant::now();
 
         let (context, restore_token) =
             Self::custom_block_on(Self::open_connection(restore_token))??;
@@ -253,7 +259,6 @@ impl Con {
             last_serial: serial.wrapping_add(1),
             context,
             connection,
-            time_created,
             restore_token,
         };
 
@@ -427,6 +432,9 @@ impl Con {
                                     if let Some(bits) = data.capabilities.get("ei_touchscreen") {
                                         bitmask |= bits;
                                     }
+                                    if let Some(bits) = data.capabilities.get("ei_text") {
+                                        bitmask |= bits;
+                                    }
 
                                     seat.bind(bitmask);
                                     trace!("done binding to seat");
@@ -487,6 +495,12 @@ impl Con {
                                 }
                                 ei::device::Event::Done => {
                                     trace!("device done");
+                                    // libei 1.6 / ei_device v3: servers that advertise v3 wait for
+                                    // ready() before sending resumed.
+                                    if device.version() >= 3 {
+                                        device.ready();
+                                        trace!("sent device ready");
+                                    }
                                 }
                                 ei::device::Event::Resumed { serial } => {
                                     debug!("device resumed serial: {serial}");
@@ -567,6 +581,20 @@ impl Con {
                             _ => {}
                         }
                     }
+                    ei::Event::Text(text, request) => {
+                        // The keysym/utf8 events are only sent to receiver contexts. As a
+                        // sender, we only expect the destructor.
+                        if let ei::text::Event::Destroyed { serial } = request {
+                            debug!("text interface was destroyed");
+                            self.last_serial = serial;
+                            // Remove the stale object so fast_text falls back to per-key
+                            // entry instead of erroring
+                            for data in self.devices.values_mut() {
+                                data.interfaces
+                                    .retain(|_, object| *object != *text.as_object());
+                            }
+                        }
+                    }
                     _ => {
                         warn!("else");
                     }
@@ -598,9 +626,54 @@ impl Con {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
-        warn!("fast text entry is not yet implemented with libei");
-        // TODO: Add fast method
-        Ok(None)
+        if text.contains('\0') {
+            return Err(InputError::InvalidInput(
+                "the text to enter contained a NULL byte ('\\0'), which is not allowed",
+            ));
+        }
+
+        // Find a device that exposes the ei_text interface (libei 1.6+).
+        let Some((device, text_iface, device_data)) =
+            self.devices.iter_mut().find_map(|(device, data)| {
+                let text_iface = data.interface::<ei::Text>()?;
+                Some((device.clone(), text_iface, data))
+            })
+        else {
+            debug!("fast text entry not available: no device with ei_text");
+            return Ok(None);
+        };
+
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate text: the `ei::Device` is no longer alive",
+            ));
+        }
+        if !text_iface.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate text: the `ei::Text` interface is no longer alive",
+            ));
+        }
+
+        ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
+
+        for chunk in utf8_byte_chunks(text, EI_TEXT_MAX_UTF8_LEN) {
+            trace!("ei_text.utf8({chunk:?})");
+            text_iface.utf8(chunk);
+
+            // At most one utf8 request per frame.
+            device.frame(self.sequence, now_monotonic_micros());
+            self.sequence = self.sequence.wrapping_add(1);
+        }
+
+        self.update("enigo").map_err(|e| {
+            error! {"{e}"};
+            InputError::Simulate(
+                "failed to update libei connection after sending text events: the update call \
+                 returned an error",
+            )
+        })?;
+
+        Ok(Some(()))
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
@@ -633,12 +706,19 @@ impl Keyboard for Con {
             )
         })?;
 
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate key event: the `ei::Device` is no longer alive",
+            ));
+        }
         // Ensure the keyboard object is still alive
         if !keyboard.is_alive() {
             return Err(InputError::Simulate(
                 "cannot simulate key event: the `ei::Keyboard` object is no longer alive",
             ));
         }
+
+        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
 
         // Press
         if direction == Direction::Press || direction == Direction::Click {
@@ -649,8 +729,7 @@ impl Keyboard for Con {
             // key state changes and/or disconnect the client
             // (source https://libinput.pages.freedesktop.org/libei/interfaces/ei_keyboard/index.html#ei_keyboardkey).
             // That's why we need to call frame for the press and the release
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-            device.frame(self.sequence, elapsed);
+            device.frame(self.sequence, now_monotonic_micros());
             self.sequence = self.sequence.wrapping_add(1);
         }
 
@@ -658,8 +737,7 @@ impl Keyboard for Con {
         if direction == Direction::Release || direction == Direction::Click {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
 
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-            device.frame(self.sequence, elapsed);
+            device.frame(self.sequence, now_monotonic_micros());
             self.sequence = self.sequence.wrapping_add(1);
         }
 
@@ -697,11 +775,18 @@ impl Keyboard for Con {
             )
         })?;
 
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate raw key event: the `ei::Device` is no longer alive",
+            ));
+        }
         if !keyboard.is_alive() {
             return Err(InputError::Simulate(
                 "cannot simulate raw key event: the `ei::Keyboard` interface is no longer alive",
             ));
         }
+
+        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
 
         // Press
         if direction == Direction::Press || direction == Direction::Click {
@@ -713,9 +798,7 @@ impl Keyboard for Con {
             keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
         }
 
-        let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-        device.frame(self.sequence, elapsed);
+        device.frame(self.sequence, now_monotonic_micros());
         self.sequence = self.sequence.wrapping_add(1);
 
         self.update("enigo").map_err(|e| {
@@ -777,18 +860,24 @@ impl Mouse for Con {
             )
         })?;
 
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot simulate button event: the `ei::Device` is no longer alive",
+            ));
+        }
         if !vp.is_alive() {
             return Err(InputError::Simulate(
                 "cannot simulate button event: the `ei::Button` interface is no longer alive",
             ));
         }
 
+        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+
         if direction == Direction::Press || direction == Direction::Click {
             trace!("vp.button({button}, ei::button::ButtonState::Press)");
             vp.button(button, ei::button::ButtonState::Press);
             // self.update("enigo");
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-            device.frame(self.sequence, elapsed);
+            device.frame(self.sequence, now_monotonic_micros());
             self.sequence = self.sequence.wrapping_add(1);
         }
 
@@ -796,8 +885,7 @@ impl Mouse for Con {
             trace!("vp.button({button}, ei::button::ButtonState::Released)");
             vp.button(button, ei::button::ButtonState::Released);
             // self.update("enigo");
-            let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-            device.frame(self.sequence, elapsed);
+            device.frame(self.sequence, now_monotonic_micros());
             self.sequence = self.sequence.wrapping_add(1);
         }
 
@@ -821,7 +909,7 @@ impl Mouse for Con {
                 trace!("vp.motion_relative({x}, {y})");
                 let (device, device_data) = self
                     .devices
-                    .iter()
+                    .iter_mut()
                     .find(|(_, device_data)| device_data.interface::<ei::Pointer>().is_some())
                     .ok_or({
                         InputError::Simulate(
@@ -837,17 +925,22 @@ impl Mouse for Con {
                     )
                 })?;
 
+                if !device.is_alive() {
+                    return Err(InputError::Simulate(
+                        "cannot move mouse relatively: the `ei::Device` is no longer alive",
+                    ));
+                }
                 if !vp.is_alive() {
                     return Err(InputError::Simulate(
                         "cannot move mouse relatively: the `ei::Pointer` interface is no longer alive",
                     ));
                 }
 
+                ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+
                 vp.motion_relative(x, y);
 
-                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-                device.frame(self.sequence, elapsed);
+                device.frame(self.sequence, now_monotonic_micros());
                 self.sequence = self.sequence.wrapping_add(1);
 
                 self.update("enigo").map_err(|e| {
@@ -871,7 +964,7 @@ impl Mouse for Con {
                 // Find a device exposing the absolute pointer interface
                 let (device, device_data) = self
                     .devices
-                    .iter()
+                    .iter_mut()
                     .find(|(_, device_data)| {
                         device_data.interface::<ei::PointerAbsolute>().is_some()
                     })
@@ -889,16 +982,22 @@ impl Mouse for Con {
                     )
                 })?;
 
+                if !device.is_alive() {
+                    return Err(InputError::Simulate(
+                        "cannot move mouse absolutely: the `ei::Device` is no longer alive",
+                    ));
+                }
                 if !vp.is_alive() {
                     return Err(InputError::Simulate(
                         "cannot move mouse absolutely: the `ei::PointerAbsolute` interface is no longer alive",
                     ));
                 }
+
+                ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+
                 vp.motion_absolute(x, y);
 
-                let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-                device.frame(self.sequence, elapsed);
+                device.frame(self.sequence, now_monotonic_micros());
                 self.sequence = self.sequence.wrapping_add(1);
 
                 self.update("enigo").map_err(|e| {
@@ -919,7 +1018,7 @@ impl Mouse for Con {
 
         let (device, device_data) = self
             .devices
-            .iter()
+            .iter_mut()
             .find(|(_, device_data)| device_data.interface::<ei::Scroll>().is_some())
             .ok_or({
                 InputError::Simulate(
@@ -941,16 +1040,22 @@ impl Mouse for Con {
             )
         })?;
 
+        if !device.is_alive() {
+            return Err(InputError::Simulate(
+                "cannot scroll: the `ei::Device` is no longer alive",
+            ));
+        }
         if !vp.is_alive() {
             return Err(InputError::Simulate(
                 "cannot scroll: the `ei::Scroll` interface is no longer alive",
             ));
         }
+
+        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+
         vp.scroll(x, y);
 
-        let elapsed = self.time_created.elapsed().as_secs(); // Is seconds fine?
-
-        device.frame(self.sequence, elapsed);
+        device.frame(self.sequence, now_monotonic_micros());
         self.sequence = self.sequence.wrapping_add(1);
         self.update("enigo").map_err(|e| {
             error! {"{e}"};
@@ -1016,4 +1121,68 @@ fn key_to_keycode(keymap: &xkb::Keymap, key: Key) -> InputResult<Keycode> {
         }
     }
     keycode.ok_or(crate::InputError::InvalidInput("Key is not mapped"))
+}
+
+/// Timestamp for `ei_device.frame` in microseconds of `CLOCK_MONOTONIC`, as
+/// required by the protocol
+#[allow(clippy::cast_sign_loss)]
+fn now_monotonic_micros() -> u64 {
+    // SAFETY: An all-zero timespec is a valid value
+    let mut ts: libc::timespec = unsafe { std::mem::zeroed() };
+    // SAFETY: The pointer to the timespec is valid for the duration of the call
+    let ret = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &raw mut ts) };
+    // Cannot fail: CLOCK_MONOTONIC is supported on all unix platforms
+    debug_assert_eq!(ret, 0, "clock_gettime(CLOCK_MONOTONIC) failed");
+    (ts.tv_sec as u64) * 1_000_000 + (ts.tv_nsec as u64) / 1_000
+}
+
+/// Ensure the device is in the `Emulating` state before sending events.
+/// The EIS implementation may silently discard events that are sent to a
+/// device that is not emulating.
+///
+/// If the device was resumed but emulation was not started yet (e.g because it
+/// was paused and resumed again mid-session), `start_emulating` is sent. It is
+/// not a protocol violation to do so, because the state is reset whenever the
+/// device gets paused
+fn ensure_emulating(
+    device: &ei::Device,
+    data: &mut DeviceData,
+    sequence: &mut u32,
+    last_serial: u32,
+) -> InputResult<()> {
+    match data.state {
+        DeviceState::Emulating => Ok(()),
+        DeviceState::Resumed => {
+            debug!("start emulating before sending events");
+            device.start_emulating(last_serial, *sequence);
+            *sequence = sequence.wrapping_add(1);
+            data.state = DeviceState::Emulating;
+            Ok(())
+        }
+        // Only the EIS implementation can resume a paused device. Requesting
+        // emulation on a device that is not resumed is a client bug, so
+        // failing is all we can do here
+        DeviceState::Paused => Err(InputError::Simulate(
+            "cannot simulate input: the device is paused by the EIS implementation",
+        )),
+    }
+}
+
+/// Split `s` into UTF-8 substrings of at most `max_bytes` bytes each.
+fn utf8_byte_chunks(mut s: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
+    // A chunk must be able to hold any UTF-8 char (up to 4 bytes), otherwise
+    // no progress could be made and empty chunks would be yielded forever
+    debug_assert!(max_bytes >= 4);
+    std::iter::from_fn(move || {
+        if s.is_empty() {
+            return None;
+        }
+        let mut end = max_bytes.min(s.len());
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        let (chunk, rest) = s.split_at(end);
+        s = rest;
+        Some(chunk)
+    })
 }
