@@ -737,10 +737,13 @@ impl Keyboard for Con {
         debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
 
         // Find a device that exposes a keyboard interface
-        let (device, device_data) = self
+        let (device, keyboard, device_data) = self
             .devices
             .iter_mut()
-            .find(|(_, device_data)| device_data.interface::<ei::Keyboard>().is_some())
+            .find_map(|(device, data)| {
+                let keyboard = data.interface::<ei::Keyboard>()?;
+                Some((device.clone(), keyboard, data))
+            })
             .ok_or({
                 InputError::Simulate(
                     "cannot simulate key event: no device implementing the `ei::Keyboard` \
@@ -748,11 +751,12 @@ impl Keyboard for Con {
                 )
             })?;
 
-        // Find the first available keyboard keymap
-        let (keyboard, keymap) = self.keyboards.iter().next().ok_or({
+        // Use the keymap of the keyboard the key event will be sent on. Using any
+        // other keymap could calculate the wrong keycode and the key event would be
+        // framed on the wrong device
+        let keymap = self.keyboards.get(&keyboard).ok_or({
             InputError::Simulate(
-                "cannot simulate key event: no keyboard keymap available (no `ei::Keyboard` \
-                    object registered in the connection)",
+                "cannot simulate key event: no keymap was received for the keyboard",
             )
         })?;
 
@@ -777,7 +781,7 @@ impl Keyboard for Con {
             ));
         }
 
-        ensure_emulating(device, device_data, &mut self.sequence, self.last_serial)?;
+        ensure_emulating(&device, device_data, &mut self.sequence, self.last_serial)?;
 
         // Press
         if direction == Direction::Press || direction == Direction::Click {
