@@ -971,16 +971,22 @@ impl Mouse for Con {
             .as_ref()
             .ok_or(InputError::Simulate("no way to scroll"))?;
 
-        // TODO: Check what the value of length should be
-        // TODO: Check if it would be better to use .axis_discrete here
+        // Wheel-style scrolling uses axis_discrete:
+        // - `discrete` is the number of wheel clicks (`length`)
+        // - `value` is the continuous axis value in degrees of wheel rotation
+        //   (libinput default: 15° per click; see
+        //   https://wayland.freedesktop.org/libinput/doc/latest/api/group__event__pointer.html)
+        const DEGREES_PER_WHEEL_CLICK: f64 = 15.0;
         let time = self.get_time();
         let axis = match axis {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
-        trace!("vp.axis(time, axis, length.into())");
-        vp.axis(time, axis, length.into());
-        vp.frame(); // TODO: Check if this is needed
+        let value = f64::from(length) * DEGREES_PER_WHEEL_CLICK;
+        trace!("vp.axis_source(Wheel); vp.axis_discrete(time, axis, {value}, {length})");
+        vp.axis_source(wl_pointer::AxisSource::Wheel);
+        vp.axis_discrete(time, axis, value.into(), length);
+        vp.frame();
 
         self.flush()
     }

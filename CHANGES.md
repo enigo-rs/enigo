@@ -4,6 +4,7 @@
 - linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
 - linux: libei: Prefer `ei_text.keysym` / `ei_text.utf8` when available; fall back to keymap `ei_keyboard` only when needed
 - linux: libei: Use `ei_scroll.scroll_discrete` with 120-unit notches for wheel scrolling instead of smooth `scroll`
+- linux: wayland: Use `axis_discrete` with a wheel axis source for `scroll()` instead of continuous `axis`
 - all: MSRV is 1.87
 
 ## Added
