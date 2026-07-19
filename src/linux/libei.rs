@@ -265,10 +265,30 @@ impl Con {
             restore_token,
         };
 
-        con.update(libei_name).map_err(|e| {
-            error! {"{e}"};
-            NewConError::EstablishCon("unable to update the libei connection")
-        })?;
+        // The socket is non-blocking, so a single update may return before the EIS
+        // implementation has advertised seats and devices. Poll until at least one
+        // device is resumed (or we time out)
+        let mut saw_resumed_device = false;
+        for _ in 0..50 {
+            con.update(libei_name).map_err(|e| {
+                error! {"{e}"};
+                NewConError::EstablishCon("unable to update the libei connection")
+            })?;
+            if con
+                .devices
+                .values()
+                .any(|data| data.state == DeviceState::Resumed)
+            {
+                saw_resumed_device = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        if !saw_resumed_device {
+            return Err(NewConError::EstablishCon(
+                "timed out waiting for the EIS implementation to resume a device",
+            ));
+        }
 
         for (device, device_data) in con.devices.iter_mut().filter(|(_, device_data)| {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
@@ -303,15 +323,24 @@ impl Con {
 
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, libei_name: &str) -> InputResult<()> {
-        let mut had_pending_events = true;
-
         loop {
             debug!("update");
-            if self.context.read().is_err() {
-                error!("err reading");
+
+            // Flush first so queued requests reach the EIS implementation before we
+            // look for replies. Previously a sleep was used to paper over sending
+            // before flushing
+            if let Err(e) = self.context.flush() {
+                error! {"{e}"};
+                return Err(InputError::Simulate("Failed to flush libei context"));
+            }
+
+            // WouldBlock returns Ok(0); only real I/O failures are Err
+            if let Err(e) = self.context.read() {
+                error!("err reading: {e}");
                 return Err(InputError::Simulate("Failed to update libei context"));
             }
 
+            let mut had_pending_events = false;
             while let Some(result) = self.context.pending_event() {
                 had_pending_events = true;
                 trace!("found pending_event");
@@ -610,22 +639,12 @@ impl Con {
 
             trace!("devices: {:?}", self.devices);
 
-            if self.context.flush().is_ok() {
-                trace!("flush success");
-            } else {
-                error!("flush fail");
-            }
-
-            // This is needed so anything is typed
-            std::thread::sleep(std::time::Duration::from_millis(10));
-            trace!("update flush");
-            trace!("update done");
-
-            // Stop looking if there were no pending events
+            // No more events available: return immediately on the hot path. If we
+            // handled events (and may have queued replies such as ping.done), loop
+            // to flush and drain follow-ups without sleeping
             if !had_pending_events {
                 break;
             }
-            had_pending_events = false;
         }
         Ok(())
     }
