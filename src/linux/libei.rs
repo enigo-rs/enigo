@@ -810,7 +810,12 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
-        let keycode = keycode as u32;
+        // The keycode is an X11 keycode, which is offset by 8 from the evdev keycode
+        // that ei_keyboard.key expects. Subtracting from a keycode < 8 would
+        // underflow
+        let keycode = u32::from(keycode).checked_sub(8).ok_or({
+            InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
+        })?;
 
         // Find a device that exposes a keyboard interface
         let (device, device_data) = self
@@ -847,7 +852,7 @@ impl Keyboard for Con {
 
         // Press
         if direction == Direction::Press || direction == Direction::Click {
-            keyboard.key(keycode - 8, ei::keyboard::KeyState::Press);
+            keyboard.key(keycode, ei::keyboard::KeyState::Press);
 
             // Press and release of the same key must be in separate frames
             device.frame(self.last_serial, now_monotonic_micros());
@@ -855,7 +860,7 @@ impl Keyboard for Con {
 
         // Release
         if direction == Direction::Release || direction == Direction::Click {
-            keyboard.key(keycode - 8, ei::keyboard::KeyState::Released);
+            keyboard.key(keycode, ei::keyboard::KeyState::Released);
 
             device.frame(self.last_serial, now_monotonic_micros());
         }
