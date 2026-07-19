@@ -59,14 +59,18 @@ impl DeviceData {
     }
 }
 
+struct KeyboardData {
+    keymap: xkb::Keymap,
+    /// Layout group from the last `ei_keyboard.modifiers` event.
+    /// Modifier masks from that event are ignored for now; see `key_to_keycode`.
+    group: xkb::LayoutIndex,
+}
+
 /// The main struct for handling the event emitting
 pub struct Con {
-    // XXX best way to handle data associated with object?
-    // TODO: Release seat when dropped, so compositor knows it wont be used anymore
     seats: HashMap<ei::Seat, SeatData>,
-    // TODO: Release device when dropped, so compositor knows it wont be used anymore
     devices: HashMap<ei::Device, DeviceData>,
-    keyboards: HashMap<ei::Keyboard, xkb::Keymap>,
+    keyboards: HashMap<ei::Keyboard, KeyboardData>,
     /// `None` if there was no disconnect
     disconnect: Option<(ei::connection::DisconnectReason, Option<String>)>,
     sequence: u32,
@@ -632,8 +636,11 @@ impl Con {
                                         0,
                                     )
                                 } {
-                                    Ok(Some(k)) => {
-                                        self.keyboards.insert(keyboard, k);
+                                    Ok(Some(keymap)) => {
+                                        self.keyboards.insert(
+                                            keyboard,
+                                            KeyboardData { keymap, group: 0 },
+                                        );
                                     }
                                     Ok(None) => {
                                         error!("xkb returned None when creating keymap");
@@ -651,18 +658,16 @@ impl Con {
                             }
                             ei::keyboard::Event::Modifiers {
                                 serial,
-                                depressed,
-                                locked,
-                                latched,
+                                depressed: _,
+                                locked: _,
+                                latched: _,
                                 group,
                             } => {
                                 self.last_serial = serial;
-                                // TODO: Handle updated modifiers
-                                // Notification that the EIS
-                                // implementation has changed modifier states
-                                // on this device. Future ei_keyboard.key
-                                // requests must take the new modifier state
-                                // into account.
+                                // Keymap key() lookup must use the active layout group
+                                if let Some(keyboard_data) = self.keyboards.get_mut(&keyboard) {
+                                    keyboard_data.group = group;
+                                }
                             }
                             _ => {
                                 warn!("unknown keyboard event");
@@ -770,19 +775,19 @@ impl Keyboard for Con {
                     "no connected device implements the required interface",
                 ))?;
 
-        // Use the keymap of the keyboard the key event will be sent on
-        let keymap = self.keyboards.get(&keyboard).ok_or({
+        let keyboard_data = self.keyboards.get(&keyboard).ok_or({
             InputError::Simulate(
                 "cannot simulate key event: no keymap was received for the keyboard",
             )
         })?;
-        let keycode = key_to_keycode(keymap, key).map_err(|e| {
-            error!("{e}");
-            InputError::InvalidInput(
-                "failed to map the requested key to a keycode: the provided key is not mapped in \
-                 the current xkb keymap",
-            )
-        })?;
+        let keycode =
+            key_to_keycode(&keyboard_data.keymap, keyboard_data.group, key).map_err(|e| {
+                error!("{e}");
+                InputError::InvalidInput(
+                    "failed to map the requested key to a keycode: the provided key is not mapped \
+                     in the current xkb keymap",
+                )
+            })?;
         // XKB keycodes in the keymap are X11-style; ei_keyboard.key expects evdev
         // codes (X11 keycode − 8)
         let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
@@ -981,13 +986,23 @@ impl Drop for Con {
     }
 }
 
-fn key_to_keycode(keymap: &xkb::Keymap, key: Key) -> InputResult<Keycode> {
+// TODO(platforms): keymap key() is best-effort w.r.t. modifiers/levels. We pick a
+// keycode that can produce the keysym in the active layout group (levels 0..=1) but
+// do not press the modifiers that level needs (e.g. `!` → KEY_1 without Shift) and
+// do not account for modifiers already held by the EIS (Shift held → `a` types `A`).
+// Fix this consistently across backends (synthesize needed mods, or prefer keysym
+// entry where available).
+fn key_to_keycode(
+    keymap: &xkb::Keymap,
+    group: xkb::LayoutIndex,
+    key: Key,
+) -> InputResult<Keycode> {
     let keysym = xkb::Keysym::from(key);
     (keymap.min_keycode().raw()..keymap.max_keycode().raw())
         .find(|&keycode| {
             (0..=1).any(|level| {
                 keymap
-                    .key_get_syms_by_level(xkb::Keycode::new(keycode), 0, level)
+                    .key_get_syms_by_level(xkb::Keycode::new(keycode), group, level)
                     .contains(&keysym)
             })
         })
