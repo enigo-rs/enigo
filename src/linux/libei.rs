@@ -897,20 +897,16 @@ impl Drop for Con {
 }
 
 fn key_to_keycode(keymap: &xkb::Keymap, key: Key) -> InputResult<Keycode> {
-    let all_keycodes = keymap.min_keycode().raw()..keymap.max_keycode().raw();
-
     let keysym = xkb::Keysym::from(key);
-    let mut keycode = None;
-    'outer: for i in all_keycodes.clone() {
-        for j in 0..=1 {
-            let syms = keymap.key_get_syms_by_level(xkb::Keycode::new(i), 0, j);
-            if syms.contains(&keysym) {
-                keycode = Some(i);
-                break 'outer;
-            }
-        }
-    }
-    keycode.ok_or(crate::InputError::InvalidInput("Key is not mapped"))
+    (keymap.min_keycode().raw()..keymap.max_keycode().raw())
+        .find(|&keycode| {
+            (0..=1).any(|level| {
+                keymap
+                    .key_get_syms_by_level(xkb::Keycode::new(keycode), 0, level)
+                    .contains(&keysym)
+            })
+        })
+        .ok_or(InputError::InvalidInput("Key is not mapped"))
 }
 
 /// Timestamp for `ei_device.frame` in microseconds of `CLOCK_MONOTONIC`, as
