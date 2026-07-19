@@ -219,24 +219,23 @@ impl Mouse for Enigo {
     // Sends a scroll event to the X11 server via `XTest` extension
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93mscroll(length: {length:?}, axis: {axis:?})\x1b[0m");
-        let input = match axis {
-            Axis::Horizontal => mouse_event(
-                MOUSEEVENTF_HWHEEL,
-                length * (WHEEL_DELTA as i32),
-                0,
-                0,
-                self.dw_extra_info,
-            ),
-            Axis::Vertical => mouse_event(
-                MOUSEEVENTF_WHEEL,
-                -length * (WHEEL_DELTA as i32),
-                0,
-                0,
-                self.dw_extra_info,
-            ),
-        };
-        send_input(&[input])?;
-        Ok(())
+        // One logical wheel click is WHEEL_DELTA (120).
+        let delta = length
+            .checked_mul(WHEEL_DELTA as i32)
+            .ok_or(InputError::InvalidInput(
+                "scroll length is too large for MOUSEEVENTF_WHEEL",
+            ))?;
+        self.scroll_wheel(delta, axis)
+    }
+
+    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
+        debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
+        // High-resolution wheel delta (https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel).
+        // Values smaller than WHEEL_DELTA (120) are a fraction of a notch. Whether
+        // that produces finer scrolling depends on the target app: some accumulate
+        // correctly, some ignore |delta| < 120, some treat any non-zero delta as a
+        // full notch.
+        self.scroll_wheel(length, axis)
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
@@ -404,6 +403,15 @@ impl Enigo {
         let current_window_thread_id =
             unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
         unsafe { GetKeyboardLayout(current_window_thread_id) }
+    }
+
+    fn scroll_wheel(&self, delta: i32, axis: Axis) -> InputResult<()> {
+        let input = match axis {
+            Axis::Horizontal => mouse_event(MOUSEEVENTF_HWHEEL, delta, 0, 0, self.dw_extra_info),
+            // Invert vertical so positive length scrolls down, matching other platforms.
+            Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -delta, 0, 0, self.dw_extra_info),
+        };
+        send_input(&[input])
     }
 
     /// Generic function to translate between virtual keys and scan codes

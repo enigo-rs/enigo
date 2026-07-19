@@ -377,9 +377,10 @@ impl Mouse for Enigo {
         res
     }
 
-    #[cfg(feature = "platform_specific")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
+        // `mut` is unused when none of the protocols that support smooth scroll are enabled.
+        #[allow(unused_mut)]
         let mut res = Err(InputError::Simulate("No protocol to simulate the input"));
 
         #[cfg(any(

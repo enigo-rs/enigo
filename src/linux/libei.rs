@@ -952,7 +952,6 @@ impl Mouse for Con {
         self.update()
     }
 
-    #[cfg(feature = "platform_specific")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         self.ensure_connected()?;
 

@@ -342,28 +342,38 @@ pub trait Mouse {
     #[doc(alias = "mouse_scroll_x", alias = "mouse_scroll_y")]
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()>;
 
-    /// Smooth scroll using pixel-based scrolling
+    /// Smooth scroll using pixel-based or high-resolution scrolling
     ///
-    /// This function provides pixel-level precision for scrolling
-    /// offering smoother scrolling behavior compared to the
-    /// standard line-based scrolling.
+    /// This function provides finer scrolling than [`Mouse::scroll`].
     ///
-    /// Available on macOS and on Linux via xdg_desktop, Wayland, or libei when
-    /// the `platform_specific` feature is enabled.
+    /// On macOS and Linux (xdg_desktop, Wayland, libei) the `length` is
+    /// typically interpreted in pixels / logical pixels. On Windows it is a
+    /// high-resolution wheel delta where
+    /// [`WHEEL_DELTA`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel)
+    /// (`120`) equals one notch. Windows has no separate pixel-scroll injection
+    /// API; this uses the same `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` path
+    /// as [`Mouse::scroll`], but without multiplying by 120. On Linux with only
+    /// X11, this is not supported and returns an error.
+    ///
+    /// **Windows caveat:** whether a value smaller than 120 actually produces
+    /// finer scrolling depends on the target application. Apps that handle
+    /// high-resolution wheels correctly will scroll smoothly; apps that ignore
+    /// `|delta| < 120` may not scroll at all; apps that only check the sign of
+    /// the delta may treat any non-zero value as a full notch.
     ///
     /// # Arguments
-    /// * `length` - The number of pixels to scroll. Positive values scroll
-    ///   down/right, negative values scroll up/left.
+    /// * `length` - Scroll amount. Positive values scroll down/right, negative
+    ///   values scroll up/left.
     /// * `axis` - The axis to scroll along (Horizontal or Vertical)
     ///
     /// # Errors
     /// Have a look at the documentation of [`InputError`] to see under which
     /// conditions an error will be returned.
-    #[cfg_attr(docsrs, doc(cfg(feature = "platform_specific")))]
-    #[cfg(all(feature = "platform_specific", any(unix, doc)))]
     #[doc(alias = "mouse_smooth_scroll_x", alias = "mouse_smooth_scroll_y")]
-    fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
-        unimplemented!()
+    fn smooth_scroll(&mut self, _length: i32, _axis: Axis) -> InputResult<()> {
+        Err(InputError::Simulate(
+            "smooth scrolling is not supported by this platform or protocol",
+        ))
     }
 
     /// Get the (width, height) of the main display in pixels. This currently

@@ -297,7 +297,6 @@ impl Mouse for Con {
         Ok(())
     }
 
-    #[cfg(feature = "platform_specific")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let (dx, dy) = match axis {
             Axis::Horizontal => (f64::from(length), 0.0),

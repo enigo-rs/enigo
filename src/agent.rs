@@ -48,9 +48,6 @@ pub enum Token {
     #[cfg_attr(feature = "serde", serde(alias = "s"))]
     Scroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
     /// Call the [`Mouse::smooth_scroll`] fn.
-    /// Only available on macOS and Linux (xdg_desktop/Wayland/libei) with the
-    /// `platform_specific` feature.
-    #[cfg(all(feature = "platform_specific", unix))]
     #[cfg_attr(feature = "serde", serde(alias = "SS"))]
     #[cfg_attr(feature = "serde", serde(alias = "ss"))]
     SmoothScroll(i32, #[cfg_attr(feature = "serde", serde(default))] Axis),
@@ -89,7 +86,6 @@ where
             Token::Button(button, direction) => self.button(*button, *direction),
             Token::MoveMouse(x, y, coordinate) => self.move_mouse(*x, *y, *coordinate),
             Token::Scroll(length, axis) => self.scroll(*length, *axis),
-            #[cfg(all(feature = "platform_specific", unix))]
             Token::SmoothScroll(length, axis) => self.smooth_scroll(*length, *axis),
             Token::Location(expected_x, expected_y) => match self.location() {
                 Ok((actual_x, actual_y)) => {

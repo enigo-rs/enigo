@@ -246,7 +246,6 @@ impl Mouse for Enigo {
         self.scroll_unit(length, CGScrollEventUnit::Line, axis)
     }
 
-    #[cfg(feature = "platform_specific")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         self.scroll_unit(length, CGScrollEventUnit::Pixel, axis)

@@ -991,7 +991,6 @@ impl Mouse for Con {
         self.flush()
     }
 
-    #[cfg(feature = "platform_specific")]
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         let vp = self
             .state

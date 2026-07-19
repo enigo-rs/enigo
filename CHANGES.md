@@ -5,12 +5,14 @@
 - linux: libei: Prefer `ei_text.keysym` / `ei_text.utf8` when available; fall back to keymap `ei_keyboard` only when needed
 - linux: libei: Use `ei_scroll.scroll_discrete` with 120-unit notches for wheel scrolling instead of smooth `scroll`
 - linux: wayland: Use `axis_discrete` with a wheel axis source for `scroll()` instead of continuous `axis`
+- all: `Mouse::smooth_scroll` is no longer gated behind the `platform_specific` feature (supported on macOS, Windows, and Linux via xdg_desktop/Wayland/libei; X11 returns an error)
 - all: MSRV is 1.87
 
 ## Added
-- linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis` (available with the `platform_specific` feature, same API as on macOS)
-- linux: wayland: added smooth scrolling via continuous `axis` events (available with the `platform_specific` feature, same API as on macOS)
-- linux: libei: added smooth scrolling via `ei_scroll.scroll` (available with the `platform_specific` feature, same API as on macOS)
+- win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
+- linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis`
+- linux: wayland: added smooth scrolling via continuous `axis` events
+- linux: libei: added smooth scrolling via `ei_scroll.scroll`
 - linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
 - linux: libei/xdg_desktop: expose a `restore_token()` getter so callers can retrieve and reuse the token
 - linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
