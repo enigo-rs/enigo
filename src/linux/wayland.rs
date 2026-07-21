@@ -711,12 +711,14 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                 refresh: _,
             } => {
                 debug!("WlOutput received event:\n{event:?}");
-                if flags == WEnum::Value(Mode::Current) {
-                    if let Some((_, output_data)) =
-                        state.outputs.iter_mut().find(|(o, _)| o == output)
-                    {
-                        output_data.width = width;
-                        output_data.height = height;
+                if let WEnum::Value(value_flags) = flags {
+                    if value_flags.contains(Mode::Current) {
+                        if let Some((_, output_data)) =
+                            state.outputs.iter_mut().find(|(o, _)| o == output)
+                        {
+                            output_data.width = width;
+                            output_data.height = height;
+                        }
                     }
                 }
             }
