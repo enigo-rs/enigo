@@ -28,6 +28,7 @@
 ## Fixed
 - win: Mouse coordinates and display size are no longer wrong when the process is not DPI aware
 - linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
+- linux: x11rb: Refresh cached key and modifier mappings after X11 mapping changes
 - linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
 - linux: libei: Fix `frame` / `start_emulating` serial vs sequence handling
 - linux: libei: Re-send `start_emulating` after pause/resume so events are not silently discarded

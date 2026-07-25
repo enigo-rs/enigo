@@ -5,9 +5,12 @@ use log::{debug, error, trace, warn};
 use x11rb::{
     connection::Connection,
     protocol::{
+        Event,
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xproto::{
+            ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Mapping, Screen,
+        },
         xtest::ConnectionExt as _,
     },
     rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
@@ -200,6 +203,56 @@ impl Con {
                 |d| Ok(d.device_id),
             )
     }
+
+    fn refresh_keymap_if_changed(&mut self) -> InputResult<()> {
+        let mut keyboard_changed = false;
+        let mut modifiers_changed = false;
+
+        while let Some(event) = self.connection.poll_for_event().map_err(|e| {
+            error!("{e}");
+            InputError::Simulate("error when polling X11 events with x11rb")
+        })? {
+            let Event::MappingNotify(event) = event else {
+                continue;
+            };
+
+            if event.request == Mapping::KEYBOARD {
+                keyboard_changed = true;
+            } else if event.request == Mapping::MODIFIER {
+                modifiers_changed = true;
+            }
+        }
+
+        if keyboard_changed {
+            let setup = self.connection.setup();
+            let min_keycode = setup.min_keycode;
+            let max_keycode = setup.max_keycode;
+            let (keysyms_per_keycode, keysyms) = Self::get_keyboard_mapping(
+                &self.connection,
+                min_keycode,
+                max_keycode,
+            )
+            .map_err(|e| {
+                error!("{e}");
+                InputError::Simulate("error when refreshing the keyboard mapping with x11rb")
+            })?;
+            let unused_keycodes =
+                Self::unused_keycodes(min_keycode, max_keycode, keysyms_per_keycode, &keysyms);
+            self.keymap
+                .refresh(unused_keycodes, keysyms_per_keycode, keysyms);
+            debug!("refreshed the cached X11 keyboard mapping");
+        }
+
+        if modifiers_changed {
+            self.modifiers = Self::find_modifier_keycodes(&self.connection).map_err(|e| {
+                error!("{e}");
+                InputError::Simulate("error when refreshing the modifier mapping with x11rb")
+            })?;
+            debug!("refreshed the cached X11 modifier mapping");
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for Con {
@@ -235,6 +288,7 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
+        self.refresh_keymap_if_changed()?;
         let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
@@ -470,5 +524,38 @@ impl Mouse for Con {
                 InputError::Simulate("error with the reply of query_pointer with x11rb")
             })?;
         Ok((reply.root_x as i32, reply.root_y as i32))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_refreshes_keymap_after_server_discards_binding() {
+        let mut con = Con::new(None).unwrap();
+        let key = Key::Unicode('🧐');
+        let keysym = Keysym::from(key);
+        let keycode = con.keymap.key_to_keycode(&con.connection, key).unwrap();
+        assert_eq!(
+            con.keymap.keymap_mapping.additionally_mapped.get(&keysym),
+            Some(&keycode)
+        );
+
+        let (external_connection, _) = x11rb::connect(None).unwrap();
+        external_connection
+            .bind_key(keycode, Keysym::NoSymbol)
+            .unwrap();
+
+        con.refresh_keymap_if_changed().unwrap();
+        assert!(
+            !con.keymap
+                .keymap_mapping
+                .additionally_mapped
+                .contains_key(&keysym)
+        );
+
+        let rebound_keycode = con.keymap.key_to_keycode(&con.connection, key).unwrap();
+        assert_eq!(rebound_keycode, keycode);
     }
 }
