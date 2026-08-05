@@ -91,7 +91,7 @@ jobs:
           # If manually triggered, use the current commit (GITHUB_SHA), otherwise use the head_sha from the Build workflow
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: ./.github/actions/install_deps
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master branch
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master branch
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
