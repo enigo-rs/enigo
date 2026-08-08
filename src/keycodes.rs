@@ -1086,7 +1086,15 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                 if vk < 0 {
                     return Err("Character can't be mapped to virtual key");
                 }
-                VIRTUAL_KEY(vk as u16)
+                // Only the low-order byte is the virtual key, as the comment
+                // above says. Keeping the high-order shift state in the value
+                // produces a virtual key that does not exist: 'A' is 0x0141
+                // rather than 0x41. `MapVirtualKeyExW` then finds no mapping
+                // and returns 0, and `SendInput` is handed scan code 0, so the
+                // character is silently not typed at all. This affects every
+                // character that needs a modifier on the active layout — the
+                // whole of A-Z, and !, @, # and friends.
+                VIRTUAL_KEY(vk as u16 & 0xFF)
             }
             Key::Other(v) => {
                 let Ok(v) = u16::try_from(v) else {
