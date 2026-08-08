@@ -22,13 +22,33 @@ pub struct Con {
 
 unsafe impl Send for Con {}
 
+/// Whether the current session is Wayland, which is the only place the
+/// `RemoteDesktop` portal is served.
+fn is_wayland_session() -> bool {
+    if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        return true;
+    }
+
+    std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t.eq_ignore_ascii_case("wayland"))
+}
+
 impl Con {
     async fn open_connection(
         restore_token: Option<&str>,
     ) -> Result<(Session<RemoteDesktop>, RemoteDesktop, Option<String>), NewConError> {
         trace!("open_connection");
 
-        // Fallback: use portal
+        // Compositors reject RemoteDesktop outright under X11, and some of them
+        // (KWin) raise a modal error dialog for every attempt, which also steals
+        // focus from whatever the caller was about to type into. Bail out before
+        // asking so the x11 backend is reached silently.
+        if !is_wayland_session() {
+            debug!("not a wayland session, skipping the remote desktop portal");
+            return Err(NewConError::EstablishCon(
+                "the remote desktop portal is only available in wayland sessions",
+            ));
+        }
+
         let remote_desktop = RemoteDesktop::new().await.map_err(|e| {
             error! {"{e}"};
             NewConError::EstablishCon("failed to create RemoteDesktop")
