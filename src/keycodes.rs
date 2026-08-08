@@ -1113,3 +1113,53 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
 #[cfg(all(unix, not(target_os = "macos")))]
 #[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei",))]
 pub(crate) type ModifierBitflag = u32;
+
+#[cfg(test)]
+#[cfg(target_os = "windows")]
+mod windows_virtual_key_tests {
+    use super::Key;
+    use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
+
+    /// `VkKeyScanExW` packs the shift state into the high-order byte. Only the
+    /// low-order byte is the virtual key, and a value carrying the shift state
+    /// names no key at all: `MapVirtualKeyExW` returns 0 for it, and the
+    /// character is then silently not typed.
+    #[test]
+    fn a_character_needing_shift_maps_to_a_real_virtual_key() {
+        // Every one of these has a non-zero shift state on a US layout, which
+        // is exactly the case that used to be dropped.
+        for (character, expected) in [
+            ('A', 0x41_u16),
+            ('Z', 0x5a),
+            ('B', 0x42),
+        ] {
+            let vk = VIRTUAL_KEY::try_from(Key::Unicode(character))
+                .expect("a character on the active layout maps to a virtual key");
+            assert_eq!(
+                vk.0, expected,
+                "{character:?} produced {:#06x}, which is not a virtual key",
+                vk.0
+            );
+            assert_eq!(vk.0 & 0xff00, 0, "{character:?} kept its shift state");
+        }
+    }
+
+    /// The unshifted forms were never broken, because their shift state is
+    /// zero and so survived being left in. They must keep working.
+    #[test]
+    fn a_character_needing_no_modifier_is_unchanged() {
+        for (character, expected) in [('a', 0x41_u16), ('z', 0x5a), ('1', 0x31)] {
+            let vk = VIRTUAL_KEY::try_from(Key::Unicode(character)).expect("a virtual key");
+            assert_eq!(vk.0, expected);
+        }
+    }
+
+    /// A shifted character and its unshifted partner are the same physical
+    /// key; the modifier is the caller's business, not the mapping's.
+    #[test]
+    fn the_two_cases_of_a_letter_are_one_key() {
+        let upper = VIRTUAL_KEY::try_from(Key::Unicode('A')).unwrap();
+        let lower = VIRTUAL_KEY::try_from(Key::Unicode('a')).unwrap();
+        assert_eq!(upper.0, lower.0);
+    }
+}
