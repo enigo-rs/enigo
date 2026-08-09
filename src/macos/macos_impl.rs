@@ -1272,7 +1272,7 @@ unsafe extern "C" {
 /// simulate input
 pub fn has_permission(open_prompt_to_get_permissions: bool) -> bool {
     let key = unsafe { kAXTrustedCheckOptionPrompt };
-    let key = unsafe { CFString::wrap_under_create_rule(key) };
+    let key = unsafe { CFString::wrap_under_get_rule(key) };
 
     let value = if open_prompt_to_get_permissions {
         debug!("Open the system prompt if the permissions are missing.");
