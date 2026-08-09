@@ -104,7 +104,26 @@ pub struct Enigo {
                                              * parameter */
 }
 
-// TODO: Double check this is safe
+// SAFETY: `Enigo` may be moved to another thread. This is sound because:
+// - Core Foundation retain/release is thread-safe. Quartz Event Services does
+//   not document `CGEventSource` / `CGEvent` / `CGEventPost` as
+//   main-thread-only; posting from non-main threads is the usual practice, but
+//   that affinity is not an explicit Apple guarantee.
+// - `CFRetained<CGEventSource>` is not auto-`Send` because objc2 treats the
+//   opaque CG type as `!Send` unless Apple marks it Sendable — a conservative
+//   binding choice, not evidence that the source is thread-bound.
+// - All mutable simulation state (`held`, `event_flags`, click/move tracking)
+//   is accessed through exclusive `&mut self` after ownership transfer.
+// - The one dependency we treat as main-thread-only (TIS keyboard layout) is
+//   already marshalled with `dispatch2::run_on_main` when a main run loop
+//   exists.
+// - AppKit helpers used here (`NSEvent::{doubleClickInterval,
+//   pressedMouseButtons, otherEventWithType_...}`) do not require
+//   `MainThreadMarker` in objc2; AppKit still generally expects event handling
+//   on the main thread, so callers should prefer that when practical.
+//
+// `Sync` is intentionally not implemented: shared `&Enigo` across threads
+// would race on that mutable state.
 unsafe impl Send for Enigo {}
 
 impl Mouse for Enigo {
