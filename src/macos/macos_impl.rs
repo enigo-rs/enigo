@@ -205,7 +205,8 @@ impl Mouse for Enigo {
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
-            Coordinate::Abs => ((x, y), (current_x - x, current_y - y)),
+            // Delta is destination − origin so MouseEventDeltaX/Y match real moves
+            Coordinate::Abs => ((x, y), (x - current_x, y - current_y)),
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
         };
 
