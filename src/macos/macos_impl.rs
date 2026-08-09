@@ -1180,13 +1180,28 @@ fn current_keyboard_layout() -> Result<Vec<u8>, String> {
         }
     }
 
-    let current_keyboard = unsafe { TISCopyCurrentKeyboardInputSource() };
-    let mut layout_data =
-        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
-    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+    // `TISGetInputSourceProperty` follows the Get rule: the returned CFData is
+    // owned by the input source, so it must be copied before CFRelease.
+    #[inline]
+    fn layout_from_source(copy_fn: unsafe extern "C" fn() -> TISInputSourceRef) -> Option<Vec<u8>> {
+        let current_keyboard = unsafe { copy_fn() };
+        if current_keyboard.is_null() {
+            return None;
+        }
+        let layout_data = unsafe {
+            TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData)
+        };
+        let layout = if layout_data.is_null() {
+            None
+        } else {
+            Some(cfdata_to_vec(layout_data))
+        };
+        unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
+        layout
+    }
 
-    if !layout_data.is_null() {
-        return Ok(cfdata_to_vec(layout_data));
+    if let Some(layout) = layout_from_source(TISCopyCurrentKeyboardInputSource) {
+        return Ok(layout);
     }
 
     debug!(
@@ -1196,28 +1211,19 @@ fn current_keyboard_layout() -> Result<Vec<u8>, String> {
     // TISGetInputSourceProperty returns null with some keyboard layout.
     // Using TISCopyCurrentKeyboardLayoutInputSource to fix NULL return.
     // See also: https://github.com/microsoft/node-native-keymap/blob/089d802efd387df4dce1f0e31898c66e28b3f67f/src/keyboard_mac.mm#L90
-    let current_keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
-    layout_data =
-        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
-    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
-
-    if !layout_data.is_null() {
-        return Ok(cfdata_to_vec(layout_data));
+    if let Some(layout) = layout_from_source(TISCopyCurrentKeyboardLayoutInputSource) {
+        return Ok(layout);
     }
 
     debug!(
         "TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) returned NULL again"
     );
-    let current_keyboard = unsafe { TISCopyCurrentASCIICapableKeyboardLayoutInputSource() };
-    let layout_data =
-        unsafe { TISGetInputSourceProperty(current_keyboard, kTISPropertyUnicodeKeyLayoutData) };
-    unsafe { CFRelease(current_keyboard.cast::<c_void>()) };
 
-    if layout_data.is_null() {
-        Err("Failed to get the current keyboard layout".to_string())
-    } else {
+    if let Some(layout) = layout_from_source(TISCopyCurrentASCIICapableKeyboardLayoutInputSource) {
         debug!("Using layout of the TISCopyCurrentASCIICapableKeyboardLayoutInputSource");
-        Ok(cfdata_to_vec(layout_data))
+        Ok(layout)
+    } else {
+        Err("Failed to get the current keyboard layout".to_string())
     }
 }
 
