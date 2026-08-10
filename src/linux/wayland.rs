@@ -300,7 +300,8 @@ impl Drop for Con {
 struct WaylandState {
     // interface name, global id, version
     globals: Vec<(String, u32, u32)>,
-    outputs: Vec<(WlOutput, OutputInfo)>,
+    // registry global name, output, info
+    outputs: Vec<(u32, WlOutput, OutputInfo)>,
     keyboard_manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
     virtual_keyboard: Option<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1>,
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
@@ -370,7 +371,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         let version = bind_version::<wl_output::WlOutput>(version);
                         let wl_output =
                             registry.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                        state.outputs.push((wl_output, OutputInfo::default()));
+                        state.outputs.push((name, wl_output, OutputInfo::default()));
                     }
                     "zwp_input_method_manager_v2" => {
                         let version = bind_version::<
@@ -470,7 +471,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     "wl_output" => {
                         state
                             .outputs
-                            .retain(|(output, _)| output.id().protocol_id() != *name);
+                            .retain(|(global_name, _, _)| *global_name != *name);
                     }
                     "zwp_input_method_manager_v2" => {
                         state.input_method = None;
@@ -708,8 +709,8 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                     || transform == WEnum::Value(wl_output::Transform::Flipped90)
                     || transform == WEnum::Value(wl_output::Transform::Flipped270)
                 {
-                    if let Some((_, output_data)) =
-                        state.outputs.iter_mut().find(|(o, _)| o == output)
+                    if let Some((_, _, output_data)) =
+                        state.outputs.iter_mut().find(|(_, o, _)| o == output)
                     {
                         output_data.transform = true;
                     }
@@ -724,8 +725,8 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
                 debug!("WlOutput received event:\n{event:?}");
                 if let WEnum::Value(value_flags) = flags {
                     if value_flags.contains(Mode::Current) {
-                        if let Some((_, output_data)) =
-                            state.outputs.iter_mut().find(|(o, _)| o == output)
+                        if let Some((_, _, output_data)) =
+                            state.outputs.iter_mut().find(|(_, o, _)| o == output)
                         {
                             output_data.width = width;
                             output_data.height = height;
@@ -1033,10 +1034,10 @@ impl Mouse for Con {
         // is the main display. This likely can be wrong
         match self.state.outputs.first() {
             // Switch width and height if the output was transformed
-            Some((_, output_info)) if output_info.transform => {
+            Some((_, _, output_info)) if output_info.transform => {
                 Ok((output_info.height, output_info.width))
             }
-            Some((_, output_info)) => Ok((output_info.width, output_info.height)),
+            Some((_, _, output_info)) => Ok((output_info.width, output_info.height)),
             None => Err(InputError::Simulate("No screens available")),
         }
     }
