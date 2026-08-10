@@ -364,6 +364,16 @@ impl Keyboard for Enigo {
             return Ok(());
         }
         match key {
+            Key::Unicode(c) => {
+                let keypress =
+                    get_layoutdependent_keypress(&c.to_string(), self.has_run_loop).ok_or(
+                        InputError::InvalidInput(
+                            "the Unicode character could not be mapped on the active macOS keyboard layout",
+                        ),
+                    )?;
+
+                self.raw_layoutdependent_keypress(key, keypress, direction)?;
+            }
             Key::VolumeUp => {
                 debug!("special case for handling the VolumeUp key");
                 self.special_keys(0, direction)?;
@@ -442,7 +452,7 @@ impl Keyboard for Enigo {
                 self.special_keys(23, direction)?;
             }
             _ => {
-                let keycode = try_from_key_to_cgkeycode(key, self.has_run_loop).map_err(|()| {
+                let keycode = try_from_key_to_cgkeycode(key).map_err(|()| {
                     InputError::InvalidInput("virtual keycodes on macOS have to fit into u16")
                 })?;
 
@@ -622,6 +632,35 @@ impl Enigo {
     #[must_use]
     pub fn get_marker_value(&self) -> i64 {
         self.event_source_user_data
+    }
+
+    fn raw_layoutdependent_keypress(
+        &mut self,
+        key: Key,
+        keypress: LayoutDependentKeypress,
+        direction: Direction,
+    ) -> InputResult<()> {
+        let modifier_keycodes = keypress.modifier.keycodes();
+
+        if direction == Direction::Press || direction == Direction::Click {
+            for modifier_keycode in modifier_keycodes {
+                if !self.held.1.contains(modifier_keycode) {
+                    self.raw(*modifier_keycode, Direction::Press)?;
+                }
+            }
+        }
+
+        self.raw(keypress.keycode, direction)?;
+
+        if direction == Direction::Release || direction == Direction::Click {
+            for modifier_keycode in modifier_keycodes.iter().rev() {
+                if self.should_release_layout_modifier(key, *modifier_keycode) {
+                    self.raw(*modifier_keycode, Direction::Release)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     // On macOS, we have to determine ourselves if it was a double click of a mouse
@@ -1070,10 +1109,48 @@ impl Enigo {
             + Duration::from_millis(20);
         self.last_event = (now, wait_time);
     }
+
+    fn should_release_layout_modifier(&self, key: Key, modifier_keycode: CGKeyCode) -> bool {
+        if self.explicit_modifier_is_held(modifier_keycode) {
+            return false;
+        }
+
+        !self.other_held_unicode_needs_modifier(key, modifier_keycode)
+    }
+
+    fn explicit_modifier_is_held(&self, modifier_keycode: CGKeyCode) -> bool {
+        self.held
+            .0
+            .iter()
+            .any(|held_key| match (modifier_keycode, held_key) {
+                (KeyCode::SHIFT, Key::Shift | Key::LShift | Key::RShift) => true,
+                (KeyCode::OPTION, Key::Option | Key::Alt | Key::ROption) => true,
+                _ => false,
+            })
+    }
+
+    fn other_held_unicode_needs_modifier(&self, key: Key, modifier_keycode: CGKeyCode) -> bool {
+        self.held.0.iter().copied().any(|held_key| {
+            if held_key == key {
+                return false;
+            }
+
+            let Key::Unicode(c) = held_key else {
+                return false;
+            };
+
+            let Some(keypress) = get_layoutdependent_keypress(&c.to_string(), self.has_run_loop)
+            else {
+                return false;
+            };
+
+            keypress.modifier.keycodes().contains(&modifier_keycode)
+        })
+    }
 }
 
 #[allow(clippy::too_many_lines)]
-fn try_from_key_to_cgkeycode(key: Key, has_run_loop: bool) -> Result<CGKeyCode, ()> {
+fn try_from_key_to_cgkeycode(key: Key) -> Result<CGKeyCode, ()> {
     // A list of names is available at:
     // https://docs.rs/core-graphics/latest/core_graphics/event/struct.KeyCode.html
     // https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.13.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
@@ -1142,7 +1219,7 @@ fn try_from_key_to_cgkeycode(key: Key, has_run_loop: bool) -> Result<CGKeyCode, 
         Key::VolumeDown => KeyCode::VOLUME_DOWN,
         Key::VolumeUp => KeyCode::VOLUME_UP,
         Key::VolumeMute => KeyCode::MUTE,
-        Key::Unicode(c) => get_layoutdependent_keycode(&c.to_string(), has_run_loop).ok_or(())?,
+        Key::Unicode(_) => return Err(()),
         Key::Other(v) => u16::try_from(v).map_err(|_| ())?,
         Key::Super | Key::Command | Key::Windows | Key::Meta => KeyCode::COMMAND,
         Key::BrightnessDown
@@ -1165,23 +1242,77 @@ fn try_from_key_to_cgkeycode(key: Key, has_run_loop: bool) -> Result<CGKeyCode, 
     Ok(key)
 }
 
-fn get_layoutdependent_keycode(string: &str, has_run_loop: bool) -> Option<CGKeyCode> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LayoutDependentKeypress {
+    keycode: CGKeyCode,
+    modifier: LayoutDependentModifier,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LayoutDependentModifier {
+    None,
+    Shift,
+    Option,
+    ShiftOption,
+}
+
+impl LayoutDependentModifier {
+    const fn carbon_state(self) -> u32 {
+        match self {
+            Self::None => 0x100,
+            Self::Shift => 0x20102,
+            Self::Option => 0x80120,
+            Self::ShiftOption => 0xa0122,
+        }
+    }
+
+    const fn keycodes(self) -> &'static [CGKeyCode] {
+        match self {
+            Self::None => &[],
+            Self::Shift => &[KeyCode::SHIFT],
+            Self::Option => &[KeyCode::OPTION],
+            Self::ShiftOption => &[KeyCode::SHIFT, KeyCode::OPTION],
+        }
+    }
+}
+
+fn get_layoutdependent_keypress(
+    string: &str,
+    has_run_loop: bool,
+) -> Option<LayoutDependentKeypress> {
     let layout = if has_run_loop {
         dispatch2::run_on_main(|_| current_keyboard_layout())
     } else {
         current_keyboard_layout()
     }
     .ok()?;
-    let modifiers = [0x100, 0x20102]; // no modifiers, shift modifier (others: 0x80120 -> alt modifier, 0xa0122 -> alt + shift modifier)
+    find_layoutdependent_keypress_with(string, |keycode, modifier| {
+        keycode_to_string(keycode, modifier.carbon_state(), &layout).ok()
+    })
+}
 
-    // loop through every possible keycode (0 - 127)
-    for keycode in 0..128 {
-        for modifier in modifiers {
-            // no modifier
-            if let Ok(key_string) = keycode_to_string(keycode, modifier, &layout) {
-                if string == key_string {
-                    return Some(keycode);
-                }
+fn find_layoutdependent_keypress_with<F>(
+    string: &str,
+    mut keycode_to_string: F,
+) -> Option<LayoutDependentKeypress>
+where
+    F: FnMut(CGKeyCode, LayoutDependentModifier) -> Option<String>,
+{
+    let modifiers = [
+        LayoutDependentModifier::None,
+        LayoutDependentModifier::Shift,
+        LayoutDependentModifier::Option,
+        LayoutDependentModifier::ShiftOption,
+    ];
+
+    for modifier in modifiers {
+        for keycode in 0..128 {
+            let Some(key_string) = keycode_to_string(keycode, modifier) else {
+                continue;
+            };
+
+            if string == key_string {
+                return Some(LayoutDependentKeypress { keycode, modifier });
             }
         }
     }
@@ -1277,6 +1408,80 @@ fn keycode_to_string(keycode: u16, modifier: u32, layout_data: &[u8]) -> Result<
         error!("UTF-16 to String converstion failed: {e:?}");
         format!("FromUtf16Error: {e}")
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{KeyCode, LayoutDependentModifier, find_layoutdependent_keypress_with};
+
+    fn fake_layout_lookup(keycode: u16, modifier: LayoutDependentModifier) -> Option<&'static str> {
+        match (keycode, modifier) {
+            (41, LayoutDependentModifier::None) => Some("+"),
+            (41, LayoutDependentModifier::Shift) => Some("?"),
+            (41, LayoutDependentModifier::Option) => Some("\\"),
+            (41, LayoutDependentModifier::ShiftOption) => Some("|"),
+            (5, LayoutDependentModifier::None) => Some("g"),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn layout_lookup_preserves_plain_modifier() {
+        let keypress = find_layoutdependent_keypress_with("g", |keycode, modifier| {
+            fake_layout_lookup(keycode, modifier).map(str::to_owned)
+        })
+        .expect("expected matching keypress");
+
+        assert_eq!(keypress.keycode, 5);
+        assert_eq!(keypress.modifier, LayoutDependentModifier::None);
+    }
+
+    #[test]
+    fn layout_lookup_preserves_shift_modifier() {
+        let keypress = find_layoutdependent_keypress_with("?", |keycode, modifier| {
+            fake_layout_lookup(keycode, modifier).map(str::to_owned)
+        })
+        .expect("expected matching keypress");
+
+        assert_eq!(keypress.keycode, 41);
+        assert_eq!(keypress.modifier, LayoutDependentModifier::Shift);
+    }
+
+    #[test]
+    fn layout_lookup_preserves_option_modifier() {
+        let keypress = find_layoutdependent_keypress_with("\\", |keycode, modifier| {
+            fake_layout_lookup(keycode, modifier).map(str::to_owned)
+        })
+        .expect("expected matching keypress");
+
+        assert_eq!(keypress.keycode, 41);
+        assert_eq!(keypress.modifier, LayoutDependentModifier::Option);
+    }
+
+    #[test]
+    fn layout_lookup_preserves_shift_option_modifier() {
+        let keypress = find_layoutdependent_keypress_with("|", |keycode, modifier| {
+            fake_layout_lookup(keycode, modifier).map(str::to_owned)
+        })
+        .expect("expected matching keypress");
+
+        assert_eq!(keypress.keycode, 41);
+        assert_eq!(keypress.modifier, LayoutDependentModifier::ShiftOption);
+    }
+
+    #[test]
+    fn layout_modifier_maps_to_expected_keycodes() {
+        assert_eq!(LayoutDependentModifier::None.keycodes(), &[]);
+        assert_eq!(LayoutDependentModifier::Shift.keycodes(), &[KeyCode::SHIFT]);
+        assert_eq!(
+            LayoutDependentModifier::Option.keycodes(),
+            &[KeyCode::OPTION]
+        );
+        assert_eq!(
+            LayoutDependentModifier::ShiftOption.keycodes(),
+            &[KeyCode::SHIFT, KeyCode::OPTION]
+        );
+    }
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
