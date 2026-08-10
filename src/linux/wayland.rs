@@ -570,8 +570,10 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
                 warn!(
                     "It is not possible to enter text anymore! The characters will now be simulated by individual key presses instead"
                 );
-                state.input_method = None;
-                state.im_manager = None;
+                // Object is inert; destroy it. Keep im_manager — it is a separate global.
+                if let Some(im) = state.input_method.take() {
+                    im.destroy();
+                }
             }
             _ => warn!("ZwpInputMethodV2 received unknown event:\n{event:?}"),
         }
