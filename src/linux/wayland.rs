@@ -1004,9 +1004,11 @@ impl Mouse for Con {
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
         let value = f64::from(length) * DEGREES_PER_WHEEL_CLICK;
-        trace!("vp.axis_source(Wheel); vp.axis_discrete(time, axis, {value}, {length})");
-        vp.axis_source(wl_pointer::AxisSource::Wheel);
+        // wlroots applies axis_source to pointer->axis (set by axis/axis_discrete).
+        // Send axis data first, then source, then frame.
+        trace!("vp.axis_discrete(time, axis, {value}, {length}); vp.axis_source(Wheel)");
         vp.axis_discrete(time, axis, value, length);
+        vp.axis_source(wl_pointer::AxisSource::Wheel);
         vp.frame();
 
         self.flush()
@@ -1028,9 +1030,10 @@ impl Mouse for Con {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
-        trace!("vp.axis_source(Continuous); vp.axis(time, axis, {length}.into())");
-        vp.axis_source(wl_pointer::AxisSource::Continuous);
+        // Same ordering constraint as scroll(): axis before axis_source (wlroots).
+        trace!("vp.axis(time, axis, {length}.into()); vp.axis_source(Continuous)");
         vp.axis(time, axis, length.into());
+        vp.axis_source(wl_pointer::AxisSource::Continuous);
         vp.frame();
 
         self.flush()
