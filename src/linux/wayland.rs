@@ -644,16 +644,26 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
                     return;
                 };
 
-                // Create a WlKeyboard if the seat has the capability
-                if state.seat_keyboard.is_none() && capabilities.contains(Capability::Keyboard) {
-                    let seat_keyboard = seat.get_keyboard(qh, ());
-                    state.seat_keyboard = Some(seat_keyboard);
+                if capabilities.contains(Capability::Keyboard) {
+                    if state.seat_keyboard.is_none() {
+                        state.seat_keyboard = Some(seat.get_keyboard(qh, ()));
+                    }
+                } else if let Some(keyboard) = state.seat_keyboard.take() {
+                    // Spec: release when the capability is gone.
+                    if keyboard.version() >= wl_keyboard::REQ_RELEASE_SINCE {
+                        keyboard.release();
+                    }
+                    state.seat_keymap = None;
                 }
 
-                // Create a WlPointer if the seat has the capability
-                if state.seat_pointer.is_none() && capabilities.contains(Capability::Pointer) {
-                    let seat_pointer = seat.get_pointer(qh, ());
-                    state.seat_pointer = Some(seat_pointer);
+                if capabilities.contains(Capability::Pointer) {
+                    if state.seat_pointer.is_none() {
+                        state.seat_pointer = Some(seat.get_pointer(qh, ()));
+                    }
+                } else if let Some(pointer) = state.seat_pointer.take() {
+                    if pointer.version() >= wl_pointer::REQ_RELEASE_SINCE {
+                        pointer.release();
+                    }
                 }
             }
             wl_seat::Event::Name { name: _ } => {
