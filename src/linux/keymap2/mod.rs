@@ -221,7 +221,9 @@ impl Keymap2 {
         let mut keymap_file = tempfile::tempfile().map_err(|e| {
             error!("could not create temporary file. Error: {e}");
         })?;
-        write!(keymap_file, "{}", self.parsed_keymap).map_err(|e| {
+        // Compositors (e.g. wlroots) mmap `size` bytes and pass the mapping to
+        // xkb_keymap_new_from_string(), which requires a NUL within that range.
+        write!(keymap_file, "{}\0", self.parsed_keymap).map_err(|e| {
             error!("could not write to temporary file. Error: {e}");
         })?;
         let metadata = keymap_file.metadata().map_err(|e| {
