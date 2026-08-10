@@ -37,11 +37,12 @@ impl Keymap2 {
     ) -> Result<Self, ()> {
         use std::io::{Read, Seek, SeekFrom};
 
+        // Bound keymap parse cost / DoS from a buggy or malicious compositor.
+        const MAX_KEYMAP_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
+
         debug!("creating new xkb:Keymap");
         debug!("new(format: {format}, size: {size}, ...)");
 
-        // Bound keymap parse cost / DoS from a buggy or malicious compositor.
-        const MAX_KEYMAP_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
         if size == 0 || size > MAX_KEYMAP_SIZE {
             error!("keymap size {size} is outside 1..={MAX_KEYMAP_SIZE}; resetting the keymap");
             return Err(());
