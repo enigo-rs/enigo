@@ -916,17 +916,21 @@ impl Keyboard for Con {
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         if direction == Direction::Click || direction == Direction::Press {
             // Update keymap state
+            let changed = self
+                .state
+                .seat_keymap
+                .as_mut()
+                .ok_or(InputError::Simulate("no keymap available"))?
+                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Down);
+
+            self.send_key_event(keycode.into(), Direction::Press)?;
+
             if let Some((
                 depressed_mods_new,
                 latched_mods_new,
                 locked_mods_new,
                 effective_layout_new,
-            )) = self
-                .state
-                .seat_keymap
-                .as_mut()
-                .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Down)
+            )) = changed
             {
                 trace!("it is a modifier");
                 self.send_modifier_event(
@@ -935,23 +939,25 @@ impl Keyboard for Con {
                     locked_mods_new,
                     effective_layout_new,
                 )?;
-            } else {
-                self.send_key_event(keycode.into(), Direction::Press)?;
             }
         }
         if direction == Direction::Click || direction == Direction::Release {
             // Update keymap state
+            let changed = self
+                .state
+                .seat_keymap
+                .as_mut()
+                .ok_or(InputError::Simulate("no keymap available"))?
+                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Up);
+
+            self.send_key_event(keycode.into(), Direction::Release)?;
+
             if let Some((
                 depressed_mods_new,
                 latched_mods_new,
                 locked_mods_new,
                 effective_layout_new,
-            )) = self
-                .state
-                .seat_keymap
-                .as_mut()
-                .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Up)
+            )) = changed
             {
                 trace!("it is a modifier");
                 self.send_modifier_event(
@@ -960,8 +966,6 @@ impl Keyboard for Con {
                     locked_mods_new,
                     effective_layout_new,
                 )?;
-            } else {
-                self.send_key_event(keycode.into(), Direction::Release)?;
             }
         }
         Ok(())

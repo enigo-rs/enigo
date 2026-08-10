@@ -95,7 +95,8 @@ impl ParsedKeymap {
             code: free_keycode_u32,
         });
 
-        let symbols_string = format!("{{\t[ {key_name}, {key_name} ] }}");
+        let upper_key_name = key_name.to_uppercase();
+        let symbols_string = format!("{{\t[ {key_name}, {upper_key_name} ] }}");
         self.symbols.keys.push((free_identifier, symbols_string));
 
         // Update the maximum if it is needed
