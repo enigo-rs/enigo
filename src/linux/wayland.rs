@@ -334,6 +334,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 debug!("Global announced: {interface} (name: {name}, version: {version})");
                 match &interface[..] {
                     "wl_seat" => {
+                        let version = bind_version::<wl_seat::WlSeat>(version);
                         let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version, qh, ());
                         // We don't know if the seat or the im_manager is created first and we need
                         // both to get the input_method
@@ -366,11 +367,15 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         state.seat = Some(seat);
                     }
                     "wl_output" => {
+                        let version = bind_version::<wl_output::WlOutput>(version);
                         let wl_output =
                             registry.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
                         state.outputs.push((wl_output, OutputInfo::default()));
                     }
                     "zwp_input_method_manager_v2" => {
+                        let version = bind_version::<
+                            zwp_input_method_manager_v2::ZwpInputMethodManagerV2,
+                        >(version);
                         let im_manager = registry
                             .bind::<zwp_input_method_manager_v2::ZwpInputMethodManagerV2, _, _>(
                             name,
@@ -390,6 +395,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         state.im_manager = Some(im_manager);
                     }
                     "zwp_virtual_keyboard_manager_v1" => {
+                        let version = bind_version::<
+                            zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
+                        >(version);
                         let keyboard_manager = registry
                         .bind::<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, _, _>(
                         name,
@@ -409,6 +417,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         state.keyboard_manager = Some(keyboard_manager);
                     }
                     "zwlr_virtual_pointer_manager_v1" => {
+                        let version = bind_version::<
+                            zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
+                        >(version);
                         let pointer_manager = registry
                         .bind::<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, _, _>(
                         name,
@@ -1045,4 +1056,9 @@ fn is_alive<P: wayland_client::Proxy>(proxy: &P) -> InputResult<()> {
     } else {
         Err(InputError::Simulate("wayland proxy is dead"))
     }
+}
+
+/// Bind at most the version supported by our generated protocol bindings.
+fn bind_version<P: wayland_client::Proxy>(advertised: u32) -> u32 {
+    advertised.min(P::interface().version)
 }
