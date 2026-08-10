@@ -252,13 +252,17 @@ impl Keymap2 {
 
     pub fn key_to_keycode(&self, key: Key) -> Option<u16> {
         let keysym = Keysym::from(key);
-        let key_name = format!("{keysym:?}");
+        let key_name = format!("{keysym:?}").to_lowercase();
 
         (self.keymap.min_keycode().raw()..self.keymap.max_keycode().raw())
             .find(|&k| {
                 let keycode = Keycode::new(k);
+                // key_get_one_sym is affected by modifiers, while the `key_name` parameter
+                // always has the same casing. There are more elegant ways to do
+                // this, potentially with xkb Keymap::key_get_syms_by_level, but
+                // this is the simplest fix.
                 let keysym = self.state.key_get_one_sym(keycode);
-                format!("{keysym:?}") == key_name
+                format!("{keysym:?}").to_lowercase() == key_name
             })
             .and_then(|k| u16::try_from(k).ok())
     }
