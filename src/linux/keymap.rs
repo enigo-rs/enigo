@@ -68,6 +68,66 @@ where
         }
     }
 
+    /// Replace the cached server keymap while retaining additional mappings
+    /// that are still present.
+    pub fn refresh(
+        &mut self,
+        unused_keycodes: VecDeque<Keycode>,
+        keysyms_per_keycode: u8,
+        keysyms: Vec<u32>,
+    ) {
+        self.keymap_mapping
+            .additionally_mapped
+            .retain(|&keysym, &mut keycode| {
+                Self::mapping_contains(
+                    self.keymap_mapping.keycode_min,
+                    keysyms_per_keycode,
+                    &keysyms,
+                    keycode,
+                    keysym,
+                )
+            });
+        self.keymap_mapping.keysyms_per_keycode = keysyms_per_keycode;
+        self.keymap_mapping.keysyms = keysyms;
+        self.keymap_mapping.unused_keycodes = unused_keycodes;
+    }
+
+    fn mapping_contains(
+        keycode_min: Keycode,
+        keysyms_per_keycode: u8,
+        keysyms: &[u32],
+        keycode: Keycode,
+        keysym: Keysym,
+    ) -> bool {
+        let keycode_min: usize = keycode_min.try_into().unwrap();
+        let keycode: usize = keycode.try_into().unwrap();
+        let keysyms_per_keycode = keysyms_per_keycode as usize;
+        let start = (keycode - keycode_min) * keysyms_per_keycode;
+        let end = start + keysyms_per_keycode;
+
+        keysyms
+            .get(start..end)
+            .is_some_and(|mapping| mapping.contains(&keysym.raw()))
+    }
+
+    fn update_mapping(&mut self, keycode: Keycode, keysym: Keysym) {
+        let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
+        let keycode: usize = keycode.try_into().unwrap();
+        let keysyms_per_keycode = self.keymap_mapping.keysyms_per_keycode as usize;
+        let start = (keycode - keycode_min) * keysyms_per_keycode;
+        let end = start + keysyms_per_keycode;
+        let Some(mapping) = self.keymap_mapping.keysyms.get_mut(start..end) else {
+            return;
+        };
+
+        mapping.fill(Keysym::NoSymbol.raw());
+        if keysym != Keysym::NoSymbol {
+            mapping.iter_mut().take(2).for_each(|sym| {
+                *sym = keysym.raw();
+            });
+        }
+    }
+
     fn keysym_to_keycode(&self, keysym: Keysym) -> Option<Keycode> {
         let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
         let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
@@ -139,6 +199,7 @@ where
                 self.keymap_mapping
                     .additionally_mapped
                     .insert(keysym, unused_keycode);
+                self.update_mapping(unused_keycode, keysym);
                 debug!("mapped keycode {unused_keycode} to keysym {keysym:?}");
                 Ok(unused_keycode)
             }
@@ -163,6 +224,7 @@ where
         self.keymap_state.needs_regeneration = true;
         self.keymap_mapping.unused_keycodes.push_back(keycode);
         self.keymap_mapping.additionally_mapped.remove(&keysym);
+        self.update_mapping(keycode, Keysym::NoSymbol);
         debug!("unmapped keysym {keysym:?}");
         Ok(())
     }
@@ -220,3 +282,93 @@ pub trait Bind<Keycode> {
 }
 
 impl<Keycode> Bind<Keycode> for () {}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct Binder {
+        mappings: RefCell<Vec<(u8, Keysym)>>,
+    }
+
+    impl Bind<u8> for Binder {
+        fn bind_key(&self, keycode: u8, keysym: Keysym) -> Result<(), ()> {
+            self.mappings.borrow_mut().push((keycode, keysym));
+            Ok(())
+        }
+    }
+
+    fn keymap() -> KeyMap<u8> {
+        KeyMap::new(
+            8,
+            9,
+            VecDeque::from([9]),
+            2,
+            vec![Keysym::from(Key::Unicode('a')).raw(), 0, 0, 0],
+        )
+    }
+
+    #[test]
+    fn updates_cached_mapping_when_mapping_and_unmapping() {
+        let binder = Binder::default();
+        let mut keymap = keymap();
+        let keysym = Keysym::from(Key::Unicode('€'));
+
+        let keycode = keymap.map(&binder, keysym).unwrap();
+        assert_eq!(keymap.keysym_to_keycode(keysym), Some(keycode));
+
+        keymap.unmap(&binder, keysym, keycode).unwrap();
+        assert_eq!(keymap.keysym_to_keycode(keysym), None);
+    }
+
+    #[test]
+    fn refresh_discards_additional_mappings_removed_by_server() {
+        let binder = Binder::default();
+        let mut keymap = keymap();
+        let keysym = Keysym::from(Key::Unicode('€'));
+        let keycode = keymap.map(&binder, keysym).unwrap();
+
+        keymap.refresh(
+            VecDeque::from([keycode]),
+            2,
+            vec![Keysym::from(Key::Unicode('a')).raw(), 0, 0, 0],
+        );
+
+        assert!(keymap.keymap_mapping.additionally_mapped.is_empty());
+        assert_eq!(
+            keymap.key_to_keycode(&binder, Key::Unicode('€')).unwrap(),
+            keycode
+        );
+    }
+
+    #[test]
+    fn refresh_retains_additional_mappings_still_present_on_server() {
+        let binder = Binder::default();
+        let mut keymap = keymap();
+        let keysym = Keysym::from(Key::Unicode('€'));
+        let keycode = keymap.map(&binder, keysym).unwrap();
+
+        keymap.refresh(
+            VecDeque::new(),
+            2,
+            vec![
+                Keysym::from(Key::Unicode('a')).raw(),
+                0,
+                keysym.raw(),
+                keysym.raw(),
+            ],
+        );
+
+        assert_eq!(
+            keymap.keymap_mapping.additionally_mapped.get(&keysym),
+            Some(&keycode)
+        );
+        assert_eq!(
+            keymap.key_to_keycode(&binder, Key::Unicode('€')).unwrap(),
+            keycode
+        );
+    }
+}
