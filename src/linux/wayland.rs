@@ -14,7 +14,7 @@ use wayland_client::{
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, Mode, WlOutput},
         wl_pointer::{self, WlPointer},
-        wl_registry,
+        wl_registry::{self, WlRegistry},
         wl_seat::{self, Capability},
     },
 };
@@ -68,14 +68,12 @@ impl Con {
             ));
         }
 
-        let mut state = WaylandState::default();
-
         let mut event_queue = connection.new_event_queue();
         let qh = event_queue.handle();
 
-        // Start registry
+        // Keep the registry alive so Global / GlobalRemove keep being delivered.
         let display = connection.display();
-        let _ = display.get_registry(&qh, ()); // TODO: Check if we can drop the registry here
+        let mut state = WaylandState::new(display.get_registry(&qh, ()));
 
         // Receive the list of available globals
         event_queue
@@ -299,9 +297,10 @@ impl Drop for Con {
     }
 }
 
-#[derive(Default)]
 /// Stores the manager for the various protocols
 struct WaylandState {
+    // Kept for the connection lifetime so registry events keep arriving.
+    _registry: WlRegistry,
     // interface name, global id, version
     globals: Vec<(String, u32, u32)>,
     // registry global name, output, info
@@ -321,6 +320,29 @@ struct WaylandState {
     seat_keyboard: Option<WlKeyboard>,
     seat_keymap: Option<Keymap2>,
     seat_pointer: Option<WlPointer>,
+}
+
+impl WaylandState {
+    fn new(registry: WlRegistry) -> Self {
+        Self {
+            _registry: registry,
+            globals: Vec::new(),
+            outputs: Vec::new(),
+            keyboard_manager: None,
+            virtual_keyboard: None,
+            im_manager: None,
+            input_method: None,
+            im_serial: Wrapping(0),
+            im_pending_active: false,
+            im_active: false,
+            pointer_manager: None,
+            virtual_pointer: None,
+            seat: None,
+            seat_keyboard: None,
+            seat_keymap: None,
+            seat_pointer: None,
+        }
+    }
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
