@@ -871,27 +871,6 @@ impl Keyboard for Con {
         trace!("fast text input with input_method protocol");
 
         // commit_string is limited to 4000 bytes per the protocol.
-        fn utf8_chunks(text: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
-            std::iter::from_fn({
-                let mut rest = text;
-                move || {
-                    if rest.is_empty() {
-                        return None;
-                    }
-                    let mut end = rest.len().min(max_bytes);
-                    while end > 0 && !rest.is_char_boundary(end) {
-                        end -= 1;
-                    }
-                    // max_bytes is well above the max UTF-8 char width (4), so a
-                    // non-empty `rest` always yields a non-empty chunk.
-                    debug_assert!(end > 0);
-                    let (chunk, next) = rest.split_at(end);
-                    rest = next;
-                    Some(chunk)
-                }
-            })
-        }
-
         let serial = self.state.im_serial.0;
         for chunk in utf8_chunks(text, 4000) {
             im.commit_string(chunk.to_string());
@@ -1157,6 +1136,28 @@ fn is_alive<P: wayland_client::Proxy>(proxy: &P) -> InputResult<()> {
     } else {
         Err(InputError::Simulate("wayland proxy is dead"))
     }
+}
+
+/// Split `text` into UTF-8 chunks of at most `max_bytes` each.
+fn utf8_chunks(text: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
+    std::iter::from_fn({
+        let mut rest = text;
+        move || {
+            if rest.is_empty() {
+                return None;
+            }
+            let mut end = rest.len().min(max_bytes);
+            while end > 0 && !rest.is_char_boundary(end) {
+                end -= 1;
+            }
+            // max_bytes is well above the max UTF-8 char width (4), so a
+            // non-empty `rest` always yields a non-empty chunk.
+            debug_assert!(end > 0);
+            let (chunk, next) = rest.split_at(end);
+            rest = next;
+            Some(chunk)
+        }
+    })
 }
 
 /// Bind at most the version supported by our generated protocol bindings.
