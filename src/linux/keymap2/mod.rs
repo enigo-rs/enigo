@@ -40,6 +40,13 @@ impl Keymap2 {
         debug!("creating new xkb:Keymap");
         debug!("new(format: {format}, size: {size}, ...)");
 
+        // Bound keymap parse cost / DoS from a buggy or malicious compositor.
+        const MAX_KEYMAP_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
+        if size == 0 || size > MAX_KEYMAP_SIZE {
+            error!("keymap size {size} is outside 1..={MAX_KEYMAP_SIZE}; resetting the keymap");
+            return Err(());
+        }
+
         let mut keymap_file = File::from(fd);
 
         // Check if the file size is correct
