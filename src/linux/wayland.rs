@@ -457,12 +457,17 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
 
                 match &interface[..] {
                     "wl_seat" => {
-                        state.virtual_keyboard = None;
-                        state.keyboard_manager = None;
-                        state.input_method = None;
-                        state.im_manager = None;
-                        state.virtual_pointer = None;
-                        state.pointer_manager = None;
+                        // Seat-created devices go away with the seat; managers are
+                        // separate globals and must stay so they can be reused.
+                        if let Some(vk) = state.virtual_keyboard.take() {
+                            vk.destroy();
+                        }
+                        if let Some(im) = state.input_method.take() {
+                            im.destroy();
+                        }
+                        if let Some(vp) = state.virtual_pointer.take() {
+                            vp.destroy();
+                        }
                         state.seat_keyboard = None;
                         state.seat_keymap = None;
                         state.seat_pointer = None;
