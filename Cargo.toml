@@ -100,6 +100,7 @@ wayland-client = { version = "0.31", optional = true }
 x11rb = { version = "0.14", features = [
     "randr",
     "xinput",
+    "xkb",
     "xtest",
 ], optional = true }
 xkbcommon = "0.9"

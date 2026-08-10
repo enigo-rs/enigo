@@ -7,6 +7,7 @@ use x11rb::{
     protocol::{
         randr::ConnectionExt as _,
         xinput::DeviceUse,
+        xkb::{self, ConnectionExt as _},
         xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
         xtest::ConnectionExt as _,
     },
@@ -28,6 +29,12 @@ pub struct Con {
     screen: Screen,
     keymap: KeyMap<Keycode>,
     modifiers: [Vec<Keycode>; 8],
+    min_keycode: Keycode,
+    /// XKB key types, indexed by key type index
+    key_types: Vec<xkb::KeyType>,
+    /// XKB key type indices per group for every keycode, indexed by
+    /// `keycode - min_keycode`
+    key_type_indices: Vec<[u8; 4]>,
 }
 
 impl From<ConnectionError> for NewConError {
@@ -85,12 +92,67 @@ impl Con {
         // Get the keycodes of the modifiers
         let modifiers = Self::find_modifier_keycodes(&connection)?;
 
+        // Get the XKB key types so the modifiers needed to reach a keysym level
+        // can be derived from the keymap instead of being hardcoded
+        let (key_types, key_type_indices) = Self::get_key_types(&connection)?;
+
         Ok(Con {
             connection,
             screen,
             keymap,
             modifiers,
+            min_keycode,
+            key_types,
+            key_type_indices,
         })
+    }
+
+    /// Get the XKB key types and the key type assigned to every keycode.
+    ///
+    /// A key type describes, for each keysym level, the modifier combination
+    /// that selects it. Together with the key type assigned to each key, this
+    /// is the keymap's own description of which modifiers switch to which
+    /// level, so it can be used instead of assuming fixed modifiers.
+    fn get_key_types(
+        connection: &CompositorConnection,
+    ) -> Result<(Vec<xkb::KeyType>, Vec<[u8; 4]>), NewConError> {
+        // The XKB extension has to be initialized before any of its requests
+        // can be used
+        connection.xkb_use_extension(1, 0)?.reply()?;
+
+        let reply = connection
+            .xkb_get_map(
+                xkb::ID::USE_CORE_KBD.into(),
+                xkb::MapPart::KEY_TYPES | xkb::MapPart::KEY_SYMS, // return these fully
+                xkb::MapPart::from(0u16),                         // nothing partially
+                0,                                                // first_type
+                0,                                                // n_types
+                0,                                                // first_key_sym
+                0,                                                // n_key_syms
+                0,                                                // first_key_action
+                0,                                                // n_key_actions
+                0,                                                // first_key_behavior
+                0,                                                // n_key_behaviors
+                xkb::VMod::from(0u16),
+                0, // first_key_explicit
+                0, // n_key_explicit
+                0, // first_mod_map_key
+                0, // n_mod_map_keys
+                0, // first_v_mod_map_key
+                0, // n_v_mod_map_keys
+            )?
+            .reply()?;
+
+        let key_types = reply.map.types_rtrn.unwrap_or_default();
+        let key_type_indices = reply
+            .map
+            .syms_rtrn
+            .unwrap_or_default()
+            .iter()
+            .map(|sym_map| sym_map.kt_index)
+            .collect();
+
+        Ok((key_types, key_type_indices))
     }
 
     /// Find keycodes that have not yet been mapped any keysyms
@@ -229,13 +291,71 @@ impl Bind<Keycode> for CompositorConnection {
     }
 }
 
+impl Con {
+    /// Return the modifier keycodes needed to reach `level` for `keycode`.
+    ///
+    /// The level-to-modifier relationship is read from the XKB key types
+    /// instead of being hardcoded, because it is not guaranteed to be the same
+    /// for every keymap (e.g. `AltGr` is not always mapped to the same
+    /// modifier).
+    ///
+    /// Each key type lists, for every level, the real modifier mask that
+    /// selects it. We resolve the key type assigned to the key's base group,
+    /// look up the mask for the requested level and translate that mask into
+    /// the keycodes of the corresponding modifiers.
+    fn modifier_keycodes_for_level(&self, keycode: Keycode, level: u8) -> Vec<Keycode> {
+        // The base level never needs a modifier
+        if level == 0 {
+            return vec![];
+        }
+
+        let Some(mods_mask) = self.level_modifier_mask(keycode, level) else {
+            warn!("no key type modifier mapping found for keycode {keycode} at level {level}");
+            return vec![];
+        };
+
+        // Translate the real modifier mask into the keycodes of those
+        // modifiers. Bit i of the mask corresponds to self.modifiers[i]
+        // (0: Shift, 1: Lock, 2: Control, 3-7: Mod1-Mod5).
+        let mut mod_keycodes = vec![];
+        for (i, keycodes) in self.modifiers.iter().enumerate() {
+            if mods_mask & (1u16 << i) == 0 {
+                continue;
+            }
+            if let Some(&kc) = keycodes.first() {
+                mod_keycodes.push(kc);
+            } else {
+                warn!("modifier no {i} selects level {level} but has no keycode mapped");
+            }
+        }
+        mod_keycodes
+    }
+
+    /// Look up the real modifier mask that selects `level` for `keycode` in the
+    /// XKB key types.
+    fn level_modifier_mask(&self, keycode: Keycode, level: u8) -> Option<u16> {
+        let index = usize::from(keycode.checked_sub(self.min_keycode)?);
+        let kt_index = self.key_type_indices.get(index)?;
+        // Use the base group (group 1). Reaching a level in a higher group
+        // would additionally require a group-switch modifier, which the levels
+        // resolved here do not use.
+        let key_type = self.key_types.get(usize::from(kt_index[0]))?;
+
+        key_type
+            .map
+            .iter()
+            .find(|entry| entry.active && entry.level == level)
+            .map(|entry| u16::from(entry.mods_mask))
+    }
+}
+
 impl Keyboard for Con {
     fn fast_text(&mut self, _text: &str) -> InputResult<Option<()>> {
         Ok(None)
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
+        let (keycode, level) = self.keymap.key_to_keycode(&self.connection, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
             for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
@@ -245,7 +365,43 @@ impl Keyboard for Con {
             }
         }
 
-        self.raw(keycode.into(), direction)
+        let mod_keycodes = self.modifier_keycodes_for_level(keycode, level);
+
+        if mod_keycodes.is_empty() {
+            self.raw(keycode.into(), direction)
+        } else {
+            // Track which modifiers we actually need to press (skip already-held ones)
+            let mods_to_press: Vec<Keycode> = mod_keycodes
+                .iter()
+                .copied()
+                .filter(|kc| !self.keymap.is_keycode_held(kc))
+                .collect();
+
+            match direction {
+                Direction::Click => {
+                    for &mod_kc in &mods_to_press {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Click)?;
+                    for &mod_kc in mods_to_press.iter().rev() {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+                Direction::Press => {
+                    for &mod_kc in &mods_to_press {
+                        self.raw(mod_kc.into(), Direction::Press)?;
+                    }
+                    self.raw(keycode.into(), Direction::Press)?;
+                }
+                Direction::Release => {
+                    self.raw(keycode.into(), Direction::Release)?;
+                    for &mod_kc in mods_to_press.iter().rev() {
+                        self.raw(mod_kc.into(), Direction::Release)?;
+                    }
+                }
+            }
+            Ok(())
+        }
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
