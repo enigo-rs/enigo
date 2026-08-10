@@ -133,7 +133,7 @@ impl Keymap2 {
             keymap,
             mut state,
             parsed_keymap,
-            pressed_keys,
+            pressed_keys: _,
             original_keymap: _, // Never update the original keymap
         } = Self::new_from_fd(self.context.clone(), format, fd, size).map_err(|()| {
             trace!("unable to create new keymap");
@@ -141,7 +141,7 @@ impl Keymap2 {
 
         // The docs say this is a bad idea. update_key and update_mask should not get
         // mixed. I don't know how else to get the same state though
-        for key in pressed_keys {
+        for &key in &self.pressed_keys {
             state.update_key(key, KeyDirection::Down);
         }
 
