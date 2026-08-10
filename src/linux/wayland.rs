@@ -307,6 +307,10 @@ struct WaylandState {
     im_manager: Option<zwp_input_method_manager_v2::ZwpInputMethodManagerV2>,
     input_method: Option<zwp_input_method_v2::ZwpInputMethodV2>,
     im_serial: Wrapping<u32>,
+    /// Pending activate/deactivate (applied on `done`).
+    im_pending_active: bool,
+    /// Whether the input method is currently active (after last `done`).
+    im_active: bool,
     pointer_manager: Option<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1>,
     virtual_pointer: Option<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1>,
     seat: Option<wl_seat::WlSeat>,
@@ -344,6 +348,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                                 let input_method = im_manager.get_input_method(&seat, qh, ());
                                 state.input_method = Some(input_method);
                                 state.im_serial = Wrapping(0u32);
+                                state.im_pending_active = false;
+                                state.im_active = false;
                             }
                         }
                         // We don't know if the seat or the keyboard_manager is created first and we
@@ -391,6 +397,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                                 let input_method = im_manager.get_input_method(seat, qh, ());
                                 state.input_method = Some(input_method);
                                 state.im_serial = Wrapping(0u32);
+                                state.im_pending_active = false;
+                                state.im_active = false;
                             }
                         }
                         state.im_manager = Some(im_manager);
@@ -465,6 +473,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         if let Some(im) = state.input_method.take() {
                             im.destroy();
                         }
+                        state.im_pending_active = false;
+                        state.im_active = false;
                         if let Some(vp) = state.virtual_pointer.take() {
                             vp.destroy();
                         }
@@ -481,6 +491,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     "zwp_input_method_manager_v2" => {
                         state.input_method = None;
                         state.im_manager = None;
+                        state.im_pending_active = false;
+                        state.im_active = false;
                     }
                     "zwp_virtual_keyboard_manager_v1" => {
                         state.virtual_keyboard = None;
@@ -549,11 +561,18 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
         match event {
             zwp_input_method_v2::Event::Done => {
                 debug!("ZwpInputMethodV2 received event:\nzwp_input_method_v2::Event::Done");
+                state.im_active = state.im_pending_active;
                 state.im_serial += Wrapping(1u32);
             }
-            zwp_input_method_v2::Event::Activate
-            | zwp_input_method_v2::Event::Deactivate
-            | zwp_input_method_v2::Event::SurroundingText {
+            zwp_input_method_v2::Event::Activate => {
+                trace!("ZwpInputMethodV2 received event:\nzwp_input_method_v2::Event::Activate");
+                state.im_pending_active = true;
+            }
+            zwp_input_method_v2::Event::Deactivate => {
+                trace!("ZwpInputMethodV2 received event:\nzwp_input_method_v2::Event::Deactivate");
+                state.im_pending_active = false;
+            }
+            zwp_input_method_v2::Event::SurroundingText {
                 text: _,
                 cursor: _,
                 anchor: _,
@@ -574,6 +593,8 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
                 if let Some(im) = state.input_method.take() {
                     im.destroy();
                 }
+                state.im_pending_active = false;
+                state.im_active = false;
             }
             _ => warn!("ZwpInputMethodV2 received unknown event:\n{event:?}"),
         }
@@ -793,22 +814,55 @@ impl Drop for WaylandState {
 
 impl Keyboard for Con {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
-        // Process all previous events so that the serial number is correct
+        // Process all previous events so that the serial number and active
+        // state are correct
         self.event_queue
             .roundtrip(&mut self.state)
             .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
 
-        let Some(im) = self.state.input_method.as_mut() else {
+        let Some(im) = self.state.input_method.clone() else {
             return Ok(None);
         };
 
-        is_alive(im)?;
-        trace!("fast text input with imput_method protocol");
+        // Inactive commits are accepted but have no effect; let the caller
+        // fall back to key-by-key entry.
+        if !self.state.im_active {
+            trace!("input_method inactive; skipping fast_text");
+            return Ok(None);
+        }
 
-        im.commit_string(text.to_string());
-        im.commit(self.state.im_serial.0);
+        is_alive(&im)?;
+        trace!("fast text input with input_method protocol");
 
-        self.flush()?;
+        // commit_string is limited to 4000 bytes per the protocol.
+        fn utf8_chunks(text: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
+            std::iter::from_fn({
+                let mut rest = text;
+                move || {
+                    if rest.is_empty() {
+                        return None;
+                    }
+                    let mut end = rest.len().min(max_bytes);
+                    while end > 0 && !rest.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    // max_bytes is well above the max UTF-8 char width (4), so a
+                    // non-empty `rest` always yields a non-empty chunk.
+                    debug_assert!(end > 0);
+                    let (chunk, next) = rest.split_at(end);
+                    rest = next;
+                    Some(chunk)
+                }
+            })
+        }
+
+        let serial = self.state.im_serial.0;
+        for chunk in utf8_chunks(text, 4000) {
+            im.commit_string(chunk.to_string());
+            im.commit(serial);
+            // Flush each chunk so large pastes are not held in one write.
+            self.flush()?;
+        }
 
         Ok(Some(()))
     }
