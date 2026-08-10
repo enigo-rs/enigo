@@ -176,7 +176,11 @@ impl Con {
         is_alive(vk)?;
 
         let time = self.get_time();
-        let keycode = keycode - 8; // Adjust by 8 due to the xkb/xwayland requirements
+        // XKB/X11 keycodes are offset by 8 from the evdev codes the virtual
+        // keyboard protocol expects. Reject values that would underflow.
+        let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
+            "the keycode must be at least 8 (X11 keycode offset)",
+        ))?;
         let direction_wayland = match direction {
             Direction::Press => 1,
             Direction::Release => 0,
