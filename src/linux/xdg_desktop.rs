@@ -103,7 +103,13 @@ impl Con {
     fn custom_block_on<F: Future>(&self, f: F) -> F::Output {
         #[cfg(feature = "tokio")]
         {
-            self.runtime.block_on(f)
+            // Reuse our owned runtime even when called from inside another
+            // Tokio runtime (`block_on` alone would panic / hang).
+            if tokio::runtime::Handle::try_current().is_ok() {
+                tokio::task::block_in_place(|| self.runtime.block_on(f))
+            } else {
+                self.runtime.block_on(f)
+            }
         }
         #[cfg(not(feature = "tokio"))]
         {
@@ -127,7 +133,11 @@ impl Con {
 
         #[cfg(feature = "tokio")]
         let (session, remote_desktop, restore_token) =
-            runtime.block_on(Self::open_connection(restore_token))?;
+            if tokio::runtime::Handle::try_current().is_ok() {
+                tokio::task::block_in_place(|| runtime.block_on(Self::open_connection(restore_token)))
+            } else {
+                runtime.block_on(Self::open_connection(restore_token))
+            }?;
         #[cfg(not(feature = "tokio"))]
         let (session, remote_desktop, restore_token) =
             futures::executor::block_on(Self::open_connection(restore_token))?;
