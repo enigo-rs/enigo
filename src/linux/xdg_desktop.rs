@@ -216,12 +216,15 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            block_on_portal(&self.runtime, self.remote_desktop.notify_keyboard_keysym(
-                &self.session,
-                keysym,
-                key_state,
-                NotifyKeyboardKeysymOptions::default(),
-            ))
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_keyboard_keysym(
+                    &self.session,
+                    keysym,
+                    key_state,
+                    NotifyKeyboardKeysymOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keysym")
@@ -245,12 +248,15 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            block_on_portal(&self.runtime, self.remote_desktop.notify_keyboard_keycode(
-                &self.session,
-                keycode,
-                key_state,
-                NotifyKeyboardKeycodeOptions::default(),
-            ))
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_keyboard_keycode(
+                    &self.session,
+                    keycode,
+                    key_state,
+                    NotifyKeyboardKeycodeOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keycode")
@@ -294,12 +300,15 @@ impl Mouse for Con {
         };
 
         for key_state in key_states {
-            block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_button(
-                &self.session,
-                code,
-                key_state,
-                NotifyPointerButtonOptions::default(),
-            ))
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_pointer_button(
+                    &self.session,
+                    code,
+                    key_state,
+                    NotifyPointerButtonOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer button")
@@ -331,12 +340,15 @@ impl Mouse for Con {
                 self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
                 self.move_mouse(x, y, Coordinate::Rel)
             }
-            Coordinate::Rel => block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_motion(
-                &self.session,
-                x as f64,
-                y as f64,
-                NotifyPointerMotionOptions::default(),
-            ))
+            Coordinate::Rel => block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_pointer_motion(
+                    &self.session,
+                    x as f64,
+                    y as f64,
+                    NotifyPointerMotionOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer motion relative")
@@ -350,12 +362,15 @@ impl Mouse for Con {
             Axis::Vertical => ashpd::desktop::remote_desktop::Axis::Vertical,
         };
 
-        block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_axis_discrete(
-            &self.session,
-            axis,
-            length,
-            NotifyPointerAxisDiscreteOptions::default(),
-        ))
+        block_on_portal(
+            &self.runtime,
+            self.remote_desktop.notify_pointer_axis_discrete(
+                &self.session,
+                axis,
+                length,
+                NotifyPointerAxisDiscreteOptions::default(),
+            ),
+        )
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
@@ -370,14 +385,17 @@ impl Mouse for Con {
             Axis::Vertical => (0.0, f64::from(length)),
         };
 
-        block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_axis(
-            &self.session,
-            dx,
-            dy,
-            // One-shot smooth scroll: mark the sequence finished so compositors
-            // don't keep waiting for further axis events / kinetic scroll.
-            NotifyPointerAxisOptions::default().set_finish(true),
-        ))
+        block_on_portal(
+            &self.runtime,
+            self.remote_desktop.notify_pointer_axis(
+                &self.session,
+                dx,
+                dy,
+                // One-shot smooth scroll: mark the sequence finished so compositors
+                // don't keep waiting for further axis events / kinetic scroll.
+                NotifyPointerAxisOptions::default().set_finish(true),
+            ),
+        )
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to smooth scroll")
@@ -448,7 +466,8 @@ mod tests {
                 // Same pattern as press then release: two awaits on one runtime.
                 assert_eq!(block_on_portal(&runtime, async { 1 }), 1);
                 assert_eq!(block_on_portal(&runtime, async { 2 }), 2);
-                // Drop while still inside the outer runtime (shutdown_background).
+                // Drop while still inside the outer runtime
+                // (shutdown_background).
             })
             .await
             .expect("nested portal runtime stalled when called from async code");
