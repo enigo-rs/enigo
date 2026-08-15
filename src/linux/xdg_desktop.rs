@@ -16,6 +16,9 @@ use crate::{
 pub struct Con {
     session: Session<RemoteDesktop>,
     remote_desktop: RemoteDesktop,
+    /// Drives ashpd/zbus I/O for the lifetime of this connection.
+    #[cfg(feature = "tokio")]
+    runtime: tokio::runtime::Runtime,
     #[cfg(feature = "platform_specific")]
     restore_token: Option<String>,
 }
@@ -97,36 +100,45 @@ impl Con {
         Ok((session, remote_desktop, restore_token))
     }
 
-    #[allow(clippy::unnecessary_wraps)]
-    fn custom_block_on<F>(f: F) -> Result<F::Output, std::io::Error>
-    where
-        F: Future,
-    {
+    fn custom_block_on<F: Future>(&self, f: F) -> F::Output {
         #[cfg(feature = "tokio")]
-        if tokio::runtime::Handle::try_current().is_err() {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .build()?; // return the error directly
-            return Ok(rt.block_on(f));
+        {
+            self.runtime.block_on(f)
         }
-
-        Ok(futures::executor::block_on(f))
+        #[cfg(not(feature = "tokio"))]
+        {
+            futures::executor::block_on(f)
+        }
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
     pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdg desktop");
-        let (session, remote_desktop, restore_token) =
-            Self::custom_block_on(Self::open_connection(restore_token)).map_err(|e| {
-                error! {"{e}"};
+
+        #[cfg(feature = "tokio")]
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .map_err(|e| {
+                error!("{e}");
                 NewConError::EstablishCon("failed to create tokio runtime")
-            })??;
+            })?;
+
+        #[cfg(feature = "tokio")]
+        let (session, remote_desktop, restore_token) =
+            runtime.block_on(Self::open_connection(restore_token))?;
+        #[cfg(not(feature = "tokio"))]
+        let (session, remote_desktop, restore_token) =
+            futures::executor::block_on(Self::open_connection(restore_token))?;
+
         #[cfg(not(feature = "platform_specific"))]
         let _ = restore_token;
         Ok(Self {
             session,
             remote_desktop,
+            #[cfg(feature = "tokio")]
+            runtime,
             #[cfg(feature = "platform_specific")]
             restore_token,
         })
@@ -162,16 +174,12 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_keyboard_keysym(
+            self.custom_block_on(self.remote_desktop.notify_keyboard_keysym(
                 &self.session,
                 keysym,
                 key_state,
                 NotifyKeyboardKeysymOptions::default(),
             ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keysym")
@@ -189,16 +197,12 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_keyboard_keycode(
+            self.custom_block_on(self.remote_desktop.notify_keyboard_keycode(
                 &self.session,
                 keycode.into(),
                 key_state,
                 NotifyKeyboardKeycodeOptions::default(),
             ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keycode")
@@ -231,16 +235,12 @@ impl Mouse for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_pointer_button(
+            self.custom_block_on(self.remote_desktop.notify_pointer_button(
                 &self.session,
                 code,
                 key_state,
                 NotifyPointerButtonOptions::default(),
             ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer button")
@@ -255,16 +255,12 @@ impl Mouse for Con {
             Coordinate::Abs => {
                 /*
                 TODO: Implement this
-                Self::custom_block_on(self.remote_desktop.notify_pointer_motion_absolute(
+                self.custom_block_on(self.remote_desktop.notify_pointer_motion_absolute(
                     &self.session,
                     0, // TODO: Check which value is correct here
                     x as f64,
                     y as f64,
                 ))
-                .map_err(|e| {
-                    log::error!("{e}");
-                    InputError::Simulate("Failed in custom_block_on")
-                })?
                 .map_err(|e| {
                     log::error!("{e}");
                     InputError::Simulate("Failed to notify pointer motion absolute")
@@ -276,16 +272,12 @@ impl Mouse for Con {
                 self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
                 self.move_mouse(x, y, Coordinate::Rel)
             }
-            Coordinate::Rel => Self::custom_block_on(self.remote_desktop.notify_pointer_motion(
+            Coordinate::Rel => self.custom_block_on(self.remote_desktop.notify_pointer_motion(
                 &self.session,
                 x as f64,
                 y as f64,
                 NotifyPointerMotionOptions::default(),
             ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer motion relative")
@@ -299,16 +291,12 @@ impl Mouse for Con {
             Axis::Vertical => ashpd::desktop::remote_desktop::Axis::Vertical,
         };
 
-        Self::custom_block_on(self.remote_desktop.notify_pointer_axis_discrete(
+        self.custom_block_on(self.remote_desktop.notify_pointer_axis_discrete(
             &self.session,
             axis,
             length,
             NotifyPointerAxisDiscreteOptions::default(),
         ))
-        .map_err(|e| {
-            log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
@@ -323,7 +311,7 @@ impl Mouse for Con {
             Axis::Vertical => (0.0, f64::from(length)),
         };
 
-        Self::custom_block_on(self.remote_desktop.notify_pointer_axis(
+        self.custom_block_on(self.remote_desktop.notify_pointer_axis(
             &self.session,
             dx,
             dy,
@@ -333,10 +321,6 @@ impl Mouse for Con {
         ))
         .map_err(|e| {
             log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
-        .map_err(|e| {
-            log::error!("{e}");
             InputError::Simulate("Failed to smooth scroll")
         })?;
 
@@ -344,7 +328,7 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        let (width, height) = Self::custom_block_on(async {
+        let (width, height) = self.custom_block_on(async {
             let response = ashpd::desktop::screenshot::Screenshot::request()
                 .interactive(false)
                 .modal(true) // I don't see a modal and it prevents a scary warning
@@ -369,10 +353,6 @@ impl Mouse for Con {
 
             Ok((x, y))
         })
-        .map_err(|e| {
-            log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
         .map_err(|e: InputError| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
