@@ -110,5 +110,10 @@ jobs:
       - name: Run the unit tests in release mode
         run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
 
+      # No portal in CI — only the owned-runtime / nested-Tokio hang regression.
+      - name: Run xdg_desktop tokio regression test
+        if: runner.os == 'Linux'
+        run: cargo test unit_portal_tokio_from_async_does_not_hang --lib --no-default-features --features xdg_desktop,tokio -- --nocapture
+
       - name: Run the sync example
         run: cargo run --example sync --no-default-features --features ${{ matrix.features }}

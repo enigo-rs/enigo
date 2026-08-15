@@ -14,13 +14,77 @@ use crate::{
 
 /// The main struct for handling the event emitting
 pub struct Con {
+    // Listed first so it is dropped last: the session still needs the runtime.
+    runtime: PortalTokioRuntime,
     session: Session<RemoteDesktop>,
     remote_desktop: RemoteDesktop,
-    /// Drives ashpd/zbus I/O for the lifetime of this connection.
-    #[cfg(feature = "tokio")]
-    runtime: tokio::runtime::Runtime,
     #[cfg(feature = "platform_specific")]
     restore_token: Option<String>,
+}
+
+/// Owned Tokio runtime for portal I/O.
+///
+/// Uses `shutdown_background` on drop so `Con` can be dropped from inside
+/// another Tokio runtime without panicking.
+#[cfg(feature = "tokio")]
+struct PortalTokioRuntime(Option<tokio::runtime::Runtime>);
+
+#[cfg(not(feature = "tokio"))]
+struct PortalTokioRuntime;
+
+#[cfg(feature = "tokio")]
+impl PortalTokioRuntime {
+    fn new() -> Result<Self, NewConError> {
+        Ok(Self(Some(
+            tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .enable_time()
+                .build()
+                .map_err(|e| {
+                    error!("{e}");
+                    NewConError::EstablishCon("failed to create tokio runtime")
+                })?,
+        )))
+    }
+}
+
+#[cfg(not(feature = "tokio"))]
+impl PortalTokioRuntime {
+    fn new() -> Result<Self, NewConError> {
+        Ok(Self)
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl Drop for PortalTokioRuntime {
+    fn drop(&mut self) {
+        if let Some(runtime) = self.0.take() {
+            runtime.shutdown_background();
+        }
+    }
+}
+
+/// Drive a portal future to completion.
+///
+/// With `tokio`, reuses the owned runtime. When already inside another Tokio
+/// runtime, `block_in_place` makes nested `block_on` safe on multi-thread
+/// runtimes (the usual `#[tokio::main]` / CI case). With `smol`, uses
+/// `futures::executor`.
+fn block_on_portal<F: Future>(runtime: &PortalTokioRuntime, f: F) -> F::Output {
+    #[cfg(feature = "tokio")]
+    {
+        let runtime = runtime.0.as_ref().expect("runtime shut down");
+        if tokio::runtime::Handle::try_current().is_ok() {
+            tokio::task::block_in_place(|| runtime.block_on(f))
+        } else {
+            runtime.block_on(f)
+        }
+    }
+    #[cfg(not(feature = "tokio"))]
+    {
+        let _ = runtime;
+        futures::executor::block_on(f)
+    }
 }
 
 unsafe impl Send for Con {}
@@ -100,55 +164,20 @@ impl Con {
         Ok((session, remote_desktop, restore_token))
     }
 
-    fn custom_block_on<F: Future>(&self, f: F) -> F::Output {
-        #[cfg(feature = "tokio")]
-        {
-            // Reuse our owned runtime even when called from inside another
-            // Tokio runtime (`block_on` alone would panic / hang).
-            if tokio::runtime::Handle::try_current().is_ok() {
-                tokio::task::block_in_place(|| self.runtime.block_on(f))
-            } else {
-                self.runtime.block_on(f)
-            }
-        }
-        #[cfg(not(feature = "tokio"))]
-        {
-            futures::executor::block_on(f)
-        }
-    }
-
     /// Create a new Enigo instance
     pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdg desktop");
 
-        #[cfg(feature = "tokio")]
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_io()
-            .enable_time()
-            .build()
-            .map_err(|e| {
-                error!("{e}");
-                NewConError::EstablishCon("failed to create tokio runtime")
-            })?;
-
-        #[cfg(feature = "tokio")]
+        let runtime = PortalTokioRuntime::new()?;
         let (session, remote_desktop, restore_token) =
-            if tokio::runtime::Handle::try_current().is_ok() {
-                tokio::task::block_in_place(|| runtime.block_on(Self::open_connection(restore_token)))
-            } else {
-                runtime.block_on(Self::open_connection(restore_token))
-            }?;
-        #[cfg(not(feature = "tokio"))]
-        let (session, remote_desktop, restore_token) =
-            futures::executor::block_on(Self::open_connection(restore_token))?;
+            block_on_portal(&runtime, Self::open_connection(restore_token))?;
 
         #[cfg(not(feature = "platform_specific"))]
         let _ = restore_token;
         Ok(Self {
+            runtime,
             session,
             remote_desktop,
-            #[cfg(feature = "tokio")]
-            runtime,
             #[cfg(feature = "platform_specific")]
             restore_token,
         })
@@ -184,7 +213,7 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            self.custom_block_on(self.remote_desktop.notify_keyboard_keysym(
+            block_on_portal(&self.runtime, self.remote_desktop.notify_keyboard_keysym(
                 &self.session,
                 keysym,
                 key_state,
@@ -213,7 +242,7 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            self.custom_block_on(self.remote_desktop.notify_keyboard_keycode(
+            block_on_portal(&self.runtime, self.remote_desktop.notify_keyboard_keycode(
                 &self.session,
                 keycode,
                 key_state,
@@ -251,7 +280,7 @@ impl Mouse for Con {
         };
 
         for key_state in key_states {
-            self.custom_block_on(self.remote_desktop.notify_pointer_button(
+            block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_button(
                 &self.session,
                 code,
                 key_state,
@@ -271,7 +300,7 @@ impl Mouse for Con {
             Coordinate::Abs => {
                 /*
                 TODO: Implement this
-                self.custom_block_on(self.remote_desktop.notify_pointer_motion_absolute(
+                block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_motion_absolute(
                     &self.session,
                     0, // TODO: Check which value is correct here
                     x as f64,
@@ -288,7 +317,7 @@ impl Mouse for Con {
                 self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
                 self.move_mouse(x, y, Coordinate::Rel)
             }
-            Coordinate::Rel => self.custom_block_on(self.remote_desktop.notify_pointer_motion(
+            Coordinate::Rel => block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_motion(
                 &self.session,
                 x as f64,
                 y as f64,
@@ -307,7 +336,7 @@ impl Mouse for Con {
             Axis::Vertical => ashpd::desktop::remote_desktop::Axis::Vertical,
         };
 
-        self.custom_block_on(self.remote_desktop.notify_pointer_axis_discrete(
+        block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_axis_discrete(
             &self.session,
             axis,
             length,
@@ -327,7 +356,7 @@ impl Mouse for Con {
             Axis::Vertical => (0.0, f64::from(length)),
         };
 
-        self.custom_block_on(self.remote_desktop.notify_pointer_axis(
+        block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_axis(
             &self.session,
             dx,
             dy,
@@ -344,7 +373,7 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        let (width, height) = self.custom_block_on(async {
+        let (width, height) = block_on_portal(&self.runtime, async {
             let response = ashpd::desktop::screenshot::Screenshot::request()
                 .interactive(false)
                 .modal(true) // I don't see a modal and it prevents a scary warning
@@ -382,5 +411,33 @@ impl Mouse for Con {
             "You tried to get the mouse location. I don't think that is possible with xdg_desktop"
         );
         Err(InputError::Simulate("Not possible with this protocol"))
+    }
+}
+
+/// Does not need a portal — only the owned-runtime / nested-Tokio path.
+#[cfg(all(test, feature = "tokio"))]
+mod tests {
+    use super::{PortalTokioRuntime, block_on_portal};
+    use std::time::Duration;
+
+    #[test]
+    fn unit_portal_tokio_from_async_does_not_hang() {
+        let outer = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+
+        outer.block_on(async {
+            tokio::time::timeout(Duration::from_secs(5), async {
+                let runtime = PortalTokioRuntime::new().unwrap();
+                // Same pattern as press then release: two awaits on one runtime.
+                assert_eq!(block_on_portal(&runtime, async { 1 }), 1);
+                assert_eq!(block_on_portal(&runtime, async { 2 }), 2);
+                // Drop while still inside the outer runtime (shutdown_background).
+            })
+            .await
+            .expect("nested portal runtime stalled when called from async code");
+        });
     }
 }
