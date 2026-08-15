@@ -200,6 +200,12 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        // Public API uses X11 keycodes (same as the libei/wayland backends).
+        // NotifyKeyboardKeycode expects Linux evdev keycodes (X11 − 8).
+        let keycode = i32::from(keycode).checked_sub(8).ok_or({
+            InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
+        })?;
+
         let key_states = match direction {
             Direction::Press => vec![KeyState::Pressed],
             Direction::Release => vec![KeyState::Released],
@@ -209,7 +215,7 @@ impl Keyboard for Con {
         for key_state in key_states {
             self.custom_block_on(self.remote_desktop.notify_keyboard_keycode(
                 &self.session,
-                keycode.into(),
+                keycode,
                 key_state,
                 NotifyKeyboardKeycodeOptions::default(),
             ))
