@@ -260,6 +260,17 @@ impl Keyboard for Con {
 
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        // Releasing a scroll "button" has no effect
+        if direction == Direction::Release {
+            match button {
+                Button::ScrollDown
+                | Button::ScrollUp
+                | Button::ScrollRight
+                | Button::ScrollLeft => return Ok(()),
+                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
+            }
+        }
+
         let code = match button {
             // Taken from /linux/input-event-codes.h
             Button::Left => 0x110,
