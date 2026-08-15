@@ -14,10 +14,77 @@ use crate::{
 
 /// The main struct for handling the event emitting
 pub struct Con {
+    // Listed first so it is dropped last: the session still needs the runtime.
+    runtime: PortalTokioRuntime,
     session: Session<RemoteDesktop>,
     remote_desktop: RemoteDesktop,
     #[cfg(feature = "platform_specific")]
     restore_token: Option<String>,
+}
+
+/// Owned Tokio runtime for portal I/O.
+///
+/// Uses `shutdown_background` on drop so `Con` can be dropped from inside
+/// another Tokio runtime without panicking.
+#[cfg(feature = "tokio")]
+struct PortalTokioRuntime(Option<tokio::runtime::Runtime>);
+
+#[cfg(not(feature = "tokio"))]
+struct PortalTokioRuntime;
+
+#[cfg(feature = "tokio")]
+impl PortalTokioRuntime {
+    fn new() -> Result<Self, NewConError> {
+        Ok(Self(Some(
+            tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .enable_time()
+                .build()
+                .map_err(|e| {
+                    error!("{e}");
+                    NewConError::EstablishCon("failed to create tokio runtime")
+                })?,
+        )))
+    }
+}
+
+#[cfg(not(feature = "tokio"))]
+impl PortalTokioRuntime {
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl Drop for PortalTokioRuntime {
+    fn drop(&mut self) {
+        if let Some(runtime) = self.0.take() {
+            runtime.shutdown_background();
+        }
+    }
+}
+
+/// Drive a portal future to completion.
+///
+/// With `tokio`, reuses the owned runtime. When already inside another Tokio
+/// runtime, `block_in_place` makes nested `block_on` safe on multi-thread
+/// runtimes (the usual `#[tokio::main]` / CI case). With `smol`, uses
+/// `futures::executor`.
+fn block_on_portal<F: Future>(runtime: &PortalTokioRuntime, f: F) -> F::Output {
+    #[cfg(feature = "tokio")]
+    {
+        let runtime = runtime.0.as_ref().expect("runtime shut down");
+        if tokio::runtime::Handle::try_current().is_ok() {
+            tokio::task::block_in_place(|| runtime.block_on(f))
+        } else {
+            runtime.block_on(f)
+        }
+    }
+    #[cfg(not(feature = "tokio"))]
+    {
+        let _ = runtime;
+        futures::executor::block_on(f)
+    }
 }
 
 unsafe impl Send for Con {}
@@ -97,34 +164,21 @@ impl Con {
         Ok((session, remote_desktop, restore_token))
     }
 
-    #[allow(clippy::unnecessary_wraps)]
-    fn custom_block_on<F>(f: F) -> Result<F::Output, std::io::Error>
-    where
-        F: Future,
-    {
-        #[cfg(feature = "tokio")]
-        if tokio::runtime::Handle::try_current().is_err() {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .build()?; // return the error directly
-            return Ok(rt.block_on(f));
-        }
-
-        Ok(futures::executor::block_on(f))
-    }
-
-    #[allow(clippy::unnecessary_wraps)]
     /// Create a new Enigo instance
     pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdg desktop");
+
+        #[cfg(feature = "tokio")]
+        let runtime = PortalTokioRuntime::new()?;
+        #[cfg(not(feature = "tokio"))]
+        let runtime = PortalTokioRuntime::new();
         let (session, remote_desktop, restore_token) =
-            Self::custom_block_on(Self::open_connection(restore_token)).map_err(|e| {
-                error! {"{e}"};
-                NewConError::EstablishCon("failed to create tokio runtime")
-            })??;
+            block_on_portal(&runtime, Self::open_connection(restore_token))?;
+
         #[cfg(not(feature = "platform_specific"))]
         let _ = restore_token;
         Ok(Self {
+            runtime,
             session,
             remote_desktop,
             #[cfg(feature = "platform_specific")]
@@ -162,16 +216,15 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_keyboard_keysym(
-                &self.session,
-                keysym,
-                key_state,
-                NotifyKeyboardKeysymOptions::default(),
-            ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_keyboard_keysym(
+                    &self.session,
+                    keysym,
+                    key_state,
+                    NotifyKeyboardKeysymOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keysym")
@@ -182,6 +235,12 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        // Public API uses X11 keycodes (same as the libei/wayland backends).
+        // NotifyKeyboardKeycode expects Linux evdev keycodes (X11 − 8).
+        let keycode = i32::from(keycode).checked_sub(8).ok_or({
+            InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
+        })?;
+
         let key_states = match direction {
             Direction::Press => vec![KeyState::Pressed],
             Direction::Release => vec![KeyState::Released],
@@ -189,16 +248,15 @@ impl Keyboard for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_keyboard_keycode(
-                &self.session,
-                keycode.into(),
-                key_state,
-                NotifyKeyboardKeycodeOptions::default(),
-            ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_keyboard_keycode(
+                    &self.session,
+                    keycode,
+                    key_state,
+                    NotifyKeyboardKeycodeOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to send keycode")
@@ -211,6 +269,17 @@ impl Keyboard for Con {
 
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        // Releasing a scroll "button" has no effect
+        if direction == Direction::Release {
+            match button {
+                Button::ScrollDown
+                | Button::ScrollUp
+                | Button::ScrollRight
+                | Button::ScrollLeft => return Ok(()),
+                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
+            }
+        }
+
         let code = match button {
             // Taken from /linux/input-event-codes.h
             Button::Left => 0x110,
@@ -231,16 +300,15 @@ impl Mouse for Con {
         };
 
         for key_state in key_states {
-            Self::custom_block_on(self.remote_desktop.notify_pointer_button(
-                &self.session,
-                code,
-                key_state,
-                NotifyPointerButtonOptions::default(),
-            ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
+            block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_pointer_button(
+                    &self.session,
+                    code,
+                    key_state,
+                    NotifyPointerButtonOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer button")
@@ -255,16 +323,12 @@ impl Mouse for Con {
             Coordinate::Abs => {
                 /*
                 TODO: Implement this
-                Self::custom_block_on(self.remote_desktop.notify_pointer_motion_absolute(
+                block_on_portal(&self.runtime, self.remote_desktop.notify_pointer_motion_absolute(
                     &self.session,
                     0, // TODO: Check which value is correct here
                     x as f64,
                     y as f64,
                 ))
-                .map_err(|e| {
-                    log::error!("{e}");
-                    InputError::Simulate("Failed in custom_block_on")
-                })?
                 .map_err(|e| {
                     log::error!("{e}");
                     InputError::Simulate("Failed to notify pointer motion absolute")
@@ -276,16 +340,15 @@ impl Mouse for Con {
                 self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
                 self.move_mouse(x, y, Coordinate::Rel)
             }
-            Coordinate::Rel => Self::custom_block_on(self.remote_desktop.notify_pointer_motion(
-                &self.session,
-                x as f64,
-                y as f64,
-                NotifyPointerMotionOptions::default(),
-            ))
-            .map_err(|e| {
-                log::error!("{e}");
-                InputError::Simulate("Failed in custom_block_on")
-            })?
+            Coordinate::Rel => block_on_portal(
+                &self.runtime,
+                self.remote_desktop.notify_pointer_motion(
+                    &self.session,
+                    x as f64,
+                    y as f64,
+                    NotifyPointerMotionOptions::default(),
+                ),
+            )
             .map_err(|e| {
                 log::error!("{e}");
                 InputError::Simulate("Failed to notify pointer motion relative")
@@ -299,16 +362,15 @@ impl Mouse for Con {
             Axis::Vertical => ashpd::desktop::remote_desktop::Axis::Vertical,
         };
 
-        Self::custom_block_on(self.remote_desktop.notify_pointer_axis_discrete(
-            &self.session,
-            axis,
-            length,
-            NotifyPointerAxisDiscreteOptions::default(),
-        ))
-        .map_err(|e| {
-            log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
+        block_on_portal(
+            &self.runtime,
+            self.remote_desktop.notify_pointer_axis_discrete(
+                &self.session,
+                axis,
+                length,
+                NotifyPointerAxisDiscreteOptions::default(),
+            ),
+        )
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
@@ -323,18 +385,17 @@ impl Mouse for Con {
             Axis::Vertical => (0.0, f64::from(length)),
         };
 
-        Self::custom_block_on(self.remote_desktop.notify_pointer_axis(
-            &self.session,
-            dx,
-            dy,
-            // One-shot smooth scroll: mark the sequence finished so compositors
-            // don't keep waiting for further axis events / kinetic scroll.
-            NotifyPointerAxisOptions::default().set_finish(true),
-        ))
-        .map_err(|e| {
-            log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
+        block_on_portal(
+            &self.runtime,
+            self.remote_desktop.notify_pointer_axis(
+                &self.session,
+                dx,
+                dy,
+                // One-shot smooth scroll: mark the sequence finished so compositors
+                // don't keep waiting for further axis events / kinetic scroll.
+                NotifyPointerAxisOptions::default().set_finish(true),
+            ),
+        )
         .map_err(|e| {
             log::error!("{e}");
             InputError::Simulate("Failed to smooth scroll")
@@ -344,7 +405,7 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        let (width, height) = Self::custom_block_on(async {
+        let (width, height) = block_on_portal(&self.runtime, async {
             let response = ashpd::desktop::screenshot::Screenshot::request()
                 .interactive(false)
                 .modal(true) // I don't see a modal and it prevents a scary warning
@@ -369,10 +430,6 @@ impl Mouse for Con {
 
             Ok((x, y))
         })
-        .map_err(|e| {
-            log::error!("{e}");
-            InputError::Simulate("Failed in custom_block_on")
-        })?
         .map_err(|e: InputError| {
             log::error!("{e}");
             InputError::Simulate("Failed to scroll")
@@ -386,5 +443,34 @@ impl Mouse for Con {
             "You tried to get the mouse location. I don't think that is possible with xdg_desktop"
         );
         Err(InputError::Simulate("Not possible with this protocol"))
+    }
+}
+
+/// Does not need a portal — only the owned-runtime / nested-Tokio path.
+#[cfg(all(test, feature = "tokio"))]
+mod tests {
+    use super::{PortalTokioRuntime, block_on_portal};
+    use std::time::Duration;
+
+    #[test]
+    fn unit_portal_tokio_from_async_does_not_hang() {
+        let outer = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+
+        outer.block_on(async {
+            tokio::time::timeout(Duration::from_secs(5), async {
+                let runtime = PortalTokioRuntime::new().unwrap();
+                // Same pattern as press then release: two awaits on one runtime.
+                assert_eq!(block_on_portal(&runtime, async { 1 }), 1);
+                assert_eq!(block_on_portal(&runtime, async { 2 }), 2);
+                // Drop while still inside the outer runtime
+                // (shutdown_background).
+            })
+            .await
+            .expect("nested portal runtime stalled when called from async code");
+        });
     }
 }

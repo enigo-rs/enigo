@@ -85,7 +85,7 @@ fn unit_move_mouse_rel() {
     test_mouse_move(&mut enigo, test_cases, Rel, (0, 0));
 }
 
-#[ignore]
+#[ignore = "boundary clamping is platform-dependent"]
 #[test]
 // Test the move_mouse function and check it with the mouse_location function
 fn unit_move_mouse_to_boundaries() {
@@ -122,7 +122,7 @@ fn unit_move_mouse_to_boundaries() {
     test_mouse_move(&mut enigo, test_cases, Abs, (0, 0));
 }
 
-#[ignore]
+#[ignore = "boundary clamping is platform-dependent"]
 #[test]
 // Test the move_mouse function and check it with the mouse_location
 // function
