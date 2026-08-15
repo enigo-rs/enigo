@@ -50,8 +50,8 @@ impl PortalTokioRuntime {
 
 #[cfg(not(feature = "tokio"))]
 impl PortalTokioRuntime {
-    fn new() -> Result<Self, NewConError> {
-        Ok(Self)
+    fn new() -> Self {
+        Self
     }
 }
 
@@ -168,7 +168,10 @@ impl Con {
     pub fn new(restore_token: Option<&str>) -> Result<Self, NewConError> {
         debug!("using xdg desktop");
 
+        #[cfg(feature = "tokio")]
         let runtime = PortalTokioRuntime::new()?;
+        #[cfg(not(feature = "tokio"))]
+        let runtime = PortalTokioRuntime::new();
         let (session, remote_desktop, restore_token) =
             block_on_portal(&runtime, Self::open_connection(restore_token))?;
 

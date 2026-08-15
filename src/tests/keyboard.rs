@@ -48,7 +48,7 @@ fn unit_text() {
     }
 }
 
-#[ignore] // TODO: Currently ignored because not all chars are valid CStrings
+#[ignore = "not all chars are valid CStrings"]
 #[test]
 // Try entering all chars with the text function.
 // Because it is hard to test if they succeed,
@@ -95,7 +95,7 @@ fn unit_key() {
     // Key::Raw and Key::Layout are ignored. They are tested separately
 }
 
-#[ignore]
+#[ignore = "exhaustive Unicode coverage is too slow for regular runs"]
 #[test]
 // Try entering all chars with Key::Layout and make sure none of them panic
 fn unit_key_unicode_all_utf16() {
@@ -122,7 +122,7 @@ fn unit_key_unicode_all_utf16() {
     }
 }
 
-#[ignore]
+#[ignore = "exhaustive keycode coverage is too slow for regular runs"]
 #[test]
 // Try entering all possible raw keycodes with Key::Raw and make sure none of
 // them panic
