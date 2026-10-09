@@ -8,6 +8,7 @@
 - all: MSRV is 1.93.1
 
 ## Added
+- linux: x11rb: `Enigo::unmap_everything()` unmaps the keycodes Enigo bound, once the focused window read the keys typed with them. Call it before exit for an `Enigo` that is never dropped, such as a static; dropping does the same
 - linux: New `xdg_desktop` backend (feature `xdg_desktop`) that simulates input through the XDG desktop portal, so it also works in Flatpak
 - linux: libei/xdg_desktop: Pass a portal restore token with `Settings::restore_token` to avoid repeated permission prompts, and read the current one with `Enigo::restore_token()`
 - linux, win: `Key::NumpadEnter`
