@@ -178,6 +178,24 @@ where
         Ok(())
     }
 
+    /// Unmap all keysyms that were mapped, once the client read the key
+    /// events sent with them
+    pub fn unmap_everything<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
+        let mapped_keys = self.keymap_mapping.additionally_mapped.clone();
+        if let Some(last) = mapped_keys
+            .values()
+            .filter_map(|keycode| self.keymap_state.last_used.get(keycode))
+            .copied()
+            .max()
+        {
+            self.wait_read(c, last);
+        }
+        for (sym, keycode) in mapped_keys {
+            self.unmap(c, sym, keycode)?;
+        }
+        Ok(())
+    }
+
     /// Check if there are still unused keycodes available. If there aren't,
     /// make room by unmapping the least recently used keysym that is not
     /// held, once the client read the key events sent with it
@@ -346,5 +364,18 @@ mod tests {
         assert_eq!(held, 201);
         keymap.key(held, Direction::Press);
         keymap.key_to_keycode(&(), Key::Unicode('é')).unwrap_err();
+    }
+
+    #[test]
+    fn unmap_everything_waits_for_the_last_key() {
+        let mut keymap = keymap();
+        let start = Instant::now();
+        type_key(&mut keymap, 'ä');
+        type_key(&mut keymap, 'ö');
+
+        keymap.unmap_everything(&()).unwrap();
+        assert!(start.elapsed() >= REBIND_IDLE);
+        assert!(keymap.keymap_mapping.additionally_mapped.is_empty());
+        assert_eq!(keymap.keymap_mapping.unused_keycodes.len(), 2);
     }
 }

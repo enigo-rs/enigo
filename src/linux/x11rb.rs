@@ -203,6 +203,16 @@ impl Con {
         Ok(modifiers_array)
     }
 
+    /// Unmap the keysyms that were mapped to unused keycodes
+    pub fn unmap_everything(&mut self) -> InputResult<()> {
+        let binder = Binder {
+            connection: &self.connection,
+            root: self.screen.root,
+            atoms: &self.atoms,
+        };
+        self.keymap.unmap_everything(&binder)
+    }
+
     // Get the device id of the first device that is found which has the same usage
     // as the input parameter
     fn device_id(&self, usage: DeviceUse) -> InputResult<u8> {
@@ -235,16 +245,8 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
-        let binder = Binder {
-            connection: &self.connection,
-            root: self.screen.root,
-            atoms: &self.atoms,
-        };
-        for &keycode in self.keymap.keymap_mapping.additionally_mapped.values() {
-            match binder.bind_key(keycode, Keysym::NoSymbol) {
-                Ok(()) => debug!("unmapped keycode {keycode:?}"),
-                Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
-            }
+        if let Err(e) = self.unmap_everything() {
+            error!("unable to unmap the keycodes. {e:?}");
         }
     }
 }

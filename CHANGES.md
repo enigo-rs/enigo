@@ -10,6 +10,7 @@
 - win: `main_display()` and `location()` temporarily use a per-monitor DPI awareness thread context so coordinates stay correct without changing the process DPI mode
 
 ## Added
+- linux: x11rb: `Enigo::unmap_everything()` unmaps the keycodes Enigo bound, once the focused window read the keys typed with them. Call it before exit for an `Enigo` that is never dropped, such as a static; dropping does the same
 - win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
 - linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis`
 - linux: wayland: added smooth scrolling via continuous `axis` events (`AxisSource::Continuous`)
