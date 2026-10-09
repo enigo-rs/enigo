@@ -1,13 +1,19 @@
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::{Duration, Instant};
 
 use log::{debug, error, trace, warn};
 use x11rb::{
     connection::Connection,
     protocol::{
+        Event,
         randr::ConnectionExt as _,
         xinput::DeviceUse,
-        xproto::{ConnectionExt as _, GetKeyboardMappingReply, GetModifierMappingReply, Screen},
+        xproto::{
+            AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConnectionExt as _, EventMask,
+            GetKeyboardMappingReply, GetModifierMappingReply, Screen, Window,
+        },
         xtest::ConnectionExt as _,
     },
     rust_connection::{ConnectError, ConnectionError, DefaultStream, ReplyError, RustConnection},
@@ -23,11 +29,31 @@ type CompositorConnection = RustConnection<DefaultStream>;
 
 pub type Keycode = u8;
 
+const PING_TIMEOUT: Duration = Duration::from_secs(1);
+
+static PINGS: AtomicU32 = AtomicU32::new(0);
+
+x11rb::atom_manager! {
+    Atoms: AtomsCookie {
+        WM_PROTOCOLS,
+        _NET_WM_PING,
+        _NET_ACTIVE_WINDOW,
+    }
+}
+
 pub struct Con {
     connection: CompositorConnection,
     screen: Screen,
+    atoms: Atoms,
     keymap: KeyMap<Keycode>,
     modifiers: [Vec<Keycode>; 8],
+}
+
+/// Binds keysyms and syncs with the client that has the keyboard focus
+struct Binder<'a> {
+    connection: &'a CompositorConnection,
+    root: Window,
+    atoms: &'a Atoms,
 }
 
 impl From<ConnectionError> for NewConError {
@@ -84,10 +110,12 @@ impl Con {
 
         // Get the keycodes of the modifiers
         let modifiers = Self::find_modifier_keycodes(&connection)?;
+        let atoms = Atoms::new(&connection)?.reply()?;
 
         Ok(Con {
             connection,
             screen,
+            atoms,
             keymap,
             modifiers,
         })
@@ -207,8 +235,13 @@ impl Drop for Con {
         // Map all previously mapped keycodes to the NoSymbol keysym to revert all
         // changes
         debug!("x11rb connection was dropped");
+        let binder = Binder {
+            connection: &self.connection,
+            root: self.screen.root,
+            atoms: &self.atoms,
+        };
         for &keycode in self.keymap.keymap_mapping.additionally_mapped.values() {
-            match self.connection.bind_key(keycode, Keysym::NoSymbol) {
+            match binder.bind_key(keycode, Keysym::NoSymbol) {
                 Ok(()) => debug!("unmapped keycode {keycode:?}"),
                 Err(e) => error!("unable to unmap keycode {keycode:?}. {e:?}"),
             }
@@ -216,16 +249,85 @@ impl Drop for Con {
     }
 }
 
-impl Bind<Keycode> for CompositorConnection {
+impl Bind<Keycode> for Binder<'_> {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
         // A list of two keycodes has to be mapped, otherwise the map is not what would
         // be expected If we would try to map only one keysym, we would get a
         // map that is tolower(keysym), toupper(keysym), tolower(keysym),
         // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
         // https://stackoverflow.com/a/44334103
-        self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
+        self.connection
+            .change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
             .map_err(|e| error!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
-        self.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
+        self.connection.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
+    }
+
+    fn sync(&self) -> bool {
+        self.ping_active_window().unwrap_or_else(|e| {
+            warn!("unable to ping the active window: {e:?}");
+            false
+        })
+    }
+}
+
+impl Binder<'_> {
+    /// Send `_NET_WM_PING` to the active window and wait for the pong. A
+    /// client answers it in order with its other events, so it has read all
+    /// key events sent before once the pong arrives. Returns false if there is
+    /// no active window that supports the ping
+    fn ping_active_window(&self) -> Result<bool, ReplyError> {
+        let Atoms {
+            WM_PROTOCOLS: protocols,
+            _NET_WM_PING: ping,
+            _NET_ACTIVE_WINDOW: active,
+        } = *self.atoms;
+        let Some(window) = self
+            .connection
+            .get_property(false, self.root, active, AtomEnum::WINDOW, 0, 1)?
+            .reply()?
+            .value32()
+            .and_then(|mut windows| windows.next())
+            .filter(|&window| window != x11rb::NONE)
+        else {
+            return Ok(false);
+        };
+        let supported = self
+            .connection
+            .get_property(false, window, protocols, AtomEnum::ATOM, 0, 64)?
+            .reply()?
+            .value32()
+            .is_some_and(|mut atoms| atoms.any(|atom| atom == ping));
+        if !supported {
+            return Ok(false);
+        }
+
+        let stamp = PINGS.fetch_add(1, Ordering::Relaxed);
+        let listen = ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY);
+        self.connection
+            .change_window_attributes(self.root, &listen)?;
+        let event = ClientMessageEvent::new(32, window, protocols, [ping, stamp, window, 0, 0]);
+        self.connection
+            .send_event(false, window, EventMask::NO_EVENT, event)?;
+        self.connection.flush()?;
+        let deadline = Instant::now() + PING_TIMEOUT;
+        let mut ponged = false;
+        while !ponged && Instant::now() < deadline {
+            match self.connection.poll_for_event()? {
+                Some(Event::ClientMessage(event)) => {
+                    ponged =
+                        event.type_ == protocols && event.data.as_data32()[..2] == [ping, stamp];
+                }
+                Some(_) => {}
+                None => std::thread::sleep(Duration::from_millis(1)),
+            }
+        }
+        if !ponged {
+            warn!("the active window did not answer a ping within {PING_TIMEOUT:?}");
+        }
+        let quiet = ChangeWindowAttributesAux::new().event_mask(EventMask::NO_EVENT);
+        self.connection
+            .change_window_attributes(self.root, &quiet)?;
+        Ok(true)
     }
 }
 
@@ -235,7 +337,12 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keycode = self.keymap.key_to_keycode(&self.connection, key)?;
+        let binder = Binder {
+            connection: &self.connection,
+            root: self.screen.root,
+            atoms: &self.atoms,
+        };
+        let keycode = self.keymap.key_to_keycode(&binder, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
             for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {

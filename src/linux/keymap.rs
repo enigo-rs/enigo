@@ -1,11 +1,18 @@
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 use std::fmt::Display;
+use std::hash::Hash;
+use std::time::{Duration, Instant};
 
 use log::{debug, trace};
 pub(super) use xkeysym::{KeyCode, Keysym};
 
 use crate::{Direction, InputError, InputResult, Key};
+
+/// How long a keycode must go unused before it can get rebound, if the client
+/// cannot confirm it read the key events. Clients that lag behind look up
+/// earlier key events under the binding at the time they read them.
+const REBIND_IDLE: Duration = Duration::from_millis(150);
 
 #[derive(Debug)]
 pub(super) struct KeyMapMapping<Keycode> {
@@ -21,6 +28,8 @@ pub(super) struct KeyMapMapping<Keycode> {
 struct KeyMapState<Keycode> {
     held_keycodes: Vec<Keycode>, // cannot get unmapped
     needs_regeneration: bool,
+    last_used: HashMap<Keycode, Instant>,
+    synced: Option<Instant>, // the client read all key events sent before
 }
 
 #[derive(Debug)]
@@ -31,7 +40,7 @@ pub struct KeyMap<Keycode> {
 
 impl<Keycode> KeyMap<Keycode>
 where
-    Keycode: Copy + Clone + PartialEq + Display,
+    Keycode: Copy + Clone + Eq + Hash + Display,
     Keycode: TryInto<usize> + TryFrom<usize>,
     <Keycode as TryInto<usize>>::Error: std::fmt::Debug,
     <Keycode as TryFrom<usize>>::Error: std::fmt::Debug,
@@ -51,6 +60,8 @@ where
         let keymap_state = KeyMapState {
             held_keycodes: vec![],
             needs_regeneration: true,
+            last_used: HashMap::new(),
+            synced: None,
         };
 
         let keymap_mapping = KeyMapMapping {
@@ -168,29 +179,43 @@ where
     }
 
     /// Check if there are still unused keycodes available. If there aren't,
-    /// make some room by freeing the already mapped keycodes.
-    /// Returns true, if keys were unmapped and the keymap needs to be
-    /// regenerated
+    /// make room by unmapping the least recently used keysym that is not
+    /// held, once the client read the key events sent with it
     fn make_room<C: Bind<Keycode>>(&mut self, c: &C) -> InputResult<()> {
-        // Unmap all keys, if all keycodes are already being used
-        if self.keymap_mapping.unused_keycodes.is_empty() {
-            let mapped_keys = self.keymap_mapping.additionally_mapped.clone();
-            let held_keycodes = self.keymap_state.held_keycodes.clone();
-            let mut made_room = false;
-
-            for (&sym, &keycode) in mapped_keys
-                .iter()
-                .filter(|(_, keycode)| !held_keycodes.contains(keycode))
-            {
-                self.unmap(c, sym, keycode)?;
-                made_room = true;
-            }
-            if made_room {
-                return Ok(());
-            }
-            return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
+        if !self.keymap_mapping.unused_keycodes.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        let Some((sym, keycode)) = self
+            .keymap_mapping
+            .additionally_mapped
+            .iter()
+            .filter(|(_, keycode)| !self.keymap_state.held_keycodes.contains(keycode))
+            .min_by_key(|(_, keycode)| self.keymap_state.last_used.get(keycode))
+            .map(|(&sym, &keycode)| (sym, keycode))
+        else {
+            return Err(InputError::Unmapping("all keys that were mapped are also currently held. no way to make room for new mappings".to_string()));
+        };
+        if let Some(&last) = self.keymap_state.last_used.get(&keycode) {
+            self.wait_read(c, last);
+        }
+        self.unmap(c, sym, keycode)
+    }
+
+    /// Wait until the client read the key events sent up to `last_used`
+    fn wait_read<C: Bind<Keycode>>(&mut self, c: &C, last_used: Instant) {
+        if self
+            .keymap_state
+            .synced
+            .is_some_and(|synced| last_used < synced)
+        {
+            return;
+        }
+        let sent = Instant::now();
+        if c.sync() {
+            self.keymap_state.synced = Some(sent);
+        } else {
+            sleep_until(last_used + REBIND_IDLE);
+        }
     }
 
     pub fn key(&mut self, keycode: Keycode, direction: Direction) {
@@ -205,6 +230,15 @@ where
             }
             Direction::Click => (),
         }
+        self.keymap_state.last_used.insert(keycode, Instant::now());
+    }
+}
+
+fn sleep_until(deadline: Instant) {
+    let wait = deadline.saturating_duration_since(Instant::now());
+    if !wait.is_zero() {
+        debug!("waiting {wait:?} before rebinding a keycode");
+        std::thread::sleep(wait);
     }
 }
 
@@ -217,6 +251,100 @@ pub trait Bind<Keycode> {
     fn bind_key(&self, _: Keycode, _: Keysym) -> Result<(), ()> {
         Ok(()) // No need to do anything
     }
+
+    // Wait until the client with the keyboard focus read all key events sent
+    // so far, or gave no answer in time. Returns false if it cannot be asked
+    fn sync(&self) -> bool {
+        false
+    }
 }
 
 impl<Keycode> Bind<Keycode> for () {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn keymap() -> KeyMap<u8> {
+        let keysyms = vec![0; (255 - 8 + 1) * 2];
+        KeyMap::new(8, 255, VecDeque::from([200, 201]), 2, keysyms)
+    }
+
+    struct Synced(std::cell::Cell<u32>);
+
+    impl Bind<u8> for Synced {
+        fn sync(&self) -> bool {
+            self.0.set(self.0.get() + 1);
+            true
+        }
+    }
+
+    fn type_key(keymap: &mut KeyMap<u8>, c: char) -> u8 {
+        type_key_with(keymap, &(), c)
+    }
+
+    fn type_key_with<C: Bind<u8>>(keymap: &mut KeyMap<u8>, binder: &C, c: char) -> u8 {
+        let keycode = keymap.key_to_keycode(binder, Key::Unicode(c)).unwrap();
+        keymap.key(keycode, Direction::Click);
+        keycode
+    }
+
+    #[test]
+    fn rebinds_the_least_recently_used_keycode_once_idle() {
+        let mut keymap = keymap();
+        let start = Instant::now();
+        assert_eq!(type_key(&mut keymap, 'ä'), 200);
+        assert_eq!(type_key(&mut keymap, 'ö'), 201);
+        assert_eq!(type_key(&mut keymap, 'ä'), 200);
+
+        assert_eq!(type_key(&mut keymap, 'ü'), 201);
+        assert!(start.elapsed() >= REBIND_IDLE);
+        let mapped = &keymap.keymap_mapping.additionally_mapped;
+        assert_eq!(mapped.get(&Keysym::from(Key::Unicode('ä'))), Some(&200));
+        assert_eq!(mapped.get(&Keysym::from(Key::Unicode('ü'))), Some(&201));
+        assert_eq!(mapped.len(), 2);
+    }
+
+    #[test]
+    fn idle_keycodes_rebind_without_waiting() {
+        let mut keymap = keymap();
+        type_key(&mut keymap, 'ä');
+        type_key(&mut keymap, 'ö');
+        let idle = Instant::now().checked_sub(REBIND_IDLE).unwrap();
+        keymap.keymap_state.last_used.insert(200, idle);
+        keymap.keymap_state.last_used.insert(201, idle);
+
+        let start = Instant::now();
+        type_key(&mut keymap, 'ü');
+        assert!(start.elapsed() < REBIND_IDLE);
+    }
+
+    #[test]
+    fn a_synced_client_needs_no_wait_and_one_sync_per_round() {
+        let mut keymap = keymap();
+        let synced = Synced(std::cell::Cell::new(0));
+        let start = Instant::now();
+        type_key_with(&mut keymap, &synced, 'ä');
+        type_key_with(&mut keymap, &synced, 'ö');
+
+        assert_eq!(type_key_with(&mut keymap, &synced, 'ü'), 200);
+        assert_eq!(type_key_with(&mut keymap, &synced, 'é'), 201);
+        assert_eq!(synced.0.get(), 1);
+        assert_eq!(type_key_with(&mut keymap, &synced, 'è'), 200);
+        assert_eq!(synced.0.get(), 2);
+        assert!(start.elapsed() < REBIND_IDLE);
+    }
+
+    #[test]
+    fn held_keycodes_are_not_rebound() {
+        let mut keymap = keymap();
+        let held = keymap.key_to_keycode(&(), Key::Unicode('ä')).unwrap();
+        keymap.key(held, Direction::Press);
+        type_key(&mut keymap, 'ö');
+
+        let held = keymap.key_to_keycode(&(), Key::Unicode('ü')).unwrap();
+        assert_eq!(held, 201);
+        keymap.key(held, Direction::Press);
+        keymap.key_to_keycode(&(), Key::Unicode('é')).unwrap_err();
+    }
+}

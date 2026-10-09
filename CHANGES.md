@@ -26,6 +26,7 @@
 - linux: libei: Removed `Clone` derive from `Con`
 
 ## Fixed
+- linux: x11rb: When no spare keycode is left, rebind only the least recently used one, and only after the focused window answered a `_NET_WM_PING` (or the keycode was idle for 150 ms). Rebinding all of them at once garbled text the app had not read yet
 - win: Mouse coordinates and display size are no longer wrong when the process is not DPI aware
 - linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
 - linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
