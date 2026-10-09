@@ -18,6 +18,7 @@
 - all: `delay`, `set_delay` and `Settings::linux_delay` (no longer needed)
 
 ## Fixed
+- linux: x11rb: When no spare keycode is left, rebind only the least recently used one, and only after the focused window answered a `_NET_WM_PING` (or the keycode was idle for 150 ms). Rebinding all of them at once garbled text the app had not read yet
 - win: Mouse coordinates and display size are correct when the process is not DPI aware
 - win: Extended keys work with `raw()`
 - macos: `move_mouse()` no longer needs a sleep, and dragging works with every mouse button
