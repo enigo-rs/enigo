@@ -12,7 +12,7 @@ use x11rb::{
         xinput::DeviceUse,
         xproto::{
             AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConnectionExt as _, EventMask,
-            GetKeyboardMappingReply, GetModifierMappingReply, Screen, Window,
+            GetKeyboardMappingReply, GetModifierMappingReply, InputFocus, Screen, Window,
         },
         xtest::ConnectionExt as _,
     },
@@ -20,7 +20,7 @@ use x11rb::{
     wrapper::ConnectionExt as _,
 };
 
-use super::keymap::{Bind, KeyMap, Keysym};
+use super::keymap::{Bind, FocusSync, KeyMap, Keysym};
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
@@ -31,13 +31,12 @@ pub type Keycode = u8;
 
 const PING_TIMEOUT: Duration = Duration::from_secs(1);
 
-static PINGS: AtomicU32 = AtomicU32::new(0);
+static PINGS: AtomicU32 = AtomicU32::new(1);
 
 x11rb::atom_manager! {
     Atoms: AtomsCookie {
         WM_PROTOCOLS,
         _NET_WM_PING,
-        _NET_ACTIVE_WINDOW,
     }
 }
 
@@ -49,11 +48,18 @@ pub struct Con {
     modifiers: [Vec<Keycode>; 8],
 }
 
-/// Binds keysyms and syncs with the client that has the keyboard focus
+/// Binds keysyms and syncs with the clients that got key events
 struct Binder<'a> {
     connection: &'a CompositorConnection,
     root: Window,
     atoms: &'a Atoms,
+}
+
+/// Selects `SUBSTRUCTURE_NOTIFY` on the root window until dropped, to get the
+/// answers to `_NET_WM_PING`
+struct RootEvents<'a> {
+    connection: &'a CompositorConnection,
+    root: Window,
 }
 
 impl From<ConnectionError> for NewConError {
@@ -205,12 +211,40 @@ impl Con {
 
     /// Unmap the keysyms that were mapped to unused keycodes
     pub fn unmap_everything(&mut self) -> InputResult<()> {
+        let (binder, keymap) = self.split();
+        keymap.unmap_everything(&binder)
+    }
+
+    fn split(&mut self) -> (Binder<'_>, &mut KeyMap<Keycode>) {
+        let Con {
+            connection,
+            screen,
+            atoms,
+            keymap,
+            ..
+        } = self;
         let binder = Binder {
-            connection: &self.connection,
-            root: self.screen.root,
-            atoms: &self.atoms,
+            connection,
+            root: screen.root,
+            atoms,
         };
-        self.keymap.unmap_everything(&binder)
+        (binder, keymap)
+    }
+
+    /// Wait until the X server handled all requests sent so far and get the
+    /// window with the keyboard focus
+    fn input_focus(&self) -> InputResult<Window> {
+        self.connection
+            .get_input_focus()
+            .map_err(ReplyError::from)
+            .and_then(x11rb::cookie::Cookie::reply)
+            .map(|reply| reply.focus)
+            .map_err(|e| {
+                error!("{e}");
+                InputError::Simulate(
+                    "error when syncing with X server using x11rb after xtest_fake_input was called",
+                )
+            })
     }
 
     // Get the device id of the first device that is found which has the same usage
@@ -264,72 +298,100 @@ impl Bind<Keycode> for Binder<'_> {
         self.connection.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))
     }
 
-    fn sync(&self) -> bool {
-        self.ping_active_window().unwrap_or_else(|e| {
-            warn!("unable to ping the active window: {e:?}");
-            false
+    fn sync(&self, window: Window) -> FocusSync {
+        self.ping(window).unwrap_or_else(|e| {
+            warn!("unable to ping the client of window {window}: {e:?}");
+            FocusSync::Unavailable
         })
     }
 }
 
 impl Binder<'_> {
-    /// Send `_NET_WM_PING` to the active window and wait for the pong. A
+    /// Send `_NET_WM_PING` to the client of `focus` and wait for the pong. A
     /// client answers it in order with its other events, so it has read all
-    /// key events sent before once the pong arrives. Returns false if there is
-    /// no active window that supports the ping
-    fn ping_active_window(&self) -> Result<bool, ReplyError> {
+    /// key events sent before once the pong arrives
+    fn ping(&self, focus: Window) -> Result<FocusSync, ReplyError> {
         let Atoms {
             WM_PROTOCOLS: protocols,
             _NET_WM_PING: ping,
-            _NET_ACTIVE_WINDOW: active,
         } = *self.atoms;
-        let Some(window) = self
-            .connection
-            .get_property(false, self.root, active, AtomEnum::WINDOW, 0, 1)?
-            .reply()?
-            .value32()
-            .and_then(|mut windows| windows.next())
-            .filter(|&window| window != x11rb::NONE)
-        else {
-            return Ok(false);
+        let Some(window) = self.ping_window(focus)? else {
+            return Ok(FocusSync::Unavailable);
         };
-        let supported = self
-            .connection
-            .get_property(false, window, protocols, AtomEnum::ATOM, 0, 64)?
-            .reply()?
-            .value32()
-            .is_some_and(|mut atoms| atoms.any(|atom| atom == ping));
-        if !supported {
-            return Ok(false);
-        }
 
-        let stamp = PINGS.fetch_add(1, Ordering::Relaxed);
-        let listen = ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY);
-        self.connection
-            .change_window_attributes(self.root, &listen)?;
+        let stamp = PINGS.fetch_add(1, Ordering::Relaxed).max(1);
+        let _events = RootEvents::select(self.connection, self.root)?;
         let event = ClientMessageEvent::new(32, window, protocols, [ping, stamp, window, 0, 0]);
         self.connection
             .send_event(false, window, EventMask::NO_EVENT, event)?;
         self.connection.flush()?;
         let deadline = Instant::now() + PING_TIMEOUT;
-        let mut ponged = false;
-        while !ponged && Instant::now() < deadline {
+        while Instant::now() < deadline {
             match self.connection.poll_for_event()? {
-                Some(Event::ClientMessage(event)) => {
-                    ponged =
-                        event.type_ == protocols && event.data.as_data32()[..2] == [ping, stamp];
+                Some(Event::ClientMessage(event))
+                    if event.type_ == protocols
+                        && event.data.as_data32()[..3] == [ping, stamp, window] =>
+                {
+                    return Ok(FocusSync::CaughtUp);
                 }
                 Some(_) => {}
                 None => std::thread::sleep(Duration::from_millis(1)),
             }
         }
-        if !ponged {
-            warn!("the active window did not answer a ping within {PING_TIMEOUT:?}");
+        warn!("window {window} did not answer a ping within {PING_TIMEOUT:?}");
+        Ok(FocusSync::TimedOut)
+    }
+
+    /// Find the window that takes `_NET_WM_PING`: `focus` or its closest
+    /// ancestor, if it belongs to the same client. The resource id bits
+    /// outside `resource_id_mask` tell the client
+    fn ping_window(&self, focus: Window) -> Result<Option<Window>, ReplyError> {
+        let Atoms {
+            WM_PROTOCOLS: protocols,
+            _NET_WM_PING: ping,
+        } = *self.atoms;
+        if focus == x11rb::NONE || focus == u32::from(InputFocus::POINTER_ROOT) {
+            return Ok(None);
         }
+        let client = !self.connection.setup().resource_id_mask;
+        let mut window = focus;
+        while window != self.root && window & client == focus & client {
+            let supported = self
+                .connection
+                .get_property(false, window, protocols, AtomEnum::ATOM, 0, 64)?
+                .reply()?
+                .value32()
+                .is_some_and(|mut atoms| atoms.any(|atom| atom == ping));
+            if supported {
+                return Ok(Some(window));
+            }
+            window = self.connection.query_tree(window)?.reply()?.parent;
+        }
+        Ok(None)
+    }
+}
+
+impl<'a> RootEvents<'a> {
+    fn select(connection: &'a CompositorConnection, root: Window) -> Result<Self, ReplyError> {
+        let listen = ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY);
+        connection.change_window_attributes(root, &listen)?;
+        Ok(Self { connection, root })
+    }
+}
+
+impl Drop for RootEvents<'_> {
+    fn drop(&mut self) {
         let quiet = ChangeWindowAttributesAux::new().event_mask(EventMask::NO_EVENT);
-        self.connection
-            .change_window_attributes(self.root, &quiet)?;
-        Ok(true)
+        let restored = self
+            .connection
+            .change_window_attributes(self.root, &quiet)
+            .map_err(ReplyError::from)
+            .and_then(|_| self.connection.sync());
+        if let Err(e) = restored {
+            error!("unable to stop listening to the root window: {e:?}");
+            return;
+        }
+        while let Ok(Some(_)) = self.connection.poll_for_event() {}
     }
 }
 
@@ -339,12 +401,8 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let binder = Binder {
-            connection: &self.connection,
-            root: self.screen.root,
-            atoms: &self.atoms,
-        };
-        let keycode = self.keymap.key_to_keycode(&binder, key)?;
+        let (binder, keymap) = self.split();
+        let keycode = keymap.key_to_keycode(&binder, key)?;
 
         if log::log_enabled!(log::Level::Debug) {
             for (mod_idx, mod_keycodes) in self.modifiers.iter().enumerate() {
@@ -368,6 +426,7 @@ impl Keyboard for Con {
         let root_x = 0;
         let root_y = 0;
         let deviceid = self.device_id(DeviceUse::IS_X_KEYBOARD)?;
+        let mut focus = x11rb::NONE;
 
         debug!("xtest_fake_input with keycode {keycode}, deviceid {deviceid}, time {time}");
         if direction == Direction::Press || direction == Direction::Click {
@@ -387,10 +446,7 @@ impl Keyboard for Con {
                 })?;
             trace!("press");
 
-            self.connection.sync() .map_err(|e| {
-                error!("{e}");
-                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
-            })?;
+            focus = self.input_focus()?;
         }
 
         if direction == Direction::Release || direction == Direction::Click {
@@ -410,15 +466,12 @@ impl Keyboard for Con {
                 })?;
             trace!("released");
 
-            self.connection.sync() .map_err(|e| {
-                error!("{e}");
-                InputError::Simulate("error when syncing with X server using x11rb after xtest_fake_input was called")
-            })?;
+            focus = self.input_focus()?;
         }
 
         // Let the keymap know that the key was held/no longer held
         // This is important to avoid unmapping held keys
-        self.keymap.key(keycode, direction);
+        self.keymap.key(keycode, direction, focus);
 
         Ok(())
     }

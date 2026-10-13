@@ -10,7 +10,7 @@
 - win: `main_display()` and `location()` temporarily use a per-monitor DPI awareness thread context so coordinates stay correct without changing the process DPI mode
 
 ## Added
-- linux: x11rb: `Enigo::unmap_everything()` unmaps the keycodes Enigo bound, once the focused window read the keys typed with them. Call it before exit for an `Enigo` that is never dropped, such as a static; dropping does the same
+- linux: x11rb: `Enigo::unmap_everything()` unmaps the keycodes Enigo bound, once the windows that got the keys typed with them read them. Call it before exit for an `Enigo` that is never dropped, such as a static; dropping does the same
 - win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
 - linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis`
 - linux: wayland: added smooth scrolling via continuous `axis` events (`AxisSource::Continuous`)
@@ -27,7 +27,7 @@
 - linux: libei: Removed `Clone` derive from `Con`
 
 ## Fixed
-- linux: x11rb: When no spare keycode is left, rebind only the least recently used one, and only after the focused window answered a `_NET_WM_PING` (or the keycode was idle for 150 ms). Rebinding all of them at once garbled text the app had not read yet
+- linux: x11rb: When no spare keycode is left, rebind only the least recently used one, and only after each window its keys went to answered a `_NET_WM_PING` (or the keycode was idle for 150 ms). Rebinding all of them at once garbled text the app had not read yet
 - win: Mouse coordinates and display size are no longer wrong when the process is not DPI aware
 - linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
 - linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
