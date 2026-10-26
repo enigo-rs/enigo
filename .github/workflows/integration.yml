@@ -104,7 +104,7 @@ jobs:
 
       - name: Run integration tests in release mode
         if: matrix.features != 'wayland' && matrix.features != 'libei,tokio' && matrix.features != 'libei,smol' && matrix.features != 'libei,tokio,wayland,xdo,x11rb'&& matrix.features != 'libei,smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
-        run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --test-threads=1 --nocapture --include-ignored
+        run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --nocapture --include-ignored
 
       - name: Take screenshot
         if: always()
