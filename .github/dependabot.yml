@@ -12,3 +12,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+
+  # Maintain the tools used by the workflows (the devcontainers CLI)
+  - package-ecosystem: "npm"
+    directory: "/.github"
+    schedule:
+      interval: "daily"

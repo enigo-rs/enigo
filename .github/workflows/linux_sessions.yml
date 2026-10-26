@@ -1,0 +1,166 @@
+name: Linux sessions
+
+# Every session runs through its devcontainer: `devcontainer up` builds the image
+# and runs postStartCommand, and `devcontainer exec` runs the tests as the image's
+# remoteUser. That also exercises the Containerfile and devcontainer.json on every
+# pull request. The CLI is declared in .github/package.json so Dependabot keeps it
+# up to date; setup-node caches the downloads for `npm ci`.
+
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The image sets LANG, LC_ALL and CARGO_TERM_COLOR. `devcontainer exec` starts
+  # a new process instead of inheriting the job's environment, so the variables
+  # that configure the tests are passed explicitly.
+  TEST_ENV: >-
+    --remote-env RUST_BACKTRACE=1
+
+jobs:
+  session:
+    # One entry per session and backend. `browser: true` runs the browser
+    # integration test, `*_fails` marks a test that is a known failure, and
+    # `experimental` lets the whole entry fail. The known failures are described
+    # in KNOWN_ISSUES.md.
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: ${{ matrix.experimental || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Xvfb (x11rb, xdo)
+            config: .devcontainer/devcontainer.json
+            features: x11rb
+            features2: xdo
+            browser: true
+
+          - name: GNOME on Xorg
+            config: .devcontainer/gnome-x11/devcontainer.json
+            features: x11rb
+            browser: true
+
+          - name: Plasma on X11
+            config: .devcontainer/plasma-x11/devcontainer.json
+            features: x11rb
+            # KWin can push the pointer out of the top-left hot corner.
+            lib_fails: true
+            browser: true
+
+          - name: sway
+            config: .devcontainer/sway/devcontainer.json
+            features: wayland
+            # A headless sway session assigns no keymap to virtual keyboards.
+            lib_fails: true
+            browser: true
+
+          - name: labwc
+            config: .devcontainer/labwc/devcontainer.json
+            features: wayland
+            browser: true
+
+          - name: GNOME Wayland (libei, tokio)
+            config: .devcontainer/gnome-wayland/devcontainer.json
+            features: libei,tokio,platform_specific
+            # Mutter's EIS seat has no ei_text.
+            experimental: true
+
+          - name: GNOME Wayland (libei, smol)
+            config: .devcontainer/gnome-wayland/devcontainer.json
+            features: libei,smol,platform_specific
+            # Mutter's EIS seat has no ei_text.
+            experimental: true
+
+          - name: GNOME Wayland (xdg_desktop, tokio)
+            config: .devcontainer/gnome-wayland/devcontainer.json
+            features: xdg_desktop,tokio,platform_specific
+            # The headless portal accepts input requests without delivering them.
+            experimental: true
+
+          - name: GNOME Wayland (xdg_desktop, smol)
+            config: .devcontainer/gnome-wayland/devcontainer.json
+            features: xdg_desktop,smol,platform_specific
+            # The headless portal accepts input requests without delivering them.
+
+          - name: GNOME Wayland (x11rb)
+            config: .devcontainer/gnome-wayland/devcontainer.json
+            features: x11rb,platform_specific
+            browser: true
+
+          - name: Plasma Wayland (libei, tokio)
+            config: .devcontainer/plasma-wayland/devcontainer.json
+            features: libei,tokio,platform_specific
+            # KWin's headless backend has no screencast, so the portal is absent.
+            experimental: true
+
+          - name: Plasma Wayland (libei, smol)
+            config: .devcontainer/plasma-wayland/devcontainer.json
+            features: libei,smol,platform_specific
+            # KWin's headless backend has no screencast, so the portal is absent.
+            experimental: true
+
+          - name: Plasma Wayland (xdg_desktop, tokio)
+            config: .devcontainer/plasma-wayland/devcontainer.json
+            features: xdg_desktop,tokio,platform_specific
+            experimental: true
+
+          - name: Plasma Wayland (xdg_desktop, smol)
+            config: .devcontainer/plasma-wayland/devcontainer.json
+            features: xdg_desktop,smol,platform_specific
+            experimental: true
+
+          - name: Plasma Wayland (x11rb)
+            config: .devcontainer/plasma-wayland/devcontainer.json
+            features: x11rb,platform_specific
+            browser: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: .github/package-lock.json
+
+      - name: Install the devcontainers CLI
+        run: |
+          npm ci --prefix .github
+          echo "$GITHUB_WORKSPACE/.github/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Build the image and start the session
+        timeout-minutes: 15
+        run: devcontainer up --workspace-folder . --config "${{ matrix.config }}"
+
+      - name: Test the library (${{ matrix.features }})
+        continue-on-error: ${{ matrix.lib_fails || false }}
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --no-default-features --features "${{ matrix.features }}" --lib
+
+      - name: Test the library (${{ matrix.features2 }})
+        if: matrix.features2
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
+
+      - name: Test the browser integration
+        if: matrix.browser
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --features serde --test integration_browser_events
