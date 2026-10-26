@@ -1,0 +1,33 @@
+{
+  "name": "enigo (Plasma X11)",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Containerfile",
+    "target": "plasma-x11"
+  },
+  "containerEnv": {
+    "DBUS_SESSION_BUS_ADDRESS": "unix:path=/tmp/enigo-plasma-x11-bus",
+    "DISPLAY": ":99",
+    "ENIGO_BROWSER_DISPLAY": ":99",
+    "KDE_FULL_SESSION": "true",
+    "KDE_SESSION_VERSION": "6",
+    "QT_QPA_PLATFORM": "xcb",
+    "WAYLAND_DISPLAY": "",
+    "XDG_CONFIG_HOME": "/tmp/enigo-plasma-x11-config",
+    "XDG_CURRENT_DESKTOP": "KDE",
+    "XDG_DATA_HOME": "/tmp/enigo-plasma-x11-data",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-plasma-x11",
+    "XDG_SESSION_TYPE": "x11"
+  },
+  "postStartCommand": ["sh", ".devcontainer/plasma-x11/start-x11.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}
