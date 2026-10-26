@@ -1,0 +1,37 @@
+{
+  "name": "enigo (GNOME Wayland)",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Containerfile",
+    "target": "gnome-wayland"
+  },
+  "containerEnv": {
+    "DBUS_SESSION_BUS_ADDRESS": "unix:path=/tmp/enigo-gnome-bus",
+    "DISPLAY": ":0",
+    "ENIGO_RESTORE_TOKEN_FILE": "/tmp/enigo-gnome/restore-token",
+    "GDK_BACKEND": "wayland",
+    "GTK_A11Y": "none",
+    "NO_AT_BRIDGE": "1",
+    "WAYLAND_DISPLAY": "wayland-0",
+    "XAUTHORITY": "/tmp/enigo-gnome/.Xauthority",
+    "XDG_CONFIG_HOME": "/tmp/enigo-gnome-config",
+    "XDG_CURRENT_DESKTOP": "GNOME",
+    "XDG_DATA_HOME": "/tmp/enigo-gnome-data",
+    "XDG_DESKTOP_PORTAL_TEST_APP_ID": "enigo-test",
+    "XDG_DESKTOP_PORTAL_TEST_APP_INFO_KIND": "host",
+    "XDG_DESKTOP_PORTAL_TEST_HOST_APPID": "enigo-test",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-gnome",
+    "XDG_SESSION_TYPE": "wayland"
+  },
+  "postStartCommand": ["sh", ".devcontainer/gnome-wayland/start.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}

@@ -1,3 +1,4 @@
+mod common;
 /*
 The Enigo struct should be created once and then reused. This example shows one
 way to do that in applications that are more complex. Don't recreate and drop
@@ -5,7 +6,7 @@ the struct for each function call. It is inefficient and you will encounter bugs
 due to incorrect state tracking
 */
 
-use enigo::{Direction::Click, Enigo, Key, Keyboard, Settings};
+use enigo::{Direction::Click, Enigo, Key, Keyboard};
 use std::{
     sync::{LazyLock, Mutex},
     thread,
@@ -13,8 +14,10 @@ use std::{
 };
 
 // Global, shared Enigo wrapped in a Mutex
-static ENIGO: LazyLock<Mutex<Enigo>> =
-    LazyLock::new(|| Mutex::new(Enigo::new(&Settings::default()).unwrap()));
+static ENIGO: LazyLock<Mutex<Enigo>> = LazyLock::new(|| {
+    let enigo = Enigo::new(&common::settings()).unwrap();
+    Mutex::new(enigo)
+});
 
 fn press_a(from: &'static str) {
     let mut enigo = ENIGO.lock().unwrap();

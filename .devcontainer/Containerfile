@@ -1,0 +1,172 @@
+ARG RUST_IMAGE=rust:1-slim-trixie
+
+# The package lists under packages/ are the single source of truth for the
+# packages each backend needs.
+#
+# Order matters for the layer cache: in each session stage, package
+# installation comes before the user layer, and the two sessions of a desktop
+# share a package stage.
+
+# Shared toolchain and build dependencies for every backend.
+FROM ${RUST_IMAGE} AS base
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive \
+    CARGO_TERM_COLOR=always
+
+# The slim Rust image already provides gcc, libc6-dev, and ca-certificates.
+# util-linux provides flock; pkgconf is the Debian pkg-config implementation.
+#
+# The X11 development headers are not used by every backend, but Cargo builds
+# dev-dependencies for `cargo test` regardless of features. `rdev` and
+# `mouse_position` pull in the `x11` crate, which needs libx11, libxi and
+# libxtst via pkg-config in every image that runs the test suite. Firefox is
+# needed by the browser integration test in every session; x11-utils provides
+# xdpyinfo for the session checks and xdotool focuses the browser window under
+# the X11 sessions.
+COPY packages/base.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# The workspace is bind-mounted with the host UID. Devcontainer clients do not
+# always remap the container user, so tell git the mount is safe.
+RUN git config --system --add safe.directory /workspaces/enigo
+
+# Tests and the compositors run as a normal user, the way most callers use the
+# crate. The devcontainer spec remaps this account to the local UID.
+RUN useradd --create-home --user-group --uid 1000 --shell /bin/bash enigo \
+    && printf '%s\n' 'enigo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/enigo \
+    && chmod 0440 /etc/sudoers.d/enigo
+
+# The slim image installs Rust with `--profile minimal`. Add the components
+# used by CI (rustfmt/clippy) and by Zed's rust-analyzer.
+RUN rustup component add rustfmt clippy rust-analyzer rust-src
+
+# Nightly is needed for `wrap_comments` in rustfmt.toml and to reproduce the
+# nightly CI jobs.
+RUN rustup toolchain install nightly \
+    --profile minimal \
+    --component rustfmt \
+    --component clippy \
+    --component rust-analyzer
+
+# Keep the toolchain in the user's home. The devcontainer spec only remaps and
+# chowns the home directory, so /usr/local ownership would go stale.
+RUN mv /usr/local/rustup /home/enigo/.rustup \
+    && mv /usr/local/cargo /home/enigo/.cargo \
+    && chown -R enigo:enigo /home/enigo
+
+ENV HOME=/home/enigo \
+    RUSTUP_HOME=/home/enigo/.rustup \
+    CARGO_HOME=/home/enigo/.cargo \
+    PATH=/home/enigo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Docker's ENV reaches non-login processes directly. Login shells can start
+# with a minimal PATH, so add the cargo bin directory only when it is missing.
+RUN printf '%s\n' \
+    "export RUSTUP_HOME=$RUSTUP_HOME" \
+    "export CARGO_HOME=$CARGO_HOME" \
+    'case ":$PATH:" in' \
+    '    *":$CARGO_HOME/bin:"*) ;;' \
+    '    *) export PATH="$CARGO_HOME/bin:$PATH" ;;' \
+    'esac' \
+    > /etc/profile.d/rust.sh \
+    && chmod +x /etc/profile.d/rust.sh
+
+# Xvfb X11 session (default), including the Firefox browser integration test.
+FROM base AS xvfb
+
+COPY packages/xvfb.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
+
+# GNOME packages shared by the Wayland and X11 sessions. The apt layer lives
+# here rather than in a session stage, so both sessions reuse it.
+FROM base AS gnome
+
+COPY packages/gnome.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# Mutter creates /tmp/.X11-unix with mkdir(01777); the default umask would turn
+# that into 1755 and Mutter then refuses to start Xwayland. Outside containers
+# systemd-tmpfiles provides the directory, so pre-seed it here. start.sh also
+# ensures it when /tmp is a fresh tmpfs.
+RUN install -d -m 1777 /tmp/.X11-unix
+
+# GNOME headless portal session: real GNOME Shell (Mutter) compositor plus the
+# GNOME portal backends. Shell is needed for the Screenshot portal and for
+# ScreenCast streams; the RemoteDesktop portal alone would only cover input. A
+# normal GNOME Wayland session also provides Xwayland, so it is enabled here.
+# The tests start D-Bus and seed a restore token; see
+# .devcontainer/gnome-wayland/start.sh.
+FROM gnome AS gnome-wayland
+
+USER enigo
+
+# GNOME Shell on Xorg, the normal GNOME X11 session. Xvfb provides the display
+# and gnome-shell runs as the X11 window manager. Portals are installed with
+# the GNOME stage but the RemoteDesktop portal is not used on Xorg; the x11rb
+# backend talks to the X server directly. gnome-x11/start-x11.sh launches it.
+FROM gnome AS gnome-x11
+
+USER enigo
+
+# KDE Plasma packages shared by the Wayland and X11 sessions.
+FROM base AS plasma
+
+COPY packages/plasma.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# Default container capability sets do not include CAP_SYS_NICE, so exec of
+# KWin's binary fails with EPERM while the file capability is set.
+RUN if getcap /usr/bin/kwin_wayland | grep -q .; then setcap -r /usr/bin/kwin_wayland; fi
+
+# KDE Plasma Wayland session: KWin with the virtual backend, Xwayland and
+# plasmashell. plasma-wayland/start.sh launches it.
+FROM plasma AS plasma-wayland
+
+USER enigo
+
+# KDE Plasma X11 session: Xvfb, KWin as the X11 window manager and
+# plasmashell. plasma-x11/start-x11.sh launches it.
+FROM plasma AS plasma-x11
+
+USER root
+
+COPY packages/plasma-x11.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
+
+# Wayland backend: a headless sway compositor with the virtual-input protocols.
+# start-sway.sh launches sway with sway.conf from this directory.
+FROM base AS sway
+
+COPY packages/sway.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
+
+# Wayland backend against labwc, a second wlroots compositor. It runs headless
+# with the pixman renderer; start-labwc.sh launches it.
+FROM base AS labwc
+
+COPY packages/labwc.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo

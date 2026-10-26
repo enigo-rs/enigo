@@ -1,0 +1,3 @@
+labwc
+wlr-randr
+xwayland

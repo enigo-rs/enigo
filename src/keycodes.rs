@@ -1070,12 +1070,13 @@ impl TryFrom<Key> for windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY {
                 if utf16_surrogates.len() != 1 {
                     return Err("Character can't be mapped to only one virtual key");
                 }
-                // Translate a character to the corresponding virtual-key code and shift state.
-                // If the function succeeds, the low-order byte of the return value contains the
-                // virtual-key code and the high-order byte contains the shift state, which can
-                // be a combination of the following flag bits. If the function finds no key
-                // that translates to the passed character code, both the low-order and
-                // high-order bytes contain -1
+                // Translate a character to the corresponding virtual-key code
+                // and shift state. If the function succeeds, the low-order byte
+                // of the return value contains the virtual-key code and the
+                // high-order byte contains the shift state, which can
+                // be a combination of the following flag bits. If the function
+                // finds no key that translates to the passed character code,
+                // both the low-order and high-order bytes contain -1
                 let vk = unsafe {
                     windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanExW(
                         utf16_surrogates[0],

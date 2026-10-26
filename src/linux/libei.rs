@@ -243,8 +243,8 @@ impl Con {
             keyboards,
             disconnect,
             sequence,
-            // The serial of the ei_handshake.connection event is the start of the EIS
-            // implementation's serial number sequence
+            // The serial of the ei_handshake.connection event is the start of
+            // the EIS implementation's serial number sequence
             last_serial: serial,
             context,
             connection,
@@ -252,9 +252,9 @@ impl Con {
             restore_token,
         };
 
-        // The socket is non-blocking, so a single update may return before the EIS
-        // implementation has advertised seats and devices. Poll until at least one
-        // device is resumed (or we time out)
+        // The socket is non-blocking, so a single update may return before the
+        // EIS implementation has advertised seats and devices. Poll until at
+        // least one device is resumed (or we time out)
         let mut saw_resumed_device = false;
         for _ in 0..50 {
             con.update().map_err(|e| {
@@ -370,9 +370,9 @@ impl Con {
     /// Drop any seat/device/keyboard/interface we track for `object_id`.
     /// Returns whether anything was removed.
     fn drop_object_by_id(&mut self, object_id: u64) -> bool {
-        // Object IDs are unique, so seat/device can return as soon as they match.
-        // A keyboard id may appear in both `devices.interfaces` and `keyboards`, so
-        // those two maps are cleaned together before returning.
+        // Object IDs are unique, so seat/device can return as soon as they
+        // match. A keyboard id may appear in both `devices.interfaces` and
+        // `keyboards`, so those two maps are cleaned together before returning.
         if let Some(seat) = self
             .seats
             .keys()
@@ -421,9 +421,9 @@ impl Con {
         loop {
             debug!("update");
 
-            // Flush first so queued requests reach the EIS implementation before we
-            // look for replies. Previously a sleep was used to paper over sending
-            // before flushing
+            // Flush first so queued requests reach the EIS implementation
+            // before we look for replies. Previously a sleep was used to paper
+            // over sending before flushing
             if let Err(e) = self.context.flush() {
                 error!("{e}");
                 return Err(InputError::Simulate("Failed to flush libei context"));
@@ -447,9 +447,10 @@ impl Con {
                         return Err(InputError::Simulate("failed to parse pending request"));
                     }
                     PendingRequestResult::InvalidObject(object_id) => {
-                        // Event for an object already gone from the wire map. Drop any
-                        // leftover local state; if nothing matched this is usually a late
-                        // event after Destroyed and can be ignored.
+                        // Event for an object already gone from the wire map.
+                        // Drop any leftover local state; if nothing matched
+                        // this is usually a late event after Destroyed and can
+                        // be ignored.
                         error!("invalid object with id {object_id}");
                         if self.drop_object_by_id(object_id) {
                             debug!("dropped local state for invalid object {object_id}");
@@ -490,7 +491,8 @@ impl Con {
                                 "the serial {last_serial} contained an invalid object with the id {invalid_id}"
                             );
                             self.last_serial = last_serial;
-                            // Unwind any local state for the object the EIS rejected
+                            // Unwind any local state for the object the EIS
+                            // rejected
                             let _ = self.drop_object_by_id(invalid_id);
                         }
                         ei::connection::Event::Ping { ping } => {
@@ -522,8 +524,9 @@ impl Con {
                                     data.capabilities.insert(interface, mask);
                                 }
                                 ei::seat::Event::Done => {
-                                    // Bind every capability the seat advertised. Unknown
-                                    // interfaces are ignored when their events arrive
+                                    // Bind every capability the seat
+                                    // advertised. Unknown interfaces are
+                                    // ignored when their events arrive
                                     let bitmask =
                                         data.capabilities.values().fold(0u64, |a, b| a | b);
                                     seat.bind(bitmask);
@@ -548,8 +551,9 @@ impl Con {
                                 ei::device::Event::Destroyed { serial } => {
                                     debug!("device with serial {serial} was destroyed");
                                     self.last_serial = serial;
-                                    // Drop associated keymaps too; the compositor may tear
-                                    // down the device without a separate keyboard.destroyed
+                                    // Drop associated keymaps too; the
+                                    // compositor may tear down the device
+                                    // without a separate keyboard.destroyed
                                     self.forget_device(&device);
                                 }
                                 ei::device::Event::Name { name } => {
@@ -589,8 +593,9 @@ impl Con {
                                 }
                                 ei::device::Event::Done => {
                                     trace!("device done");
-                                    // libei 1.6 / ei_device v3: servers that advertise v3 wait for
-                                    // ready() before sending resumed.
+                                    // libei 1.6 / ei_device v3: servers that
+                                    // advertise v3 wait for ready() before
+                                    // sending resumed.
                                     if device.version() >= 3 {
                                         device.ready();
                                         trace!("sent device ready");
@@ -632,7 +637,8 @@ impl Con {
                                     continue;
                                 }
                                 let context = xkb::Context::new(0);
-                                // xkb::Keymap::new_from_fd returns Result<Option<Keymap>, _>
+                                // xkb::Keymap::new_from_fd returns
+                                // Result<Option<Keymap>, _>
                                 match unsafe {
                                     xkb::Keymap::new_from_fd(
                                         &context,
@@ -668,7 +674,8 @@ impl Con {
                                 group,
                             } => {
                                 self.last_serial = serial;
-                                // Keymap key() lookup must use the active layout group
+                                // Keymap key() lookup must use the active
+                                // layout group
                                 if let Some(keyboard_data) = self.keyboards.get_mut(&keyboard) {
                                     keyboard_data.group = group;
                                 }
@@ -679,14 +686,14 @@ impl Con {
                         }
                     }
                     ei::Event::Text(text, request) => {
-                        // The keysym/utf8 events are only sent to receiver contexts. As a
-                        // sender, we only expect the destructor.
+                        // The keysym/utf8 events are only sent to receiver
+                        // contexts. As a sender, we only expect the destructor.
                         match request {
                             ei::text::Event::Destroyed { serial } => {
                                 debug!("text interface was destroyed");
                                 self.last_serial = serial;
-                                // Remove the stale object so fast_text falls back to per-key
-                                // entry instead of erroring
+                                // Remove the stale object so fast_text falls
+                                // back to per-key entry instead of erroring
                                 for data in self.devices.values_mut() {
                                     data.interfaces
                                         .retain(|_, object| *object != *text.as_object());
@@ -709,9 +716,9 @@ impl Con {
             // failing on the closed socket in the next iteration
             self.ensure_connected()?;
 
-            // No more events available: return immediately on the hot path. If we
-            // handled events (and may have queued replies such as ping.done), loop
-            // to flush and drain follow-ups without sleeping
+            // No more events available: return immediately on the hot path. If
+            // we handled events (and may have queued replies such as
+            // ping.done), loop to flush and drain follow-ups without sleeping
             if !had_pending_events {
                 break;
             }
@@ -750,16 +757,17 @@ impl Keyboard for Con {
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly and is
-        // independent of the keymap, so even keys that are not mapped on the current
-        // layout can be simulated
+        // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly
+        // and is independent of the keymap, so even keys that are not mapped on
+        // the current layout can be simulated
         if let Some((device, text_iface)) = self.device_with::<ei::Text>()? {
             let keysym = xkb::Keysym::from(key).raw();
 
             if direction == Direction::Press || direction == Direction::Click {
                 trace!("ei_text.keysym({keysym:#x}, Press)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Press);
-                // Press and release of the same keysym must be in separate frames
+                // Press and release of the same keysym must be in separate
+                // frames
                 device.frame(self.last_serial, now_monotonic_micros());
             }
             if direction == Direction::Release || direction == Direction::Click {
@@ -792,8 +800,8 @@ impl Keyboard for Con {
                      in the current xkb keymap",
                 )
             })?;
-        // XKB keycodes in the keymap are X11-style; ei_keyboard.key expects evdev
-        // codes (X11 keycode − 8)
+        // XKB keycodes in the keymap are X11-style; ei_keyboard.key expects
+        // evdev codes (X11 keycode − 8)
         let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
             "the mapped keycode must be at least 8 (X11 keycode offset)",
         ))?;
@@ -814,9 +822,9 @@ impl Keyboard for Con {
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // The keycode is an X11 keycode, which is offset by 8 from the evdev keycode
-        // that ei_keyboard.key expects. Subtracting from a keycode < 8 would
-        // underflow
+        // The keycode is an X11 keycode, which is offset by 8 from the evdev
+        // keycode that ei_keyboard.key expects. Subtracting from a keycode < 8
+        // would underflow
         let keycode = u32::from(keycode).checked_sub(8).ok_or({
             InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
         })?;
@@ -931,8 +939,8 @@ impl Mouse for Con {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // Wheel-style scrolling uses ei_scroll.scroll_discrete, where one logical
-        // scroll unit (one wheel click) is 120
+        // Wheel-style scrolling uses ei_scroll.scroll_discrete, where one
+        // logical scroll unit (one wheel click) is 120
         let delta = length.checked_mul(120).ok_or(InputError::InvalidInput(
             "scroll length is too large for ei_scroll.scroll_discrete",
         ))?;
@@ -996,7 +1004,8 @@ impl Mouse for Con {
 
 impl Drop for Con {
     fn drop(&mut self) {
-        // TODO: Is it needed to filter or can we just stop emulating on all devices??
+        // TODO: Is it needed to filter or can we just stop emulating on all
+        // devices??
         for (device, _) in self.devices.iter().filter(|(_, device_data)| {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
                 && device_data.state == DeviceState::Emulating

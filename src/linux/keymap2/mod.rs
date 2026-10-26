@@ -70,7 +70,8 @@ impl Keymap2 {
             .map_err(|e| {
                 error!("unable to read file to string:\n{e}");
             })?;
-        // The String cannot end with NULL otherwise xkbcommon will fail to parse it
+        // The String cannot end with NULL otherwise xkbcommon will fail to
+        // parse it
         while original_keymap.ends_with('\0') {
             debug!("removed NULL byte at the end");
             original_keymap.pop();
@@ -98,7 +99,8 @@ impl Keymap2 {
         keymap: Keymap,
         state: State,
     ) -> Result<Self, ()> {
-        // The String cannot end with NULL otherwise xkbcommon will fail to parse it
+        // The String cannot end with NULL otherwise xkbcommon will fail to
+        // parse it
         while original_keymap.ends_with('\0') {
             debug!("removed NULL byte at the end");
             original_keymap.pop();
@@ -139,8 +141,8 @@ impl Keymap2 {
             trace!("unable to create new keymap");
         })?;
 
-        // The docs say this is a bad idea. update_key and update_mask should not get
-        // mixed. I don't know how else to get the same state though
+        // The docs say this is a bad idea. update_key and update_mask should
+        // not get mixed. I don't know how else to get the same state though
         for key in pressed_keys {
             state.update_key(key, KeyDirection::Down);
         }
@@ -331,7 +333,8 @@ impl Keymap2 {
             locked_layout,
         );
 
-        // Copy the current mapping for all pressed keys so they can get released
+        // Copy the current mapping for all pressed keys so they can get
+        // released
         let pressed_keys = self.pressed_keys.iter().map(|k| u32::from(*k)).collect();
         parsed_keymap.copy_maps_for_keycodes(&self.parsed_keymap, &pressed_keys);
 

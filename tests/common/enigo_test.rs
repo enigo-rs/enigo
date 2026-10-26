@@ -15,6 +15,20 @@ impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         let enigo = Enigo::new(settings).expect("failed to create new enigo struct");
+        // Tokens rotate, so persist the new one for the next test run.
+        #[cfg(all(
+            feature = "platform_specific",
+            any(feature = "libei", feature = "xdg_desktop")
+        ))]
+        if let Some(token) = enigo.restore_token() {
+            let path = super::token_path();
+            if let Err(err) = std::fs::write(&path, token) {
+                panic!(
+                    "failed to save the restore token to {}: {err}",
+                    path.display()
+                );
+            }
+        }
         let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
         let websocket = Self::websocket();
 
@@ -24,6 +38,10 @@ impl EnigoTest {
             .expect("Unable to set a read timeout");
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
+        // X11 window managers do not activate the kiosk window on their own, so
+        // the first event would go to the shell instead of the page.
+        #[cfg(target_os = "linux")]
+        super::browser::focus();
         Self { enigo, websocket }
     }
 
@@ -76,7 +94,13 @@ impl EnigoTest {
 /// Make sure the message queue is empty and all messages were processed
 impl Drop for EnigoTest {
     fn drop(&mut self) {
-        if self.websocket.read().is_ok() {
+        // Check before stopping Firefox: the closed websocket would otherwise
+        // look like a leftover message.
+        let leftover = self.websocket.read().is_ok();
+        // Always stop the browser, even when the test panicked, so a later run
+        // in the same session starts on the protocol it was compiled for.
+        super::browser::kill();
+        if leftover {
             panic!("there were messages left. This should never happen")
         }
     }
@@ -124,8 +148,8 @@ impl Keyboard for EnigoTest {
             .key(key, direction)
             .expect("failed to simulate key()");
 
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let browser_event = self.read_message();
             let BrowserEvent {
@@ -190,8 +214,8 @@ impl Keyboard for EnigoTest {
         self.enigo
             .raw(keycode, direction)
             .expect("failed to simulate raw()");
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let event = self.read_message().event;
             let Event::Key {
@@ -225,8 +249,8 @@ impl Mouse for EnigoTest {
         self.enigo
             .button(button, direction)
             .expect("failed to simulate button()");
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let event = self.read_message().event;
             let Event::Button {
@@ -248,8 +272,8 @@ impl Mouse for EnigoTest {
         Ok(())
     }
 
-    // Edge cases don't work (mouse is at the left most border and can't move one to
-    // the left)
+    // Edge cases don't work (mouse is at the left most border and can't move
+    // one to the left)
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
         self.enigo
             .move_mouse(x, y, coordinate)
@@ -302,11 +326,16 @@ impl Mouse for EnigoTest {
             .enigo
             .main_display()
             .expect("failed to get dimensions of the main display");
-        let rdev_res = rdev_main_display();
-        assert_eq!(
-            enigo_res, rdev_res,
-            "enigo_res: {enigo_res:?}; rdev_res: {rdev_res:?}"
-        );
+        // rdev reads the X11 screen, which is not the surface the native
+        // backends control.
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        {
+            let rdev_res = rdev_main_display();
+            assert_eq!(
+                enigo_res, rdev_res,
+                "enigo_res: {enigo_res:?}; rdev_res: {rdev_res:?}"
+            );
+        }
         Ok(enigo_res)
     }
 
@@ -315,21 +344,28 @@ impl Mouse for EnigoTest {
             .enigo
             .location()
             .expect("failed to get location of the mouse");
-        let mouse_position_res = mouse_position();
-        assert_eq!(
-            enigo_res, mouse_position_res,
-            "enigo_res: {enigo_res:?}; rdev_res: {mouse_position_res:?}"
-        );
+        // mouse_position reads the X11 pointer, which the native backends do
+        // not control (and location() is not implemented for them).
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        {
+            let mouse_position_res = mouse_position();
+            assert_eq!(
+                enigo_res, mouse_position_res,
+                "enigo_res: {enigo_res:?}; mouse_position_res: {mouse_position_res:?}"
+            );
+        }
         Ok(enigo_res)
     }
 }
 
+#[cfg(any(feature = "x11rb", feature = "xdo"))]
 fn rdev_main_display() -> (i32, i32) {
     rdev::display_size()
         .map(|(x, y)| (x as i32, y as i32))
         .expect("failed to get the location of the mouse using rdev")
 }
 
+#[cfg(any(feature = "x11rb", feature = "xdo"))]
 fn mouse_position() -> (i32, i32) {
     use mouse_position::mouse_position::Mouse;
 
@@ -422,7 +458,8 @@ mod tests {
 
     #[test]
     fn test_combined_emoji_rejected() {
-        // "❤️" = U+2764 + U+FE0F → should be rejected under strict single-char rules
+        // "❤️" = U+2764 + U+FE0F → should be rejected under strict single-char
+        // rules
         assert_eq!(decode_utf8_escaped("\\u2764\\uFE0F"), Err(()));
     }
 

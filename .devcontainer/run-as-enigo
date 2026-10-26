@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+# Run a command as the unprivileged user used by the devcontainers and CI.
+# -m keeps PATH, CARGO_HOME, RUSTUP_HOME and XDG_* from the caller; HOME, USER
+# and LOGNAME are set to the test user.
+
+script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+. "$script_dir/lib.sh"
+require_container
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "run-as-enigo must be run as root inside the CI container" >&2
+    exit 1
+fi
+if [ "$#" -eq 0 ]; then
+    echo "usage: $0 <command> [args...]" >&2
+    exit 2
+fi
+
+exec runuser -m -u enigo -- env HOME=/home/enigo USER=enigo LOGNAME=enigo "$@"

@@ -1,0 +1,26 @@
+{
+  "name": "enigo (sway, headless)",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Containerfile",
+    "target": "sway"
+  },
+  "containerEnv": {
+    "DISPLAY": ":0",
+    "WAYLAND_DISPLAY": "wayland-enigo",
+    "XDG_CURRENT_DESKTOP": "sway",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-sway",
+    "XDG_SESSION_TYPE": "wayland"
+  },
+  "postStartCommand": ["sh", ".devcontainer/start-sway.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}

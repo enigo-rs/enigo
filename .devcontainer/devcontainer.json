@@ -1,0 +1,23 @@
+{
+  "name": "enigo (Xvfb, default)",
+  "build": {
+    "context": ".",
+    "dockerfile": "Containerfile",
+    "target": "xvfb"
+  },
+  "containerEnv": {
+    "DISPLAY": ":99",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-x11"
+  },
+  "postStartCommand": ["sh", ".devcontainer/start-xvfb.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}

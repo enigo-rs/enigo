@@ -1,11 +1,12 @@
-use enigo::{Direction::Click, Enigo, Key, Keyboard, Settings};
+mod common;
+use enigo::{Direction::Click, Enigo, Key, Keyboard};
 use std::thread;
 use std::time::Duration;
 
 fn main() {
     env_logger::try_init().ok();
     thread::sleep(Duration::from_secs(4));
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = Enigo::new(&common::settings()).unwrap();
 
     enigo.key(Key::PageDown, Click).unwrap();
     enigo.key(enigo::Key::UpArrow, Click).unwrap();

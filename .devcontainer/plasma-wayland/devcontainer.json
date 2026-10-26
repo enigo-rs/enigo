@@ -1,0 +1,32 @@
+{
+  "name": "enigo (Plasma Wayland)",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Containerfile",
+    "target": "plasma-wayland"
+  },
+  "containerEnv": {
+    "DBUS_SESSION_BUS_ADDRESS": "unix:path=/tmp/enigo-plasma-wayland-bus",
+    "DISPLAY": ":0",
+    "KDE_FULL_SESSION": "true",
+    "KDE_SESSION_VERSION": "6",
+    "QT_QPA_PLATFORM": "wayland",
+    "WAYLAND_DISPLAY": "wayland-enigo",
+    "XDG_CONFIG_HOME": "/tmp/enigo-plasma-wayland-config",
+    "XDG_CURRENT_DESKTOP": "KDE",
+    "XDG_DATA_HOME": "/tmp/enigo-plasma-wayland-data",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-plasma-wayland",
+    "XDG_SESSION_TYPE": "wayland"
+  },
+  "postStartCommand": ["sh", ".devcontainer/plasma-wayland/start.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+curl
+firefox-esr
+git
+libx11-dev
+libxi-dev
+libxkbcommon-dev
+libxtst-dev
+pkgconf
+sudo
+util-linux
+x11-utils
+xdotool
+xvfb

@@ -1,10 +1,11 @@
 use crate::{
     Button,
     Direction::{Click, Press, Release},
-    Enigo, Mouse, Settings,
+    Enigo, Mouse,
     {Axis::Horizontal, Axis::Vertical},
     {Coordinate::Abs, Coordinate::Rel},
 };
+use serial_test::serial;
 use std::thread;
 
 use super::is_ci;
@@ -47,12 +48,17 @@ fn test_mouse_move(
 }
 
 #[test]
+#[serial(input)]
+#[cfg_attr(
+    any(feature = "wayland", feature = "libei", feature = "xdg_desktop"),
+    ignore = "location() is not implemented for this backend"
+)]
 // Test the move_mouse function and check it with the mouse_location function
 fn unit_move_mouse_to() {
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
-    // Make a square of 100 pixels starting at the top left corner of the screen and
-    // moving down, right, up and left
+    // Make a square of 100 pixels starting at the top left corner of the screen
+    // and moving down, right, up and left
     let square = vec![
         ((0, 0), (0, 0)),
         ((0, 100), (0, 100)),
@@ -66,13 +72,18 @@ fn unit_move_mouse_to() {
 }
 
 #[test]
+#[serial(input)]
+#[cfg_attr(
+    any(feature = "wayland", feature = "libei", feature = "xdg_desktop"),
+    ignore = "location() is not implemented for this backend"
+)]
 // Test the move_mouse function and check it with the mouse_location
 // function
 fn unit_move_mouse_rel() {
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
-    // Make a square of 100 pixels starting at the top left corner of the screen and
-    // moving down, right, up and left
+    // Make a square of 100 pixels starting at the top left corner of the screen
+    // and moving down, right, up and left
     let square = vec![
         ((0, 0), (0, 0)),
         ((0, 100), (0, 100)),
@@ -87,9 +98,10 @@ fn unit_move_mouse_rel() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Test the move_mouse function and check it with the mouse_location function
 fn unit_move_mouse_to_boundaries() {
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     let display_size = enigo.main_display().unwrap();
     log::debug!("Display size {} x {}", display_size.0, display_size.1);
@@ -124,10 +136,11 @@ fn unit_move_mouse_to_boundaries() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Test the move_mouse function and check it with the mouse_location
 // function
 fn unit_move_mouse_rel_boundaries() {
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     let display_size = enigo.main_display().unwrap();
     log::debug!("Display size {} x {}", display_size.0, display_size.1);
@@ -163,12 +176,17 @@ fn unit_move_mouse_rel_boundaries() {
 }
 
 #[test]
+#[serial(input)]
+#[cfg_attr(
+    any(feature = "libei", feature = "xdg_desktop"),
+    ignore = "main_display() is not implemented by libei and xdg_desktop passes the screenshot URI to image::open"
+)]
 // Test the main_display function
 // The CI's virtual display has a dimension of 1024x768. If the test is ran
 // outside of the CI, we don't know the displays dimensions so we just make sure
 // it is greater than 0x0.
 fn unit_display_size() {
-    let enigo = Enigo::new(&Settings::default()).unwrap();
+    let enigo = super::new_enigo();
     let display_size = enigo.main_display().unwrap();
     log::debug!("Main display size: {}x{}", display_size.0, display_size.1);
     if is_ci() {
@@ -180,12 +198,13 @@ fn unit_display_size() {
 }
 
 #[test]
+#[serial(input)]
 // Test all the mouse buttons, make sure none of them panic
 fn unit_button_click() {
     use strum::IntoEnumIterator;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for button in Button::iter() {
         assert_eq!(
             enigo.button(button, Press),
@@ -206,12 +225,13 @@ fn unit_button_click() {
 }
 
 #[test]
+#[serial(input)]
 // Click each mouse button ten times, make sure none of them panic
 fn unit_10th_click() {
     use strum::IntoEnumIterator;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for button in Button::iter() {
         for _ in 0..10 {
             assert_eq!(
@@ -224,13 +244,14 @@ fn unit_10th_click() {
 }
 
 #[test]
+#[serial(input)]
 fn unit_scroll() {
     let delay = super::get_delay();
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     // On X11 there is no scroll function but instead we repeatedly simulate a
-    // keypress. This takes a long time for large values. That's why we skip them on
-    // X11
+    // keypress. This takes a long time for large values. That's why we skip
+    // them on X11
     let test_cases = if cfg!(any(feature = "xdo", feature = "x11rb")) {
         vec![0, 1, 5, 100, -0, -1, -5, -100]
     } else {
@@ -256,10 +277,15 @@ fn unit_scroll() {
 }
 
 #[test]
+#[serial(input)]
+#[cfg_attr(
+    feature = "xdg_desktop",
+    ignore = "absolute pointer motion is not implemented by the xdg_desktop backend"
+)]
 // Press down and drag the mouse
 fn unit_mouse_drag() {
     let delay = super::get_delay();
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     enigo.move_mouse(500, 200, Abs).unwrap();
     enigo.button(Button::Left, Press).unwrap();

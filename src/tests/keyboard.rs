@@ -1,16 +1,18 @@
 use crate::{
     Direction::{Click, Press, Release},
-    Enigo, Key, Keyboard, Settings,
+    Key, Keyboard,
 };
+use serial_test::serial;
 use std::thread;
 
 #[test]
+#[serial(input)]
 // Try entering various texts that were selected to test edge cases.
 // Because it is hard to test if they succeed,
 // we assume it worked as long as there was no panic
 fn unit_text() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     let sequences = vec![
         "",      /* Empty string */
@@ -50,12 +52,13 @@ fn unit_text() {
 
 #[ignore] // TODO: Currently ignored because not all chars are valid CStrings
 #[test]
+#[serial(input)]
 // Try entering all chars with the text function.
 // Because it is hard to test if they succeed,
 // we assume it worked as long as there was no panic
 fn unit_text_all_utf16() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for c in 0x0000..0x0010_FFFF {
         if let Some(character) = char::from_u32(c) {
             let string = character.to_string();
@@ -69,12 +72,13 @@ fn unit_text_all_utf16() {
 }
 
 #[test]
+#[serial(input)]
 // Test all the keys, make sure none of them panic
 fn unit_key() {
     use strum::IntoEnumIterator;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for key in Key::iter() {
         assert_eq!(
             enigo.key(key, Press),
@@ -97,10 +101,11 @@ fn unit_key() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Try entering all chars with Key::Layout and make sure none of them panic
 fn unit_key_unicode_all_utf16() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for c in 0x0000..=0x0010_FFFF {
         if let Some(character) = char::from_u32(c) {
             assert_eq!(
@@ -124,6 +129,7 @@ fn unit_key_unicode_all_utf16() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Try entering all possible raw keycodes with Key::Raw and make sure none of
 // them panic
 // On Windows it is expected that all keycodes > u16::MAX return an Err, because
@@ -132,7 +138,7 @@ fn unit_key_other_all_keycodes() {
     use crate::InputError;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     let max = if cfg!(target_os = "windows") {
         u16::MAX as u32
     } else {

@@ -6,7 +6,7 @@ authors = [
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2024"
-rust-version = "1.87"
+rust-version = "1.93.1"
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
@@ -21,7 +21,7 @@ categories = [
     "simulation",
 ]
 license = "MIT"
-exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
+exclude = [".github", ".devcontainer", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
 features = ["x11rb", "wayland", "libei", "smol", "platform_specific", "serde"]
@@ -116,6 +116,7 @@ url = "2"
 webbrowser = "1.0"
 ron = "0.12"
 serde_json = "1.0"
+serial_test = { version = "4.0", default-features = false }
 strum = "0.28"
 strum_macros = "0.28"
 rdev = "0.5"                                     # Test the main_display() function

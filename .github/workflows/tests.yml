@@ -29,13 +29,14 @@ jobs:
         rust:
           - stable
           - nightly
-          - "1.87.0"
+          - "1.93.1"
         platform:
           - ubuntu-latest
           - windows-latest
           - macos-latest
         features: 
-          # The tests will fail on Ubuntu for libei and wayland, because the compositor of the Github runner does not support it
+          # libei, wayland and xdg_desktop need a real compositor or portal, so
+          # they run in .github/workflows/linux_sessions.yml instead.
           #- "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           #- "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - "default"
@@ -105,10 +106,10 @@ jobs:
         run: brew install --cask firefox
 
       - name: Run the unit tests
-        run: cargo test unit --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
+        run: cargo test unit --no-default-features --features ${{ matrix.features }} -- --nocapture
       
       - name: Run the unit tests in release mode
-        run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --test-threads=1 --nocapture
+        run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --nocapture
 
       - name: Run the sync example
         run: cargo run --example sync --no-default-features --features ${{ matrix.features }}
