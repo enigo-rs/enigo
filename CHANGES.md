@@ -1,49 +1,34 @@
 # Unreleased
 ## Changed
-- linux: Changed order of the protocols to from libei > wayland > x11 to now wayland > x11 > libei
-- linux: Split the features `libei_smol`, `libei_tokio` into the feature `libei` to enable the libei protocol and the mutually exclusive features `smol` and `tokio` to select the async runtime
-- linux: libei: Prefer `ei_text.keysym` / `ei_text.utf8` when available; fall back to keymap `ei_keyboard` only when needed
-- linux: libei: Use `ei_scroll.scroll_discrete` with 120-unit notches for wheel scrolling instead of smooth `scroll`
-- linux: wayland: Use `axis_discrete` with a wheel axis source for `scroll()` instead of continuous `axis`
-- all: `Mouse::smooth_scroll` is no longer gated behind the `platform_specific` feature (supported on macOS, Windows, and Linux via xdg_desktop/Wayland/libei; X11 returns an error)
+- linux: When several backends are enabled, Enigo now tries Wayland, then X11, then libei (was libei, Wayland, X11)
+- linux: The `libei` feature enables the libei backend; pick the async runtime with the mutually exclusive `smol` or `tokio` feature (replaces `libei_smol` and `libei_tokio`)
+- linux: Text is entered through `ei_text` where the compositor supports it, and through the keymap otherwise
+- linux: Wheel scrolling uses discrete 120-unit steps on libei and Wayland instead of smooth axis events
+- all: `Mouse::smooth_scroll` no longer requires `platform_specific`; it is available on macOS, Windows, and on Linux with xdg_desktop, Wayland or libei (X11 returns an error)
 - all: MSRV is 1.93.1
-- win: `main_display()` and `location()` temporarily use a per-monitor DPI awareness thread context so coordinates stay correct without changing the process DPI mode
 
 ## Added
-- win: added smooth scrolling via high-resolution `MOUSEEVENTF_WHEEL` / `MOUSEEVENTF_HWHEEL` deltas (`120` = one notch; effect depends on whether the target app handles sub-120 deltas)
-- linux: xdg_desktop: added smooth scrolling via `NotifyPointerAxis`
-- linux: wayland: added smooth scrolling via continuous `axis` events (`AxisSource::Continuous`)
-- linux: libei: added smooth scrolling via `ei_scroll.scroll`
-- linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
-- linux: libei/xdg_desktop: expose a `restore_token()` getter so callers can retrieve and reuse the token
-- linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
+- linux: New `xdg_desktop` backend (feature `xdg_desktop`) that simulates input through the XDG desktop portal, so it also works in Flatpak
+- linux: libei/xdg_desktop: Pass a portal restore token with `Settings::restore_token` to avoid repeated permission prompts, and read the current one with `Enigo::restore_token()`
+- linux, win: `Key::NumpadEnter`
 
 ## Removed
-- win: Removed `set_dpi_awareness()`. Enigo now handles DPI awareness internally where needed
-- win: `EXT` constant was removed, because it was incorrect and obsolete
-- all: Removed the function `delay` and `set_delay` as they no longer serve a purpose
-- all: Removed the field `linux_delay` from `Settings` struct as it no longer serves a purpose
-- linux: libei: Removed `Clone` derive from `Con`
+- win: `set_dpi_awareness()`; Enigo handles DPI awareness where needed
+- win: `EXT`
+- all: `delay`, `set_delay` and `Settings::linux_delay` (no longer needed)
 
 ## Fixed
-- win: Mouse coordinates and display size are no longer wrong when the process is not DPI aware
-- linux: Record pressed keys/keycodes in `held()` again after a successful `key()`/`raw()` (regression from protocol retry refactor)
-- linux: libei: Send `ei_device.ready` on device v3+ after `done` so servers waiting for `EIS_FLAG_DEVICE_READY` resume devices
-- linux: libei: Fix `frame` / `start_emulating` serial vs sequence handling
-- linux: libei: Re-send `start_emulating` after pause/resume so events are not silently discarded
-- linux: libei: Use the keymap and active layout group of the keyboard that receives the event
-- linux: libei: Don't underflow when converting X11 keycodes below 8 in `raw()` and keymap `key()`
-- linux: libei: Surface EIS disconnect instead of a generic "no device" error
-- linux: libei: Drop keymap/device/seat state on destroy and invalid-object paths
-- linux: libei: Don't sleep on every `update()`; flush then drain until idle
-- linux: Added `NumpadEnter` key
-- win: Added `NumpadEnter` key
-- win: Extended keys can now be correctly simulated with the raw() function.
-- macos: `move_mouse` no longer needs a sleep.
-- macos: always get the current main display and not the main display when the `enigo` struct was created
-- macos: allow dragging all mouse buttons
-- macos: fix crash by executing TIS keyboard layout retrieval on the main thread
-- linux: retry with a different protocol when encountering an error
+- win: Mouse coordinates and display size are correct when the process is not DPI aware
+- win: Extended keys work with `raw()`
+- macos: `move_mouse()` no longer needs a sleep, and dragging works with every mouse button
+- macos: `main_display()` returns the current display instead of the one from when Enigo was created
+- macos: Crash when reading the keyboard layout outside the main thread
+- linux: `held()` reports keys and buttons after a successful `key()`/`raw()` again
+- linux: libei: Use the keymap and layout of the keyboard that receives the event
+- linux: libei: A disconnect is reported as an error instead of "no device"
+- linux: libei: `update()` no longer sleeps on every call
+- linux: libei: `raw()` and keymap `key()` handle X11 keycodes below 8 correctly
+- linux: Retry with a different backend after an error
 
 # 0.6.1
 ## Fixed
