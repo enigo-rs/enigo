@@ -119,3 +119,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
 
 USER enigo
+
+# Wayland backend against labwc, a second wlroots compositor. It runs headless
+# with the pixman renderer; start-labwc.sh launches it.
+FROM base AS labwc
+
+COPY packages/labwc.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo

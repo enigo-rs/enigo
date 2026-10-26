@@ -1,0 +1,26 @@
+{
+  "name": "enigo (labwc, headless)",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Containerfile",
+    "target": "labwc"
+  },
+  "containerEnv": {
+    "ENIGO_BROWSER_DISPLAY": ":99",
+    "WAYLAND_DISPLAY": "wayland-enigo",
+    "XDG_CURRENT_DESKTOP": "labwc",
+    "XDG_RUNTIME_DIR": "/tmp/enigo-labwc",
+    "XDG_SESSION_TYPE": "wayland"
+  },
+  "postStartCommand": ["sh", ".devcontainer/start-labwc.sh"],
+  "remoteUser": "enigo",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "zed": {
+      "extensions": [
+        "toml",
+        "dockerfile"
+      ]
+    }
+  }
+}

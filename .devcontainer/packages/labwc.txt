@@ -1,0 +1,2 @@
+labwc
+wlr-randr
