@@ -21,7 +21,7 @@ categories = [
     "simulation",
 ]
 license = "MIT"
-exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
+exclude = [".github", ".devcontainer", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
 features = ["x11rb", "wayland", "libei", "smol", "platform_specific", "serde"]
