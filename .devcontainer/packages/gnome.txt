@@ -1,0 +1,9 @@
+dbus
+gnome-shell
+libgl1-mesa-dri
+libglib2.0-bin
+pipewire
+procps
+xdg-desktop-portal
+xdg-desktop-portal-gnome
+xwayland
