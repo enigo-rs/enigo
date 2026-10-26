@@ -124,6 +124,19 @@ RUN if getcap /usr/bin/kwin_wayland | grep -q .; then setcap -r /usr/bin/kwin_wa
 
 USER enigo
 
+# KDE Plasma X11 session: Xvfb, KWin as the X11 window manager and
+# plasmashell. plasma-x11/start-x11.sh launches it.
+FROM plasma-wayland AS plasma-x11
+
+USER root
+
+COPY packages/plasma-x11.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
+
 # Wayland backend: a headless sway compositor with the virtual-input protocols.
 # start-sway.sh launches sway with sway.conf from this directory.
 FROM base AS sway
