@@ -1,6 +1,6 @@
 use crate::{
     Direction::{Click, Press, Release},
-    Enigo, Key, Keyboard, Settings,
+    Key, Keyboard,
 };
 use std::thread;
 
@@ -10,7 +10,7 @@ use std::thread;
 // we assume it worked as long as there was no panic
 fn unit_text() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
 
     let sequences = vec![
         "",      /* Empty string */
@@ -55,7 +55,7 @@ fn unit_text() {
 // we assume it worked as long as there was no panic
 fn unit_text_all_utf16() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for c in 0x0000..0x0010_FFFF {
         if let Some(character) = char::from_u32(c) {
             let string = character.to_string();
@@ -74,7 +74,7 @@ fn unit_key() {
     use strum::IntoEnumIterator;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for key in Key::iter() {
         assert_eq!(
             enigo.key(key, Press),
@@ -100,7 +100,7 @@ fn unit_key() {
 // Try entering all chars with Key::Layout and make sure none of them panic
 fn unit_key_unicode_all_utf16() {
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     for c in 0x0000..=0x0010_FFFF {
         if let Some(character) = char::from_u32(c) {
             assert_eq!(
@@ -132,7 +132,7 @@ fn unit_key_other_all_keycodes() {
     use crate::InputError;
 
     thread::sleep(super::get_delay());
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = super::new_enigo();
     let max = if cfg!(target_os = "windows") {
         u16::MAX as u32
     } else {
