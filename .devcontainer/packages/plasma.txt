@@ -1,0 +1,11 @@
+dbus
+kwin-wayland
+libcap2-bin
+libgl1-mesa-dri
+plasma-desktop
+plasma-workspace
+pipewire
+procps
+xdg-desktop-portal
+xdg-desktop-portal-kde
+xwayland
