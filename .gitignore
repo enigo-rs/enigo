@@ -13,6 +13,9 @@ Cargo.lock
 tests/firefox-profile/*
 !tests/firefox-profile/user.js
 
+# Downloaded by `npm ci --prefix .github` in the workflows
+.github/node_modules/
+
 # RustFmt files
 **/*.rs.bk
 
