@@ -1,0 +1,332 @@
+name: Linux sessions
+
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  xvfb:
+    # Plain X11 session for the x11rb and xdo backends.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: .devcontainer/packages/base.txt .devcontainer/packages/xvfb.txt
+          devcontainer: .devcontainer/devcontainer.json
+
+      - name: Start Xvfb
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/start-xvfb.sh
+
+      - name: Test the default x11rb backend against Xvfb
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features x11rb --lib
+
+      - name: Test the xdo backend against Xvfb
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features xdo --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  gnome-wayland:
+    # A normal GNOME Wayland session: GNOME Shell, Xwayland and the GNOME
+    # portals. The portal backends are tested with both async runtimes, and the
+    # x11rb backend against the Xwayland server.
+    #
+    # trixie has xdg-desktop-portal 1.20 (restore tokens and ConnectToEIS) and
+    # GNOME 48. The older portal in Ubuntu 24.04 cannot seed restore data.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Mutters EIS seat has no ei_text, so two key tests are expected to
+          # fail until the libei backend synthesises a keymap. See
+          # KNOWN_ISSUES.md.
+          - features: "libei,tokio"
+            experimental: true
+          - features: "libei,smol"
+            experimental: true
+          - features: "xdg_desktop,tokio"
+            experimental: false
+          - features: "xdg_desktop,smol"
+            experimental: false
+          - features: "x11rb"
+            experimental: false
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      # A local action needs the checkout and the checkout needs git, which the
+      # slim image does not include.
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: .devcontainer/packages/base.txt .devcontainer/packages/gnome.txt
+          devcontainer: .devcontainer/gnome-wayland/devcontainer.json
+
+      - name: Start headless GNOME and seed a restore token
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/gnome-wayland/start.sh
+
+      - name: Test ${{ matrix.features }} against GNOME
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "${{ matrix.features }},platform_specific" --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        if: matrix.features == 'x11rb'
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  gnome-x11:
+    # GNOME Shell on Xorg, the normal GNOME X11 session. Xvfb provides the
+    # display and the x11rb backend talks to it directly.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: >-
+            .devcontainer/packages/base.txt
+            .devcontainer/packages/gnome.txt
+          devcontainer: .devcontainer/gnome-x11/devcontainer.json
+
+      - name: Start headless GNOME on Xorg
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/gnome-x11/start-x11.sh
+
+      - name: Test the default x11rb backend against GNOME on Xorg
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features x11rb --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  sway:
+    # The wayland backend uses wlroots' virtual keyboard and virtual pointer
+    # protocols, which Mutter does not implement. sway runs headless with the
+    # pixman renderer, so this needs no GPU and no privileged container.
+    #
+    # The wayland-only run is expected to fail until the backend can connect
+    # without a compositor keymap: a headless sway session has no physical
+    # keyboard and sway does not assign a keymap to virtual keyboards. See
+    # KNOWN_ISSUES.md.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: .devcontainer/packages/base.txt .devcontainer/packages/sway.txt
+          devcontainer: .devcontainer/sway/devcontainer.json
+
+      - name: Start headless sway
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/start-sway.sh
+
+      - name: Test the wayland backend against sway (expected to fail)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features wayland --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  labwc:
+    # The same wayland backend against a second wlroots compositor. labwc
+    # assigns the seat keymap to virtual keyboards, so this session exercises
+    # the input tests for real.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: .devcontainer/packages/base.txt .devcontainer/packages/labwc.txt
+          devcontainer: .devcontainer/labwc/devcontainer.json
+
+      - name: Start headless labwc
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/start-labwc.sh
+
+      - name: Test the wayland backend against labwc
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features wayland --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  plasma-wayland:
+    # A normal headless Plasma Wayland session: KWin with its virtual backend,
+    # Xwayland and plasmashell. KWin's screencast plugin requires OpenGL
+    # compositing, which the virtual backend cannot provide, so the KDE
+    # RemoteDesktop portal never becomes available. The windowed backends also
+    # select QPainter here, so nesting does not help. The portal backends are
+    # expected to fail; x11rb runs against Xwayland. See KNOWN_ISSUES.md for the
+    # headless KWin limitation.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - features: "libei,tokio"
+            experimental: true
+          - features: "libei,smol"
+            experimental: true
+          - features: "xdg_desktop,tokio"
+            experimental: true
+          - features: "xdg_desktop,smol"
+            experimental: true
+          - features: "x11rb"
+            experimental: false
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: .devcontainer/packages/base.txt .devcontainer/packages/plasma.txt
+          devcontainer: .devcontainer/plasma-wayland/devcontainer.json
+
+      # Default container capability sets do not include CAP_SYS_NICE, which
+      # makes exec of KWin's binary fail while the file capability is set.
+      - name: Allow KWin to run without CAP_SYS_NICE
+        run: |
+          if getcap /usr/bin/kwin_wayland | grep -q .; then setcap -r /usr/bin/kwin_wayland; fi
+
+      - name: Start headless Plasma Wayland
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/plasma-wayland/start.sh
+
+      - name: Test ${{ matrix.features }} against Plasma Wayland
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "${{ matrix.features }},platform_specific" --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        if: matrix.features == 'x11rb'
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
+  plasma-x11:
+    # KDE Plasma X11: Xvfb, KWin as the X11 window manager and plasmashell.
+    # KWin can push the pointer one pixel out of an activated screen-edge corner,
+    # so the two tests that visit the exact top-left pixel can fail. See
+    # KNOWN_ISSUES.md.
+    container: rust:1-slim-trixie
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup_linux_session
+        with:
+          packages: >-
+            .devcontainer/packages/base.txt
+            .devcontainer/packages/plasma.txt
+            .devcontainer/packages/plasma-x11.txt
+          devcontainer: .devcontainer/plasma-x11/devcontainer.json
+
+      - name: Start headless Plasma on X11
+        run: ./.devcontainer/run-as-enigo sh .devcontainer/plasma-x11/start-x11.sh
+
+      - name: Test the x11rb backend against Plasma on X11
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features x11rb --lib
+
+      - name: Test the browser integration against the dedicated Xvfb display
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1

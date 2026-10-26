@@ -1,0 +1,38 @@
+name: Set up a Linux test session
+description: Install a session's packages, export its environment, and create the test user
+
+inputs:
+  packages:
+    description: Space separated package lists under .devcontainer/packages
+    required: true
+  devcontainer:
+    description: devcontainer.json whose containerEnv the session uses
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        # Read the lists first: a missing file fails the step instead of
+        # silently installing nothing.
+        packages=$(cat ${{ inputs.packages }})
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages jq
+
+    - name: Export the session environment
+      shell: bash
+      run: |
+        # The devcontainer and CI read the same containerEnv, so the session
+        # cannot run with different values here than in the editor.
+        jq -r '.containerEnv // {} | to_entries[] | "\(.key)=\(.value)"' \
+          "${{ inputs.devcontainer }}" >> "$GITHUB_ENV"
+
+    - name: Create the unprivileged test user
+      shell: bash
+      run: |
+        useradd --create-home --user-group --uid 1000 --shell /bin/bash enigo
+        printf '%s\n' 'enigo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/enigo
+        chmod 0440 /etc/sudoers.d/enigo
+        chown -R enigo:enigo /usr/local/cargo /usr/local/rustup "$GITHUB_WORKSPACE"

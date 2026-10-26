@@ -35,7 +35,8 @@ jobs:
           - windows-latest
           - macos-latest
         features: 
-          # The tests will fail on Ubuntu for libei and wayland, because the compositor of the Github runner does not support it
+          # libei, wayland and xdg_desktop need a real compositor or portal, so
+          # they run in .github/workflows/linux_sessions.yml instead.
           #- "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
           #- "libei,smol,wayland,xdo,x11rb,xdg_desktop"
           - "default"
