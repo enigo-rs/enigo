@@ -12,6 +12,13 @@ use common::enigo_test::EnigoTest as Enigo;
 #[test]
 #[serial(input)]
 fn integration_browser_events() {
+    #[cfg(target_os = "linux")]
+    if let Ok(display) = std::env::var("ENIGO_BROWSER_DISPLAY") {
+        // SAFETY: the integration test runs with --test-threads=1 and the
+        // other tests in this binary do not read the process environment.
+        unsafe { std::env::set_var("DISPLAY", display) };
+    }
+
     let mut enigo = Enigo::new(&Settings::default());
 
     enigo.key(Key::UpArrow, Click).unwrap();

@@ -15,28 +15,37 @@ pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
         let profile = cwd.join("tests/firefox-profile");
         let profile = profile.to_str().unwrap();
 
-        let child = if cfg!(target_os = "windows") {
-            // On Windows, use cmd.exe to run the "start" command
-            std::process::Command::new("cmd")
-                .args([
+        let child = {
+            let mut command = if cfg!(target_os = "windows") {
+                let mut command = std::process::Command::new("cmd");
+                command.args([
                     "/C", "start", "firefox", "--kiosk", &url, "-profile", profile,
-                ])
-                .spawn()
-                .expect("Failed to start Firefox")
-        } else if cfg!(target_os = "macos") {
-            // On macOS, use the "open" command to run Firefox
-            std::process::Command::new("open")
-                .args([
+                ]);
+                command
+            } else if cfg!(target_os = "macos") {
+                let mut command = std::process::Command::new("open");
+                command.args([
                     "-a", "Firefox", "--args", "--kiosk", &url, "-profile", profile,
-                ])
-                .spawn()
-                .expect("Failed to start Firefox")
-        } else {
-            // On Linux, use the "firefox" command
-            std::process::Command::new("firefox")
-                .args(["--kiosk", &url, "-profile", profile])
-                .spawn()
-                .expect("Failed to start Firefox")
+                ]);
+                command
+            } else {
+                let mut command = std::process::Command::new("firefox");
+                command.args(["--kiosk", &url, "-profile", profile]);
+                command
+            };
+
+            // The devcontainers run Firefox on a dedicated X11 display, also
+            // in Wayland sessions. Without that variable, keep the desktop's
+            // native backend.
+            if cfg!(target_os = "linux") {
+                if let Some(display) = std::env::var_os("ENIGO_BROWSER_DISPLAY") {
+                    command.env("GDK_BACKEND", "x11");
+                    command.env("MOZ_ENABLE_WAYLAND", "0");
+                    command.env("DISPLAY", display);
+                }
+            }
+
+            command.spawn().expect("Failed to start Firefox")
         };
         Some(child)
     });
