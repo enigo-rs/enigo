@@ -82,8 +82,38 @@ If you encounter an issue and want to debug it, turn on log messages as describe
 
 ## Testing this crate
 
-*Warning*: The tests will move the mouse, enter text, press keys and open some applications. Read the test cases before you run them so you know what to expect. It's best to close everything so that the tests don't mess with your system. Some of them run for a long time because they are intended to be run in the CI. Make sure to run the tests sequentially, otherwise they will fail because other mouse movements or entered keys are detected. You can do so by running
+*Warning*: The tests will move the mouse, enter text, press keys and open some applications. Read the test cases before you run them so you know what to expect. It's best to close everything so that the tests don't mess with your system. Some of them run for a long time because they are intended to be run in the CI. Tests that share input state are serialized with [`serial_test`](https://crates.io/crates/serial_test), so you can run them normally:
 
 ```Bash
-cargo test --all-features -- --test-threads=1
+cargo test
 ```
+
+The browser integration test needs the `serde` feature, Firefox and an X11
+display. Every devcontainer installs Firefox and provides a dedicated Xvfb
+display, so the test also runs in the Wayland containers:
+
+```Bash
+cargo test --features serde --test integration_browser_events -- --test-threads=1
+```
+
+The devcontainers compile one backend per session because backend selection is
+still compile-time; see `KNOWN_ISSUES.md` for the runtime-selection goal.
+
+| Session | Run |
+| --- | --- |
+| Xvfb (X11, default) | `cargo test` (x11rb) or `cargo test --no-default-features --features xdo` (xdo) |
+| sway | `cargo test --no-default-features --features wayland --lib` |
+| labwc | `cargo test --no-default-features --features wayland --lib` |
+| GNOME Wayland (libei) | `cargo test --no-default-features --features libei,tokio,platform_specific --lib` |
+| GNOME Wayland (xdg_desktop) | `cargo test --no-default-features --features xdg_desktop,tokio,platform_specific --lib` |
+| GNOME Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` |
+| GNOME X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` |
+| Plasma Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` |
+| Plasma X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` |
+
+The containers run the tests as an unprivileged `enigo` user. The GNOME
+Wayland container seeds a portal restore token so the first connection does not
+wait for a permission dialog.
+
+Set `ENIGO_RESTORE_TOKEN` or `ENIGO_RESTORE_TOKEN_FILE` to reuse a portal restore
+token in the examples; the examples also accept `--restore-token <token>`.
