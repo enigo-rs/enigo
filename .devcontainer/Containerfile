@@ -100,3 +100,11 @@ RUN apt-get update \
 RUN install -d -m 1777 /tmp/.X11-unix
 
 USER enigo
+
+# GNOME Shell on Xorg, the normal GNOME X11 session. Xvfb provides the display
+# and gnome-shell runs as the X11 window manager. Portals are installed with
+# the Wayland stage but the RemoteDesktop portal is not used on Xorg; the
+# x11rb backend talks to the X server directly. gnome-x11/start-x11.sh launches it.
+FROM gnome-wayland AS gnome-x11
+
+USER enigo
