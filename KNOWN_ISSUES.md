@@ -25,15 +25,21 @@ the unit tests, or before them:
   problem on the browser side. The native run fails at the first key. This
   needs a follow-up investigation of the portal/headless session.
 - sway: `Enigo::new` cannot connect because the headless session has no keymap.
+- labwc: the wayland backend sends a modifier key only as a `wl_keyboard`
+  modifier-state change, not as a key event. The page therefore never sees the
+  CapsLock press and the native run stops at the first modifier key. The unit
+  tests only check that the call succeeds, so they do not catch this.
 - Plasma Wayland: the KDE RemoteDesktop portal is unavailable because the
   headless KWin cannot provide a screencast stream.
 
-The failing native runs (GNOME, Plasma and sway) are marked expected-to-fail
-in CI so the failure stays visible while the XWayland run and the wlroots
-suite still report their own results. The `xdg_desktop` browser run skips
-absolute pointer motion, which the backend does not implement; the XWayland run
-is the reference for the full browser test and passes against Mutter's
-Xwayland.
+The failing native runs (GNOME, Plasma, sway and labwc) are marked
+expected-to-fail in CI so the failure stays visible while the XWayland run and
+the wlroots suite still report their own results. The `xdg_desktop` browser run
+skips absolute pointer motion, which the backend does not implement; the
+XWayland run is the reference for the full browser test and passes against
+Mutter's Xwayland and KWin's Xwayland. The `tokio` portal test jobs are marked
+experimental because the second-`Enigo` hang described below can exceed the
+step timeout.
 
 ## A second `Enigo` can hang with `libei` or `xdg_desktop`
 
