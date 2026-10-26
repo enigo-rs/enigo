@@ -17,7 +17,7 @@
 - linux: libei/xdg_desktop: support passing a `restore_token` via `Settings` when establishing a connection, avoiding repeated user prompts for input simulation
 - linux: libei/xdg_desktop: expose a `restore_token()` getter so callers can retrieve and reuse the token
 - examples: accept `--restore-token`, `ENIGO_RESTORE_TOKEN`, or `ENIGO_RESTORE_TOKEN_FILE` to reuse a portal restore token
-- devcontainers: one normal session per compositor or X server (Xvfb, sway, labwc, GNOME Wayland/X11, Plasma Wayland/X11), with Firefox and a dedicated Xvfb display for the browser test
+- devcontainers: one normal session per compositor or X server (Xvfb, sway, labwc, GNOME Wayland/X11, Plasma Wayland/X11), with the browser integration test using each session's native protocol and, in Wayland sessions, a second run through Xwayland
 - devcontainers: each session's environment is defined once in its `devcontainer.json`, and CI reads the same values
 - linux: added new protocol to simulate input. It uses the xdg_desktop portal and should work in flatpaks. Try it out with the `xdg_desktop` feature
 

@@ -6,7 +6,7 @@
     "target": "sway"
   },
   "containerEnv": {
-    "ENIGO_BROWSER_DISPLAY": ":99",
+    "DISPLAY": ":0",
     "WAYLAND_DISPLAY": "wayland-enigo",
     "XDG_CURRENT_DESKTOP": "sway",
     "XDG_RUNTIME_DIR": "/tmp/enigo-sway",

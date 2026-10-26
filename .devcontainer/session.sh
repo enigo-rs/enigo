@@ -274,22 +274,58 @@ start_xvfb() {
     fi
 }
 
-start_browser_display() {
-    # The browser integration test needs an X11 display even in Wayland
-    # sessions. Keep the compositor's DISPLAY and start a separate Xvfb on
-    # ENIGO_BROWSER_DISPLAY for the test. Refuse to guess the display: the test
-    # would keep using the compositor's DISPLAY and fail in a confusing way.
-    if [ -z "${ENIGO_BROWSER_DISPLAY:-}" ]; then
-        echo "ENIGO_BROWSER_DISPLAY must name the Xvfb display for the browser test" >&2
-        return 1
-    fi
-    _session_display=${DISPLAY:-}
-    DISPLAY=$ENIGO_BROWSER_DISPLAY
-    ensure_x11_unix_dir
-    start_xvfb
-    if [ -n "$_session_display" ]; then
-        DISPLAY=$_session_display
-    else
-        unset DISPLAY
-    fi
+disable_gnome_shell_shortcuts() {
+    # The input tests press every key. Super opens the overview and Print opens
+    # the screenshot UI; both grab the keyboard and would swallow the events of
+    # the browser test. The pointer also starts in the top-left hot corner,
+    # which the mouse tests visit. Disable these shortcuts instead of
+    # dismissing their modals with simulated keys.
+    gsettings set org.gnome.desktop.interface enable-hot-corners false
+    gsettings set org.gnome.mutter overlay-key ''
+    gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
+    gsettings set org.gnome.shell.keybindings screenshot "[]"
+    gsettings set org.gnome.shell.keybindings screenshot-window "[]"
+}
+
+hide_gnome_overview() {
+    # GNOME Shell starts in the overview and can show it late in startup. There
+    # is no gsettings key to suppress it, and Escape is one of the keys under
+    # test, so hide it over D-Bus instead of simulating a key. Wait for the
+    # overview to appear first, otherwise the shell reopens it after this
+    # function has hidden it.
+    _wait=0
+    while [ "$_wait" -lt 50 ]; do
+        overview=$(timeout 2 gdbus call --session \
+            --dest org.gnome.Shell \
+            --object-path /org/gnome/Shell \
+            --method org.freedesktop.DBus.Properties.Get \
+            org.gnome.Shell OverviewActive 2>/dev/null || true)
+        case "$overview" in
+            *true*) break ;;
+        esac
+        sleep 0.1
+        _wait=$((_wait + 1))
+    done
+
+    _wait=0
+    while :; do
+        if timeout 2 gdbus call --session \
+            --dest org.gnome.Shell \
+            --object-path /org/gnome/Shell \
+            --method org.freedesktop.DBus.Properties.Set \
+            org.gnome.Shell OverviewActive "<false>" >/dev/null 2>&1 &&
+            timeout 2 gdbus call --session \
+                --dest org.gnome.Shell \
+                --object-path /org/gnome/Shell \
+                --method org.freedesktop.DBus.Properties.Get \
+                org.gnome.Shell OverviewActive 2>/dev/null | grep -q false; then
+            break
+        fi
+        _wait=$((_wait + 1))
+        if [ "$_wait" -ge 50 ]; then
+            echo "could not hide the GNOME Shell overview" >&2
+            return 1
+        fi
+        sleep 0.1
+    done
 }

@@ -12,8 +12,7 @@ require_command plasmashell
 # PipeWire, Xvfb, KWin as the X11 window manager and plasmashell.
 require_env XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME \
     DBUS_SESSION_BUS_ADDRESS DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP \
-    KDE_FULL_SESSION KDE_SESSION_VERSION QT_QPA_PLATFORM \
-    ENIGO_BROWSER_DISPLAY
+    KDE_FULL_SESSION KDE_SESSION_VERSION QT_QPA_PLATFORM
 
 start_session_services
 start_xvfb

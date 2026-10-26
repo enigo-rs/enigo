@@ -7,7 +7,6 @@
   },
   "containerEnv": {
     "DISPLAY": ":99",
-    "ENIGO_BROWSER_DISPLAY": ":99",
     "XDG_RUNTIME_DIR": "/tmp/enigo-x11"
   },
   "postStartCommand": ["sh", ".devcontainer/start-xvfb.sh"],

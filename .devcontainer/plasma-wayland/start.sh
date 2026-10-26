@@ -18,10 +18,9 @@ require_command xdpyinfo
 require_env XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME \
     DBUS_SESSION_BUS_ADDRESS WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE \
     XDG_CURRENT_DESKTOP KDE_FULL_SESSION KDE_SESSION_VERSION \
-    QT_QPA_PLATFORM ENIGO_BROWSER_DISPLAY
+    QT_QPA_PLATFORM
 
 start_session_services
-start_browser_display
 
 if ! name_has_owner org.kde.KWin; then
     reset_wayland_session

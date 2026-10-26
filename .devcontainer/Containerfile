@@ -21,9 +21,10 @@ ENV LANG=C.UTF-8 \
 # The X11 development headers are not used by every backend, but Cargo builds
 # dev-dependencies for `cargo test` regardless of features. `rdev` and
 # `mouse_position` pull in the `x11` crate, which needs libx11, libxi and
-# libxtst via pkg-config in every image that runs the test suite. Firefox and
-# Xvfb are shared by the browser integration test in every session; x11-utils
-# provides xdpyinfo for the session checks.
+# libxtst via pkg-config in every image that runs the test suite. Firefox is
+# needed by the browser integration test in every session; x11-utils provides
+# xdpyinfo for the session checks and xdotool focuses the browser window under
+# the X11 sessions.
 COPY packages/base.txt /tmp/packages.txt
 RUN apt-get update \
     && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \

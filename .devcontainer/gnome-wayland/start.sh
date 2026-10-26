@@ -7,6 +7,7 @@ script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
 require_container
 require_command gnome-shell
 require_command gdbus
+require_command gsettings
 require_command xdpyinfo
 
 # This script is used both as the devcontainer's postStartCommand and by CI.
@@ -26,8 +27,7 @@ require_env XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME \
     DBUS_SESSION_BUS_ADDRESS WAYLAND_DISPLAY DISPLAY XAUTHORITY \
     XDG_SESSION_TYPE XDG_CURRENT_DESKTOP GDK_BACKEND GTK_A11Y NO_AT_BRIDGE \
     ENIGO_RESTORE_TOKEN_FILE XDG_DESKTOP_PORTAL_TEST_APP_ID \
-    XDG_DESKTOP_PORTAL_TEST_APP_INFO_KIND XDG_DESKTOP_PORTAL_TEST_HOST_APPID \
-    ENIGO_BROWSER_DISPLAY
+    XDG_DESKTOP_PORTAL_TEST_APP_INFO_KIND XDG_DESKTOP_PORTAL_TEST_HOST_APPID
 
 if [ "$XAUTHORITY" != "$XDG_RUNTIME_DIR/.Xauthority" ]; then
     echo "refusing to replace XAUTHORITY=$XAUTHORITY; unset it or set it to $XDG_RUNTIME_DIR/.Xauthority" >&2
@@ -37,7 +37,10 @@ fi
 TOKEN=11111111-1111-1111-1111-111111111111
 
 start_session_services
-start_browser_display
+
+# The input tests press every key and move the pointer to the hot corner.
+# Disable the shortcuts that would open a modal over the session.
+disable_gnome_shell_shortcuts
 
 if ! name_has_owner org.gnome.Shell; then
     reset_wayland_session
@@ -54,6 +57,10 @@ if ! wait_for_socket "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ||
     show_log_tail "$XDG_RUNTIME_DIR/gnome-shell.log"
     exit 1
 fi
+
+# GNOME Shell shows the overview late in startup. Hide it without simulating a
+# key, which would race with the tests.
+hide_gnome_overview
 
 # Xwayland starts with the shell, but the socket and the X authority file may
 # not be ready yet. Mutter writes the cookie to a random name in XDG_RUNTIME_DIR,

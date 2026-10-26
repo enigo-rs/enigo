@@ -8,7 +8,6 @@
   "containerEnv": {
     "DBUS_SESSION_BUS_ADDRESS": "unix:path=/tmp/enigo-plasma-wayland-bus",
     "DISPLAY": ":0",
-    "ENIGO_BROWSER_DISPLAY": ":99",
     "KDE_FULL_SESSION": "true",
     "KDE_SESSION_VERSION": "6",
     "QT_QPA_PLATFORM": "wayland",

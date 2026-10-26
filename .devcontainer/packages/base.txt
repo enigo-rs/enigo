@@ -9,4 +9,5 @@ pkgconf
 sudo
 util-linux
 x11-utils
+xdotool
 xvfb

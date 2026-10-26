@@ -3,6 +3,38 @@
 These were found while working on the devcontainers. They are recorded here but
 intentionally not fixed in this PR.
 
+## The browser integration test runs once per protocol
+
+In a Wayland session the browser test runs twice. The native run launches
+Firefox on Wayland (`GDK_BACKEND=wayland`, `MOZ_ENABLE_WAYLAND=1`) and uses the
+compiled native backend, so the events travel over the compositor's native
+protocol (EIS through libei/xdg_desktop, or the wlroots virtual-input protocol).
+The XWayland run launches Firefox with `GDK_BACKEND=x11` and uses `x11rb`
+against `DISPLAY`, which is the compositor's Xwayland. There is no separate
+Xvfb: both runs use the session's own compositor and window manager.
+
+Native browser runs currently fail in some sessions for the same reasons as
+the unit tests, or before them:
+
+- GNOME Wayland with `libei`: the browser test enters text and keys that the
+  Mutter EIS seat cannot map without `ei_text` (see below).
+- GNOME Wayland with `xdg_desktop`: the headless GNOME portal accepts the
+  keyboard and pointer requests (`notify_keyboard_keysym`, `notify_pointer_*`)
+  but does not deliver them. This was checked with an X11 `xev` window that had
+  the X input focus and still received no key events, so it is not a focus
+  problem on the browser side. The native run fails at the first key. This
+  needs a follow-up investigation of the portal/headless session.
+- sway: `Enigo::new` cannot connect because the headless session has no keymap.
+- Plasma Wayland: the KDE RemoteDesktop portal is unavailable because the
+  headless KWin cannot provide a screencast stream.
+
+The failing native runs (GNOME, Plasma and sway) are marked expected-to-fail
+in CI so the failure stays visible while the XWayland run and the wlroots
+suite still report their own results. The `xdg_desktop` browser run skips
+absolute pointer motion, which the backend does not implement; the XWayland run
+is the reference for the full browser test and passes against Mutter's
+Xwayland.
+
 ## A second `Enigo` can hang with `libei` or `xdg_desktop`
 
 When `Enigo::new` is called outside an existing Tokio runtime, both backends
@@ -23,11 +55,12 @@ portals are available and keyboard, buttons and scrolling are tested against
 them. Two paths are skipped:
 
 - `main_display()` takes a Screenshot portal screenshot, but the backend passes
-the returned `file://` URI to `image::open` as a filesystem path. The URI needs
-to be converted to a path first (for example with `Url::to_file_path`, which
-would make `url` a regular dependency instead of a dev-dependency).
+  the returned `file://` URI to `image::open` as a filesystem path. The URI needs
+  to be converted to a path first (for example with `Url::to_file_path`, which
+  would make `url` a regular dependency instead of a dev-dependency).
 - Absolute pointer dragging needs a ScreenCast stream and
-`notify_pointer_motion_absolute()` is not wired up.
+  `notify_pointer_motion_absolute()` is not wired up. The browser integration
+  test therefore skips its absolute mouse moves for this backend.
 
 Those are library limitations, not container ones. Testing `libei` does not have
 the first limitation, but `main_display()` is not implemented there either.

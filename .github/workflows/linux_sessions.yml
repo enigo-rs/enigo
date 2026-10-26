@@ -18,6 +18,11 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # The slim Rust image does not set a UTF-8 locale. libxdo needs one to enter
+  # multi-byte text in the xdo backend test. The devcontainers set this in the
+  # Containerfile.
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
 
 jobs:
   xvfb:
@@ -53,7 +58,7 @@ jobs:
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features xdo --lib
 
-      - name: Test the browser integration against the dedicated Xvfb display
+      - name: Test the browser integration through X11
         timeout-minutes: 5
         run: |
           ./.devcontainer/run-as-enigo cargo test \
@@ -80,12 +85,15 @@ jobs:
             experimental: true
           - features: "libei,smol"
             experimental: true
+            browser: native
           - features: "xdg_desktop,tokio"
             experimental: false
           - features: "xdg_desktop,smol"
             experimental: false
+            browser: native
           - features: "x11rb"
             experimental: false
+            browser: xwayland
     continue-on-error: ${{ matrix.experimental }}
     steps:
       # A local action needs the checkout and the checkout needs git, which the
@@ -105,18 +113,36 @@ jobs:
       - name: Start headless GNOME and seed a restore token
         run: ./.devcontainer/run-as-enigo sh .devcontainer/gnome-wayland/start.sh
 
+      # The input tests press every key, which can open shell modals. Run the
+      # browser tests first, while the session is untouched. Each test drives
+      # the browser through the same protocol as its backend: the native
+      # backends through Wayland and x11rb through Mutter's Xwayland.
+      #
+      # The native runs currently fail: Mutter's EIS seat has no ei_text for
+      # libei, and the headless RemoteDesktop portal accepts input requests
+      # without delivering them for xdg_desktop. See KNOWN_ISSUES.md. Keep the
+      # portal lib tests running after the browser step.
+      - name: Test the browser integration natively (expected to fail)
+        timeout-minutes: 5
+        if: matrix.browser == 'native'
+        continue-on-error: true
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "${{ matrix.features }},platform_specific,serde" \
+            --test integration_browser_events -- --test-threads=1
+
+      - name: Test the browser integration through XWayland
+        timeout-minutes: 5
+        if: matrix.browser == 'xwayland'
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test ${{ matrix.features }} against GNOME
         timeout-minutes: 5
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features "${{ matrix.features }},platform_specific" --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        if: matrix.features == 'x11rb'
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1
 
   gnome-x11:
     # GNOME Shell on Xorg, the normal GNOME X11 session. Xvfb provides the
@@ -142,17 +168,20 @@ jobs:
       - name: Start headless GNOME on Xorg
         run: ./.devcontainer/run-as-enigo sh .devcontainer/gnome-x11/start-x11.sh
 
+      # The unit tests press every key, which can open shell modals (overview,
+      # screenshot UI) on this shared display. Run the browser test first, while
+      # the session is untouched.
+      - name: Test the browser integration
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test the default x11rb backend against GNOME on Xorg
         timeout-minutes: 5
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features x11rb --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1
 
   sway:
     # The wayland backend uses wlroots' virtual keyboard and virtual pointer
@@ -182,18 +211,28 @@ jobs:
       - name: Start headless sway
         run: ./.devcontainer/run-as-enigo sh .devcontainer/start-sway.sh
 
+      # Run the browser tests first: the input tests press every key, and the
+      # browser should see a session that no earlier test has touched.
+      - name: Test the wayland backend through the browser (expected to fail)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "wayland,serde" \
+            --test integration_browser_events -- --test-threads=1
+
+      - name: Test the browser integration through XWayland
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test the wayland backend against sway (expected to fail)
         timeout-minutes: 5
         continue-on-error: true
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features wayland --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1
 
   labwc:
     # The same wayland backend against a second wlroots compositor. labwc
@@ -218,17 +257,26 @@ jobs:
       - name: Start headless labwc
         run: ./.devcontainer/run-as-enigo sh .devcontainer/start-labwc.sh
 
+      # Run the browser tests first: the input tests press every key, and the
+      # browser should see a session that no earlier test has touched.
+      - name: Test the wayland backend through the browser
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "wayland,serde" \
+            --test integration_browser_events -- --test-threads=1
+
+      - name: Test the browser integration through XWayland
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test the wayland backend against labwc
         timeout-minutes: 5
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features wayland --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1
 
   plasma-wayland:
     # A normal headless Plasma Wayland session: KWin with its virtual backend,
@@ -249,12 +297,14 @@ jobs:
             experimental: true
           - features: "libei,smol"
             experimental: true
+            browser: native
           - features: "xdg_desktop,tokio"
             experimental: true
           - features: "xdg_desktop,smol"
             experimental: true
           - features: "x11rb"
             experimental: false
+            browser: xwayland
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Install git for checkout
@@ -278,18 +328,30 @@ jobs:
       - name: Start headless Plasma Wayland
         run: ./.devcontainer/run-as-enigo sh .devcontainer/plasma-wayland/start.sh
 
+      # Run the browser tests first: the input tests press every key, and the
+      # browser should see a session that no earlier test has touched. KWin's
+      # headless portal limitation is expected to make the native run fail.
+      - name: Test the browser integration natively (expected to fail)
+        timeout-minutes: 5
+        if: matrix.browser == 'native'
+        continue-on-error: true
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --no-default-features --features "${{ matrix.features }},platform_specific,serde" \
+            --test integration_browser_events -- --test-threads=1
+
+      - name: Test the browser integration through XWayland
+        timeout-minutes: 5
+        if: matrix.browser == 'xwayland'
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test ${{ matrix.features }} against Plasma Wayland
         timeout-minutes: 5
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features "${{ matrix.features }},platform_specific" --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        if: matrix.features == 'x11rb'
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1
 
   plasma-x11:
     # KDE Plasma X11: Xvfb, KWin as the X11 window manager and plasmashell.
@@ -318,15 +380,18 @@ jobs:
       - name: Start headless Plasma on X11
         run: ./.devcontainer/run-as-enigo sh .devcontainer/plasma-x11/start-x11.sh
 
+      # The unit tests press every key, which can open desktop modals on this
+      # shared display. Run the browser test first, while the session is
+      # untouched.
+      - name: Test the browser integration
+        timeout-minutes: 5
+        run: |
+          ./.devcontainer/run-as-enigo cargo test \
+            --features serde --test integration_browser_events -- --test-threads=1
+
       - name: Test the x11rb backend against Plasma on X11
         timeout-minutes: 5
         continue-on-error: true
         run: |
           ./.devcontainer/run-as-enigo cargo test \
             --no-default-features --features x11rb --lib
-
-      - name: Test the browser integration against the dedicated Xvfb display
-        timeout-minutes: 5
-        run: |
-          ./.devcontainer/run-as-enigo cargo test \
-            --features serde --test integration_browser_events -- --test-threads=1

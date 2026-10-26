@@ -12,10 +12,16 @@ require_command flock
 # Start labwc on container start and expose the socket under a stable name so
 # WAYLAND_DISPLAY does not depend on which number labwc picked. labwc runs as
 # the unprivileged user like the tests do.
-require_env XDG_RUNTIME_DIR WAYLAND_DISPLAY XDG_SESSION_TYPE \
-    XDG_CURRENT_DESKTOP ENIGO_BROWSER_DISPLAY
+require_env XDG_RUNTIME_DIR WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE \
+    XDG_CURRENT_DESKTOP
 install -d -m 700 "$XDG_RUNTIME_DIR"
-start_browser_display
+
+# The browser integration test's x11rb run uses this display, which Xwayland
+# creates when the compositor starts. Clear a stale lock and socket so Xwayland
+# gets the number the session environment names. Xwayland starts lazily, so the
+# socket exists before the first X11 client connects.
+ensure_x11_unix_dir
+reset_x_display "$DISPLAY"
 
 start_wlroots_session labwc labwc
 
