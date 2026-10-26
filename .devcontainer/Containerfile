@@ -1,0 +1,81 @@
+ARG RUST_IMAGE=rust:1-slim-trixie
+
+# The package lists under packages/ are the single source of truth for the
+# packages each backend needs.
+
+# Shared toolchain and build dependencies for every backend.
+FROM ${RUST_IMAGE} AS base
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive \
+    CARGO_TERM_COLOR=always
+
+# The slim Rust image already provides gcc, libc6-dev, and ca-certificates.
+# util-linux provides flock; pkgconf is the Debian pkg-config implementation.
+#
+# The X11 development headers are not used by every backend, but Cargo builds
+# dev-dependencies for `cargo test` regardless of features. `rdev` and
+# `mouse_position` pull in the `x11` crate, which needs libx11, libxi and
+# libxtst via pkg-config in every image that runs the test suite. Firefox and
+# Xvfb are shared by the browser integration test in every session; x11-utils
+# provides xdpyinfo for the session checks.
+COPY packages/base.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# The workspace is bind-mounted with the host UID. Devcontainer clients do not
+# always remap the container user, so tell git the mount is safe.
+RUN git config --system --add safe.directory /workspaces/enigo
+
+# Tests and the compositors run as a normal user, the way most callers use the
+# crate. The devcontainer spec remaps this account to the local UID.
+RUN useradd --create-home --user-group --uid 1000 --shell /bin/bash enigo \
+    && printf '%s\n' 'enigo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/enigo \
+    && chmod 0440 /etc/sudoers.d/enigo
+
+# The slim image installs Rust with `--profile minimal`. Add the components
+# used by CI (rustfmt/clippy) and by Zed's rust-analyzer.
+RUN rustup component add rustfmt clippy rust-analyzer rust-src
+
+# Nightly is needed for `wrap_comments` in rustfmt.toml and to reproduce the
+# nightly CI jobs.
+RUN rustup toolchain install nightly \
+    --profile minimal \
+    --component rustfmt \
+    --component clippy \
+    --component rust-analyzer
+
+# Keep the toolchain in the user's home. The devcontainer spec only remaps and
+# chowns the home directory, so /usr/local ownership would go stale.
+RUN mv /usr/local/rustup /home/enigo/.rustup \
+    && mv /usr/local/cargo /home/enigo/.cargo \
+    && chown -R enigo:enigo /home/enigo
+
+ENV HOME=/home/enigo \
+    RUSTUP_HOME=/home/enigo/.rustup \
+    CARGO_HOME=/home/enigo/.cargo \
+    PATH=/home/enigo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Docker's ENV reaches non-login processes directly. Login shells can start
+# with a minimal PATH, so add the cargo bin directory only when it is missing.
+RUN printf '%s\n' \
+    "export RUSTUP_HOME=$RUSTUP_HOME" \
+    "export CARGO_HOME=$CARGO_HOME" \
+    'case ":$PATH:" in' \
+    '    *":$CARGO_HOME/bin:"*) ;;' \
+    '    *) export PATH="$CARGO_HOME/bin:$PATH" ;;' \
+    'esac' \
+    > /etc/profile.d/rust.sh \
+    && chmod +x /etc/profile.d/rust.sh
+
+# Xvfb X11 session (default), including the Firefox browser integration test.
+FROM base AS xvfb
+
+COPY packages/xvfb.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
