@@ -2,9 +2,11 @@ use crate::{
     Direction::{Click, Press, Release},
     Key, Keyboard,
 };
+use serial_test::serial;
 use std::thread;
 
 #[test]
+#[serial(input)]
 // Try entering various texts that were selected to test edge cases.
 // Because it is hard to test if they succeed,
 // we assume it worked as long as there was no panic
@@ -50,6 +52,7 @@ fn unit_text() {
 
 #[ignore] // TODO: Currently ignored because not all chars are valid CStrings
 #[test]
+#[serial(input)]
 // Try entering all chars with the text function.
 // Because it is hard to test if they succeed,
 // we assume it worked as long as there was no panic
@@ -69,6 +72,7 @@ fn unit_text_all_utf16() {
 }
 
 #[test]
+#[serial(input)]
 // Test all the keys, make sure none of them panic
 fn unit_key() {
     use strum::IntoEnumIterator;
@@ -97,6 +101,7 @@ fn unit_key() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Try entering all chars with Key::Layout and make sure none of them panic
 fn unit_key_unicode_all_utf16() {
     thread::sleep(super::get_delay());
@@ -124,6 +129,7 @@ fn unit_key_unicode_all_utf16() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Try entering all possible raw keycodes with Key::Raw and make sure none of
 // them panic
 // On Windows it is expected that all keycodes > u16::MAX return an Err, because

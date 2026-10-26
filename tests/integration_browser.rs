@@ -4,10 +4,13 @@ use enigo::{
     Key, Keyboard, Mouse as _, Settings,
 };
 
+use serial_test::serial;
+
 mod common;
 use common::enigo_test::EnigoTest as Enigo;
 
 #[test]
+#[serial(input)]
 fn integration_browser_events() {
     let mut enigo = Enigo::new(&Settings::default());
 

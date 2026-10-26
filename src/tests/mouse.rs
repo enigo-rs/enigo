@@ -5,6 +5,7 @@ use crate::{
     {Axis::Horizontal, Axis::Vertical},
     {Coordinate::Abs, Coordinate::Rel},
 };
+use serial_test::serial;
 use std::thread;
 
 use super::is_ci;
@@ -47,6 +48,7 @@ fn test_mouse_move(
 }
 
 #[test]
+#[serial(input)]
 #[cfg_attr(
     any(feature = "wayland", feature = "libei", feature = "xdg_desktop"),
     ignore = "location() is not implemented for this backend"
@@ -70,6 +72,7 @@ fn unit_move_mouse_to() {
 }
 
 #[test]
+#[serial(input)]
 #[cfg_attr(
     any(feature = "wayland", feature = "libei", feature = "xdg_desktop"),
     ignore = "location() is not implemented for this backend"
@@ -95,6 +98,7 @@ fn unit_move_mouse_rel() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Test the move_mouse function and check it with the mouse_location function
 fn unit_move_mouse_to_boundaries() {
     let mut enigo = super::new_enigo();
@@ -132,6 +136,7 @@ fn unit_move_mouse_to_boundaries() {
 
 #[ignore]
 #[test]
+#[serial(input)]
 // Test the move_mouse function and check it with the mouse_location
 // function
 fn unit_move_mouse_rel_boundaries() {
@@ -171,6 +176,7 @@ fn unit_move_mouse_rel_boundaries() {
 }
 
 #[test]
+#[serial(input)]
 #[cfg_attr(
     any(feature = "libei", feature = "xdg_desktop"),
     ignore = "main_display() is not implemented by libei and xdg_desktop passes the screenshot URI to image::open"
@@ -192,6 +198,7 @@ fn unit_display_size() {
 }
 
 #[test]
+#[serial(input)]
 // Test all the mouse buttons, make sure none of them panic
 fn unit_button_click() {
     use strum::IntoEnumIterator;
@@ -218,6 +225,7 @@ fn unit_button_click() {
 }
 
 #[test]
+#[serial(input)]
 // Click each mouse button ten times, make sure none of them panic
 fn unit_10th_click() {
     use strum::IntoEnumIterator;
@@ -236,6 +244,7 @@ fn unit_10th_click() {
 }
 
 #[test]
+#[serial(input)]
 fn unit_scroll() {
     let delay = super::get_delay();
     let mut enigo = super::new_enigo();
@@ -268,6 +277,7 @@ fn unit_scroll() {
 }
 
 #[test]
+#[serial(input)]
 #[cfg_attr(
     feature = "xdg_desktop",
     ignore = "absolute pointer motion is not implemented by the xdg_desktop backend"
