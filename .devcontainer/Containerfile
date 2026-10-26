@@ -109,6 +109,21 @@ FROM gnome-wayland AS gnome-x11
 
 USER enigo
 
+# KDE Plasma Wayland session: KWin with the virtual backend, Xwayland and
+# plasmashell. plasma-wayland/start.sh launches it.
+FROM base AS plasma-wayland
+
+COPY packages/plasma.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# Default container capability sets do not include CAP_SYS_NICE, so exec of
+# KWin's binary fails with EPERM while the file capability is set.
+RUN if getcap /usr/bin/kwin_wayland | grep -q .; then setcap -r /usr/bin/kwin_wayland; fi
+
+USER enigo
+
 # Wayland backend: a headless sway compositor with the virtual-input protocols.
 # start-sway.sh launches sway with sway.conf from this directory.
 FROM base AS sway
