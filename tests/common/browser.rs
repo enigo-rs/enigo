@@ -1,11 +1,17 @@
-// Launch Firefox in kiosk mode (full screen and can't be closed with F11)
-//
-// n.b. static items do not call [`Drop`] on program termination, so this won't
-// be deallocated. this is fine, as the OS can deallocate the terminated program
-// faster than we can free memory but tools like valgrind might report "memory
-// leaks" as it isn't obvious this is intentional.
-pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
-    std::sync::LazyLock::new(|| {
+use std::process::{Child, Command};
+
+/// A Firefox process that is stopped when the value is dropped.
+///
+/// Dropping the value also runs while a test unwinds from a panic, so a failed
+/// test does not leave a browser behind for the next run.
+pub struct Browser(Child);
+
+impl Browser {
+    /// Launch Firefox in kiosk mode (full screen and can't be closed with F11).
+    ///
+    /// Firefox inherits `GDK_BACKEND` from the runner, which selects Wayland or
+    /// X11.
+    pub fn launch() -> Self {
         // Project root
         let cwd = std::env::current_dir().unwrap();
 
@@ -15,28 +21,40 @@ pub static BROWSER_INSTANCE: std::sync::LazyLock<Option<std::process::Child>> =
         let profile = cwd.join("tests/firefox-profile");
         let profile = profile.to_str().unwrap();
 
-        let child = if cfg!(target_os = "windows") {
-            // On Windows, use cmd.exe to run the "start" command
-            std::process::Command::new("cmd")
-                .args([
-                    "/C", "start", "firefox", "--kiosk", &url, "-profile", profile,
-                ])
-                .spawn()
-                .expect("Failed to start Firefox")
+        let mut command = if cfg!(target_os = "windows") {
+            let mut command = Command::new("cmd");
+            command.args([
+                "/C", "start", "firefox", "--kiosk", &url, "-profile", profile,
+            ]);
+            command
         } else if cfg!(target_os = "macos") {
-            // On macOS, use the "open" command to run Firefox
-            std::process::Command::new("open")
-                .args([
-                    "-a", "Firefox", "--args", "--kiosk", &url, "-profile", profile,
-                ])
-                .spawn()
-                .expect("Failed to start Firefox")
+            let mut command = Command::new("open");
+            command.args([
+                "-a", "Firefox", "--args", "--kiosk", &url, "-profile", profile,
+            ]);
+            command
         } else {
-            // On Linux, use the "firefox" command
-            std::process::Command::new("firefox")
-                .args(["--kiosk", &url, "-profile", profile])
-                .spawn()
-                .expect("Failed to start Firefox")
+            let mut command = Command::new("firefox");
+            // Never hand the URL to an already running instance: the next
+            // browser run may need the other protocol.
+            command.args(["--no-remote", "--kiosk", &url, "-profile", profile]);
+            command
         };
-        Some(child)
-    });
+
+        Self(command.spawn().expect("Failed to start Firefox"))
+    }
+}
+
+impl Drop for Browser {
+    fn drop(&mut self) {
+        // SIGKILL does not let Firefox remove its profile lock, and the next
+        // run uses the same profile.
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+        if let Ok(cwd) = std::env::current_dir() {
+            for lock in ["lock", ".parentlock"] {
+                let _ = std::fs::remove_file(cwd.join("tests/firefox-profile").join(lock));
+            }
+        }
+    }
+}

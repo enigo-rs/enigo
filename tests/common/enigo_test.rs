@@ -8,14 +8,16 @@ use super::browser_events::{BrowserEvent, Event};
 
 pub struct EnigoTest {
     enigo: Enigo,
+    // Stops Firefox on drop, after `Drop` has checked the websocket.
+    _browser: super::browser::Browser,
     websocket: tungstenite::WebSocket<TcpStream>,
 }
 
 impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
-        let enigo = Enigo::new(settings).expect("failed to create new enigo struct");
-        let _ = &*super::browser::BROWSER_INSTANCE; // Launch Firefox
+        let enigo = super::token::new_enigo(settings);
+        let browser = super::browser::Browser::launch(); // Launch Firefox
         let websocket = Self::websocket();
 
         websocket
@@ -24,7 +26,11 @@ impl EnigoTest {
             .expect("Unable to set a read timeout");
 
         std::thread::sleep(std::time::Duration::from_secs(10)); // Give Firefox some time to launch
-        Self { enigo, websocket }
+        Self {
+            enigo,
+            _browser: browser,
+            websocket,
+        }
     }
 
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
@@ -76,6 +82,9 @@ impl EnigoTest {
 /// Make sure the message queue is empty and all messages were processed
 impl Drop for EnigoTest {
     fn drop(&mut self) {
+        // The browser is dropped after this, which closes the websocket. Read
+        // before that so a closed websocket is not reported as a leftover
+        // message.
         if self.websocket.read().is_ok() {
             panic!("there were messages left. This should never happen")
         }
@@ -302,11 +311,16 @@ impl Mouse for EnigoTest {
             .enigo
             .main_display()
             .expect("failed to get dimensions of the main display");
-        let rdev_res = rdev_main_display();
-        assert_eq!(
-            enigo_res, rdev_res,
-            "enigo_res: {enigo_res:?}; rdev_res: {rdev_res:?}"
-        );
+        // rdev reads the X11 screen, which is not the surface the Wayland
+        // backends control.
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        {
+            let rdev_res = rdev_main_display();
+            assert_eq!(
+                enigo_res, rdev_res,
+                "enigo_res: {enigo_res:?}; rdev_res: {rdev_res:?}"
+            );
+        }
         Ok(enigo_res)
     }
 
@@ -315,21 +329,28 @@ impl Mouse for EnigoTest {
             .enigo
             .location()
             .expect("failed to get location of the mouse");
-        let mouse_position_res = mouse_position();
-        assert_eq!(
-            enigo_res, mouse_position_res,
-            "enigo_res: {enigo_res:?}; rdev_res: {mouse_position_res:?}"
-        );
+        // mouse_position reads the X11 pointer, which the Wayland backends do
+        // not control (and location() is not implemented for them).
+        #[cfg(any(feature = "x11rb", feature = "xdo"))]
+        {
+            let mouse_position_res = mouse_position();
+            assert_eq!(
+                enigo_res, mouse_position_res,
+                "enigo_res: {enigo_res:?}; mouse_position_res: {mouse_position_res:?}"
+            );
+        }
         Ok(enigo_res)
     }
 }
 
+#[cfg(any(feature = "x11rb", feature = "xdo"))]
 fn rdev_main_display() -> (i32, i32) {
     rdev::display_size()
         .map(|(x, y)| (x as i32, y as i32))
         .expect("failed to get the location of the mouse using rdev")
 }
 
+#[cfg(any(feature = "x11rb", feature = "xdo"))]
 fn mouse_position() -> (i32, i32) {
     use mouse_position::mouse_position::Mouse;
 

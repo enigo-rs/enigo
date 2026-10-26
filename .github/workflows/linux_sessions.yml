@@ -30,10 +30,11 @@ env:
 
 jobs:
   session:
-    # One entry per session and backend. `browser: true` runs the browser
-    # integration test, `*_fails` marks a test that is a known failure, and
-    # `experimental` lets the whole entry fail. The known failures are described
-    # in KNOWN_ISSUES.md.
+    # One entry per session and backend. `browser` selects which browser
+    # integration tests to run: `wayland` (Firefox on Wayland), `x11` (Firefox on
+    # X11, including a Wayland session's Xwayland), or `all` (both). `*_fails`
+    # marks a test that is a known failure, and `experimental` lets the whole
+    # entry fail. The known failures are described in KNOWN_ISSUES.md.
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -46,31 +47,33 @@ jobs:
             config: .devcontainer/devcontainer.json
             features: x11rb
             features2: xdo
-            browser: true
+            browser: x11
 
           - name: GNOME on Xorg
             config: .devcontainer/gnome-x11/devcontainer.json
             features: x11rb
-            browser: true
+            browser: x11
 
           - name: Plasma on X11
             config: .devcontainer/plasma-x11/devcontainer.json
             features: x11rb
             # KWin can push the pointer out of the top-left hot corner.
             lib_fails: true
-            browser: true
+            browser: x11
 
           - name: sway
             config: .devcontainer/sway/devcontainer.json
             features: wayland
             # A headless sway session assigns no keymap to virtual keyboards.
             lib_fails: true
-            browser: true
+            browser: all
+            # Modifiers arrive only as wl_keyboard.modifiers, not as key events.
+            browser_fails: true
 
           - name: labwc
             config: .devcontainer/labwc/devcontainer.json
             features: wayland
-            browser: true
+            browser: all
 
           - name: GNOME Wayland (libei, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
@@ -83,6 +86,8 @@ jobs:
             features: libei,smol,platform_specific
             # Mutter's EIS seat has no ei_text.
             experimental: true
+            browser: wayland
+            browser_fails: true
 
           - name: GNOME Wayland (xdg_desktop, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
@@ -94,11 +99,13 @@ jobs:
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: xdg_desktop,smol,platform_specific
             # The headless portal accepts input requests without delivering them.
+            browser: wayland
+            browser_fails: true
 
           - name: GNOME Wayland (x11rb)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: x11rb,platform_specific
-            browser: true
+            browser: x11
 
           - name: Plasma Wayland (libei, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
@@ -111,6 +118,8 @@ jobs:
             features: libei,smol,platform_specific
             # KWin's headless backend has no screencast, so the portal is absent.
             experimental: true
+            browser: wayland
+            browser_fails: true
 
           - name: Plasma Wayland (xdg_desktop, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
@@ -125,7 +134,7 @@ jobs:
           - name: Plasma Wayland (x11rb)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: x11rb,platform_specific
-            browser: true
+            browser: x11
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -158,9 +167,21 @@ jobs:
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
             cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
 
-      - name: Test the browser integration
-        if: matrix.browser
+      # The browser test runs last because it is the slowest and most brittle
+      # step.
+      - name: Test the browser integration through Wayland (expected to fail)
+        if: matrix.browser == 'wayland' || matrix.browser == 'all'
+        continue-on-error: ${{ matrix.browser_fails || false }}
         timeout-minutes: 5
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --no-default-features --features "${{ matrix.features }},serde" \
+              --test integration_browser_events
+
+      - name: Test the browser integration through X11
+        if: matrix.browser == 'x11' || matrix.browser == 'all'
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            env GDK_BACKEND=x11 \
             cargo test --features serde --test integration_browser_events
