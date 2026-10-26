@@ -24,15 +24,15 @@ fn integration_browser_events() {
     enigo.key(Key::UpArrow, Click).unwrap();
     enigo.key(Key::DownArrow, Click).unwrap();
 
-    // Skip on macOS because Firefox emits another "pressed" event when CapsLock is
-    // released
+    // Skip on macOS because Firefox emits another "pressed" event when CapsLock
+    // is released
     #[cfg(not(target_os = "macos"))]
     {
         enigo.key(Key::CapsLock, Click).unwrap();
         enigo.key(Key::CapsLock, Click).unwrap();
     }
-    // Skip on macOS because Firefox does not emit an event for them or there is a
-    // bug
+    // Skip on macOS because Firefox does not emit an event for them or there is
+    // a bug
     #[cfg(not(target_os = "macos"))]
     {
         enigo.key(Key::Numlock, Click).unwrap();
@@ -52,8 +52,8 @@ fn integration_browser_events() {
     enigo.key(Key::Backspace, Press).unwrap();
     enigo.key(Key::Backspace, Release).unwrap();
 
-    // Skip when using xdo feature because xdotools doesn't properly simulate right
-    // modifiers
+    // Skip when using xdo feature because xdotools doesn't properly simulate
+    // right modifiers
     // https://github.com/jordansissel/xdotool/issues/487
     #[cfg(not(feature = "xdo"))]
     {

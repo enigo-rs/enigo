@@ -124,8 +124,8 @@ impl Keyboard for EnigoTest {
             .key(key, direction)
             .expect("failed to simulate key()");
 
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let browser_event = self.read_message();
             let BrowserEvent {
@@ -190,8 +190,8 @@ impl Keyboard for EnigoTest {
         self.enigo
             .raw(keycode, direction)
             .expect("failed to simulate raw()");
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let event = self.read_message().event;
             let Event::Key {
@@ -225,8 +225,8 @@ impl Mouse for EnigoTest {
         self.enigo
             .button(button, direction)
             .expect("failed to simulate button()");
-        // The browser will send a press and release event for Direction::Click, so in
-        // that case we need to make sure we received two correct events
+        // The browser will send a press and release event for Direction::Click,
+        // so in that case we need to make sure we received two correct events
         for expected_direction in expected_directions {
             let event = self.read_message().event;
             let Event::Button {
@@ -248,8 +248,8 @@ impl Mouse for EnigoTest {
         Ok(())
     }
 
-    // Edge cases don't work (mouse is at the left most border and can't move one to
-    // the left)
+    // Edge cases don't work (mouse is at the left most border and can't move
+    // one to the left)
     fn move_mouse(&mut self, x: i32, y: i32, coordinate: Coordinate) -> enigo::InputResult<()> {
         self.enigo
             .move_mouse(x, y, coordinate)
@@ -422,7 +422,8 @@ mod tests {
 
     #[test]
     fn test_combined_emoji_rejected() {
-        // "❤️" = U+2764 + U+FE0F → should be rejected under strict single-char rules
+        // "❤️" = U+2764 + U+FE0F → should be rejected under strict single-char
+        // rules
         assert_eq!(decode_utf8_escaped("\\u2764\\uFE0F"), Err(()));
     }
 
