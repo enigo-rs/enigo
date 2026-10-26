@@ -120,7 +120,8 @@ impl Con {
         let mut unused_keycodes: VecDeque<Keycode> =
             VecDeque::with_capacity((keycode_max - keycode_min) as usize);
 
-        // Split the mapping into the chunks of keysyms that are mapped to each keycode
+        // Split the mapping into the chunks of keysyms that are mapped to each
+        // keycode
         trace!("initial keymap:");
         let keysyms = keysyms.chunks(keysyms_per_keycode as usize);
         for (syms, kc) in keysyms.zip(keycode_min..=keycode_max) {
@@ -132,9 +133,9 @@ impl Con {
 
             // Never use keycode 8
             // Keycode 8 is special: when converted to evdev keycodes,
-            // 8 is subtracted, resulting in 0. This typically leads to no effect
-            // when simulating input because keycode 0 corresponds to NoSymbol,
-            // meaning it has no assigned key mapping.
+            // 8 is subtracted, resulting in 0. This typically leads to no
+            // effect when simulating input because keycode 0 corresponds to
+            // NoSymbol, meaning it has no assigned key mapping.
             if syms.iter().all(|&s| s == Keysym::NoSymbol.raw()) && kc != 8 {
                 unused_keycodes.push_back(kc);
             }
@@ -175,8 +176,8 @@ impl Con {
         Ok(modifiers_array)
     }
 
-    // Get the device id of the first device that is found which has the same usage
-    // as the input parameter
+    // Get the device id of the first device that is found which has the same
+    // usage as the input parameter
     fn device_id(&self, usage: DeviceUse) -> InputResult<u8> {
         x11rb::protocol::xinput::list_input_devices(&self.connection)
             .map_err(|e| {
@@ -204,8 +205,8 @@ impl Con {
 
 impl Drop for Con {
     fn drop(&mut self) {
-        // Map all previously mapped keycodes to the NoSymbol keysym to revert all
-        // changes
+        // Map all previously mapped keycodes to the NoSymbol keysym to revert
+        // all changes
         debug!("x11rb connection was dropped");
         for &keycode in self.keymap.keymap_mapping.additionally_mapped.values() {
             match self.connection.bind_key(keycode, Keysym::NoSymbol) {
@@ -218,11 +219,11 @@ impl Drop for Con {
 
 impl Bind<Keycode> for CompositorConnection {
     fn bind_key(&self, keycode: Keycode, keysym: Keysym) -> Result<(), ()> {
-        // A list of two keycodes has to be mapped, otherwise the map is not what would
-        // be expected If we would try to map only one keysym, we would get a
-        // map that is tolower(keysym), toupper(keysym), tolower(keysym),
-        // toupper(keysym), tolower(keysym), toupper(keysym), 0, 0, 0, 0, ...
-        // https://stackoverflow.com/a/44334103
+        // A list of two keycodes has to be mapped, otherwise the map is not
+        // what would be expected If we would try to map only one keysym, we
+        // would get a map that is tolower(keysym), toupper(keysym),
+        // tolower(keysym), toupper(keysym), tolower(keysym), toupper(keysym),
+        // 0, 0, 0, 0, ... https://stackoverflow.com/a/44334103
         self.change_keyboard_mapping(1, keycode, 2, &[keysym.raw(), keysym.raw()])
             .map_err(|e| error!("error when changing the keyboard mapping with x11rb: {e:?}"))?;
         self.sync().map_err(|e| error!("error when syncing with X server using x11rb after the keyboard mapping was changed: {e:?}"))

@@ -46,11 +46,12 @@ impl ParsedKeymap {
     /// The function fails if no unused keycode can be found or if all
     /// identifiers from <0000> to <9999> are already used
     pub fn map_key(&mut self, key_name: &str, is_wayland: bool) -> crate::InputResult<u16> {
-        // Even if the mimimum is 8, never use 8. This is because 8 is special. 8-8=0
-        // and the value 0 stands for "NoSymbol". Some clients disregard the keymap and
-        // always interpret keycode 8 as NoSymbol.
+        // Even if the mimimum is 8, never use 8. This is because 8 is special.
+        // 8-8=0 and the value 0 stands for "NoSymbol". Some clients disregard
+        // the keymap and always interpret keycode 8 as NoSymbol.
         let minimum = self.keycodes.minimum.max(9);
-        // Maximum on X11 is 255, but on Wayland we can use keycodes up to u16::MAX
+        // Maximum on X11 is 255, but on Wayland we can use keycodes up to
+        // u16::MAX
         let maximum = if is_wayland { u16::MAX as u32 } else { 255 };
 
         // Find an unused keycode
@@ -129,7 +130,8 @@ impl ParsedKeymap {
         if let Some(max_keycode) = max_keycode {
             self.keycodes.maximum = self.keycodes.maximum.max(max_keycode.code);
         }
-        // We can ignore aliases here because they are only used by the original keymap
+        // We can ignore aliases here because they are only used by the original
+        // keymap
         let identifiers: Vec<_> = keycode_entrys
             .iter()
             .map(
@@ -147,7 +149,8 @@ impl ParsedKeymap {
             .filter(|(identifier, _)| identifiers.contains(&identifier))
             .collect();
 
-        // Add the found entries to the keymap, but only if they are not in it already
+        // Add the found entries to the keymap, but only if they are not in it
+        // already
         for keycode_entry in keycode_entrys {
             if !self.keycodes.keycode_mappings.contains(&keycode_entry) {
                 let symbols_entry = key_entrys

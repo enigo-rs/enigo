@@ -39,9 +39,9 @@ impl Con {
         trace!("open_connection");
 
         // Compositors reject RemoteDesktop outright under X11, and some of them
-        // (KWin) raise a modal error dialog for every attempt, which also steals
-        // focus from whatever the caller was about to type into. Bail out before
-        // asking so the x11 backend is reached silently.
+        // (KWin) raise a modal error dialog for every attempt, which also
+        // steals focus from whatever the caller was about to type into. Bail
+        // out before asking so the x11 backend is reached silently.
         if !is_wayland_session() {
             debug!("not a wayland session, skipping the remote desktop portal");
             return Err(NewConError::EstablishCon(
@@ -271,8 +271,9 @@ impl Mouse for Con {
                 })?;
                 */
 
-                // Stupid hack to circumvent the limitation of the portal. You cannot move the
-                // mouse to an absolute coordinate without starting a screen cast
+                // Stupid hack to circumvent the limitation of the portal. You
+                // cannot move the mouse to an absolute coordinate without
+                // starting a screen cast
                 self.move_mouse(i32::MIN, i32::MIN, Coordinate::Rel)?;
                 self.move_mouse(x, y, Coordinate::Rel)
             }

@@ -122,7 +122,8 @@ impl Con {
             }
             None => unsafe { xdo_new(ptr::null()) },
         };
-        // If it was not possible to establish a connection, a NULL pointer is returned
+        // If it was not possible to establish a connection, a NULL pointer is
+        // returned
         if xdo.is_null() {
             return Err(NewConError::EstablishCon(
                 "establishing a connection to the display name was unsuccessful",
@@ -156,8 +157,8 @@ impl Con {
                 "xdo internal display pointer is NULL; cannot sync display",
             ));
         }
-        // SAFETY: XSync is a C call; it doesn't return an error code. We just invoke
-        // it.
+        // SAFETY: XSync is a C call; it doesn't return an error code. We just
+        // invoke it.
         unsafe { XSync(display, 0) };
         Ok(())
     }
@@ -196,7 +197,8 @@ impl Keyboard for Con {
         let keysym_name = keysym_name.replace("XK_", ""); // TODO: remove if xkeysym changed their names (https://github.com/rust-windowing/xkeysym/issues/18)
 
         let Ok(string) = CString::new(keysym_name) else {
-            // this should never happen, because none of the names contain NULL bytes
+            // this should never happen, because none of the names contain NULL
+            // bytes
             return Err(InputError::InvalidInput(
                 "the name of the keysym contained a null byte",
             ));
@@ -230,9 +232,9 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, _keycode: u16, _direction: Direction) -> InputResult<()> {
-        // TODO: Lookup the key name for the keycode and then enter that with xdotool.
-        // This is a bit weird, because xdotool will then do the reverse. Maybe there is
-        // a better way?
+        // TODO: Lookup the key name for the keycode and then enter that with
+        // xdotool. This is a bit weird, because xdotool will then do the
+        // reverse. Maybe there is a better way?
         Err(InputError::InvalidInput(
             "entering raw keycodes is not supported with xdo backend",
         ))
@@ -253,7 +255,8 @@ impl Mouse for Con {
             }
             Direction::Click => {
                 debug!("xdo_mouse_down with mouse button {button}");
-                // Don't use `xdo_mouse_click` here to avoid the bug with the delay
+                // Don't use `xdo_mouse_click` here to avoid the bug with the
+                // delay
                 let res = unsafe { xdo_mouse_down(self.xdo, CURRENT_WINDOW, button) };
                 if res != XDO_SUCCESS {
                     error!("xdo mouse call returned error code {res}");

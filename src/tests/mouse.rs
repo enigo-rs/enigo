@@ -57,8 +57,8 @@ fn test_mouse_move(
 fn unit_move_mouse_to() {
     let mut enigo = super::new_enigo();
 
-    // Make a square of 100 pixels starting at the top left corner of the screen and
-    // moving down, right, up and left
+    // Make a square of 100 pixels starting at the top left corner of the screen
+    // and moving down, right, up and left
     let square = vec![
         ((0, 0), (0, 0)),
         ((0, 100), (0, 100)),
@@ -82,8 +82,8 @@ fn unit_move_mouse_to() {
 fn unit_move_mouse_rel() {
     let mut enigo = super::new_enigo();
 
-    // Make a square of 100 pixels starting at the top left corner of the screen and
-    // moving down, right, up and left
+    // Make a square of 100 pixels starting at the top left corner of the screen
+    // and moving down, right, up and left
     let square = vec![
         ((0, 0), (0, 0)),
         ((0, 100), (0, 100)),
@@ -250,8 +250,8 @@ fn unit_scroll() {
     let mut enigo = super::new_enigo();
 
     // On X11 there is no scroll function but instead we repeatedly simulate a
-    // keypress. This takes a long time for large values. That's why we skip them on
-    // X11
+    // keypress. This takes a long time for large values. That's why we skip
+    // them on X11
     let test_cases = if cfg!(any(feature = "xdo", feature = "x11rb")) {
         vec![0, 1, 5, 100, -0, -1, -5, -100]
     } else {
