@@ -6,7 +6,7 @@
 - linux: libei: Use `ei_scroll.scroll_discrete` with 120-unit notches for wheel scrolling instead of smooth `scroll`
 - linux: wayland: Use `axis_discrete` with a wheel axis source for `scroll()` instead of continuous `axis`
 - all: `Mouse::smooth_scroll` is no longer gated behind the `platform_specific` feature (supported on macOS, Windows, and Linux via xdg_desktop/Wayland/libei; X11 returns an error)
-- all: MSRV is 1.87
+- all: MSRV is 1.93.1
 - win: `main_display()` and `location()` temporarily use a per-monitor DPI awareness thread context so coordinates stay correct without changing the process DPI mode
 
 ## Added
