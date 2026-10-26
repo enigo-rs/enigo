@@ -108,3 +108,14 @@ USER enigo
 FROM gnome-wayland AS gnome-x11
 
 USER enigo
+
+# Wayland backend: a headless sway compositor with the virtual-input protocols.
+# start-sway.sh launches sway with sway.conf from this directory.
+FROM base AS sway
+
+COPY packages/sway.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+USER enigo
