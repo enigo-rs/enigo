@@ -1,13 +1,14 @@
+mod common;
 use enigo::{
-    Button, Enigo, Key, Settings,
     agent::{Agent, Token},
+    Button, Enigo, Key,
 };
 use std::{thread, time::Duration};
 
 fn main() {
     env_logger::try_init().ok();
     thread::sleep(Duration::from_secs(2));
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = Enigo::new(&common::settings()).unwrap();
 
     // write text, move the mouse (10/10) relative from the cursors position, scroll
     // down, enter the unicode U+1F525 (🔥) and then select all

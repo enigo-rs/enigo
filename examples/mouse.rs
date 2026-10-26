@@ -1,7 +1,8 @@
+mod common;
 use enigo::{
     Button,
     Direction::{Click, Press, Release},
-    Enigo, Mouse, Settings,
+    Enigo, Mouse,
     {Axis::Horizontal, Axis::Vertical},
     {Coordinate::Abs, Coordinate::Rel},
 };
@@ -12,7 +13,7 @@ fn main() {
     env_logger::try_init().ok();
 
     let wait_time = Duration::from_secs(2);
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let mut enigo = Enigo::new(&common::settings()).unwrap();
 
     thread::sleep(Duration::from_secs(4));
     println!("screen dimensions: {:?}", enigo.main_display().unwrap());
