@@ -74,6 +74,8 @@ jobs:
             config: .devcontainer/labwc/devcontainer.json
             features: wayland
             browser: all
+            # Modifiers arrive only as wl_keyboard.modifiers, not as key events.
+            browser_fails: true
 
           - name: GNOME Wayland (libei, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
