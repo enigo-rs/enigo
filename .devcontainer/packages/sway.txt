@@ -1,0 +1,3 @@
+sway
+wlr-randr
+xwayland
