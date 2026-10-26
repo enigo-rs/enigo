@@ -95,12 +95,18 @@ Format with `cargo +nightly fmt`; the devcontainers install nightly. Plain
 cargo test
 ```
 
-The browser integration test needs the `serde` feature, Firefox and an X11
-display. Every devcontainer installs Firefox and provides a dedicated Xvfb
-display, so the test also runs in the Wayland containers:
+The browser integration test needs the `serde` feature, Firefox and a display.
+It launches Firefox with the session's `GDK_BACKEND`, so it can run twice in a
+Wayland session:
 
 ```Bash
-cargo test --features serde --test integration_browser_events
+# Wayland: Firefox on Wayland and the backend talks to the compositor directly
+cargo test --no-default-features --features wayland,serde --test integration_browser_events
+cargo test --no-default-features --features xdg_desktop,smol,platform_specific,serde --test integration_browser_events
+
+# X11: Firefox on X11 and x11rb against the X server. In a Wayland session
+# DISPLAY is the compositor's Xwayland; GDK_BACKEND selects it.
+GDK_BACKEND=x11 cargo test --features serde --test integration_browser_events
 ```
 
 The devcontainers compile one backend per session because backend selection is
@@ -108,15 +114,15 @@ still compile-time; see `KNOWN_ISSUES.md` for the runtime-selection goal.
 
 | Session | Run |
 | --- | --- |
-| Xvfb (X11, default) | `cargo test` (x11rb) or `cargo test --no-default-features --features xdo` (xdo) |
-| sway | `cargo test --no-default-features --features wayland --lib` |
-| labwc | `cargo test --no-default-features --features wayland --lib` |
-| GNOME Wayland (libei) | `cargo test --no-default-features --features libei,tokio,platform_specific --lib` |
-| GNOME Wayland (xdg_desktop) | `cargo test --no-default-features --features xdg_desktop,tokio,platform_specific --lib` |
-| GNOME Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` |
-| GNOME X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` |
-| Plasma Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` |
-| Plasma X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` |
+| Xvfb (X11, default) | `cargo test` (x11rb) or `cargo test --no-default-features --features xdo` (xdo), plus the X11 browser test |
+| sway | `cargo test --no-default-features --features wayland --lib`, Wayland and XWayland browser tests |
+| labwc | `cargo test --no-default-features --features wayland --lib`, Wayland and XWayland browser tests |
+| GNOME Wayland (libei) | `cargo test --no-default-features --features libei,tokio,platform_specific --lib`, Wayland browser test |
+| GNOME Wayland (xdg_desktop) | `cargo test --no-default-features --features xdg_desktop,tokio,platform_specific --lib`, Wayland browser test |
+| GNOME Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` and the XWayland browser test |
+| GNOME X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` and the X11 browser test |
+| Plasma Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` and the XWayland browser test |
+| Plasma X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` and the X11 browser test |
 
 The containers run the tests as an unprivileged `enigo` user. The GNOME
 Wayland container seeds a portal restore token so the first connection does not

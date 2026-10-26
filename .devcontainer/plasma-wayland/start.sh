@@ -22,6 +22,8 @@ require_env XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME \
 
 start_session_services
 
+configure_kwin_focus
+
 if ! name_has_owner org.kde.KWin; then
     reset_wayland_session
 fi

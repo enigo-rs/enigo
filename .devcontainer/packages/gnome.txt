@@ -6,4 +6,5 @@ pipewire
 procps
 xdg-desktop-portal
 xdg-desktop-portal-gnome
+xdotool
 xwayland

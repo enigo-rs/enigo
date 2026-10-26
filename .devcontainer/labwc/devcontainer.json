@@ -6,6 +6,8 @@
     "target": "labwc"
   },
   "containerEnv": {
+    "DISPLAY": ":0",
+    "GDK_BACKEND": "wayland",
     "WAYLAND_DISPLAY": "wayland-enigo",
     "XDG_CURRENT_DESKTOP": "labwc",
     "XDG_RUNTIME_DIR": "/tmp/enigo-labwc",

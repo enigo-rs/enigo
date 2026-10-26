@@ -273,3 +273,67 @@ start_xvfb() {
         return 1
     fi
 }
+
+disable_gnome_shell_shortcuts() {
+    # The input tests press every key. Super opens the overview and Print opens
+    # the screenshot UI; both grab the keyboard and would swallow the events of
+    # the browser test. The pointer also starts in the top-left hot corner,
+    # which the mouse tests visit. Disable these shortcuts instead of
+    # dismissing their modals with simulated keys.
+    gsettings set org.gnome.desktop.interface enable-hot-corners false
+    gsettings set org.gnome.mutter overlay-key ''
+    gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
+    gsettings set org.gnome.shell.keybindings screenshot "[]"
+    gsettings set org.gnome.shell.keybindings screenshot-window "[]"
+}
+
+hide_gnome_overview() {
+    # GNOME Shell starts in the overview and can show it late in startup. There
+    # is no gsettings key to suppress it, and Escape is one of the keys under
+    # test, so hide it over D-Bus instead of simulating a key. Wait for the
+    # overview to appear first, otherwise the shell reopens it after this
+    # function has hidden it.
+    _wait=0
+    while [ "$_wait" -lt 50 ]; do
+        overview=$(timeout 2 gdbus call --session \
+            --dest org.gnome.Shell \
+            --object-path /org/gnome/Shell \
+            --method org.freedesktop.DBus.Properties.Get \
+            org.gnome.Shell OverviewActive 2>/dev/null || true)
+        case "$overview" in
+            *true*) break ;;
+        esac
+        sleep 0.1
+        _wait=$((_wait + 1))
+    done
+
+    _wait=0
+    while :; do
+        if timeout 2 gdbus call --session \
+            --dest org.gnome.Shell \
+            --object-path /org/gnome/Shell \
+            --method org.freedesktop.DBus.Properties.Set \
+            org.gnome.Shell OverviewActive "<false>" >/dev/null 2>&1 &&
+            timeout 2 gdbus call --session \
+                --dest org.gnome.Shell \
+                --object-path /org/gnome/Shell \
+                --method org.freedesktop.DBus.Properties.Get \
+                org.gnome.Shell OverviewActive 2>/dev/null | grep -q false; then
+            break
+        fi
+        _wait=$((_wait + 1))
+        if [ "$_wait" -ge 50 ]; then
+            echo "could not hide the GNOME Shell overview" >&2
+            return 1
+        fi
+        sleep 0.1
+    done
+}
+
+configure_kwin_focus() {
+    # KWin's focus stealing prevention keeps the kiosk Firefox window from
+    # getting the input focus, so turn it off for the session. The session's
+    # config directory is private to the container.
+    mkdir -p "$XDG_CONFIG_HOME"
+    printf '[Windows]\nFocusStealingPreventionLevel=0\n' >"$XDG_CONFIG_HOME/kwinrc"
+}
