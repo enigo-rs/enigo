@@ -1,5 +1,10 @@
 use std::time::Duration;
 
+use crate::{Enigo, Settings};
+
+#[path = "../../tests/common/token.rs"]
+mod token;
+
 /// Module containing all the tests related to the `Keyboard` trait
 /// that are platform independent
 mod keyboard;
@@ -7,9 +12,14 @@ mod keyboard;
 /// that are platform independent
 mod mouse;
 
+/// Create an `Enigo` for a test and persist the rotated portal token.
+pub(crate) fn new_enigo() -> Enigo {
+    token::new_enigo(&token::settings())
+}
+
 // Check if the code is running in the CI
 fn is_ci() -> bool {
-    matches!(std::env::var("CI").as_deref(), Ok("true"))
+    matches!(std::env::var("CI").as_deref(), Ok("true" | "1"))
 }
 
 // Add a longer delay if it is not ran in the CI so the user can observe the
