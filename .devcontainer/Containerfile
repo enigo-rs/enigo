@@ -79,3 +79,24 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
 
 USER enigo
+
+# GNOME headless portal session: real GNOME Shell (Mutter) compositor plus the
+# GNOME portal backends. Shell is needed for the Screenshot portal and for
+# ScreenCast streams; the RemoteDesktop portal alone would only cover input. A
+# normal GNOME Wayland session also provides Xwayland, so it is enabled here.
+# The tests start D-Bus and seed a restore token; see
+# .devcontainer/gnome-wayland/start.sh.
+FROM base AS gnome-wayland
+
+COPY packages/gnome.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+# Mutter creates /tmp/.X11-unix with mkdir(01777); the default umask would turn
+# that into 1755 and Mutter then refuses to start Xwayland. Outside containers
+# systemd-tmpfiles provides the directory, so pre-seed it here. start.sh also
+# ensures it when /tmp is a fresh tmpfs.
+RUN install -d -m 1777 /tmp/.X11-unix
+
+USER enigo
