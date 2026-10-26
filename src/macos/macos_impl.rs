@@ -79,17 +79,21 @@ pub struct Enigo {
     release_keys_when_dropped: bool,
     event_flags: CGEventFlags,
     double_click_delay: Duration,
-    // Instant when the last event was sent and the duration that needs to be waited for after that
-    // instant to make sure all events were handled by the OS
+    // Instant when the last event was sent and the duration that needs to be
+    // waited for after that instant to make sure all events were handled by the
+    // OS
     last_event: (Instant, Duration),
-    // List of the instant at which the mouse buttons were last pressed or released
-    // These are the mouse button indexed by the CGMouseButton enum
+    // List of the instant at which the mouse buttons were last pressed or
+    // released These are the mouse button indexed by the CGMouseButton enum
     // The bool indicates if the button is currently pressed
-    // We use it to check if a button is currently pressed when moving the mouse to simulate a drag
+    // We use it to check if a button is currently pressed when moving the mouse
+    // to simulate a drag
     pressed_mouse_buttons: [(bool, Instant); 32],
-    // The last location the mouse was programmatically moved to and then instant when it happened
+    // The last location the mouse was programmatically moved to and then
+    // instant when it happened
     last_mouse_move: (CGPoint, Instant),
-    // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is stabilized
+    // TODO: Use mem::variant_count::<Button>() here instead of 9 once it is
+    // stabilized
     last_mouse_click: [(i64, Instant); 9], /* For each of the nine Button variants, we
                                             * store the last time the button was clicked and
                                             * the nth click that was
@@ -166,8 +170,8 @@ impl Mouse for Enigo {
             );
 
             CGEvent::set_flags(Some(&event), self.event_flags);
-            // No need to do self.update_event_location(&event) because it gets created with
-            // the correct coordinates
+            // No need to do self.update_event_location(&event) because it gets
+            // created with the correct coordinates
             CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
             self.update_wait_time();
         }
@@ -208,8 +212,8 @@ impl Mouse for Enigo {
                 self.event_source_user_data,
             );
             CGEvent::set_flags(Some(&event), self.event_flags);
-            // No need to do self.update_event_location(&event) because it gets created with
-            // the correct coordinates
+            // No need to do self.update_event_location(&event) because it gets
+            // created with the correct coordinates
             CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
             self.update_wait_time();
         }
@@ -224,7 +228,8 @@ impl Mouse for Enigo {
 
         let (absolute, relative) = match coordinate {
             // TODO: Check the bounds
-            // Delta is destination − origin so MouseEventDeltaX/Y match real moves
+            // Delta is destination − origin so MouseEventDeltaX/Y match real
+            // moves
             Coordinate::Abs => ((x, y), (x - current_x, y - current_y)),
             Coordinate::Rel => ((current_x + x, current_y + y), (x, y)),
         };
@@ -253,8 +258,8 @@ impl Mouse for Enigo {
             self.event_source_user_data,
         );
         CGEvent::set_flags(Some(&event), self.event_flags);
-        // No need to do self.update_event_location(&event) because it gets created with
-        // the correct coordinates
+        // No need to do self.update_event_location(&event) because it gets
+        // created with the correct coordinates
         CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
         self.last_mouse_move = (dest, Instant::now());
         self.update_wait_time();
@@ -287,8 +292,8 @@ impl Mouse for Enigo {
 // https://stackoverflow.com/questions/1918841/how-to-convert-ascii-character-to-cgkeycode
 impl Keyboard for Enigo {
     fn fast_text(&mut self, text: &str) -> InputResult<Option<()>> {
-        // Fn to create an iterator over sub slices of a str that have the specified
-        // length
+        // Fn to create an iterator over sub slices of a str that have the
+        // specified length
         fn chunks(s: &str, len: usize) -> impl Iterator<Item = &str> {
             assert!(len > 0);
             let mut indices = s.char_indices().map(|(idx, _)| idx).peekable();
@@ -316,9 +321,9 @@ impl Keyboard for Enigo {
             )?;
 
             // WORKAROUND: This is a fix for issue https://github.com/enigo-rs/enigo/issues/260
-            // This is needed to get rid of all leading line feed, tab and carriage return
-            // characters. event.set_string(chunk)) silently fails if the chunk
-            // starts with a newline character
+            // This is needed to get rid of all leading line feed, tab and
+            // carriage return characters. event.set_string(chunk)) silently
+            // fails if the chunk starts with a newline character
             loop {
                 if chunk.starts_with('\t') {
                     self.key(Key::Tab, Direction::Click)?;
@@ -450,8 +455,8 @@ impl Keyboard for Enigo {
             }
         }
 
-        // TODO: The list of keys will contain the key and also the associated keycode.
-        // They are a duplicate
+        // TODO: The list of keys will contain the key and also the associated
+        // keycode. They are a duplicate
         match direction {
             Direction::Press => {
                 debug!("added the key {key:?} to the held keys");
@@ -624,11 +629,11 @@ impl Enigo {
         self.event_source_user_data
     }
 
-    // On macOS, we have to determine ourselves if it was a double click of a mouse
-    // button. The Enigo struct stores the information needed to do so. This
-    // function checks if the button was pressed down again fast enough to issue a
-    // double (or nth) click and returns the nth click it was. It also takes care of
-    // updating the information the Enigo struct stores.
+    // On macOS, we have to determine ourselves if it was a double click of a
+    // mouse button. The Enigo struct stores the information needed to do so.
+    // This function checks if the button was pressed down again fast enough to
+    // issue a double (or nth) click and returns the nth click it was. It also
+    // takes care of updating the information the Enigo struct stores.
     fn nth_button_press(&mut self, button: Button, direction: Direction) -> i64 {
         if direction == Direction::Press {
             let last_time = self.last_mouse_click[button as usize].1;
@@ -733,11 +738,11 @@ impl Enigo {
 
         fn no_op(_: &mut CGEventFlags, _: CGEventFlags) {}
 
-        // These flags have been determined by entering all keys with the previous
-        // implementation that does not set the flags manually and checking the
-        // resulting flags in their events. Some of the keys set the EventFlag even when
-        // they are released. It's a bit weird, but for now we just copy the behavior
-        // here
+        // These flags have been determined by entering all keys with the
+        // previous implementation that does not set the flags manually and
+        // checking the resulting flags in their events. Some of the keys set
+        // the EventFlag even when they are released. It's a bit weird, but for
+        // now we just copy the behavior here
         let (press_fn, release_fn, event_flag): (FlagOp, FlagOp, CGEventFlags) = match keycode {
             KeyCode::RIGHT_COMMAND => (
                 CGEventFlags::insert,
@@ -969,11 +974,11 @@ impl Enigo {
     }
 
     // Moving the mouse programmatically takes a few milli seconds. In order to
-    // avoid sleeping until all events are processed, we internally keep track of
-    // where the mouse was last moved to programmatically and return that location
-    // if the mouse move happened within the last few milliseconds. If it has been
-    // more than that, we query the current mouse location. That is because the user
-    // might have moved the mouse since then
+    // avoid sleeping until all events are processed, we internally keep track
+    // of where the mouse was last moved to programmatically and return that
+    // location if the mouse move happened within the last few milliseconds. If
+    // it has been more than that, we query the current mouse location. That is
+    // because the user might have moved the mouse since then
     fn mouse_location(&self) -> InputResult<CGPoint> {
         let last_time = self.last_mouse_move.1;
         if last_time.elapsed() < Duration::from_millis(60) {
@@ -1005,8 +1010,8 @@ impl Enigo {
             );
         }
 
-        // Check if a button was recently released and the OS would falsely report it as
-        // pressed
+        // Check if a button was recently released and the OS would falsely
+        // report it as pressed
         if self
             .pressed_mouse_buttons
             .iter()
@@ -1047,8 +1052,8 @@ impl Enigo {
         }
     }
 
-    // Manually update the location of an event if the OS did not yet have time to
-    // handle a simulated mouse move
+    // Manually update the location of an event if the OS did not yet have time
+    // to handle a simulated mouse move
     fn update_event_location(&mut self, event: &CGEvent) {
         let last_time = self.last_mouse_move.1;
         if last_time.elapsed() < Duration::from_millis(60) {

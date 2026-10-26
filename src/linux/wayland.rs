@@ -71,7 +71,8 @@ impl Con {
         let mut event_queue = connection.new_event_queue();
         let qh = event_queue.handle();
 
-        // Keep the registry alive so Global / GlobalRemove keep being delivered.
+        // Keep the registry alive so Global / GlobalRemove keep being
+        // delivered.
         let display = connection.display();
         let mut state = WaylandState::new(display.get_registry(&qh, ()));
 
@@ -367,8 +368,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                     "wl_seat" => {
                         let version = bind_version::<wl_seat::WlSeat>(version);
                         let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, version, qh, ());
-                        // We don't know if the seat or the im_manager is created first and we need
-                        // both to get the input_method
+                        // We don't know if the seat or the im_manager is
+                        // created first and we need both to get the
+                        // input_method
                         if let Some(im_manager) = &state.im_manager {
                             if state.input_method.is_none() {
                                 let input_method = im_manager.get_input_method(&seat, qh, ());
@@ -378,8 +380,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                                 state.im_active = false;
                             }
                         }
-                        // We don't know if the seat or the keyboard_manager is created first and we
-                        // need both to get the virtual_keyboard
+                        // We don't know if the seat or the keyboard_manager is
+                        // created first and we need both to get the
+                        // virtual_keyboard
                         if let Some(keyboard_manager) = &state.keyboard_manager {
                             if state.virtual_keyboard.is_none() {
                                 let virtual_keyboard =
@@ -387,8 +390,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                                 state.virtual_keyboard = Some(virtual_keyboard);
                             }
                         }
-                        // We don't know if the seat or the pointer_manager is created first and we
-                        // need both to get the virtual_pointer
+                        // We don't know if the seat or the pointer_manager is
+                        // created first and we need both to get the
+                        // virtual_pointer
                         if let Some(pointer_manager) = &state.pointer_manager {
                             if state.virtual_pointer.is_none() {
                                 let virtual_pointer =
@@ -416,8 +420,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             qh,
                             (),
                         );
-                        // We don't know if the seat or the im_manager is created first and we need
-                        // both to get the input_method
+                        // We don't know if the seat or the im_manager is
+                        // created first and we need both to get the
+                        // input_method
                         if let Some(seat) = &state.seat {
                             if state.input_method.is_none() {
                                 let input_method = im_manager.get_input_method(seat, qh, ());
@@ -440,8 +445,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         qh,
                         (),
                     );
-                        // We don't know if the seat or the keyboard_manager is created first and we
-                        // need both to get the virtual_keyboard
+                        // We don't know if the seat or the keyboard_manager is
+                        // created first and we need both to get the
+                        // virtual_keyboard
                         if let Some(seat) = &state.seat {
                             if state.virtual_keyboard.is_none() {
                                 let virtual_keyboard =
@@ -462,8 +468,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                         qh,
                         (),
                     );
-                        // We don't know if the seat or the pointer_manager is created first and we
-                        // need both to get the virtual_pointer
+                        // We don't know if the seat or the pointer_manager is
+                        // created first and we need both to get the
+                        // virtual_pointer
                         if let Some(seat) = &state.seat {
                             if state.virtual_pointer.is_none() {
                                 let virtual_pointer =
@@ -491,8 +498,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
 
                 match &interface[..] {
                     "wl_seat" => {
-                        // Seat-created devices go away with the seat; managers are
-                        // separate globals and must stay so they can be reused.
+                        // Seat-created devices go away with the seat; managers
+                        // are separate globals and must stay so they can be
+                        // reused.
                         if let Some(vk) = state.virtual_keyboard.take() {
                             vk.destroy();
                         }
@@ -615,7 +623,8 @@ impl Dispatch<zwp_input_method_v2::ZwpInputMethodV2, ()> for WaylandState {
                 warn!(
                     "It is not possible to enter text anymore! The characters will now be simulated by individual key presses instead"
                 );
-                // Object is inert; destroy it. Keep im_manager — it is a separate global.
+                // Object is inert; destroy it. Keep im_manager — it is a
+                // separate global.
                 if let Some(im) = state.input_method.take() {
                     im.destroy();
                 }
@@ -715,7 +724,8 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                 group: depressed_layout,
             } => {
                 if let Some(keymap) = &mut state.seat_keymap {
-                    // Wayland doesn't differentiates between depressed, latched and locked
+                    // Wayland doesn't differentiates between depressed, latched
+                    // and locked
                     keymap.update_modifiers(
                         depressed_mods,
                         latched_mods,
@@ -727,9 +737,10 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                     debug!("modifiers updated");
                 }
             }
-            // On Wayland the clients only get notified about pressed keys or modifiers if they have
-            // the focus. We cannot assume that is the case, so the received events don't reflect
-            // the full picture and we cannot use them to keep track of the state of the keyboard
+            // On Wayland the clients only get notified about pressed keys or
+            // modifiers if they have the focus. We cannot assume that is the
+            // case, so the received events don't reflect the full picture and
+            // we cannot use them to keep track of the state of the keyboard
             wl_keyboard::Event::Enter { .. }
             | wl_keyboard::Event::Leave { .. }
             | wl_keyboard::Event::Key { .. }
@@ -766,8 +777,8 @@ impl Dispatch<wl_output::WlOutput, ()> for WaylandState {
         match event {
             wl_output::Event::Geometry { transform, .. } => {
                 debug!("WlOutput received event:\n{event:?}");
-                // The width and height need to get switched if the transform changes them
-                // TODO: Check if this really is needed
+                // The width and height need to get switched if the transform
+                // changes them TODO: Check if this really is needed
                 if transform == WEnum::Value(wl_output::Transform::_90)
                     || transform == WEnum::Value(wl_output::Transform::_270)
                     || transform == WEnum::Value(wl_output::Transform::Flipped90)
@@ -1073,8 +1084,8 @@ impl Mouse for Con {
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
         let value = f64::from(length) * DEGREES_PER_WHEEL_CLICK;
-        // wlroots applies axis_source to pointer->axis (set by axis/axis_discrete).
-        // Send axis data first, then source, then frame.
+        // wlroots applies axis_source to pointer->axis (set by
+        // axis/axis_discrete). Send axis data first, then source, then frame.
         trace!("vp.axis_discrete(time, axis, {value}, {length}); vp.axis_source(Wheel)");
         vp.axis_discrete(time, axis, value, length);
         vp.axis_source(wl_pointer::AxisSource::Wheel);
@@ -1099,7 +1110,8 @@ impl Mouse for Con {
             Axis::Horizontal => wl_pointer::Axis::HorizontalScroll,
             Axis::Vertical => wl_pointer::Axis::VerticalScroll,
         };
-        // Same ordering constraint as scroll(): axis before axis_source (wlroots).
+        // Same ordering constraint as scroll(): axis before axis_source
+        // (wlroots).
         trace!("vp.axis(time, axis, {length}.into()); vp.axis_source(Continuous)");
         vp.axis(time, axis, length.into());
         vp.axis_source(wl_pointer::AxisSource::Continuous);
@@ -1109,8 +1121,8 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        // TODO: The assumption here is that the output we store in the first position
-        // is the main display. This likely can be wrong
+        // TODO: The assumption here is that the output we store in the first
+        // position is the main display. This likely can be wrong
         match self.state.outputs.first() {
             // Switch width and height if the output was transformed
             Some((_, _, output_info)) if output_info.transform => {

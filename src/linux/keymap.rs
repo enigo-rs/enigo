@@ -72,8 +72,8 @@ where
         let keycode_min: usize = self.keymap_mapping.keycode_min.try_into().unwrap();
         let keycode_max: usize = self.keymap_mapping.keycode_max.try_into().unwrap();
 
-        // TODO: Change this range to 0..self.keysyms_per_keycode once we find out how
-        // to detect the level and switch it
+        // TODO: Change this range to 0..self.keysyms_per_keycode once we find
+        // out how to detect the level and switch it
         for j in 0..1 {
             for i in keycode_min..=keycode_max {
                 let i: u32 = i.try_into().unwrap();
@@ -116,7 +116,8 @@ where
                 // Unmap keysyms if there are no unused keycodes
                 self.make_room(c)?;
                 // The keysym needs to get mapped to an unused keycode.
-                // Always map the keycode if it has not yet been mapped, so it is layer agnostic
+                // Always map the keycode if it has not yet been mapped, so it
+                // is layer agnostic
                 self.map(c, sym)?
             }
         };
@@ -212,8 +213,8 @@ pub trait Bind<Keycode> {
     // Map the keysym to the given keycode
     // Only use keycodes that are not used, otherwise the existing mapping is
     // overwritten
-    // If the keycode is mapped to the NoSymbol keysym, the key is unbound and can
-    // get used again later
+    // If the keycode is mapped to the NoSymbol keysym, the key is unbound and
+    // can get used again later
     fn bind_key(&self, _: Keycode, _: Keysym) -> Result<(), ()> {
         Ok(()) // No need to do anything
     }

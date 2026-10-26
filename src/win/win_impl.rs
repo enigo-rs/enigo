@@ -212,34 +212,38 @@ impl Mouse for Enigo {
             (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, x as i32, y as i32)
         } else if self.windows_subject_to_mouse_speed_and_acceleration_level {
             // Quote from documentation (http://web.archive.org/web/20241118235853/https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event):
-            // Relative mouse motion is subject to the settings for mouse speed and
-            // acceleration level. An end user sets these values using the Mouse application
-            // in Control Panel. An application obtains and sets these values with the
-            // SystemParametersInfo function.
+            // Relative mouse motion is subject to the settings for mouse speed
+            // and acceleration level. An end user sets these values using the
+            // Mouse application in Control Panel. An application obtains and
+            // sets these values with the SystemParametersInfo function.
             //
-            // The system applies two tests to the specified relative mouse motion when
-            // applying acceleration. If the specified distance along either the x or y axis
-            // is greater than the first mouse threshold value, and the mouse acceleration
-            // level is not zero, the operating system doubles the distance. If the
-            // specified distance along either the x- or y-axis is greater than the second
-            // mouse threshold value, and the mouse acceleration level is equal to two, the
-            // operating system doubles the distance that resulted from applying the first
-            // threshold test. It is thus possible for the operating system to multiply
-            // relatively-specified mouse motion along the x- or y-axis by up to four times.
+            // The system applies two tests to the specified relative mouse
+            // motion when applying acceleration. If the specified distance
+            // along either the x or y axis is greater than the first mouse
+            // threshold value, and the mouse acceleration level is not zero,
+            // the operating system doubles the distance. If the
+            // specified distance along either the x- or y-axis is greater than
+            // the second mouse threshold value, and the mouse acceleration
+            // level is equal to two, the operating system doubles the distance
+            // that resulted from applying the first threshold test. It is thus
+            // possible for the operating system to multiply
+            // relatively-specified mouse motion along the x- or y-axis by up to
+            // four times.
             //
-            // Once acceleration has been applied, the system scales the resultant value by
-            // the desired mouse speed. Mouse speed can range from 1 (slowest) to 20
-            // (fastest) and represents how much the pointer moves based on the distance the
-            // mouse moves. The default value is 10, which results in no additional
-            // modification to the mouse motion.
+            // Once acceleration has been applied, the system scales the
+            // resultant value by the desired mouse speed. Mouse speed can range
+            // from 1 (slowest) to 20 (fastest) and represents how much the
+            // pointer moves based on the distance the mouse moves. The default
+            // value is 10, which results in no additional modification to the
+            // mouse motion.
             debug!(
                 "\x1b[93mRelative mouse move is subject to mouse speed and acceleration level\x1b[0m"
             );
             (MOUSEEVENTF_MOVE, x, y)
         } else {
-            // Instead of moving the mouse by a relative amount, we calculate the resulting
-            // location and move it to the absolute location so it is not subject to mouse
-            // speed and acceleration levels
+            // Instead of moving the mouse by a relative amount, we calculate
+            // the resulting location and move it to the absolute location so it
+            // is not subject to mouse speed and acceleration levels
             debug!(
                 "\x1b[93mRelative mouse move is NOT subject to mouse speed and acceleration level\x1b[0m"
             );
@@ -265,10 +269,10 @@ impl Mouse for Enigo {
     fn smooth_scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         debug!("\x1b[93msmooth_scroll(length: {length:?}, axis: {axis:?})\x1b[0m");
         // High-resolution wheel delta (https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel).
-        // Values smaller than WHEEL_DELTA (120) are a fraction of a notch. Whether
-        // that produces finer scrolling depends on the target app: some accumulate
-        // correctly, some ignore |delta| < 120, some treat any non-zero delta as a
-        // full notch.
+        // Values smaller than WHEEL_DELTA (120) are a fraction of a notch.
+        // Whether that produces finer scrolling depends on the target app: some
+        // accumulate correctly, some ignore |delta| < 120, some treat any
+        // non-zero delta as a full notch.
         self.scroll_wheel(length, axis)
     }
 
@@ -278,13 +282,14 @@ impl Mouse for Enigo {
     /// are not virtualized when the process itself is not DPI aware.
     fn main_display(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mmain_display()\x1b[0m");
-        // GetSystemMetrics returns virtualized values unless the thread is DPI aware
+        // GetSystemMetrics returns virtualized values unless the thread is DPI
+        // aware
         let _dpi_guard = ThreadDpiAwarenessGuard::per_monitor();
         let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
         let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         if w == 0 || h == 0 {
-            // Last error does not contain information about why there was an issue so it is
-            // not used here
+            // Last error does not contain information about why there was an
+            // issue so it is not used here
             Err(InputError::Simulate(
                 "could not get the dimensions of the screen",
             ))
@@ -299,7 +304,8 @@ impl Mouse for Enigo {
     /// are not virtualized when the process itself is not DPI aware.
     fn location(&self) -> InputResult<(i32, i32)> {
         debug!("\x1b[93mlocation()\x1b[0m");
-        // GetCursorPos returns virtualized values unless the thread is DPI aware
+        // GetCursorPos returns virtualized values unless the thread is DPI
+        // aware
         let _dpi_guard = ThreadDpiAwarenessGuard::per_monitor();
         let mut point = POINT { x: 0, y: 0 };
         if unsafe { GetCursorPos(&raw mut point) }.is_ok() {
@@ -454,7 +460,8 @@ impl Enigo {
     fn scroll_wheel(&self, delta: i32, axis: Axis) -> InputResult<()> {
         let input = match axis {
             Axis::Horizontal => mouse_event(MOUSEEVENTF_HWHEEL, delta, 0, 0, self.dw_extra_info),
-            // Invert vertical so positive length scrolls down, matching other platforms.
+            // Invert vertical so positive length scrolls down, matching other
+            // platforms.
             Axis::Vertical => mouse_event(MOUSEEVENTF_WHEEL, -delta, 0, 0, self.dw_extra_info),
         };
         send_input(&[input])
@@ -538,8 +545,8 @@ impl Enigo {
         let result = character.encode_utf16(buffer);
         for &utf16_surrogate in &*result {
             input_queue.push(keybd_event(
-                // No need to check if it is an extended key because we only enter unicode
-                // chars here
+                // No need to check if it is an extended key because we only
+                // enter unicode chars here
                 KEYEVENTF_UNICODE,
                 // Must be zero
                 VIRTUAL_KEY(0),
@@ -547,13 +554,13 @@ impl Enigo {
                 self.dw_extra_info,
             ));
             input_queue.push(keybd_event(
-                // No need to check if it is an extended key because we only enter unicode
-                // chars here
+                // No need to check if it is an extended key because we only
+                // enter unicode chars here
                 KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                 // Must be zero
                 VIRTUAL_KEY(0),
-                // TODO: Double check if this could also be utf16_surrogate (I think it doesn't
-                // make a difference)
+                // TODO: Double check if this could also be utf16_surrogate (I
+                // think it doesn't make a difference)
                 result[0],
                 self.dw_extra_info,
             ));
@@ -588,11 +595,12 @@ impl Enigo {
     // It cannot be tested against Windows APIs reliably.
     fn is_extended_key(key: Key) -> bool {
         match key {
-            // Navigation cluster keys (arrows, Insert, Delete, Home, End, PageUp, PageDown)
-            // share virtual key codes with the numpad keys. To simulate them correctly,
-            // KEYEVENTF_EXTENDEDKEY must be set. Without it, Windows might interpret
-            // the keystroke as coming from the numpad, causing unexpected behavior
-            // (e.g., Shift+Arrow may act like Shift+NumPad8 depending on NumLock state).
+            // Navigation cluster keys (arrows, Insert, Delete, Home, End,
+            // PageUp, PageDown) share virtual key codes with the numpad keys.
+            // To simulate them correctly, KEYEVENTF_EXTENDEDKEY must be set.
+            // Without it, Windows might interpret the keystroke as coming from
+            // the numpad, causing unexpected behavior (e.g., Shift+Arrow may
+            // act like Shift+NumPad8 depending on NumLock state).
             Key::RMenu
             | Key::RControl
             | Key::UpArrow
