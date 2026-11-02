@@ -158,22 +158,10 @@ jobs:
         timeout-minutes: 15
         run: devcontainer up --workspace-folder . --config "${{ matrix.config }}"
 
-      - name: Test the library (${{ matrix.features }})
-        continue-on-error: ${{ matrix.lib_fails || false }}
-        timeout-minutes: 5
-        run: |
-          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
-            cargo test --no-default-features --features "${{ matrix.features }}" --lib
-
-      - name: Test the library (${{ matrix.features2 }})
-        if: matrix.features2
-        timeout-minutes: 5
-        run: |
-          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
-            cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
-
-      # The browser test runs last because it is the slowest and most brittle
-      # step.
+      # Run the browser tests first: the input tests press every key and click
+      # every button, which can leave a shell modal open. A modal grabs the
+      # keyboard, so the browser never sees the events even though it has the X
+      # input focus.
       - name: Test the browser integration through Wayland (expected to fail)
         if: matrix.browser == 'wayland' || matrix.browser == 'all'
         continue-on-error: ${{ matrix.browser_fails || false }}
@@ -190,6 +178,20 @@ jobs:
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
             env GDK_BACKEND=x11 \
             cargo test --features serde --test integration_browser_events
+
+      - name: Test the library (${{ matrix.features }})
+        continue-on-error: ${{ matrix.lib_fails || false }}
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --no-default-features --features "${{ matrix.features }}" --lib
+
+      - name: Test the library (${{ matrix.features2 }})
+        if: matrix.features2
+        timeout-minutes: 5
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
 
       # Temporary: print the focus log of the GNOME X11 session. Remove this
       # step together with .devcontainer/gnome-x11/debug-focus.sh.
