@@ -43,3 +43,6 @@ hide_gnome_overview
         sleep 1
     done
 ) >"$XDG_RUNTIME_DIR/focus-browser.log" 2>&1 9>&- &
+
+# Temporary: record the focus and the overview state for the browser test.
+nohup sh "$script_dir/debug-focus.sh" >/dev/null 2>&1 9>&- &

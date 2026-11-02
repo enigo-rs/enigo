@@ -190,3 +190,12 @@ jobs:
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
             env GDK_BACKEND=x11 \
             cargo test --features serde --test integration_browser_events
+
+      # Temporary: print the focus log of the GNOME X11 session. Remove this
+      # step together with .devcontainer/gnome-x11/debug-focus.sh.
+      - name: Dump the focus log (temporary)
+        if: always() && matrix.name == 'GNOME on Xorg'
+        continue-on-error: true
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" \
+            sh -c 'cat "$XDG_RUNTIME_DIR/focus-debug.log"; echo "--- gnome-shell.log"; tail -50 "$XDG_RUNTIME_DIR/gnome-shell.log"'
