@@ -26,7 +26,10 @@ env:
   # a new process instead of inheriting the job's environment, so the variables
   # that configure the tests are passed explicitly.
   TEST_ENV: >-
+    --remote-env RUST_LOG=debug
     --remote-env RUST_BACKTRACE=1
+    --remote-env WAYLAND_DEBUG=1
+    --remote-env REIS_DEBUG=1
 
 jobs:
   session:

@@ -14,6 +14,7 @@ mod mouse;
 
 /// Create an `Enigo` for a test and persist the rotated portal token.
 pub(crate) fn new_enigo() -> Enigo {
+    env_logger::try_init().ok();
     token::new_enigo(&token::settings())
 }
 

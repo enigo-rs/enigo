@@ -49,6 +49,7 @@ impl EnigoTest {
         log::debug!("Waiting for message on Websocket");
 
         let mut message = None;
+        let mut last_error = None;
 
         for i in 0..3 {
             match self.websocket.read() {
@@ -61,12 +62,16 @@ impl EnigoTest {
                 {
                     log::debug!("No message yet, retrying...");
                     std::thread::sleep(std::time::Duration::from_millis((i + 1) * 10));
+                    last_error = Some(e);
                 }
-                Err(e) => panic!("failed to read from websocket: {:?}", e),
+                Err(e) => panic!("failed to read from websocket: {e:?}"),
             }
         }
 
-        let message = message.expect("failed to read from websocket");
+        let message = match message {
+            Some(message) => message,
+            None => panic!("no browser event received within 30s (last error: {last_error:?})"),
+        };
 
         log::debug!("Processing message");
 
@@ -74,7 +79,7 @@ impl EnigoTest {
             BrowserEventError::WebsocketClosed => {
                 panic!("Received a Close event")
             }
-            _ => panic!("Other text received"),
+            _ => panic!("Other text received: {e:?}"),
         })
     }
 }
@@ -85,8 +90,8 @@ impl Drop for EnigoTest {
         // The browser is dropped after this, which closes the websocket. Read
         // before that so a closed websocket is not reported as a leftover
         // message.
-        if self.websocket.read().is_ok() {
-            panic!("there were messages left. This should never happen")
+        if let Ok(message) = self.websocket.read() {
+            panic!("there were messages left: {message:?}");
         }
     }
 }
@@ -114,7 +119,10 @@ impl Keyboard for EnigoTest {
 
             match expected_text.strip_prefix(&observed_text) {
                 Some(remainder) => expected_text = remainder.to_string(),
-                None => panic!("failed to simulate text()"),
+                None => panic!(
+                    "failed to simulate text(): expected prefix {expected_text:?}, observed \
+                     {observed_text:?}"
+                ),
             }
         }
 
@@ -142,7 +150,7 @@ impl Keyboard for EnigoTest {
                 event:
                     Event::Key {
                         timestamp,
-                        key,
+                        key: key_name,
                         code,
                         key_code,
                         alt_key,
@@ -161,8 +169,8 @@ impl Keyboard for EnigoTest {
                 // field does contain the correct value though. We cannot always use the "key"
                 // field, because it would make it impossible to differentiate left and right keys
                 // (e.g LControl from RControl)
-                .or_else(|_| decode_utf8_escaped(&key))
-                .or_else(|_| ron::from_str(&key))
+                .or_else(|_| decode_utf8_escaped(&key_name))
+                .or_else(|_| ron::from_str(&key_name))
                 // Firefox returns an event with an empty code and key field on windows. The only
                 // way to check if it was successful is by checking text
                 .or_else(|_| {
@@ -182,7 +190,10 @@ impl Keyboard for EnigoTest {
                     | (Key::LShift, Key::Shift)
             ) || expected_key == key;
 
-            assert!(keys_equal);
+            assert!(
+                keys_equal,
+                "expected key {expected_key:?}, got {key:?} (code {code:?}, key field {key_name:?})"
+            );
             assert_eq!(expected_direction, direction);
         }
 
