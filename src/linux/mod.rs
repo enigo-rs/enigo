@@ -228,6 +228,17 @@ impl Enigo {
         }
         None
     }
+
+    /// Unmap the keysyms that were mapped to unused X11 keycodes. Dropping
+    /// the struct does the same; call this for an `Enigo` that never gets
+    /// dropped, such as a static, before the process exits
+    ///
+    /// # Errors
+    /// The keycodes could not get unmapped
+    #[cfg(feature = "x11rb")]
+    pub fn unmap_everything(&mut self) -> InputResult<()> {
+        self.x11.as_mut().map_or(Ok(()), x11::Con::unmap_everything)
+    }
 }
 
 impl Mouse for Enigo {

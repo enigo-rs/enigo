@@ -8,6 +8,7 @@
 - all: MSRV is 1.93.1
 
 ## Added
+- linux: x11rb: `Enigo::unmap_everything()` unmaps the keycodes Enigo bound, once the windows that got the keys typed with them read them. Call it before exit for an `Enigo` that is never dropped, such as a static; dropping does the same
 - linux: New `xdg_desktop` backend (feature `xdg_desktop`) that simulates input through the XDG desktop portal, so it also works in Flatpak
 - linux: libei/xdg_desktop: Pass a portal restore token with `Settings::restore_token` to avoid repeated permission prompts, and read the current one with `Enigo::restore_token()`
 - linux, win: `Key::NumpadEnter`
@@ -18,6 +19,7 @@
 - all: `delay`, `set_delay` and `Settings::linux_delay` (no longer needed)
 
 ## Fixed
+- linux: x11rb: When no spare keycode is left, rebind only the least recently used one, and only after each window its keys went to answered a `_NET_WM_PING` (or the keycode was idle for 150 ms). Rebinding all of them at once garbled text the app had not read yet
 - win: Mouse coordinates and display size are correct when the process is not DPI aware
 - win: Extended keys work with `raw()`
 - macos: `move_mouse()` no longer needs a sleep, and dragging works with every mouse button
