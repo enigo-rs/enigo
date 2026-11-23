@@ -187,7 +187,7 @@ mod portal {
             // been dropped after the first call, the spawned task would have
             // been cancelled, the sender dropped, and this would resolve to an
             // error instead of `42`.
-            let value = block_on(async move { receiver.await })
+            let value = block_on(receiver)
                 .unwrap()
                 .expect("the task spawned by the earlier call was cancelled");
             assert_eq!(value, 42);
