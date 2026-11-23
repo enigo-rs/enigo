@@ -111,5 +111,14 @@ jobs:
       - name: Run the unit tests in release mode
         run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --nocapture
 
+      # The portal backends need a compositor or portal, but these regression
+      # tests do not. Run them here so they do not depend on the session jobs,
+      # some of which are experimental.
+      - name: Run the portal regression tests
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --lib --no-default-features --features xdg_desktop,tokio portal::tests -- --nocapture
+          cargo test --lib --no-default-features --features xdg_desktop,tokio xdg_desktop::tests -- --nocapture
+
       - name: Run the sync example
         run: cargo run --example sync --no-default-features --features ${{ matrix.features }}
