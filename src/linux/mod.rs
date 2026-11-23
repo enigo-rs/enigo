@@ -66,16 +66,34 @@ mod portal {
 
     /// Run `future` to completion.
     ///
-    /// Inside an existing Tokio runtime only this future is driven, because a
-    /// runtime cannot be started from within another runtime. The connection's
-    /// background tasks keep running on the ambient runtime.
+    /// Inside an existing Tokio runtime the future is driven here instead of
+    /// starting another runtime, because a runtime cannot be nested. On a
+    /// multi-thread runtime, `block_in_place` hands the worker's other tasks to
+    /// another thread while this one blocks, so the runtime keeps making
+    /// progress.
     #[allow(clippy::unnecessary_wraps)] // The wrap is needed for the tokio feature
     pub(crate) fn block_on<F: Future>(future: F) -> Result<F::Output, std::io::Error> {
         #[cfg(feature = "tokio")]
-        if tokio::runtime::Handle::try_current().is_err() {
-            return Ok(runtime()?.block_on(future));
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // A current-thread runtime has no other worker to hand tasks off
+            // to, so `block_in_place` would panic. Drive the future directly;
+            // its background tasks then have to live on the shared runtime.
+            if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
+                // Build the shared runtime inside `block_in_place` so a losing
+                // runtime in the initialization race is not dropped inside an
+                // async context, where dropping blocks and would panic.
+                return tokio::task::block_in_place(|| {
+                    let runtime = runtime()?;
+                    Ok(runtime.block_on(future))
+                });
+            }
+            return Ok(futures::executor::block_on(future));
         }
 
+        #[cfg(feature = "tokio")]
+        return Ok(runtime()?.block_on(future));
+
+        #[cfg(not(feature = "tokio"))]
         Ok(futures::executor::block_on(future))
     }
 
@@ -173,6 +191,61 @@ mod portal {
                 .unwrap()
                 .expect("the task spawned by the earlier call was cancelled");
             assert_eq!(value, 42);
+        }
+
+        /// When called from inside a multi-thread Tokio runtime, blocking must
+        /// not starve that runtime: `block_in_place` hands its other tasks to a
+        /// different thread.
+        #[test]
+        fn blocking_from_an_ambient_runtime_does_not_starve_it() {
+            use std::{sync::mpsc, task::Poll, time::Instant};
+
+            let ambient = tokio::runtime::Builder::new_multi_thread()
+                // One worker so the blocking call takes the only one there is.
+                .worker_threads(1)
+                .enable_all()
+                .build()
+                .unwrap();
+
+            let value = ambient.block_on(async {
+                let (done_sender, done_receiver) = tokio::sync::oneshot::channel();
+
+                // Block from inside an async task, like a user calling Enigo
+                // from `#[tokio::main]`.
+                tokio::spawn(async move {
+                    let (sender, receiver) = mpsc::channel();
+                    // Has to make progress on the ambient runtime while the
+                    // worker is blocked.
+                    tokio::spawn(async move {
+                        let _ = sender.send(7);
+                    });
+
+                    let deadline = Instant::now() + Duration::from_secs(2);
+                    // Poll with a deadline that does not depend on either
+                    // runtime's timer, so a regression fails instead of
+                    // hanging.
+                    let value = block_on(futures::future::poll_fn(move |cx| {
+                        match receiver.try_recv() {
+                            Ok(value) => return Poll::Ready(Some(value)),
+                            Err(mpsc::TryRecvError::Disconnected) => return Poll::Ready(None),
+                            Err(mpsc::TryRecvError::Empty) => {}
+                        }
+                        if Instant::now() >= deadline {
+                            return Poll::Ready(None);
+                        }
+                        std::thread::sleep(Duration::from_millis(10));
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    }))
+                    .unwrap();
+
+                    let _ = done_sender.send(value);
+                });
+
+                done_receiver.await.expect("the blocking task was dropped")
+            });
+
+            assert_eq!(value, Some(7), "blocking starved the ambient runtime");
         }
     }
 }
