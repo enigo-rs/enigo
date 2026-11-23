@@ -44,6 +44,21 @@ fn evdev_keycode(keycode: u16) -> InputResult<i32> {
         ))
 }
 
+/// Convert the `file://` URI returned by the Screenshot portal to a local
+/// filesystem path. The URI is not a path, so passing it to `image::open` or
+/// `std::fs::remove_file` fails even though the screenshot was written.
+fn screenshot_path(uri: &ashpd::Uri) -> InputResult<std::path::PathBuf> {
+    let url = url::Url::parse(uri.as_str()).map_err(|e| {
+        error!("the screenshot portal returned an invalid URI: {e}");
+        InputError::Simulate("the screenshot portal returned an invalid URI")
+    })?;
+
+    url.to_file_path().map_err(|()| {
+        error!("the screenshot portal returned a URI that is not a local file: {uri}");
+        InputError::Simulate("the screenshot portal returned a URI that is not a local file")
+    })
+}
+
 impl Con {
     async fn open_connection(
         restore_token: Option<&str>,
@@ -373,12 +388,11 @@ impl Mouse for Con {
                 .response()
                 .map_err(|_| InputError::Simulate("Screenshot response failed"))?;
 
-            // Expect file:// URI
-            let path = response.uri().as_str();
+            let path = screenshot_path(response.uri())?;
 
-            let img = image::open(path)
+            let img = image::open(&path)
                 .map_err(|_| InputError::Simulate("Failed to open screenshot image"))?;
-            if std::fs::remove_file(path).is_err() {
+            if std::fs::remove_file(&path).is_err() {
                 log::error!(
                     "error deleting the temporary screenshot to get the dimensions of the screen"
                 );
@@ -410,8 +424,9 @@ impl Mouse for Con {
 
 #[cfg(test)]
 mod tests {
-    use super::evdev_keycode;
+    use super::{evdev_keycode, screenshot_path};
     use crate::InputError;
+    use std::path::PathBuf;
 
     #[test]
     fn converts_x11_keycodes_to_evdev() {
@@ -423,5 +438,32 @@ mod tests {
     #[test]
     fn rejects_keycodes_below_the_x11_offset() {
         assert!(matches!(evdev_keycode(7), Err(InputError::InvalidInput(_))));
+    }
+
+    #[test]
+    fn converts_a_file_uri_to_a_path() {
+        let uri = ashpd::Uri::parse("file:///tmp/screenshot.png").unwrap();
+        assert_eq!(
+            screenshot_path(&uri),
+            Ok(PathBuf::from("/tmp/screenshot.png"))
+        );
+    }
+
+    #[test]
+    fn percent_decodes_the_path() {
+        let uri = ashpd::Uri::parse("file:///tmp/a%20screenshot.png").unwrap();
+        assert_eq!(
+            screenshot_path(&uri),
+            Ok(PathBuf::from("/tmp/a screenshot.png"))
+        );
+    }
+
+    #[test]
+    fn rejects_a_remote_uri() {
+        let uri = ashpd::Uri::parse("https://example.com/screenshot.png").unwrap();
+        assert!(matches!(
+            screenshot_path(&uri),
+            Err(InputError::Simulate(_))
+        ));
     }
 }

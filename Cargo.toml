@@ -47,7 +47,7 @@ x11rb = [
     "x11rb/xkb",
     "xkbcommon/x11",
 ]
-xdg_desktop = ["dep:image", "dep:futures", "ashpd/screenshot"]
+xdg_desktop = ["dep:image", "dep:url", "dep:futures", "ashpd/screenshot"]
 
 [dependencies]
 log = "0.4"
@@ -110,12 +110,12 @@ xkbcommon = "0.9"
 xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
 image = { version = "0.25", optional = true }
+url = { version = "2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"
 serde = { version = "1", features = ["derive"] }
 tungstenite = "0.30"
-url = "2"
 webbrowser = "1.0"
 ron = "0.12"
 serde_json = "1.0"

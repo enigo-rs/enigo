@@ -178,8 +178,8 @@ fn unit_move_mouse_rel_boundaries() {
 #[test]
 #[serial(input)]
 #[cfg_attr(
-    any(feature = "libei", feature = "xdg_desktop"),
-    ignore = "main_display() is not implemented by libei and xdg_desktop passes the screenshot URI to image::open"
+    feature = "libei",
+    ignore = "main_display() is not implemented by libei"
 )]
 // Test the main_display function
 // The CI's virtual display has a dimension of 1024x768. If the test is ran
