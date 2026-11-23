@@ -152,4 +152,12 @@ The restore-token seed and `ConnectToEIS` need `xdg-desktop-portal` 1.20 or
 newer. Debian trixie (used by the container and CI) is new enough; Ubuntu 24.04
 is not. Debian bookworm has 1.16, which has no restore tokens: the GNOME
 `RemoteDesktop` backend then waits for a consent dialog that a headless session
-cannot answer, so `Enigo::new` hangs instead of failing.
+cannot answer.
+
+The backends now check the `RemoteDesktop` interface version before starting a
+session. `libei` reports an error when `ConnectToEIS` is unavailable, because
+there is no way to connect to the EIS without it. `xdg_desktop` logs a warning
+and continues without the restore token when the portal is too old to support
+one, so the portal asks for permission again instead of `Enigo::new` failing.
+In a headless session that still means waiting for a dialog that nobody can
+answer, but interactive users are not blocked by the version check.

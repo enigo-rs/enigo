@@ -40,6 +40,13 @@ compile_error!(
     "the libei feature can only be used if either feature `tokio` or `smol` is enabled to provide an async runtime"
 );
 
+/// `xdg-desktop-portal` 1.20 exposes version 2 of the `RemoteDesktop`
+/// interface, which adds restore tokens and `ConnectToEIS`. Older portals
+/// either ignore the restore token or cannot provide an EIS connection, which
+/// makes a headless `Enigo::new` wait for a consent dialog forever.
+#[cfg(any(feature = "libei", feature = "xdg_desktop"))]
+const MIN_REMOTE_DESKTOP_VERSION: u32 = 2;
+
 /// Bound the cost of parsing a keymap received over the wire (from a Wayland
 /// compositor or the EIS). This protects us from a buggy or malicious peer
 /// sending an unbounded keymap.

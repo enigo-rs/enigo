@@ -140,6 +140,21 @@ impl Con {
         })?;
         trace!("New desktop");
 
+        // `ConnectToEIS` was added in RemoteDesktop version 2. Without it the
+        // portal waits for a consent dialog that a headless session cannot
+        // answer, so fail instead of hanging.
+        if remote_desktop.version() < super::MIN_REMOTE_DESKTOP_VERSION {
+            error!(
+                "the portal does not support ConnectToEIS (RemoteDesktop version {}); \
+                 xdg-desktop-portal 1.20 or newer is required",
+                remote_desktop.version()
+            );
+            return Err(NewConError::EstablishCon(
+                "the portal does not support ConnectToEIS; xdg-desktop-portal 1.20 or newer is \
+                 required",
+            ));
+        }
+
         let session = remote_desktop
             .create_session(CreateSessionOptions::default())
             .await
