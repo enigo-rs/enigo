@@ -114,11 +114,13 @@ is kept to keep this limitation visible.
 KWin treats the top-left corner as an active screen edge and moves the pointer
 back into the screen by `ElectricBorderPushbackPixels` (default 1) after it
 reaches the corner. A request to move to `(0, 0)` therefore reports `(1, 1)` in
-the Plasma X11 container. `unit_move_mouse_to` and `unit_move_mouse_rel` assert
-the exact corner and can fail there, depending on when KWin activates the
-edge. Setting `ElectricBorderPushbackPixels=0` in `kwinrc` makes them pass, but
-the container keeps KWin's defaults. The tests need to tolerate compositor-side
-pointer adjustments at screen edges, or skip the exact-corner cases under KWin.
+the Plasma X11 container. Setting `ElectricBorderPushbackPixels=0` in `kwinrc`
+makes the exact assertions pass, but the container keeps KWin's defaults.
+
+`unit_move_mouse_to` and `unit_move_mouse_rel` therefore allow a one-pixel
+difference for positions on a screen edge when `XDG_CURRENT_DESKTOP` contains
+`KDE`. The library still requests the exact coordinate; the tolerance only
+accounts for the compositor moving the pointer after the request.
 
 ## The KDE RemoteDesktop portal is unavailable in the headless Plasma container
 
