@@ -32,6 +32,18 @@ fn is_wayland_session() -> bool {
     std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t.eq_ignore_ascii_case("wayland"))
 }
 
+/// Convert an X11 keycode from the public `raw` API to the evdev keycode the
+/// portal expects. The two are offset by 8; subtracting from a keycode below
+/// the offset would underflow.
+fn evdev_keycode(keycode: u16) -> InputResult<i32> {
+    keycode
+        .checked_sub(8)
+        .map(i32::from)
+        .ok_or(InputError::InvalidInput(
+            "the keycode must be at least 8 (X11 keycode offset)",
+        ))
+}
+
 impl Con {
     async fn open_connection(
         restore_token: Option<&str>,
@@ -174,6 +186,9 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        // The public API uses X11 keycodes like the other Linux backends.
+        let keycode = evdev_keycode(keycode)?;
+
         let key_states = match direction {
             Direction::Press => vec![KeyState::Pressed],
             Direction::Release => vec![KeyState::Released],
@@ -183,7 +198,7 @@ impl Keyboard for Con {
         for key_state in key_states {
             Self::custom_block_on(self.remote_desktop.notify_keyboard_keycode(
                 &self.session,
-                keycode.into(),
+                keycode,
                 key_state,
                 NotifyKeyboardKeycodeOptions::default(),
             ))
@@ -203,6 +218,17 @@ impl Keyboard for Con {
 
 impl Mouse for Con {
     fn button(&mut self, button: Button, direction: Direction) -> InputResult<()> {
+        // Releasing a scroll "button" has no effect
+        if direction == Direction::Release {
+            match button {
+                Button::ScrollDown
+                | Button::ScrollUp
+                | Button::ScrollRight
+                | Button::ScrollLeft => return Ok(()),
+                Button::Left | Button::Right | Button::Back | Button::Forward | Button::Middle => {}
+            }
+        }
+
         let code = match button {
             // Taken from /linux/input-event-codes.h
             Button::Left => 0x110,
@@ -379,5 +405,23 @@ impl Mouse for Con {
             "You tried to get the mouse location. I don't think that is possible with xdg_desktop"
         );
         Err(InputError::Simulate("Not possible with this protocol"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::evdev_keycode;
+    use crate::InputError;
+
+    #[test]
+    fn converts_x11_keycodes_to_evdev() {
+        assert_eq!(evdev_keycode(8), Ok(0));
+        assert_eq!(evdev_keycode(9), Ok(1));
+        assert_eq!(evdev_keycode(255), Ok(247));
+    }
+
+    #[test]
+    fn rejects_keycodes_below_the_x11_offset() {
+        assert!(matches!(evdev_keycode(7), Err(InputError::InvalidInput(_))));
     }
 }
