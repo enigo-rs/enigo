@@ -36,8 +36,39 @@ impl EnigoTest {
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
         let listener = TcpListener::bind("127.0.0.1:26541").expect("failed to bind to port");
         log::debug!("TcpListener was created");
-        let (stream, addr) = listener.accept().expect("Unable to accept the connection");
+
+        // Don't block forever if the browser never connects.
+        listener
+            .set_nonblocking(true)
+            .expect("Unable to make the listener non-blocking");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        let (stream, addr) = loop {
+            match listener.accept() {
+                Ok(connection) => break connection,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    if std::time::Instant::now() >= deadline {
+                        panic!(
+                            "the browser did not connect to the test websocket within 60s; \
+                             did Firefox fail to start or load tests/index.html?"
+                        );
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                Err(e) => panic!("Unable to accept the connection: {e}"),
+            }
+        };
+        stream
+            .set_nonblocking(false)
+            .expect("Unable to make the stream blocking again");
         log::debug!("New connection was made from {addr:?}");
+
+        // The handshake reads the HTTP request, so it needs a timeout too.
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+            .expect("Unable to set the handshake read timeout");
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(10)))
+            .expect("Unable to set the handshake write timeout");
         let websocket = accept(stream).expect("Unable to accept connections on the websocket");
         log::debug!("WebSocket was successfully created");
         websocket
