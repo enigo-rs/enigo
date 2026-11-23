@@ -11,6 +11,8 @@ use reis::{
 use std::{collections::HashMap, os::unix::net::UnixStream};
 use xkbcommon::xkb;
 
+use super::text::utf8_chunks;
+use super::{MAX_KEYCODE, MAX_KEYMAP_SIZE};
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse, NewConError,
 };
@@ -60,11 +62,32 @@ impl DeviceData {
 }
 
 struct KeyboardData {
-    keymap: xkb::Keymap,
-    /// Layout group from the last `ei_keyboard.modifiers` event.
-    /// Modifier masks from that event are ignored for now; see
-    /// `key_to_keycode`.
-    group: xkb::LayoutIndex,
+    /// Tracks the active layout and modifier state reported by
+    /// `ei_keyboard.modifiers`, so keycode lookups use the current shift level.
+    state: xkb::State,
+}
+
+impl KeyboardData {
+    /// Find a keycode that currently produces `key`.
+    ///
+    /// The emulated keyboard cannot change the keymap (the EIS owns it), so
+    /// this fallback can only press keycodes that already exist in the keymap.
+    /// Using the state means the active layout and the seat's current modifiers
+    /// (and therefore the current shift level) are taken into account. Keys
+    /// that are not reachable at the current level are entered through
+    /// `ei_text.keysym` in `Keyboard::key` when the seat supports it; we
+    /// deliberately do not synthesize modifier keys to reach mapped keysyms on
+    /// a different level, because modifiers are global and visible to
+    /// applications. A key that yields several symbols at the current level is
+    /// ambiguous, so it only counts when it yields exactly `key`.
+    fn key_to_keycode(&self, key: Key) -> InputResult<Keycode> {
+        let keysym = xkb::Keysym::from(key);
+        let keymap = self.state.get_keymap();
+        let max = keymap.max_keycode().raw().min(MAX_KEYCODE);
+        (keymap.min_keycode().raw()..=max)
+            .find(|&keycode| self.state.key_get_syms(xkb::Keycode::new(keycode)) == [keysym])
+            .ok_or(InputError::InvalidInput("Key is not mapped"))
+    }
 }
 
 /// The main struct for handling the event emitting
@@ -243,8 +266,8 @@ impl Con {
             keyboards,
             disconnect,
             sequence,
-            // The serial of the ei_handshake.connection event is the start of the EIS
-            // implementation's serial number sequence
+            // The serial of the ei_handshake.connection event is the start of
+            // the EIS implementation's serial number sequence
             last_serial: serial,
             context,
             connection,
@@ -252,9 +275,9 @@ impl Con {
             restore_token,
         };
 
-        // The socket is non-blocking, so a single update may return before the EIS
-        // implementation has advertised seats and devices. Poll until at least one
-        // device is resumed (or we time out)
+        // The socket is non-blocking, so a single update may return before the
+        // EIS implementation has advertised seats and devices. Poll until at
+        // least one device is resumed (or we time out)
         let mut saw_resumed_device = false;
         for _ in 0..50 {
             con.update().map_err(|e| {
@@ -370,9 +393,9 @@ impl Con {
     /// Drop any seat/device/keyboard/interface we track for `object_id`.
     /// Returns whether anything was removed.
     fn drop_object_by_id(&mut self, object_id: u64) -> bool {
-        // Object IDs are unique, so seat/device can return as soon as they match.
-        // A keyboard id may appear in both `devices.interfaces` and `keyboards`, so
-        // those two maps are cleaned together before returning.
+        // Object IDs are unique, so seat/device can return as soon as they
+        // match. A keyboard id may appear in both `devices.interfaces` and
+        // `keyboards`, so those two maps are cleaned together before returning.
         if let Some(seat) = self
             .seats
             .keys()
@@ -421,9 +444,9 @@ impl Con {
         loop {
             debug!("update");
 
-            // Flush first so queued requests reach the EIS implementation before we
-            // look for replies. Previously a sleep was used to paper over sending
-            // before flushing
+            // Flush first so queued requests reach the EIS implementation
+            // before we look for replies. Previously a sleep was used to paper
+            // over sending before flushing
             if let Err(e) = self.context.flush() {
                 error!("{e}");
                 return Err(InputError::Simulate("Failed to flush libei context"));
@@ -447,9 +470,10 @@ impl Con {
                         return Err(InputError::Simulate("failed to parse pending request"));
                     }
                     PendingRequestResult::InvalidObject(object_id) => {
-                        // Event for an object already gone from the wire map. Drop any
-                        // leftover local state; if nothing matched this is usually a late
-                        // event after Destroyed and can be ignored.
+                        // Event for an object already gone from the wire map.
+                        // Drop any leftover local state; if nothing matched
+                        // this is usually a late event after Destroyed and can
+                        // be ignored.
                         error!("invalid object with id {object_id}");
                         if self.drop_object_by_id(object_id) {
                             debug!("dropped local state for invalid object {object_id}");
@@ -490,7 +514,8 @@ impl Con {
                                 "the serial {last_serial} contained an invalid object with the id {invalid_id}"
                             );
                             self.last_serial = last_serial;
-                            // Unwind any local state for the object the EIS rejected
+                            // Unwind any local state for the object the EIS
+                            // rejected
                             let _ = self.drop_object_by_id(invalid_id);
                         }
                         ei::connection::Event::Ping { ping } => {
@@ -522,8 +547,9 @@ impl Con {
                                     data.capabilities.insert(interface, mask);
                                 }
                                 ei::seat::Event::Done => {
-                                    // Bind every capability the seat advertised. Unknown
-                                    // interfaces are ignored when their events arrive
+                                    // Bind every capability the seat
+                                    // advertised. Unknown interfaces are
+                                    // ignored when their events arrive
                                     let bitmask =
                                         data.capabilities.values().fold(0u64, |a, b| a | b);
                                     seat.bind(bitmask);
@@ -548,8 +574,9 @@ impl Con {
                                 ei::device::Event::Destroyed { serial } => {
                                     debug!("device with serial {serial} was destroyed");
                                     self.last_serial = serial;
-                                    // Drop associated keymaps too; the compositor may tear
-                                    // down the device without a separate keyboard.destroyed
+                                    // Drop associated keymaps too; the
+                                    // compositor may tear down the device
+                                    // without a separate keyboard.destroyed
                                     self.forget_device(&device);
                                 }
                                 ei::device::Event::Name { name } => {
@@ -589,8 +616,9 @@ impl Con {
                                 }
                                 ei::device::Event::Done => {
                                     trace!("device done");
-                                    // libei 1.6 / ei_device v3: servers that advertise v3 wait for
-                                    // ready() before sending resumed.
+                                    // libei 1.6 / ei_device v3: servers that
+                                    // advertise v3 wait for ready() before
+                                    // sending resumed.
                                     if device.version() >= 3 {
                                         device.ready();
                                         trace!("sent device ready");
@@ -631,20 +659,36 @@ impl Con {
                                     error!("The keymap is of the wrong type");
                                     continue;
                                 }
+                                let size = size as usize;
+                                if size == 0 || size > MAX_KEYMAP_SIZE {
+                                    error!(
+                                        "keymap size {size} is outside 1..={MAX_KEYMAP_SIZE}; ignoring the keymap"
+                                    );
+                                    continue;
+                                }
                                 let context = xkb::Context::new(0);
-                                // xkb::Keymap::new_from_fd returns Result<Option<Keymap>, _>
+                                // xkb::Keymap::new_from_fd returns
+                                // Result<Option<Keymap>, _>
                                 match unsafe {
                                     xkb::Keymap::new_from_fd(
                                         &context,
                                         keymap,
-                                        size as _,
+                                        size,
                                         xkb::KEYMAP_FORMAT_TEXT_V1,
                                         0,
                                     )
                                 } {
                                     Ok(Some(keymap)) => {
-                                        self.keyboards
-                                            .insert(keyboard, KeyboardData { keymap, group: 0 });
+                                        let min = keymap.min_keycode().raw();
+                                        let max = keymap.max_keycode().raw();
+                                        debug!("ei keymap declares keycodes {min}..={max}");
+                                        if max > MAX_KEYCODE {
+                                            warn!(
+                                                "ei keymap declares maximum keycode {max}, above the usable {MAX_KEYCODE}; ignoring higher keycodes"
+                                            );
+                                        }
+                                        let state = xkb::State::new(&keymap);
+                                        self.keyboards.insert(keyboard, KeyboardData { state });
                                     }
                                     Ok(None) => {
                                         error!("xkb returned None when creating keymap");
@@ -662,15 +706,19 @@ impl Con {
                             }
                             ei::keyboard::Event::Modifiers {
                                 serial,
-                                depressed: _,
-                                locked: _,
-                                latched: _,
+                                depressed,
+                                locked,
+                                latched,
                                 group,
                             } => {
                                 self.last_serial = serial;
-                                // Keymap key() lookup must use the active layout group
+                                // Mirror the seat's modifier and layout state
+                                // so key lookups resolve the correct shift
+                                // level.
                                 if let Some(keyboard_data) = self.keyboards.get_mut(&keyboard) {
-                                    keyboard_data.group = group;
+                                    keyboard_data
+                                        .state
+                                        .update_mask(depressed, latched, locked, group, 0, 0);
                                 }
                             }
                             _ => {
@@ -679,14 +727,14 @@ impl Con {
                         }
                     }
                     ei::Event::Text(text, request) => {
-                        // The keysym/utf8 events are only sent to receiver contexts. As a
-                        // sender, we only expect the destructor.
+                        // The keysym/utf8 events are only sent to receiver
+                        // contexts. As a sender, we only expect the destructor.
                         match request {
                             ei::text::Event::Destroyed { serial } => {
                                 debug!("text interface was destroyed");
                                 self.last_serial = serial;
-                                // Remove the stale object so fast_text falls back to per-key
-                                // entry instead of erroring
+                                // Remove the stale object so fast_text falls
+                                // back to per-key entry instead of erroring
                                 for data in self.devices.values_mut() {
                                     data.interfaces
                                         .retain(|_, object| *object != *text.as_object());
@@ -709,9 +757,9 @@ impl Con {
             // failing on the closed socket in the next iteration
             self.ensure_connected()?;
 
-            // No more events available: return immediately on the hot path. If we
-            // handled events (and may have queued replies such as ping.done), loop
-            // to flush and drain follow-ups without sleeping
+            // No more events available: return immediately on the hot path. If
+            // we handled events (and may have queued replies such as
+            // ping.done), loop to flush and drain follow-ups without sleeping
             if !had_pending_events {
                 break;
             }
@@ -736,7 +784,7 @@ impl Keyboard for Con {
             return Ok(None);
         };
 
-        for chunk in utf8_byte_chunks(text, EI_TEXT_MAX_UTF8_LEN) {
+        for chunk in utf8_chunks(text, EI_TEXT_MAX_UTF8_LEN) {
             trace!("ei_text.utf8({chunk:?})");
             text_iface.utf8(chunk);
             // At most one utf8 request per frame
@@ -750,16 +798,51 @@ impl Keyboard for Con {
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // Prefer `ei_text.keysym` (libei 1.6+): it enters the keysym directly and is
-        // independent of the keymap, so even keys that are not mapped on the current
-        // layout can be simulated
-        if let Some((device, text_iface)) = self.device_with::<ei::Text>()? {
-            let keysym = xkb::Keysym::from(key).raw();
+        // Prefer the emulated keyboard: a physical key event makes held
+        // modifiers apply to the key, so shortcuts behave like a real
+        // keyboard. Only fall back to `ei_text.keysym` when the keymap has no
+        // keycode for the key (for example a character from another layout).
+        if let Some((device, keyboard)) = self.device_with::<ei::Keyboard>()? {
+            let keycode = self
+                .keyboards
+                .get(&keyboard)
+                .and_then(|data| data.key_to_keycode(key).ok());
+            if let Some(keycode) = keycode {
+                // XKB keycodes in the keymap are X11-style; ei_keyboard.key
+                // expects evdev codes (X11 keycode − 8)
+                let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
+                    "the mapped keycode must be at least 8 (X11 keycode offset)",
+                ))?;
+
+                if direction == Direction::Press || direction == Direction::Click {
+                    keyboard.key(keycode, ei::keyboard::KeyState::Press);
+                    // Press and release of the same key must be in separate
+                    // frames
+                    device.frame(self.last_serial, now_monotonic_micros());
+                }
+                if direction == Direction::Release || direction == Direction::Click {
+                    keyboard.key(keycode, ei::keyboard::KeyState::Released);
+                    device.frame(self.last_serial, now_monotonic_micros());
+                }
+
+                return self.update();
+            }
+        }
+
+        // The keymap cannot produce this key. Enter the keysym directly
+        // (libei 1.6+), which is independent of the keymap. Modifiers cannot
+        // be represented this way, so they are never sent through `ei_text`.
+        let keysym = xkb::Keysym::from(key);
+        if !keysym.is_modifier_key()
+            && let Some((device, text_iface)) = self.device_with::<ei::Text>()?
+        {
+            let keysym = keysym.raw();
 
             if direction == Direction::Press || direction == Direction::Click {
                 trace!("ei_text.keysym({keysym:#x}, Press)");
                 text_iface.keysym(keysym, ei::keyboard::KeyState::Press);
-                // Press and release of the same keysym must be in separate frames
+                // Press and release of the same keysym must be in separate
+                // frames
                 device.frame(self.last_serial, now_monotonic_micros());
             }
             if direction == Direction::Release || direction == Direction::Click {
@@ -771,52 +854,18 @@ impl Keyboard for Con {
             return self.update();
         }
 
-        debug!("no device with ei_text: falling back to ei_keyboard and the keymap");
-
-        let (device, keyboard) =
-            self.device_with::<ei::Keyboard>()?
-                .ok_or(InputError::Simulate(
-                    "no connected device implements the required interface",
-                ))?;
-
-        let keyboard_data = self.keyboards.get(&keyboard).ok_or({
-            InputError::Simulate(
-                "cannot simulate key event: no keymap was received for the keyboard",
-            )
-        })?;
-        let keycode =
-            key_to_keycode(&keyboard_data.keymap, keyboard_data.group, key).map_err(|e| {
-                error!("{e}");
-                InputError::InvalidInput(
-                    "failed to map the requested key to a keycode: the provided key is not mapped \
-                     in the current xkb keymap",
-                )
-            })?;
-        // XKB keycodes in the keymap are X11-style; ei_keyboard.key expects evdev
-        // codes (X11 keycode − 8)
-        let keycode = keycode.checked_sub(8).ok_or(InputError::InvalidInput(
-            "the mapped keycode must be at least 8 (X11 keycode offset)",
-        ))?;
-
-        if direction == Direction::Press || direction == Direction::Click {
-            keyboard.key(keycode, ei::keyboard::KeyState::Press);
-            // Press and release of the same key must be in separate frames
-            device.frame(self.last_serial, now_monotonic_micros());
-        }
-        if direction == Direction::Release || direction == Direction::Click {
-            keyboard.key(keycode, ei::keyboard::KeyState::Released);
-            device.frame(self.last_serial, now_monotonic_micros());
-        }
-
-        self.update()
+        Err(InputError::InvalidInput(
+            "failed to map the requested key to a keycode: the provided key is not mapped \
+             at the current shift level",
+        ))
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // The keycode is an X11 keycode, which is offset by 8 from the evdev keycode
-        // that ei_keyboard.key expects. Subtracting from a keycode < 8 would
-        // underflow
+        // The keycode is an X11 keycode, which is offset by 8 from the evdev
+        // keycode that ei_keyboard.key expects. Subtracting from a keycode < 8
+        // would underflow
         let keycode = u32::from(keycode).checked_sub(8).ok_or({
             InputError::InvalidInput("the keycode must be at least 8 (X11 keycode offset)")
         })?;
@@ -931,8 +980,8 @@ impl Mouse for Con {
     fn scroll(&mut self, length: i32, axis: Axis) -> InputResult<()> {
         self.ensure_connected()?;
 
-        // Wheel-style scrolling uses ei_scroll.scroll_discrete, where one logical
-        // scroll unit (one wheel click) is 120
+        // Wheel-style scrolling uses ei_scroll.scroll_discrete, where one
+        // logical scroll unit (one wheel click) is 120
         let delta = length.checked_mul(120).ok_or(InputError::InvalidInput(
             "scroll length is too large for ei_scroll.scroll_discrete",
         ))?;
@@ -996,7 +1045,8 @@ impl Mouse for Con {
 
 impl Drop for Con {
     fn drop(&mut self) {
-        // TODO: Is it needed to filter or can we just stop emulating on all devices??
+        // TODO: Is it needed to filter or can we just stop emulating on all
+        // devices??
         for (device, _) in self.devices.iter().filter(|(_, device_data)| {
             device_data.device_type == Some(reis::ei::device::DeviceType::Virtual)
                 && device_data.state == DeviceState::Emulating
@@ -1009,25 +1059,6 @@ impl Drop for Con {
         let _ = self.context.flush(); // Ignore the errors if the connection was
         // dropped
     }
-}
-
-// TODO(platforms): keymap key() is best-effort w.r.t. modifiers/levels. We pick
-// a keycode that can produce the keysym in the active layout group (levels
-// 0..=1) but do not press the modifiers that level needs (e.g. `!` → KEY_1
-// without Shift) and do not account for modifiers already held by the EIS
-// (Shift held → `a` types `A`). Fix this consistently across backends
-// (synthesize needed mods, or prefer keysym entry where available).
-fn key_to_keycode(keymap: &xkb::Keymap, group: xkb::LayoutIndex, key: Key) -> InputResult<Keycode> {
-    let keysym = xkb::Keysym::from(key);
-    (keymap.min_keycode().raw()..keymap.max_keycode().raw())
-        .find(|&keycode| {
-            (0..=1).any(|level| {
-                keymap
-                    .key_get_syms_by_level(xkb::Keycode::new(keycode), group, level)
-                    .contains(&keysym)
-            })
-        })
-        .ok_or(InputError::InvalidInput("Key is not mapped"))
 }
 
 /// Timestamp for `ei_device.frame` in microseconds of `CLOCK_MONOTONIC`, as
@@ -1075,21 +1106,85 @@ fn ensure_emulating(
     }
 }
 
-/// Split `s` into UTF-8 substrings of at most `max_bytes` bytes each.
-fn utf8_byte_chunks(mut s: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
-    // A chunk must be able to hold any UTF-8 char (up to 4 bytes), otherwise
-    // no progress could be made and empty chunks would be yielded forever
-    debug_assert!(max_bytes >= 4);
-    std::iter::from_fn(move || {
-        if s.is_empty() {
-            return None;
-        }
-        let mut end = max_bytes.min(s.len());
-        while !s.is_char_boundary(end) {
-            end -= 1;
-        }
-        let (chunk, rest) = s.split_at(end);
-        s = rest;
-        Some(chunk)
-    })
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn us_keymap_and_state() -> (xkb::Keymap, xkb::State) {
+        let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let keymap = xkb::Keymap::new_from_names(
+            &context,
+            "",
+            "",
+            "us",
+            "",
+            None,
+            xkb::KEYMAP_COMPILE_NO_FLAGS,
+        )
+        .expect("us keymap should compile");
+        let state = xkb::State::new(&keymap);
+        (keymap, state)
+    }
+
+    fn mod_mask(keymap: &xkb::Keymap, name: &str) -> u32 {
+        let index = keymap.mod_get_index(name);
+        assert_ne!(index, xkb::MOD_INVALID, "modifier {name} is missing");
+        1u32 << index
+    }
+
+    #[test]
+    fn finds_level_zero_keys() {
+        let (_keymap, state) = us_keymap_and_state();
+        let keyboard = KeyboardData { state };
+        assert!(keyboard.key_to_keycode(Key::Unicode('a')).is_ok());
+        assert!(keyboard.key_to_keycode(Key::Unicode('1')).is_ok());
+        assert!(keyboard.key_to_keycode(Key::Return).is_ok());
+    }
+
+    #[test]
+    fn respects_the_current_shift_level() {
+        let (keymap, state) = us_keymap_and_state();
+        let mut keyboard = KeyboardData { state };
+        let shift = mod_mask(&keymap, "Shift");
+        keyboard.state.update_mask(shift, 0, 0, 0, 0, 0);
+
+        // With shift held, `a` is not reachable at the current level...
+        assert!(keyboard.key_to_keycode(Key::Unicode('a')).is_err());
+        // ...but `A` is.
+        assert!(keyboard.key_to_keycode(Key::Unicode('A')).is_ok());
+    }
+
+    #[test]
+    fn errors_for_keysym_that_is_not_in_the_keymap() {
+        let (_keymap, state) = us_keymap_and_state();
+        let keyboard = KeyboardData { state };
+        assert!(keyboard.key_to_keycode(Key::Begin).is_err());
+    }
+
+    #[test]
+    fn skips_multi_symbol_levels() {
+        // A level holding `{ a, b }` is ambiguous; neither symbol may be used.
+        let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let keymap = xkb::Keymap::new_from_string(
+            &context,
+            r#"xkb_keymap {
+                xkb_keycodes "multi" { minimum = 9; maximum = 9; <I9> = 9; };
+                xkb_types { include "complete" };
+                xkb_compatibility { include "complete" };
+                xkb_symbols "multi" {
+                    key <I9> { type[Group1]="ONE_LEVEL", symbols[Group1]= [ { a, b } ] };
+                };
+            };"#
+            .to_string(),
+            xkb::KEYMAP_FORMAT_TEXT_V1,
+            xkb::KEYMAP_COMPILE_NO_FLAGS,
+        )
+        .expect("multi-sym keymap should compile");
+        let keyboard = KeyboardData {
+            state: xkb::State::new(&keymap),
+        };
+
+        assert!(keyboard.key_to_keycode(Key::Unicode('a')).is_err());
+        assert!(keyboard.key_to_keycode(Key::Unicode('b')).is_err());
+    }
 }

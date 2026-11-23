@@ -1,0 +1,18 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "rustfmt": {
+          "overrideCommand": [
+            "rustup",
+            "run",
+            "nightly",
+            "rustfmt",
+            "--edition",
+            "2024"
+          ]
+        }
+      }
+    }
+  }
+}

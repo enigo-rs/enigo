@@ -1,0 +1,8 @@
+{
+  "name": "enigo-ci",
+  "private": true,
+  "description": "Tools used by the GitHub workflows.",
+  "devDependencies": {
+    "@devcontainers/cli": "0.90.0"
+  }
+}

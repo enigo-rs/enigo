@@ -92,6 +92,7 @@ impl TryFrom<Message> for BrowserEvent {
 
 #[test]
 fn deserialize_browser_events() {
+    env_logger::try_init().ok();
     use enigo::Direction;
     use tungstenite::Message;
 

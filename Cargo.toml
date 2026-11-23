@@ -6,7 +6,7 @@ authors = [
     "Dustin Bensing <dustin.bensing@googlemail.com>",
 ]
 edition = "2024"
-rust-version = "1.87"
+rust-version = "1.93.1"
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
 homepage = "https://github.com/enigo-rs/enigo"
@@ -21,7 +21,7 @@ categories = [
     "simulation",
 ]
 license = "MIT"
-exclude = [".github", "examples", ".gitignore", "rustfmt.toml"]
+exclude = [".github", ".devcontainer", "examples", ".gitignore", "rustfmt.toml"]
 
 [package.metadata.docs.rs]
 features = ["x11rb", "wayland", "libei", "smol", "platform_specific", "serde"]
@@ -31,7 +31,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["x11rb"]
 tokio = ["ashpd/tokio", "dep:tokio"]
 smol = ["ashpd/async-io"]
-libei = ["dep:reis", "dep:futures", "dep:nom"]
+libei = ["dep:reis", "dep:futures"]
 platform_specific = []
 serde = ["dep:serde"]
 wayland = [
@@ -39,11 +39,15 @@ wayland = [
     "dep:wayland-protocols-misc",
     "dep:wayland-protocols-wlr",
     "dep:tempfile",
-    "dep:nom",
 ]
 xdo = []
-x11rb = ["dep:x11rb", "dep:nom"]
-xdg_desktop = ["dep:image", "dep:futures", "dep:nom", "ashpd/screenshot"]
+x11rb = [
+    "dep:x11rb",
+    "x11rb/allow-unsafe-code",
+    "x11rb/xkb",
+    "xkbcommon/x11",
+]
+xdg_desktop = ["dep:image", "dep:futures", "ashpd/screenshot"]
 
 [dependencies]
 log = "0.4"
@@ -105,7 +109,6 @@ x11rb = { version = "0.14", features = [
 xkbcommon = "0.9"
 xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
-nom = { version = "8.0", optional = true }
 image = { version = "0.25", optional = true }
 
 [dev-dependencies]
@@ -116,6 +119,7 @@ url = "2"
 webbrowser = "1.0"
 ron = "0.12"
 serde_json = "1.0"
+serial_test = { version = "4.0", default-features = false }
 strum = "0.28"
 strum_macros = "0.28"
 rdev = "0.5"                                     # Test the main_display() function

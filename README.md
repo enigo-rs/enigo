@@ -2,7 +2,7 @@
 [![Docs](https://docs.rs/enigo/badge.svg)](https://docs.rs/enigo)
 [![Dependency status](https://deps.rs/repo/github/enigo-rs/enigo/status.svg)](https://deps.rs/repo/github/enigo-rs/enigo)
 
-![Rust version](https://img.shields.io/badge/rust--version-1.87+-brightgreen.svg)
+![Rust version](https://img.shields.io/badge/rust--version-1.93.1+-brightgreen.svg)
 [![Crates.io](https://img.shields.io/crates/v/enigo.svg)](https://crates.io/crates/enigo)
 
 # enigo
@@ -43,29 +43,21 @@ On Windows, mouse coordinates and display size use physical pixels. Enigo tempor
 
 ## Runtime dependencies
 
-Linux users may have to install `libxdo-dev` if they are using the `xdo` feature. For example, on Debian-based distros:
+Runtime dependencies per feature:
 
-```Bash
-apt install libxdo-dev
-```
+| Feature | Runtime dependency |
+| --- | --- |
+| `xdo` | `libxdo` |
+| `wayland`, `libei` | `libxkbcommon` |
+| `x11rb` (default) | `libxkbcommon`, `libxkbcommon-x11` |
 
-On Arch:
+Package names by distribution:
 
-```Bash
-pacman -S xdotool
-```
-
-On Fedora:
-
-```Bash
-dnf install libX11-devel libxdo-devel
-```
-
-On Gentoo:
-
-```Bash
-emerge -a xdotool
-```
+| Library | Debian/Ubuntu | Fedora | Arch | Gentoo |
+| --- | --- | --- | --- | --- |
+| `libxdo` | `libxdo-dev` | `libxdo-devel`, `libX11-devel` | `xdotool` | `xdotool` |
+| `libxkbcommon` | `libxkbcommon-dev` | `libxkbcommon-devel` | `libxkbcommon` | `x11-libs/libxkbcommon` |
+| `libxkbcommon-x11` | `libxkbcommon-x11-dev` | `libxkbcommon-x11-devel` | `libxkbcommon` | `x11-libs/libxkbcommon` (USE `X`) |
 
 ## Permissions
 
@@ -80,10 +72,60 @@ Please have a look at our [changelog](CHANGES.md) to find out what you have to d
 If you encounter an issue and want to debug it, turn on log messages as described [here](DEBUGGING.md).
 
 
+## Formatting
+
+`rustfmt.toml` enables `wrap_comments`, which needs the nightly toolchain.
+Format with `cargo +nightly fmt`; the devcontainers install nightly. Plain
+`cargo fmt` uses the stable toolchain and ignores the setting.
+
+
 ## Testing this crate
 
-*Warning*: The tests will move the mouse, enter text, press keys and open some applications. Read the test cases before you run them so you know what to expect. It's best to close everything so that the tests don't mess with your system. Some of them run for a long time because they are intended to be run in the CI. Make sure to run the tests sequentially, otherwise they will fail because other mouse movements or entered keys are detected. You can do so by running
+*Warning*: The tests will move the mouse, enter text, press keys and open some applications. Read the test cases before you run them so you know what to expect. It's best to close everything so that the tests don't mess with your system. Some of them run for a long time because they are intended to be run in the CI. Tests that share input state are serialized with [`serial_test`](https://crates.io/crates/serial_test), so you can run them normally:
 
 ```Bash
-cargo test --all-features -- --test-threads=1
+cargo test
 ```
+
+The browser integration test needs the `serde` feature, Firefox and a display.
+It launches Firefox with the session's `GDK_BACKEND`, so it can run twice in a
+Wayland session:
+
+```Bash
+# Wayland: Firefox on Wayland and the backend talks to the compositor directly
+cargo test --no-default-features --features wayland,serde --test integration_browser_events
+cargo test --no-default-features --features xdg_desktop,smol,platform_specific,serde --test integration_browser_events
+
+# X11: Firefox on X11 and x11rb against the X server. In a Wayland session
+# DISPLAY is the compositor's Xwayland; GDK_BACKEND selects it.
+GDK_BACKEND=x11 cargo test --features serde --test integration_browser_events
+```
+
+The devcontainers compile one backend per session because backend selection is
+still compile-time; see `KNOWN_ISSUES.md` for the runtime-selection goal.
+
+| Session | Run |
+| --- | --- |
+| Xvfb (X11, default) | `cargo test` (x11rb) or `cargo test --no-default-features --features xdo` (xdo), plus the X11 browser test |
+| sway | `cargo test --no-default-features --features wayland --lib`, Wayland and XWayland browser tests |
+| labwc | `cargo test --no-default-features --features wayland --lib`, Wayland and XWayland browser tests |
+| GNOME Wayland (libei) | `cargo test --no-default-features --features libei,tokio,platform_specific --lib`, Wayland browser test |
+| GNOME Wayland (xdg_desktop) | `cargo test --no-default-features --features xdg_desktop,tokio,platform_specific --lib`, Wayland browser test |
+| GNOME Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` and the XWayland browser test |
+| GNOME X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` and the X11 browser test |
+| Plasma Wayland (Xwayland, x11rb) | `cargo test --no-default-features --features x11rb --lib` and the XWayland browser test |
+| Plasma X11 (Xorg) | `cargo test --no-default-features --features x11rb --lib` and the X11 browser test |
+
+The containers run the tests as an unprivileged `enigo` user. The GNOME
+Wayland container seeds a portal restore token so the first connection does not
+wait for a permission dialog.
+
+The devcontainers are development tools, not a sandbox. Opening one from an
+untrusted branch builds that branch's `Containerfile` and runs its session
+scripts; the workspace is bind-mounted, and the `enigo` user has passwordless
+sudo inside the container (the sessions need it to start the system D-Bus).
+Review `.devcontainer` changes like any other code and only open the
+devcontainers for branches you trust.
+
+Set `ENIGO_RESTORE_TOKEN` or `ENIGO_RESTORE_TOKEN_FILE` to reuse a portal restore
+token in the examples; the examples also accept `--restore-token <token>`.

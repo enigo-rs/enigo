@@ -30,7 +30,7 @@ jobs:
         rust:
           - stable
           - nightly
-          - "1.87.0"
+          - "1.93.1"
         platform:
           - ubuntu-latest
           - windows-latest
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/install_deps
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master branch
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master branch
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
@@ -102,7 +102,7 @@ jobs:
 
       - name: Run integration tests in release mode
         if: matrix.features != 'wayland' && matrix.features != 'libei,tokio' && matrix.features != 'libei,smol' && matrix.features != 'libei,tokio,wayland,xdo,x11rb'&& matrix.features != 'libei,smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
-        run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --test-threads=1 --nocapture --include-ignored
+        run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --nocapture --include-ignored
 
       - name: Take screenshot
         if: always()
