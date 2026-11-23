@@ -399,7 +399,8 @@ impl Keymap {
         self.state = new_state;
         self.additionally_mapped = next;
         if !reused {
-            debug_assert_eq!(self.free_keycodes.pop_front(), Some(keycode));
+            let popped = self.free_keycodes.pop_front();
+            debug_assert_eq!(popped, Some(keycode));
         }
         Ok(keycode_u16)
     }

@@ -35,7 +35,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
-        features: 
+        features:
           # libei, wayland and xdg_desktop need a real compositor or portal, so
           # they run in .github/workflows/linux_sessions.yml instead.
           #- "libei,tokio,wayland,xdo,x11rb,xdg_desktop"
@@ -104,10 +104,10 @@ jobs:
         run: brew install --cask firefox
 
       - name: Run the unit tests
-        run: cargo test unit --no-default-features --features ${{ matrix.features }} -- --nocapture
-      
+        run: cargo test --lib --no-default-features --features ${{ matrix.features }} -- --nocapture
+
       - name: Run the unit tests in release mode
-        run: cargo test unit --release --no-default-features --features ${{ matrix.features }} -- --nocapture
+        run: cargo test --lib --release --no-default-features --features ${{ matrix.features }} -- --nocapture
 
       # The portal backends need a compositor or portal, but these regression
       # tests do not. Run them here so they do not depend on the session jobs,
