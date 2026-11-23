@@ -10,6 +10,46 @@ use std::thread;
 
 use super::is_ci;
 
+/// KWin treats the screen edges as active borders and pushes the pointer back
+/// into the screen by `ElectricBorderPushbackPixels` (one pixel by default).
+/// The pointer then reports `(1, 1)` after a request for `(0, 0)`, so exact
+/// corner assertions cannot be used under KWin.
+fn is_kwin() -> bool {
+    std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(|desktop| {
+        desktop
+            .split(':')
+            .any(|part| part.eq_ignore_ascii_case("KDE"))
+    })
+}
+
+/// Assert the pointer position, allowing KWin's one-pixel pushback at the
+/// screen edges.
+fn assert_pointer_position(
+    enigo: &Enigo,
+    expected: (i32, i32),
+    actual: (i32, i32),
+    error_text: &str,
+    requested: (i32, i32),
+) {
+    let tolerance = if is_kwin() {
+        let (width, height) = enigo.main_display().unwrap_or((i32::MAX, i32::MAX));
+        let on_edge = expected.0 <= 0
+            || expected.1 <= 0
+            || expected.0 >= width - 1
+            || expected.1 >= height - 1;
+        i32::from(on_edge)
+    } else {
+        0
+    };
+
+    assert!(
+        (expected.0 - actual.0).abs() <= tolerance && (expected.1 - actual.1).abs() <= tolerance,
+        "{error_text} {}, {} (expected {expected:?}, got {actual:?})",
+        requested.0,
+        requested.1
+    );
+}
+
 fn test_mouse_move(
     enigo: &mut Enigo,
     test_cases: Vec<Vec<((i32, i32), (i32, i32))>>,
@@ -34,13 +74,12 @@ fn test_mouse_move(
                 .unwrap();
             thread::sleep(delay);
             let (x_res, y_res) = enigo.location().unwrap();
-            assert_eq!(
-                (mouse_action.1.0, mouse_action.1.1),
+            assert_pointer_position(
+                enigo,
+                mouse_action.1,
                 (x_res, y_res),
-                "{} {}, {}",
                 error_text,
-                mouse_action.0.0,
-                mouse_action.0.1
+                mouse_action.0,
             );
             thread::sleep(delay);
         }
