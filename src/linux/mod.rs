@@ -52,6 +52,131 @@ const MAX_KEYMAP_SIZE: usize = 4 * 1024 * 1024;
 #[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
 const MAX_KEYCODE: u32 = u16::MAX as u32;
 
+/// Driving the `ashpd`/`zbus` portal futures from synchronous code.
+///
+/// With the `tokio` backend, `zbus` spawns the D-Bus connection's socket
+/// reader with `tokio::spawn`, which attaches it to the runtime that created
+/// the connection. Building a fresh runtime for every call and dropping it
+/// afterwards aborts that task, so later portal calls (for example from a
+/// second `Enigo`) wait forever for a reply that can no longer arrive. A
+/// single runtime is therefore kept alive for the whole process.
+#[cfg(any(feature = "libei", feature = "xdg_desktop"))]
+mod portal {
+    use std::future::Future;
+
+    /// Run `future` to completion.
+    ///
+    /// Inside an existing Tokio runtime only this future is driven, because a
+    /// runtime cannot be started from within another runtime. The connection's
+    /// background tasks keep running on the ambient runtime.
+    #[allow(clippy::unnecessary_wraps)] // The wrap is needed for the tokio feature
+    pub(crate) fn block_on<F: Future>(future: F) -> Result<F::Output, std::io::Error> {
+        #[cfg(feature = "tokio")]
+        if tokio::runtime::Handle::try_current().is_err() {
+            return Ok(runtime()?.block_on(future));
+        }
+
+        Ok(futures::executor::block_on(future))
+    }
+
+    /// The process-wide runtime used when the caller does not have a Tokio
+    /// runtime of its own. It has to outlive every connection because
+    /// `ashpd`/`zbus` keep the D-Bus reader task on the runtime that created
+    /// the connection.
+    ///
+    /// This relies on the Tokio features that `ashpd/tokio` enables through
+    /// `zbus/tokio` (`rt-multi-thread` for `new_multi_thread` and the I/O and
+    /// time drivers for `enable_all`).
+    #[cfg(feature = "tokio")]
+    fn runtime() -> Result<&'static tokio::runtime::Runtime, std::io::Error> {
+        use std::sync::OnceLock;
+
+        static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+        if let Some(runtime) = RUNTIME.get() {
+            return Ok(runtime);
+        }
+
+        let built = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?;
+        // If another thread initialized the runtime in the meantime it wins and
+        // the one built here is dropped again. No tasks were spawned on it yet.
+        let _ = RUNTIME.set(built);
+        Ok(RUNTIME
+            .get()
+            .expect("the shared tokio runtime is initialized above"))
+    }
+
+    #[cfg(all(test, feature = "tokio"))]
+    mod tests {
+        use super::block_on;
+        use std::{
+            sync::{
+                Arc,
+                atomic::{AtomicBool, Ordering},
+            },
+            time::Duration,
+        };
+
+        /// `ashpd`/`zbus` spawn the D-Bus reader task on the runtime that
+        /// created the connection, so it has to survive the `block_on` call
+        /// that created it. Dropping the runtime would cancel the task and
+        /// make later portal calls hang.
+        #[test]
+        fn background_tasks_outlive_block_on() {
+            let done = Arc::new(AtomicBool::new(false));
+            let flag = Arc::clone(&done);
+
+            block_on(async move {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                    flag.store(true, Ordering::SeqCst);
+                });
+            })
+            .unwrap();
+
+            for _ in 0..100 {
+                if done.load(Ordering::SeqCst) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("a task spawned on the shared runtime did not run after block_on returned");
+        }
+
+        /// A later portal call must still receive work produced by a task that
+        /// was spawned during an earlier call. This models a second `Enigo` (or
+        /// the next input method call) that used to hang because the cached
+        /// `ashpd` connection's reader task was cancelled together with the
+        /// runtime that created it.
+        #[test]
+        fn later_call_receives_result_from_task_of_earlier_call() {
+            use tokio::sync::oneshot;
+
+            let (sender, receiver) = oneshot::channel();
+
+            // Models the first portal call (e.g. `Enigo::new`), which spawns
+            // the connection's reader task and then returns.
+            block_on(async move {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                    let _ = sender.send(42);
+                });
+            })
+            .unwrap();
+
+            // Models a later call on the same connection. If the runtime had
+            // been dropped after the first call, the spawned task would have
+            // been cancelled, the sender dropped, and this would resolve to an
+            // error instead of `42`.
+            let value = block_on(async move { receiver.await })
+                .unwrap()
+                .expect("the task spawned by the earlier call was cancelled");
+            assert_eq!(value, 42);
+        }
+    }
+}
+
 #[cfg(any(
     all(feature = "libei", feature = "tokio"),
     all(feature = "libei", feature = "smol")

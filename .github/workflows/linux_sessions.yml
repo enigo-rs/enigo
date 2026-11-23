@@ -97,8 +97,6 @@ jobs:
           - name: GNOME Wayland (xdg_desktop, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: xdg_desktop,tokio,platform_specific
-            # The headless portal accepts input requests without delivering them.
-            experimental: true
 
           - name: GNOME Wayland (xdg_desktop, smol)
             config: .devcontainer/gnome-wayland/devcontainer.json

@@ -18,6 +18,7 @@
 - all: `delay`, `set_delay` and `Settings::linux_delay` (no longer needed)
 
 ## Fixed
+- linux: libei/xdg_desktop: Creating more than one `Enigo` no longer hangs when the caller is not already inside a Tokio runtime
 - win: Mouse coordinates and display size are correct when the process is not DPI aware
 - win: Extended keys work with `raw()`
 - macos: `move_mouse()` no longer needs a sleep, and dragging works with every mouse button
