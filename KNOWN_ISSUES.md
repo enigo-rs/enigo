@@ -42,19 +42,15 @@ Mutter's Xwayland and KWin's Xwayland.
 ## `xdg_desktop` limits in the headless GNOME container
 
 The container runs GNOME Shell headless, so the `RemoteDesktop` and Screenshot
-portals are available and keyboard, buttons and scrolling are tested against
-them. Two paths are skipped:
+portals are available and keyboard, buttons, scrolling and `main_display()` are
+tested against them. Absolute pointer dragging is still skipped:
 
-- `main_display()` takes a Screenshot portal screenshot, but the backend passes
-  the returned `file://` URI to `image::open` as a filesystem path. The URI needs
-  to be converted to a path first (for example with `Url::to_file_path`, which
-  would make `url` a regular dependency instead of a dev-dependency).
-- Absolute pointer dragging needs a ScreenCast stream and
-  `notify_pointer_motion_absolute()` is not wired up. The browser integration
-  test therefore skips its absolute mouse moves for this backend.
+- It needs a ScreenCast stream and `notify_pointer_motion_absolute()` is not
+  wired up. The browser integration test therefore skips its absolute mouse
+  moves for this backend.
 
-Those are library limitations, not container ones. Testing `libei` does not have
-the first limitation, but `main_display()` is not implemented there either.
+That is a library limitation, not a container one. `libei` also does not
+implement `main_display()`.
 
 ## `libei` cannot enter keys that are not in the active keymap
 

@@ -117,9 +117,13 @@ fn integration_browser_events() {
     // enigo.scroll(1, Vertical).unwrap();
     // enigo.scroll(1, Horizontal).unwrap();
 
-    // main_display() is not implemented by libei and returns a screenshot URI
-    // that the xdg_desktop backend passes to image::open as a path.
-    #[cfg(any(feature = "wayland", feature = "x11rb", feature = "xdo"))]
+    // main_display() is not implemented by libei.
+    #[cfg(any(
+        feature = "wayland",
+        feature = "x11rb",
+        feature = "xdo",
+        feature = "xdg_desktop"
+    ))]
     enigo.main_display().unwrap();
 
     // location() is only implemented by the X11 backend.
