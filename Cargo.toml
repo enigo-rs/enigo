@@ -31,7 +31,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["x11rb"]
 tokio = ["ashpd/tokio", "dep:tokio"]
 smol = ["ashpd/async-io"]
-libei = ["dep:reis", "dep:futures", "dep:nom"]
+libei = ["dep:reis", "dep:futures"]
 platform_specific = []
 serde = ["dep:serde"]
 wayland = [
@@ -39,11 +39,15 @@ wayland = [
     "dep:wayland-protocols-misc",
     "dep:wayland-protocols-wlr",
     "dep:tempfile",
-    "dep:nom",
 ]
 xdo = []
-x11rb = ["dep:x11rb", "dep:nom"]
-xdg_desktop = ["dep:image", "dep:futures", "dep:nom", "ashpd/screenshot"]
+x11rb = [
+    "dep:x11rb",
+    "x11rb/allow-unsafe-code",
+    "x11rb/xkb",
+    "xkbcommon/x11",
+]
+xdg_desktop = ["dep:image", "dep:futures", "ashpd/screenshot"]
 
 [dependencies]
 log = "0.4"
@@ -105,7 +109,6 @@ x11rb = { version = "0.14", features = [
 xkbcommon = "0.9"
 xkeysym = "0.2"
 tempfile = { version = "3", optional = true }
-nom = { version = "8.0", optional = true }
 image = { version = "0.25", optional = true }
 
 [dev-dependencies]

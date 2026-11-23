@@ -2,7 +2,7 @@
 ## Changed
 - linux: When several backends are enabled, Enigo now tries Wayland, then X11, then libei (was libei, Wayland, X11)
 - linux: The `libei` feature enables the libei backend; pick the async runtime with the mutually exclusive `smol` or `tokio` feature (replaces `libei_smol` and `libei_tokio`)
-- linux: Text is entered through `ei_text` where the compositor supports it, and through the keymap otherwise
+- linux: libei: Keys are sent through the keyboard interface so modifiers and shortcuts work; `ei_text` is used only for characters the keymap cannot produce
 - linux: Wheel scrolling uses discrete 120-unit steps on libei and Wayland instead of smooth axis events
 - all: `Mouse::smooth_scroll` no longer requires `platform_specific`; it is available on macOS, Windows, and on Linux with xdg_desktop, Wayland or libei (X11 returns an error)
 - all: MSRV is 1.93.1
@@ -29,6 +29,10 @@
 - linux: libei: `update()` no longer sleeps on every call
 - linux: libei: `raw()` and keymap `key()` handle X11 keycodes below 8 correctly
 - linux: Retry with a different backend after an error
+- linux: Characters that only exist in a secondary layout or at a higher shift level are entered correctly [#541](https://github.com/enigo-rs/enigo/issues/541)
+- linux: x11rb: Keys keep working after the X server changes its keymap (layout change, suspend/resume, device hotplug)
+- linux: x11rb: Fast text input no longer types the wrong character when spare keycodes are reused
+- linux: Wayland: Held modifier keys now apply to subsequent keys and shortcuts
 
 # 0.6.1
 ## Fixed
