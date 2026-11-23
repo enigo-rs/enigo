@@ -82,6 +82,21 @@ impl Con {
         })?;
         trace!("New desktop");
 
+        // An old portal cannot use the restore token. Keep it out of the
+        // request and let the portal ask for permission again.
+        let restore_token = if restore_token.is_some()
+            && remote_desktop.version() < super::MIN_REMOTE_DESKTOP_VERSION
+        {
+            warn!(
+                "the portal does not support restore tokens (RemoteDesktop version {}); \
+                 asking for permission again. xdg-desktop-portal 1.20 or newer is required",
+                remote_desktop.version()
+            );
+            None
+        } else {
+            restore_token
+        };
+
         let session = remote_desktop
             .create_session(CreateSessionOptions::default())
             .await
