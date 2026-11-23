@@ -9,7 +9,6 @@ edition = "2024"
 rust-version = "1.93.1"
 description = "Cross-platform (Linux, Windows, macOS & BSD) library to simulate keyboard and mouse events"
 documentation = "https://docs.rs/enigo/"
-homepage = "https://github.com/enigo-rs/enigo"
 repository = "https://github.com/enigo-rs/enigo"
 readme = "README.md"
 keywords = ["simulate", "input", "mouse", "keyboard", "automation"]
@@ -88,12 +87,16 @@ dispatch2 = "0.3"
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 reis = { version = "0.7", optional = true }
-ashpd = { version = "0.13", default-features = false, features = [
+ashpd = { version = "0.14", default-features = false, features = [
     "remote_desktop",
     "screencast",
 ], optional = true }
 futures = { version = "0.3", optional = true }
-tokio = { version = "1.24", optional = true }
+tokio = { version = "1.24", features = [
+    "rt-multi-thread",
+    "net",
+    "time",
+], optional = true }
 wayland-protocols-misc = { version = "0.3", features = [
     "client",
 ], optional = true }

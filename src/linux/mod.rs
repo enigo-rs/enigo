@@ -109,9 +109,9 @@ mod portal {
     /// `ashpd`/`zbus` keep the D-Bus reader task on the runtime that created
     /// the connection.
     ///
-    /// This relies on the Tokio features that `ashpd/tokio` enables through
-    /// `zbus/tokio` (`rt-multi-thread` for `new_multi_thread` and the I/O and
-    /// time drivers for `enable_all`).
+    /// This relies on the Tokio features that enigo enables directly
+    /// (`rt-multi-thread` for `new_multi_thread` and the I/O and time drivers
+    /// for `enable_all`).
     #[cfg(feature = "tokio")]
     fn runtime() -> Result<&'static tokio::runtime::Runtime, std::io::Error> {
         use std::sync::OnceLock;
