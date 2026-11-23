@@ -164,7 +164,7 @@ impl Con {
             })?;
 
         let mut options = SelectDevicesOptions::default()
-            .set_devices(DeviceType::Keyboard | DeviceType::Pointer)
+            .set_devices(DeviceType::KEYBOARD | DeviceType::POINTER)
             .set_persist_mode(ashpd::desktop::PersistMode::ExplicitlyRevoked);
         if let Some(restore_token) = restore_token {
             options = options.set_restore_token(restore_token);
