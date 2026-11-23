@@ -24,20 +24,19 @@ the unit tests, or before them:
   the X input focus and still received no key events, so it is not a focus
   problem on the browser side. The Wayland run fails at the first key. This
   needs a follow-up investigation of the portal/headless session.
-- sway: `Enigo::new` cannot connect because the headless session has no keymap.
-- labwc: the wayland backend sends a modifier key only as a `wl_keyboard`
-  modifier-state change, not as a key event. The page therefore never sees the
-  CapsLock press and the Wayland run stops at the first modifier key. The unit
-  tests only check that the call succeeds, so they do not catch this.
 - Plasma Wayland: the KDE RemoteDesktop portal is unavailable because the
   headless KWin cannot provide a screencast stream.
 
-The failing Wayland runs (GNOME, Plasma, sway and labwc) are marked
-expected-to-fail in CI so the failure stays visible while the XWayland run and
-the wlroots suite still report their own results. The `xdg_desktop` browser run
-skips absolute pointer motion, which the backend does not implement; the
-XWayland run is the reference for the full browser test and passes against
-Mutter's Xwayland and KWin's Xwayland.
+The failing Wayland runs are marked expected-to-fail in CI so the failure stays
+visible while the XWayland run and the wlroots suite still report their own
+results. The `sway` and `labwc` markers predate the xkbcommon keymap refactor:
+the wayland backend now compiles a default `us` keymap when the compositor
+assigns none (sway) and sends modifier keys as key events in addition to the
+`wl_keyboard` modifier state (labwc). Those markers can be removed once the
+sessions have been re-run. The `xdg_desktop` browser run skips absolute pointer
+motion, which the backend does not implement; the XWayland run is the reference
+for the full browser test and passes against Mutter's Xwayland and KWin's
+Xwayland.
 
 ## `xdg_desktop` limits in the headless GNOME container
 
@@ -61,13 +60,13 @@ EIS seat without the `ei_text` interface and does not advertise
 compositor sent.
 
 That fallback can only press keycodes that already exist in the active keymap
-in levels 0 and 1. Two test cases fail because of this, not because of the
-container:
+at the current shift level. Two test cases fail because of this, not because of
+the container:
 
 - `tests::keyboard::unit_key` fails on the first key that the default us layout
   does not map (`Key::Begin`; `Mode_switch`, `script_switch`, `Shift_Lock` and
   similar keysyms would fail as well) with
-  `InvalidInput("failed to map the requested key to a keycode: the provided key is not mapped in the current xkb keymap")`.
+  `InvalidInput("failed to map the requested key to a keycode: the provided key is not mapped at the current shift level")`.
 - `tests::keyboard::unit_text` fails on the first character the keymap cannot
   produce (the special `𝕊` character, emoji, CJK and Arabic text as used by the
   test), with the same error. `text()` falls back to `key(Key::Unicode(c))`
@@ -81,46 +80,6 @@ implemented) or to synthesize a keymap/modifier sequence that can produce the
 requested keysym instead of rejecting it. Until then, these two tests are
 expected to fail on Mutter. They are left enabled so the limitation stays
 visible.
-
-## The wayland backend needs a keymap from the compositor
-
-The wayland backend starts from the xkb keymap that the compositor sends for
-`wl_seat` and only falls back to `Keymap2::default()` when no keymap was
-received. That fallback is still a stub (`DEFAULT_KEYMAP` is the string
-`"xkb_keymap {"`), which xkbcommon rejects, so `update_keymap()` fails and
-`Enigo::new` returns `EstablishCon("no successful connection")`. `Con::new`
-also uses a fixed number of roundtrips and does not wait for a keymap event
-that arrives after the seat capabilities when the seat only gains a keyboard
-because of the virtual keyboard the backend just created.
-
-This is visible in the headless sway container and in the CI `sway` job.
-Sway deliberately does not configure a layout for virtual keyboards
-(`sway_keyboard_configure` skips `sway_keyboard_set_layout` when
-`input_device->is_virtual` is set), and when a client's virtual keyboard is
-destroyed sway clears the seat's current keyboard. The session has no physical
-keyboard, so there is never a keymap to start from and every test that calls
-`Enigo::new` fails, including the mouse-only tests.
-
-The library fix is to compile a real default keymap (for example the default
-`us` rules with xkbcommon) instead of the stub, and/or to wait for the seat
-keymap event before calling `update_keymap()`. The `labwc` container runs the
-same backend against a compositor that assigns the seat keymap to every virtual
-keyboard (`new_keyboard()` calls `wlr_keyboard_set_keymap()` and then
-`wlr_seat_set_keyboard()`), so all wayland tests pass there. The sway container
-is kept to keep this limitation visible.
-
-## KWin pushes the pointer out of screen-edge corners
-
-KWin treats the top-left corner as an active screen edge and moves the pointer
-back into the screen by `ElectricBorderPushbackPixels` (default 1) after it
-reaches the corner. A request to move to `(0, 0)` therefore reports `(1, 1)` in
-the Plasma X11 container. Setting `ElectricBorderPushbackPixels=0` in `kwinrc`
-makes the exact assertions pass, but the container keeps KWin's defaults.
-
-`unit_move_mouse_to` and `unit_move_mouse_rel` therefore allow a one-pixel
-difference for positions on a screen edge when `XDG_CURRENT_DESKTOP` contains
-`KDE`. The library still requests the exact coordinate; the tolerance only
-accounts for the compositor moving the pointer after the request.
 
 ## The KDE RemoteDesktop portal is unavailable in the headless Plasma container
 
