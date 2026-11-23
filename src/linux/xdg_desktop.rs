@@ -102,15 +102,7 @@ impl Con {
     where
         F: Future,
     {
-        #[cfg(feature = "tokio")]
-        if tokio::runtime::Handle::try_current().is_err() {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .build()?; // return the error directly
-            return Ok(rt.block_on(f));
-        }
-
-        Ok(futures::executor::block_on(f))
+        super::portal::block_on(f)
     }
 
     #[allow(clippy::unnecessary_wraps)]

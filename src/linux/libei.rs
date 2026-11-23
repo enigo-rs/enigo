@@ -207,18 +207,10 @@ impl Con {
 
     #[allow(clippy::unnecessary_wraps)] // The wrap is needed for the tokio feature
     fn custom_block_on<F: Future>(f: F) -> Result<F::Output, NewConError> {
-        #[cfg(feature = "tokio")]
-        if tokio::runtime::Handle::try_current().is_err() {
-            return Ok(tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .build()
-                .map_err(|e| {
-                    error!("{e}");
-                    NewConError::EstablishCon("failed to create tokio runtime")
-                })?
-                .block_on(f));
-        }
-        Ok(futures::executor::block_on(f))
+        super::portal::block_on(f).map_err(|e| {
+            error!("{e}");
+            NewConError::EstablishCon("failed to create tokio runtime")
+        })
     }
 
     /// Create a new Enigo instance

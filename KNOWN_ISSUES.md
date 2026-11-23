@@ -37,22 +37,7 @@ expected-to-fail in CI so the failure stays visible while the XWayland run and
 the wlroots suite still report their own results. The `xdg_desktop` browser run
 skips absolute pointer motion, which the backend does not implement; the
 XWayland run is the reference for the full browser test and passes against
-Mutter's Xwayland and KWin's Xwayland. The `tokio` portal test jobs are marked
-experimental because the second-`Enigo` hang described below can exceed the
-step timeout.
-
-## A second `Enigo` can hang with `libei` or `xdg_desktop`
-
-When `Enigo::new` is called outside an existing Tokio runtime, both backends
-create a short-lived current-thread runtime for the portal calls and drop it
-afterwards. `ashpd`/`zbus` keep background tasks on the runtime that created the
-connection, so creating a second `Enigo` in the same process can hang.
-
-This was observed while testing restore-token reuse. It should be fixed
-separately; the tests intentionally do not work around it. Because each test
-creates its own `Enigo`, the `libei` and `xdg_desktop` test suites can hang
-after the first test until the library keeps a runtime alive or documents and
-requires an ambient runtime. The CI jobs for those backends are experimental.
+Mutter's Xwayland and KWin's Xwayland.
 
 ## `xdg_desktop` limits in the headless GNOME container
 
