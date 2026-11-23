@@ -4,6 +4,7 @@ git
 libx11-dev
 libxi-dev
 libxkbcommon-dev
+libxkbcommon-x11-dev
 libxtst-dev
 pkgconf
 sudo

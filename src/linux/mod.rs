@@ -40,6 +40,18 @@ compile_error!(
     "the libei feature can only be used if either feature `tokio` or `smol` is enabled to provide an async runtime"
 );
 
+/// Bound the cost of parsing a keymap received over the wire (from a Wayland
+/// compositor or the EIS). This protects us from a buggy or malicious peer
+/// sending an unbounded keymap.
+#[cfg(any(feature = "wayland", feature = "libei"))]
+const MAX_KEYMAP_SIZE: usize = 4 * 1024 * 1024;
+
+/// The largest keycode we accept or generate. Scans over a keymap are clamped
+/// to this so a keymap that declares an absurd `maximum` cannot make them
+/// unbounded, and it matches the `u16` keycodes the public `raw` API accepts.
+#[cfg(any(feature = "wayland", feature = "x11rb", feature = "libei"))]
+const MAX_KEYCODE: u32 = u16::MAX as u32;
+
 #[cfg(any(
     all(feature = "libei", feature = "tokio"),
     all(feature = "libei", feature = "smol")
@@ -57,10 +69,10 @@ mod x11;
 mod xdg_desktop;
 
 #[cfg(any(feature = "wayland", feature = "x11rb"))]
-mod keymap;
+mod xkb;
 
-#[cfg(feature = "wayland")]
-pub mod keymap2;
+#[cfg(any(feature = "wayland", feature = "libei"))]
+mod text;
 
 pub struct Enigo {
     held: (Vec<Key>, Vec<u16>), // Currently held keys and held keycodes

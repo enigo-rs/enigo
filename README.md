@@ -43,29 +43,21 @@ On Windows, mouse coordinates and display size use physical pixels. Enigo tempor
 
 ## Runtime dependencies
 
-Linux users may have to install `libxdo-dev` if they are using the `xdo` feature. For example, on Debian-based distros:
+Runtime dependencies per feature:
 
-```Bash
-apt install libxdo-dev
-```
+| Feature | Runtime dependency |
+| --- | --- |
+| `xdo` | `libxdo` |
+| `wayland`, `libei` | `libxkbcommon` |
+| `x11rb` (default) | `libxkbcommon`, `libxkbcommon-x11` |
 
-On Arch:
+Package names by distribution:
 
-```Bash
-pacman -S xdotool
-```
-
-On Fedora:
-
-```Bash
-dnf install libX11-devel libxdo-devel
-```
-
-On Gentoo:
-
-```Bash
-emerge -a xdotool
-```
+| Library | Debian/Ubuntu | Fedora | Arch | Gentoo |
+| --- | --- | --- | --- | --- |
+| `libxdo` | `libxdo-dev` | `libxdo-devel`, `libX11-devel` | `xdotool` | `xdotool` |
+| `libxkbcommon` | `libxkbcommon-dev` | `libxkbcommon-devel` | `libxkbcommon` | `x11-libs/libxkbcommon` |
+| `libxkbcommon-x11` | `libxkbcommon-x11-dev` | `libxkbcommon-x11-devel` | `libxkbcommon` | `x11-libs/libxkbcommon` (USE `X`) |
 
 ## Permissions
 

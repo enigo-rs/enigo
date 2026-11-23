@@ -1,6 +1,7 @@
 use std::{
     convert::TryInto as _,
     env,
+    io::Write as _,
     num::Wrapping,
     os::{fd::AsFd, unix::net::UnixStream},
     path::PathBuf,
@@ -27,7 +28,8 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
 };
 use xkbcommon::xkb;
 
-use super::keymap2::Keymap2;
+use super::text::utf8_chunks;
+use super::xkb::Keymap;
 use crate::{
     Axis, Button, Coordinate, Direction, InputError, InputResult, Key, Keyboard, Mouse,
     NewConError, keycodes::ModifierBitflag,
@@ -74,7 +76,8 @@ impl Con {
         // Keep the registry alive so Global / GlobalRemove keep being
         // delivered.
         let display = connection.display();
-        let mut state = WaylandState::new(display.get_registry(&qh, ()));
+        let mut state = WaylandState::new(display.get_registry(&qh, ()))
+            .map_err(|()| NewConError::EstablishCon("could not create the default keymap"))?;
 
         // Receive the list of available globals
         event_queue
@@ -239,6 +242,9 @@ impl Con {
     /// TODO
     fn update_keymap(&mut self) -> InputResult<()> {
         debug!("update_keymap(&mut self)");
+
+        let keymap_string = self.state.seat_keymap.keymap_string()?;
+
         let vk = self
             .state
             .virtual_keyboard
@@ -246,16 +252,30 @@ impl Con {
             .ok_or(InputError::Simulate("no way to apply keymap"))?;
         is_alive(vk)?;
 
-        let keymap = match &self.state.seat_keymap {
-            Some(keymap) => keymap,
-            None => &Keymap2::default()
-                .map_err(|()| InputError::Mapping("could not update the keymap".to_string()))?,
-        };
+        let mut keymap_file = tempfile::tempfile().map_err(|e| {
+            error!("could not create temporary file. Error: {e}");
+            InputError::Mapping("could not update the keymap".to_string())
+        })?;
+        write!(keymap_file, "{keymap_string}\0").map_err(|e| {
+            error!("could not write to temporary file. Error: {e}");
+            InputError::Mapping("could not update the keymap".to_string())
+        })?;
+        let metadata = keymap_file.metadata().map_err(|e| {
+            error!("could not get the file's metadata! Error: {e}");
+            InputError::Mapping("could not update the keymap".to_string())
+        })?;
+        let size = metadata.len().try_into().map_err(|_| {
+            error!("keymap file is too large");
+            InputError::Mapping("could not update the keymap".to_string())
+        })?;
 
-        let (format, keymap_file, size) = keymap
-            .format_file_size()
-            .map_err(|()| InputError::Mapping("could not update the keymap".to_string()))?;
-        vk.keymap(format, keymap_file.as_fd(), size);
+        vk.keymap(xkb::KEYMAP_FORMAT_TEXT_V1, keymap_file.as_fd(), size);
+
+        // A new keymap makes the compositor recreate its xkb state, which
+        // resets the modifiers. Re-apply the state we have so a modifier that
+        // is held across a remap keeps applying.
+        let (depressed, latched, locked, layout) = self.state.seat_keymap.masks();
+        vk.modifiers(depressed, latched, locked, layout);
 
         debug!("wait for response after keymap call");
         self.event_queue
@@ -319,13 +339,15 @@ struct WaylandState {
     virtual_pointer: Option<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1>,
     seat: Option<wl_seat::WlSeat>,
     seat_keyboard: Option<WlKeyboard>,
-    seat_keymap: Option<Keymap2>,
+    /// Always present: the compositor keymap once it arrives, or a default
+    /// `us` keymap until then (and as a fallback if a keymap cannot be parsed).
+    seat_keymap: Keymap,
     seat_pointer: Option<WlPointer>,
 }
 
 impl WaylandState {
-    fn new(registry: WlRegistry) -> Self {
-        Self {
+    fn new(registry: WlRegistry) -> Result<Self, ()> {
+        Ok(Self {
             _registry: registry,
             globals: Vec::new(),
             outputs: Vec::new(),
@@ -340,9 +362,9 @@ impl WaylandState {
             virtual_pointer: None,
             seat: None,
             seat_keyboard: None,
-            seat_keymap: None,
+            seat_keymap: Keymap::default()?,
             seat_pointer: None,
-        }
+        })
     }
 }
 
@@ -513,7 +535,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                             vp.destroy();
                         }
                         state.seat_keyboard = None;
-                        state.seat_keymap = None;
                         state.seat_pointer = None;
                         state.seat = None;
                     }
@@ -658,11 +679,13 @@ impl Dispatch<wl_seat::WlSeat, ()> for WaylandState {
                         state.seat_keyboard = Some(seat.get_keyboard(qh, ()));
                     }
                 } else if let Some(keyboard) = state.seat_keyboard.take() {
-                    // Spec: release when the capability is gone.
+                    // Spec: release the wl_keyboard when the capability is
+                    // gone. The stored keymap is our own parsed copy, not a
+                    // resource owned by that object, so keep it as the fallback
+                    // until a new keymap arrives.
                     if keyboard.version() >= wl_keyboard::REQ_RELEASE_SINCE {
                         keyboard.release();
                     }
-                    state.seat_keymap = None;
                 }
 
                 if capabilities.contains(Capability::Pointer) {
@@ -702,18 +725,12 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                 let format = if let WEnum::Value(format) = format {
                     format as xkb::KeymapFormat
                 } else {
-                    error!("invalid format received! resetting the keymap");
-                    state.seat_keymap = None;
+                    error!("invalid format received; keeping the previous keymap");
                     return;
                 };
 
-                if let Some(keymap) = &mut state.seat_keymap {
-                    if keymap.update(format, fd, size).is_err() {
-                        state.seat_keymap = None;
-                    }
-                } else {
-                    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-                    state.seat_keymap = Keymap2::new_from_fd(context, format, fd, size).ok();
+                if state.seat_keymap.update(format, fd, size).is_err() {
+                    error!("unable to parse the compositor keymap; keeping the previous keymap");
                 }
             }
             wl_keyboard::Event::Modifiers {
@@ -723,19 +740,17 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WaylandState {
                 mods_locked: locked_mods,
                 group: depressed_layout,
             } => {
-                if let Some(keymap) = &mut state.seat_keymap {
-                    // Wayland doesn't differentiates between depressed, latched
-                    // and locked
-                    keymap.update_modifiers(
-                        depressed_mods,
-                        latched_mods,
-                        locked_mods,
-                        depressed_layout,
-                        0,
-                        0,
-                    );
-                    debug!("modifiers updated");
-                }
+                // Wayland doesn't differentiate between depressed, latched and
+                // locked
+                state.seat_keymap.update_state(
+                    depressed_mods,
+                    latched_mods,
+                    locked_mods,
+                    depressed_layout,
+                    0,
+                    0,
+                );
+                debug!("modifiers updated");
             }
             // On Wayland the clients only get notified about pressed keys or
             // modifiers if they have the focus. We cannot assume that is the
@@ -894,28 +909,11 @@ impl Keyboard for Con {
     }
 
     fn key(&mut self, key: Key, direction: Direction) -> InputResult<()> {
-        let keymap = self
-            .state
-            .seat_keymap
-            .as_mut()
-            .ok_or(InputError::Simulate("no keymap available"))?;
-
-        let keycode = if let Some(keycode) = keymap.key_to_keycode(key) {
+        let keycode = if let Some(keycode) = self.state.seat_keymap.key_to_keycode(key) {
             keycode
         } else {
-            debug!("keycode for key {key:?} was not found");
-
-            let mapping_res = keymap.map_key(key);
-            let keycode = match mapping_res {
-                Err(InputError::Mapping(_)) => {
-                    // Unmap and retry
-                    keymap.unmap_everything()?;
-                    keymap.map_key(key)?
-                }
-
-                Ok(keycode) => keycode,
-                _ => return Err(InputError::Mapping("unable to map the key".to_string())),
-            };
+            debug!("keycode for key {key:?} was not found; adding it to the keymap");
+            let keycode = self.state.seat_keymap.map_key(key)?;
 
             // Apply the new keymap if there were any changes
             self.update_keymap()?;
@@ -925,54 +923,34 @@ impl Keyboard for Con {
     }
 
     fn raw(&mut self, keycode: u16, direction: Direction) -> InputResult<()> {
+        let xkb_keycode = xkb::Keycode::new(u32::from(keycode));
+
+        // Send the key event for every key, modifiers included, exactly like a
+        // physical keyboard. `update_key` computes the resulting modifier
+        // state; publish it after the key event, which is the order wlroots
+        // uses for physical keyboards. The virtual keyboard's `key` request
+        // does not update the compositor's xkb state, so a changed state must
+        // additionally be sent through `modifiers`.
         if direction == Direction::Click || direction == Direction::Press {
-            // Update keymap state
-            if let Some((
-                depressed_mods_new,
-                latched_mods_new,
-                locked_mods_new,
-                effective_layout_new,
-            )) = self
+            let changed = self
                 .state
                 .seat_keymap
-                .as_mut()
-                .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Down)
-            {
-                trace!("it is a modifier");
-                self.send_modifier_event(
-                    depressed_mods_new,
-                    latched_mods_new,
-                    locked_mods_new,
-                    effective_layout_new,
-                )?;
-            } else {
-                self.send_key_event(keycode.into(), Direction::Press)?;
+                .update_key(xkb_keycode, xkb::KeyDirection::Down);
+            self.send_key_event(keycode.into(), Direction::Press)?;
+            if let Some((depressed, latched, locked, layout)) = changed {
+                self.send_modifier_event(depressed, latched, locked, layout)?;
             }
+            self.state.seat_keymap.record_use(xkb_keycode);
         }
+
         if direction == Direction::Click || direction == Direction::Release {
-            // Update keymap state
-            if let Some((
-                depressed_mods_new,
-                latched_mods_new,
-                locked_mods_new,
-                effective_layout_new,
-            )) = self
+            let changed = self
                 .state
                 .seat_keymap
-                .as_mut()
-                .ok_or(InputError::Simulate("no keymap available"))?
-                .update_key(xkb::Keycode::new(keycode.into()), xkb::KeyDirection::Up)
-            {
-                trace!("it is a modifier");
-                self.send_modifier_event(
-                    depressed_mods_new,
-                    latched_mods_new,
-                    locked_mods_new,
-                    effective_layout_new,
-                )?;
-            } else {
-                self.send_key_event(keycode.into(), Direction::Release)?;
+                .update_key(xkb_keycode, xkb::KeyDirection::Up);
+            self.send_key_event(keycode.into(), Direction::Release)?;
+            if let Some((depressed, latched, locked, layout)) = changed {
+                self.send_modifier_event(depressed, latched, locked, layout)?;
             }
         }
         Ok(())
@@ -1150,112 +1128,7 @@ fn is_alive<P: wayland_client::Proxy>(proxy: &P) -> InputResult<()> {
     }
 }
 
-/// Split `text` into UTF-8 chunks of at most `max_bytes` each.
-///
-/// Chunks never split a Unicode scalar value. If the next scalar needs more
-/// than `max_bytes` (possible when `max_bytes < 4`), that scalar is still
-/// emitted alone so iteration makes progress. `max_bytes == 0` yields nothing.
-fn utf8_chunks(text: &str, max_bytes: usize) -> impl Iterator<Item = &str> {
-    std::iter::from_fn({
-        let mut rest = text;
-        move || {
-            if rest.is_empty() || max_bytes == 0 {
-                return None;
-            }
-            let mut end = rest.len().min(max_bytes);
-            while end > 0 && !rest.is_char_boundary(end) {
-                end -= 1;
-            }
-            if end == 0 {
-                // Next scalar needs more than max_bytes; emit it alone.
-                end = rest.chars().next().map_or(0, char::len_utf8);
-                if end == 0 {
-                    return None;
-                }
-            }
-            let (chunk, next) = rest.split_at(end);
-            rest = next;
-            Some(chunk)
-        }
-    })
-}
-
 /// Bind at most the version supported by our generated protocol bindings.
 fn bind_version<P: wayland_client::Proxy>(advertised: u32) -> u32 {
     advertised.min(P::interface().version)
-}
-
-#[cfg(test)]
-mod utf8_chunks_tests {
-    use super::utf8_chunks;
-
-    fn chunks<'a>(text: &'a str, max_bytes: usize) -> Vec<&'a str> {
-        utf8_chunks(text, max_bytes).collect()
-    }
-
-    #[test]
-    fn empty_inputs() {
-        assert!(chunks("", 0).is_empty());
-        assert!(chunks("", 1).is_empty());
-        assert!(chunks("", 4000).is_empty());
-        assert!(chunks("hello", 0).is_empty());
-        assert!(chunks("😀", 0).is_empty());
-    }
-
-    #[test]
-    fn max_bytes_one_ascii() {
-        assert_eq!(chunks("ab", 1), ["a", "b"]);
-        assert_eq!(chunks("xyz", 1), ["x", "y", "z"]);
-    }
-
-    #[test]
-    fn max_bytes_one_or_two_with_multibyte() {
-        // é is U+00E9 → 2 bytes (C3 A9)
-        assert_eq!(chunks("é", 1), ["é"]); // exceeds budget to make progress
-        assert_eq!(chunks("éé", 2), ["é", "é"]);
-        assert_eq!(chunks("aé", 2), ["a", "é"]); // 'a'+start of é doesn't fit → "a", then "é"
-
-        // emoji is 4 bytes
-        assert_eq!(chunks("😀", 1), ["😀"]);
-        assert_eq!(chunks("😀", 2), ["😀"]);
-        assert_eq!(chunks("😀x", 2), ["😀", "x"]);
-    }
-
-    #[test]
-    fn emoji_and_ascii_at_cut_boundary() {
-        // "hi" = 2 bytes, "😀" = 4 → total 6 before '!'
-        assert_eq!(chunks("hi😀!", 5), ["hi", "😀!"]); // remainder "😀!" is exactly 5
-        assert_eq!(chunks("hi😀!", 6), ["hi😀", "!"]);
-        assert_eq!(chunks("hi😀!", 4), ["hi", "😀", "!"]);
-        assert_eq!(chunks("a😀b😀c", 4), ["a", "😀", "b", "😀", "c"]);
-        assert_eq!(chunks("a😀b😀c", 5), ["a😀", "b😀", "c"]);
-    }
-
-    #[test]
-    fn three_byte_and_combining_marks() {
-        // CJK ideographs are 3 bytes each in UTF-8
-        assert_eq!(chunks("日本語", 3), ["日", "本", "語"]);
-        assert_eq!(chunks("日本語", 5), ["日", "本", "語"]); // 5 is mid-second-char
-        assert_eq!(chunks("日本語", 6), ["日本", "語"]);
-
-        // combining acute accent (U+0301) is 2 bytes; stays with previous only
-        // if they fit in the same budget — with max 1 they split
-        let combining = "a\u{0301}"; // á
-        assert_eq!(chunks(combining, 1), ["a", "\u{0301}"]);
-        assert_eq!(chunks(combining, 3), [combining]);
-    }
-
-    #[test]
-    fn unusual_max_bytes() {
-        assert_eq!(chunks("abc", 3), ["abc"]);
-        assert_eq!(chunks("abcdef", 3), ["abc", "def"]);
-        assert_eq!(chunks("hi", 100), ["hi"]);
-        assert_eq!(chunks("x", usize::MAX), ["x"]);
-        // Exactly one byte over a clean ASCII split
-        assert_eq!(chunks("abcd", 3), ["abc", "d"]);
-        // Protocol-sized limit still works for mixed text
-        let text = "hello 😀 日本語!";
-        assert_eq!(chunks(text, 4000).concat(), text);
-        assert_eq!(chunks(text, 4000), [text]);
-    }
 }
