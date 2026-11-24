@@ -86,13 +86,15 @@ fn integration_browser_events() {
     // KNOWN_ISSUES.md.
     #[cfg(not(feature = "xdg_desktop"))]
     {
-        enigo.move_mouse(100, 100, Abs).unwrap();
-        enigo.move_mouse(200, 200, Abs).unwrap();
+        // A fresh wlroots cursor starts at (100, 100), so move away from it
+        // first.
+        enigo.move_mouse(209, 249, Abs).unwrap();
+        enigo.move_mouse(145, 153, Abs).unwrap();
         // location() is only implemented by the X11 backend.
         #[cfg(any(feature = "x11rb", feature = "xdo"))]
         {
             let (x, y) = enigo.location().unwrap();
-            assert_eq!((200, 200), (x, y));
+            assert_eq!((145, 153), (x, y));
         }
     }
     enigo.move_mouse(20, 20, Rel).unwrap();

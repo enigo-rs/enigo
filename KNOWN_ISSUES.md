@@ -29,11 +29,11 @@ the unit tests, or before them:
 
 The failing Wayland runs are marked expected-to-fail in CI so the failure stays
 visible while the XWayland run and the wlroots suite still report their own
-results. The `sway` and `labwc` markers predate the xkbcommon keymap refactor:
-the wayland backend now compiles a default `us` keymap when the compositor
-assigns none (sway) and sends modifier keys as key events in addition to the
-`wl_keyboard` modifier state (labwc). Those markers can be removed once the
-sessions have been re-run. The `xdg_desktop` browser run skips absolute pointer
+results. The `sway` marker predates the xkbcommon keymap refactor: the wayland
+backend now compiles a default `us` keymap when the compositor assigns none
+(sway). That marker can be removed once the session has been re-run. The labwc
+marker was removed because the browser test now observes text committed through
+`zwp_input_method_v2`. The `xdg_desktop` browser run skips absolute pointer
 motion, which the backend does not implement; the XWayland run is the reference
 for the full browser test and passes against Mutter's Xwayland and KWin's
 Xwayland.

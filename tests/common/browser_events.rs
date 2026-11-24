@@ -59,6 +59,9 @@ pub enum Event {
         client_x: i32,
         client_y: i32,
     },
+    /// Text committed by an input method instead of individual key events.
+    #[serde(rename_all = "camelCase")]
+    Composition { timestamp: f64 },
 }
 
 impl TryFrom<Message> for BrowserEvent {
@@ -188,6 +191,13 @@ fn deserialize_browser_events() {
                     client_x: 150,
                     client_y: 250,
                 },
+            },
+        ),
+        (
+            r#"{"text":"TestText❤️","event":{"type":"composition","timestamp":1234.5}}"#,
+            BrowserEvent {
+                text: "TestText❤️".into(),
+                event: Event::Composition { timestamp: 1234.5 },
             },
         ),
     ];

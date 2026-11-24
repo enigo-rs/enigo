@@ -136,17 +136,29 @@ impl Keyboard for EnigoTest {
         if cfg!(target_os = "macos") {}
 
         while !expected_text.is_empty() {
-            let browser_event = self.read_message();
-            let BrowserEvent {
-                text: observed_text,
-                event: Event::Key { key, .. },
-            } = browser_event
-            else {
-                panic!("wrong event received: {browser_event:?}")
+            let BrowserEvent { text, event } = self.read_message();
+            let observed_text = match event {
+                Event::Key { key, .. } => {
+                    #[cfg(target_os = "macos")]
+                    {
+                        key
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let _ = key;
+                        text
+                    }
+                }
+                Event::Composition { .. } => text,
+                other => panic!("wrong event received: {other:?}"),
             };
 
-            #[cfg(target_os = "macos")]
-            let observed_text = key;
+            // The keydown of a character is reported before the browser inserts
+            // it, so it carries no text. Skipping it keeps `strip_prefix` from
+            // matching an empty prefix forever.
+            if observed_text.is_empty() {
+                continue;
+            }
 
             match expected_text.strip_prefix(&observed_text) {
                 Some(remainder) => expected_text = remainder.to_string(),

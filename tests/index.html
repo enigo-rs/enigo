@@ -30,6 +30,7 @@
     <script>
         let ws;
         let messageQueue = [];
+        let imeCommitPending = false;
 
         window.onload = () => {
             const textArea = document.getElementById('text');
@@ -102,6 +103,18 @@
         }
 
         function handleAndSend(e) {
+            // A "Process" keydown marks an IME commit; its text comes in the
+            // next `input` event.
+            if (e.key === "Process" && (e.type === "keydown" || e.type === "keyup")) {
+                if (e.type === "keydown") {
+                    imeCommitPending = true;
+                }
+                return;
+            }
+            if (e.type === "keydown") {
+                imeCommitPending = false; // a real key cancels a stale commit
+            }
+
             const textArea = document.getElementById('text');
             const text = textArea.value;
 
@@ -163,6 +176,26 @@
         }
 
 
+
+        function reportComposition(text, timestamp) {
+            if (!text) {
+                return;
+            }
+            sendMessage({
+                text,
+                event: {
+                    type: "composition",
+                    timestamp,
+                },
+            });
+        }
+
+        document.addEventListener("input", (e) => {
+            if (imeCommitPending) {
+                imeCommitPending = false;
+                reportComposition(e.data, e.timeStamp);
+            }
+        });
 
         ["keydown", "keyup", "mousedown", "mouseup", "mousemove", "wheel"].forEach(evt =>
             document.addEventListener(evt, handleAndSend)
