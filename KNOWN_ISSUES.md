@@ -27,9 +27,9 @@ the unit tests, or before them:
 - Plasma Wayland: the KDE RemoteDesktop portal is unavailable because the
   headless KWin cannot provide a screencast stream.
 
-The failing Wayland runs are marked expected-to-fail in CI so the failure stays
-visible. The `xdg_desktop` browser run skips absolute pointer motion, which the
-backend does not implement.
+These Wayland runs are not excluded from CI, so they fail until the underlying
+limitation is fixed. The `xdg_desktop` browser run skips absolute pointer
+motion, which the backend does not implement.
 
 ## `xdg_desktop` limits in the headless GNOME container
 

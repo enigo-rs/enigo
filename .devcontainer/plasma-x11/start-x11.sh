@@ -17,7 +17,7 @@ require_env XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME \
 start_session_services
 start_xvfb
 
-configure_kwin_focus
+configure_kwin
 
 start_dbus_service org.kde.KWin "KWin on $DISPLAY" \
     "$XDG_RUNTIME_DIR/kwin.log" kwin_x11 --replace

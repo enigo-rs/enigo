@@ -35,13 +35,10 @@ jobs:
   session:
     # One entry per session and backend. `browser` selects which browser
     # integration tests to run: `wayland` (Firefox on Wayland), `x11` (Firefox on
-    # X11, including a Wayland session's Xwayland), or `all` (both). `*_fails`
-    # marks a test that is a known failure, and `experimental` lets the whole
-    # entry fail. The known failures are described in KNOWN_ISSUES.md.
+    # X11, including a Wayland session's Xwayland), or `all` (both).
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -60,8 +57,6 @@ jobs:
           - name: Plasma on X11
             config: .devcontainer/plasma-x11/devcontainer.json
             features: x11rb
-            # KWin can push the pointer out of the top-left hot corner.
-            lib_fails: true
             browser: x11
 
           - name: sway
@@ -77,16 +72,11 @@ jobs:
           - name: GNOME Wayland (libei, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: libei,tokio,platform_specific
-            # Mutter's EIS seat has no ei_text.
-            experimental: true
 
           - name: GNOME Wayland (libei, smol)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: libei,smol,platform_specific
-            # Mutter's EIS seat has no ei_text.
-            experimental: true
             browser: wayland
-            browser_fails: true
 
           - name: GNOME Wayland (xdg_desktop, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
@@ -95,9 +85,7 @@ jobs:
           - name: GNOME Wayland (xdg_desktop, smol)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: xdg_desktop,smol,platform_specific
-            # The headless portal accepts input requests without delivering them.
             browser: wayland
-            browser_fails: true
 
           - name: GNOME Wayland (x11rb)
             config: .devcontainer/gnome-wayland/devcontainer.json
@@ -107,26 +95,19 @@ jobs:
           - name: Plasma Wayland (libei, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: libei,tokio,platform_specific
-            # KWin's headless backend has no screencast, so the portal is absent.
-            experimental: true
 
           - name: Plasma Wayland (libei, smol)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: libei,smol,platform_specific
-            # KWin's headless backend has no screencast, so the portal is absent.
-            experimental: true
             browser: wayland
-            browser_fails: true
 
           - name: Plasma Wayland (xdg_desktop, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: xdg_desktop,tokio,platform_specific
-            experimental: true
 
           - name: Plasma Wayland (xdg_desktop, smol)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: xdg_desktop,smol,platform_specific
-            experimental: true
 
           - name: Plasma Wayland (x11rb)
             config: .devcontainer/plasma-wayland/devcontainer.json
@@ -154,9 +135,8 @@ jobs:
       # every button, which can leave a shell modal open. A modal grabs the
       # keyboard, so the browser never sees the events even though it has the X
       # input focus.
-      - name: "Test the browser integration through Wayland${{ matrix.browser_fails && ' (expected to fail)' || '' }}"
+      - name: Test the browser integration through Wayland
         if: matrix.browser == 'wayland' || matrix.browser == 'all'
-        continue-on-error: ${{ matrix.browser_fails || false }}
         timeout-minutes: 5
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
@@ -172,7 +152,6 @@ jobs:
             cargo test --features serde --test integration_browser_events
 
       - name: Test the library (${{ matrix.features }})
-        continue-on-error: ${{ matrix.lib_fails || false }}
         timeout-minutes: 5
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
@@ -184,12 +163,3 @@ jobs:
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
             cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
-
-      # Temporary: print the focus log of the GNOME X11 session. Remove this
-      # step together with .devcontainer/gnome-x11/debug-focus.sh.
-      - name: Dump the focus log (temporary)
-        if: always() && matrix.name == 'GNOME on Xorg'
-        continue-on-error: true
-        run: |
-          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" \
-            sh -c 'cat "$XDG_RUNTIME_DIR/focus-debug.log"; echo "--- gnome-shell.log"; tail -50 "$XDG_RUNTIME_DIR/gnome-shell.log"'

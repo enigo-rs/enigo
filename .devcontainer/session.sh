@@ -330,10 +330,12 @@ hide_gnome_overview() {
     done
 }
 
-configure_kwin_focus() {
+configure_kwin() {
     # KWin's focus stealing prevention keeps the kiosk Firefox window from
-    # getting the input focus, so turn it off for the session. The session's
-    # config directory is private to the container.
+    # getting the input focus. It also pushes the pointer back from an active
+    # screen edge, which would move it away from the coordinate a test asked
+    # for. Disable both; the session's config directory is private.
     mkdir -p "$XDG_CONFIG_HOME"
-    printf '[Windows]\nFocusStealingPreventionLevel=0\n' >"$XDG_CONFIG_HOME/kwinrc"
+    printf '[Windows]\nFocusStealingPreventionLevel=0\nElectricBorderPushbackPixels=0\n' \
+        >"$XDG_CONFIG_HOME/kwinrc"
 }
