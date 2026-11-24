@@ -67,11 +67,7 @@ jobs:
           - name: sway
             config: .devcontainer/sway/devcontainer.json
             features: wayland
-            # A headless sway session assigns no keymap to virtual keyboards.
-            lib_fails: true
             browser: all
-            # Modifiers arrive only as wl_keyboard.modifiers, not as key events.
-            browser_fails: true
 
           - name: labwc
             config: .devcontainer/labwc/devcontainer.json
