@@ -28,15 +28,8 @@ the unit tests, or before them:
   headless KWin cannot provide a screencast stream.
 
 The failing Wayland runs are marked expected-to-fail in CI so the failure stays
-visible while the XWayland run and the wlroots suite still report their own
-results. The `sway` marker predates the xkbcommon keymap refactor: the wayland
-backend now compiles a default `us` keymap when the compositor assigns none
-(sway). That marker can be removed once the session has been re-run. The labwc
-marker was removed because the browser test now observes text committed through
-`zwp_input_method_v2`. The `xdg_desktop` browser run skips absolute pointer
-motion, which the backend does not implement; the XWayland run is the reference
-for the full browser test and passes against Mutter's Xwayland and KWin's
-Xwayland.
+visible. The `xdg_desktop` browser run skips absolute pointer motion, which the
+backend does not implement.
 
 ## `xdg_desktop` limits in the headless GNOME container
 
