@@ -77,8 +77,6 @@ jobs:
             config: .devcontainer/labwc/devcontainer.json
             features: wayland
             browser: all
-            # Modifiers arrive only as wl_keyboard.modifiers, not as key events.
-            browser_fails: true
 
           - name: GNOME Wayland (libei, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
@@ -160,7 +158,7 @@ jobs:
       # every button, which can leave a shell modal open. A modal grabs the
       # keyboard, so the browser never sees the events even though it has the X
       # input focus.
-      - name: Test the browser integration through Wayland (expected to fail)
+      - name: "Test the browser integration through Wayland${{ matrix.browser_fails && ' (expected to fail)' || '' }}"
         if: matrix.browser == 'wayland' || matrix.browser == 'all'
         continue-on-error: ${{ matrix.browser_fails || false }}
         timeout-minutes: 5
