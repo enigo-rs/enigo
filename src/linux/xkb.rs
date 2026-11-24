@@ -415,6 +415,9 @@ impl Keymap {
     /// Build a keymap string equal to `source` plus the given dynamic mappings.
     fn keymap_string_for(&self, mappings: &HashMap<Keysym, MappedKey>) -> InputResult<String> {
         let mut keymap_string = self.source.clone();
+        if !mappings.is_empty() {
+            keymap_string = Self::ensure_type_is_defined(keymap_string, self.fill.0)?;
+        }
         for (&keysym, mapped) in mappings {
             let sym_name = xkb::keysym_get_name(keysym);
             keymap_string = self.insert_mapping(keymap_string, mapped.keycode, &sym_name)?;
@@ -567,6 +570,65 @@ impl Keymap {
             3 | 4 => ("FOUR_LEVEL", 4),
             _ => ("EIGHT_LEVEL", 8),
         }
+    }
+
+    /// Make sure the `xkb_types` section of `keymap_string` defines
+    /// `type_name`, one of the types returned by [`Self::levels_type`].
+    ///
+    /// libxkbcommon 1.13 only serializes the types that some key uses, so the
+    /// type picked for remapped keys can be missing from the canonical string
+    /// (the `us` layout needs `EIGHT_LEVEL` but no key uses it). xkbcommon
+    /// then falls back to `ONE_LEVEL` and drops every level but the first.
+    /// Older versions serialize every type, so nothing is added there.
+    ///
+    /// The definitions match xkeyboard-config's `complete` types. The virtual
+    /// modifiers are declared first because the insertion precedes the
+    /// section's own `virtual_modifiers` line; redeclaring them is a no-op.
+    fn ensure_type_is_defined(keymap_string: String, type_name: &str) -> InputResult<String> {
+        if keymap_string.contains(&format!("type \"{type_name}\" {{")) {
+            return Ok(keymap_string);
+        }
+        let definition = match type_name {
+            "ONE_LEVEL" => concat!(
+                "\ttype \"ONE_LEVEL\" {\n",
+                "\t\tmodifiers= none;\n",
+                "\t};\n"
+            ),
+            "TWO_LEVEL" => concat!(
+                "\ttype \"TWO_LEVEL\" {\n",
+                "\t\tmodifiers= Shift;\n",
+                "\t\tmap[Shift]= 2;\n",
+                "\t};\n",
+            ),
+            "FOUR_LEVEL" => concat!(
+                "\tvirtual_modifiers LevelThree;\n",
+                "\ttype \"FOUR_LEVEL\" {\n",
+                "\t\tmodifiers= Shift+LevelThree;\n",
+                "\t\tmap[Shift]= 2;\n",
+                "\t\tmap[LevelThree]= 3;\n",
+                "\t\tmap[Shift+LevelThree]= 4;\n",
+                "\t};\n",
+            ),
+            "EIGHT_LEVEL" => concat!(
+                "\tvirtual_modifiers LevelThree,LevelFive;\n",
+                "\ttype \"EIGHT_LEVEL\" {\n",
+                "\t\tmodifiers= Shift+LevelThree+LevelFive;\n",
+                "\t\tmap[Shift]= 2;\n",
+                "\t\tmap[LevelThree]= 3;\n",
+                "\t\tmap[Shift+LevelThree]= 4;\n",
+                "\t\tmap[LevelFive]= 5;\n",
+                "\t\tmap[Shift+LevelFive]= 6;\n",
+                "\t\tmap[LevelThree+LevelFive]= 7;\n",
+                "\t\tmap[Shift+LevelThree+LevelFive]= 8;\n",
+                "\t};\n",
+            ),
+            _ => {
+                return Err(InputError::Mapping(format!(
+                    "no definition for the XKB type {type_name}"
+                )));
+            }
+        };
+        Self::insert_after_section_header(keymap_string, "xkb_types ", definition)
     }
 
     /// Scan the usable keycode range once, classifying each keycode and picking
@@ -1430,6 +1492,43 @@ mod tests {
         assert_eq!(Keymap::levels_type(8), ("EIGHT_LEVEL", 8));
         // More levels than any standard type has still use EIGHT_LEVEL.
         assert_eq!(Keymap::levels_type(9), ("EIGHT_LEVEL", 8));
+    }
+
+    /// A keymap whose `xkb_types` section only defines `ONE_LEVEL`, like the
+    /// output of libxkbcommon 1.13, which drops types no key uses.
+    const ONLY_ONE_LEVEL_TYPE: &str = r#"xkb_keymap {
+        xkb_keycodes "only" { minimum = 9; maximum = 10; <I9> = 9; <I10> = 10; };
+        xkb_types "only" { type "ONE_LEVEL" { modifiers = none; }; };
+        xkb_compatibility "only" { };
+        xkb_symbols "only" { key <I9> { [ Escape ] }; };
+    };"#;
+
+    #[test]
+    fn the_fill_type_is_defined_when_the_keymap_lacks_it() {
+        for levels in [2, 4, 8] {
+            let mut keymap = Keymap::from_string(
+                context(),
+                ONLY_ONE_LEVEL_TYPE.to_string(),
+                KEYMAP_FORMAT_TEXT_V1,
+                Duration::ZERO,
+            )
+            .expect("keymap should compile");
+            keymap.fill = Keymap::levels_type(levels);
+            let (type_name, _) = keymap.fill;
+            assert!(!keymap.source.contains(&format!("type \"{type_name}\"")));
+
+            let keycode = Keycode::new(u32::from(keymap.map_key(Key::Unicode('❤')).expect("map")));
+            assert_eq!(
+                keymap.active.num_levels_for_key(keycode, 0),
+                levels,
+                "{type_name} should be defined, not replaced by ONE_LEVEL"
+            );
+
+            // The definition is added once, however many keys are mapped.
+            keymap.map_key(Key::Unicode('❄')).expect("map");
+            let string = keymap.keymap_string().expect("keymap string");
+            assert_eq!(string.matches(&format!("type \"{type_name}\"")).count(), 1);
+        }
     }
 
     /// A keymap whose only key uses the default (single-level) type.
@@ -2388,10 +2487,17 @@ mod tests {
         keymap.map_key(Key::Unicode('☃')).expect("map"); // keycode 11
 
         let string = keymap.keymap_string().expect("keymap string");
-        // A redeclaration would use our compact format; the canonical one is
-        // padded, so the compact form must be absent.
-        assert!(!string.contains("\t<I10> = 10;\n"));
-        assert!(!string.contains("\t<I11> = 11;\n"));
+        // Count declarations instead of matching our own format: libxkbcommon
+        // 1.13 serializes `\t<I10> = 10;` exactly like our insertion, while
+        // older versions pad the name.
+        let declarations = |name: &str| {
+            string
+                .lines()
+                .filter(|line| line.trim_start().starts_with(name))
+                .count()
+        };
+        assert_eq!(declarations("<I10>"), 1);
+        assert_eq!(declarations("<I11>"), 1);
         assert!(string.contains("key <I10>"));
         assert!(string.contains("key <I11>"));
     }
