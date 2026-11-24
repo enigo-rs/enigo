@@ -1913,6 +1913,24 @@ mod tests {
     }
 
     #[test]
+    fn map_key_consumes_the_free_keycode_it_uses() {
+        // Regression test: the free keycode used for a new mapping must leave
+        // `free_keycodes` in every build profile, otherwise the next mapping
+        // picks the same keycode and fails (seen with `--release`).
+        let mut keymap = sparse_keymap();
+        let first = keymap.map_key(Key::Unicode('❤')).expect("map");
+        assert!(
+            !keymap
+                .free_keycodes
+                .contains(&Keycode::new(u32::from(first)))
+        );
+        let second = keymap.map_key(Key::Unicode('❄')).expect("map");
+        assert_ne!(first, second);
+        assert_eq!(keymap.key_to_keycode(Key::Unicode('❤')), Some(first));
+        assert_eq!(keymap.key_to_keycode(Key::Unicode('❄')), Some(second));
+    }
+
+    #[test]
     fn free_keycodes_are_computed_from_the_base_keymap() {
         // Key 9 has a symbol, key 10 is declared but all-NoSymbol, and key 11
         // is undeclared. Only 10 and 11 are usable for remapping.
