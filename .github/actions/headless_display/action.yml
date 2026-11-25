@@ -11,8 +11,11 @@ runs:
           which Xvfb
           # Set DISPLAY env variable
           echo "DISPLAY=:99.0" >> $GITHUB_ENV
-          # Create virtual display with Xvfb
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          # Create virtual display with Xvfb. `-noreset` keeps the server from
+          # resetting when the last client disconnects. The tests open and close
+          # a connection per test, and a reset can race the next connect, which
+          # then fails with an XCB_CONN_ERROR (IoError/UnknownError).
+          Xvfb :99 -screen 0 1024x768x24 -noreset > /dev/null 2>&1 &
           # Wait for Xvfb to start
           sleep 3
       shell: bash
