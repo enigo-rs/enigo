@@ -39,7 +39,7 @@
 - linux: x11rb: Keys keep working after the X server changes its keymap (layout change, suspend/resume, device hotplug)
 - linux: x11rb: Fast text input no longer types the wrong character when spare keycodes are reused
 - linux: Wayland: Held modifier keys now apply to subsequent keys and shortcuts
-- linux: Wayland: Wait for the compositor's `done` event after each text commit instead of returning early, so the commit is actually applied and text longer than 4000 bytes is not dropped
+- linux: Wayland: Text longer than 4000 bytes is no longer dropped. The commit serial is refreshed between chunks.
 
 # 0.6.1
 ## Fixed

@@ -898,25 +898,21 @@ impl Keyboard for Con {
 
         // commit_string is limited to 4000 bytes per the protocol, so longer
         // text is split into several commits.
-        for chunk in utf8_chunks(text, 4000) {
-            let serial = self.state.im_serial.0;
+        let mut serial = self.state.im_serial.0;
+        for (index, chunk) in utf8_chunks(text, 4000).enumerate() {
+            if index > 0 {
+                // Update the serial before sending a new chunk
+                self.event_queue
+                    .roundtrip(&mut self.state)
+                    .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
+                serial = self.state.im_serial.0;
+            }
+
             im.commit_string(chunk.to_string());
             im.commit(serial);
-
-            // The protocol is double-buffered: the text is only inserted once
-            // the compositor acknowledges the commit with `done`. Wait for it
-            // before returning, and before sending the next commit, which
-            // requires the incremented serial.
-            self.event_queue
-                .roundtrip(&mut self.state)
-                .map_err(|_| InputError::Simulate("The roundtrip on Wayland failed"))?;
-
-            if self.state.im_serial.0 != serial.wrapping_add(1) {
-                return Err(InputError::Simulate(
-                    "the compositor did not acknowledge the text commit with a done event",
-                ));
-            }
         }
+
+        self.flush()?;
 
         Ok(Some(()))
     }
