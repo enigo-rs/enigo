@@ -92,6 +92,9 @@ fn integration_browser_events() {
     }
 
     log::debug!("Test mouse");
+
+    enigo.prime_pointer();
+
     // enigo.button(Button::Left, Click).unwrap();
     //
     // The xdg_desktop backend can only move the pointer relatively: absolute
@@ -99,8 +102,6 @@ fn integration_browser_events() {
     // KNOWN_ISSUES.md.
     #[cfg(not(feature = "xdg_desktop"))]
     {
-        // A fresh wlroots cursor starts at (100, 100), so move away from it
-        // first.
         enigo.move_mouse(209, 249, Abs).unwrap();
         enigo.move_mouse(145, 153, Abs).unwrap();
         // location() is only implemented by the X11 backend.
@@ -110,6 +111,7 @@ fn integration_browser_events() {
             assert_eq!((145, 153), (x, y));
         }
     }
+
     enigo.move_mouse(20, 20, Rel).unwrap();
     enigo.move_mouse(-20, 20, Rel).unwrap();
     enigo.move_mouse(20, -20, Rel).unwrap();
