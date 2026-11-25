@@ -269,7 +269,11 @@ start_xvfb() {
     if timeout 2 xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then return 0; fi
     display=${DISPLAY%%.*}
     reset_x_display "$DISPLAY"
-    nohup Xvfb "$display" -screen 0 1024x768x24 -nolisten tcp \
+    # `-noreset` keeps the server from resetting when the last client
+    # disconnects. The tests open and close a connection per test, and a reset
+    # can race the next connect, which then fails with an XCB_CONN_ERROR
+    # (IoError/UnknownError).
+    nohup Xvfb "$display" -screen 0 1024x768x24 -nolisten tcp -noreset \
         >"$XDG_RUNTIME_DIR/xvfb.log" 2>&1 9>&- &
     if ! wait_for_x; then
         echo "could not start Xvfb on $DISPLAY (see $XDG_RUNTIME_DIR/xvfb.log)" >&2
