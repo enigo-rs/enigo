@@ -98,7 +98,11 @@ jobs:
 
       - name: Install Firefox on macOS
         if: runner.os == 'macOS'
-        run: brew install --cask firefox
+        run: |
+          brew install --cask firefox
+          # The runner image already has Firefox from Homebrew, still
+          # quarantined, so Gatekeeper holds the first launch at a dialog.
+          xattr -dr com.apple.quarantine /Applications/Firefox.app
 
       - name: Run integration tests in release mode
         if: matrix.features != 'wayland' && matrix.features != 'libei,tokio' && matrix.features != 'libei,smol' && matrix.features != 'libei,tokio,wayland,xdo,x11rb'&& matrix.features != 'libei,smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
