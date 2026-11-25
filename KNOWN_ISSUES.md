@@ -31,6 +31,15 @@ These Wayland runs are not excluded from CI, so they fail until the underlying
 limitation is fixed. The `xdg_desktop` browser run skips absolute pointer
 motion, which the backend does not implement.
 
+## `xdo` adds Alt to function keys with xkeyboard-config 2.46
+
+xkeyboard-config 2.46 added explicit `Control` and `Alt` entries for level 1 to
+the `CTRL+ALT` key type that F1-F12 use. libxdo before 4.20260303.1 reads them
+as "level 1 needs Alt", so `Key::F1` is sent as Alt+F1
+([xdotool#491](https://github.com/jordansissel/xdotool/issues/491)). Debian and
+Ubuntu still ship libxdo 3.20160805, so the Integration workflow builds the
+fixed release for its `xdo` job.
+
 ## `xdg_desktop` limits in the headless GNOME container
 
 The container runs GNOME Shell headless, so the `RemoteDesktop` and Screenshot
