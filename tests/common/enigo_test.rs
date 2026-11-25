@@ -33,6 +33,20 @@ impl EnigoTest {
         }
     }
 
+    /// Move the pointer once without checking the reported movement.
+    ///
+    /// The first `mousemove` Firefox delivers to the page reports
+    /// `movementX`/`movementY` of 0 because it has no previous pointer
+    /// position to compare against. Prime that with one relative move whose
+    /// event is discarded, so the following assertions measure against a
+    /// known baseline regardless of the backend.
+    pub fn prime_pointer(&mut self) {
+        self.enigo
+            .move_mouse(1, 1, Coordinate::Rel)
+            .expect("failed to simulate move_mouse() while priming the pointer");
+        let _ = self.read_message();
+    }
+
     fn websocket() -> tungstenite::WebSocket<TcpStream> {
         let listener = TcpListener::bind("127.0.0.1:26541").expect("failed to bind to port");
         log::debug!("TcpListener was created");
