@@ -55,10 +55,10 @@ pub struct Keymap {
     /// mapping, in ascending order. Popping the front yields the lowest free
     /// keycode.
     free_keycodes: VecDeque<Keycode>,
-    /// The XKB type and level count to use for dynamically added keys. The
-    /// keysym is written to every level of that type so it is produced no
-    /// matter which modifier combination is active.
-    fill: (&'static str, usize),
+    /// The XKB type to use for dynamically added keys. The keysym is written
+    /// to every level of that type so it is produced no matter which modifier
+    /// combination is active.
+    fill: FillType,
     /// How long a dynamically mapped keycode must be idle before it may be
     /// reused. X11 sets a conservative value because the client that received
     /// the earlier key events may still translate them with the old binding;
@@ -76,6 +76,64 @@ struct MappedKey {
     /// when no free keycode is left.
     last_used: Option<Instant>,
 }
+
+/// A standard XKB key type used for dynamically mapped keys: its name, the
+/// number of levels it exposes, and its canonical definition.
+///
+/// The definitions match xkeyboard-config's `complete` types, minus the
+/// redundant level names. The virtual modifiers are declared first because
+/// the insertion point is the start of the `xkb_types` section, before its own
+/// `virtual_modifiers` line; redeclaring them there is a no-op.
+#[derive(Clone, Copy)]
+struct FillType {
+    name: &'static str,
+    levels: usize,
+    definition: &'static str,
+}
+
+const FILL_ONE_LEVEL: FillType = FillType {
+    name: "ONE_LEVEL",
+    levels: 1,
+    definition: "\ttype \"ONE_LEVEL\" {\n\t\tmodifiers= none;\n\t};\n",
+};
+
+const FILL_TWO_LEVEL: FillType = FillType {
+    name: "TWO_LEVEL",
+    levels: 2,
+    definition: "\ttype \"TWO_LEVEL\" {\n\t\tmodifiers= Shift;\n\t\tmap[Shift]= 2;\n\t};\n",
+};
+
+const FILL_FOUR_LEVEL: FillType = FillType {
+    name: "FOUR_LEVEL",
+    levels: 4,
+    definition: concat!(
+        "\tvirtual_modifiers LevelThree;\n",
+        "\ttype \"FOUR_LEVEL\" {\n",
+        "\t\tmodifiers= Shift+LevelThree;\n",
+        "\t\tmap[Shift]= 2;\n",
+        "\t\tmap[LevelThree]= 3;\n",
+        "\t\tmap[Shift+LevelThree]= 4;\n",
+        "\t};\n",
+    ),
+};
+
+const FILL_EIGHT_LEVEL: FillType = FillType {
+    name: "EIGHT_LEVEL",
+    levels: 8,
+    definition: concat!(
+        "\tvirtual_modifiers LevelThree,LevelFive;\n",
+        "\ttype \"EIGHT_LEVEL\" {\n",
+        "\t\tmodifiers= Shift+LevelThree+LevelFive;\n",
+        "\t\tmap[Shift]= 2;\n",
+        "\t\tmap[LevelThree]= 3;\n",
+        "\t\tmap[Shift+LevelThree]= 4;\n",
+        "\t\tmap[LevelFive]= 5;\n",
+        "\t\tmap[Shift+LevelFive]= 6;\n",
+        "\t\tmap[LevelThree+LevelFive]= 7;\n",
+        "\t\tmap[Shift+LevelThree+LevelFive]= 8;\n",
+        "\t};\n",
+    ),
+};
 
 // SAFETY: `xkb::Context`, `xkb::Keymap` and `xkb::State` wrap non-atomic raw
 // pointers and are therefore not auto-`Send`. `Keymap` remains the sole owner
@@ -416,7 +474,7 @@ impl Keymap {
     fn keymap_string_for(&self, mappings: &HashMap<Keysym, MappedKey>) -> InputResult<String> {
         let mut keymap_string = self.source.clone();
         if !mappings.is_empty() {
-            keymap_string = Self::ensure_type_is_defined(keymap_string, self.fill.0)?;
+            keymap_string = Self::ensure_type_is_defined(keymap_string, self.fill)?;
         }
         for (&keysym, mapped) in mappings {
             let sym_name = xkb::keysym_get_name(keysym);
@@ -518,7 +576,8 @@ impl Keymap {
             identifier
         };
 
-        let (type_name, levels) = self.fill;
+        let type_name = self.fill.name;
+        let levels = self.fill.levels;
         let syms = std::iter::repeat_n(sym_name, levels)
             .collect::<Vec<_>>()
             .join(", ");
@@ -557,78 +616,45 @@ struct Keycodes {
     /// Keycodes with no symbols, in ascending order, free for remapping.
     free: VecDeque<Keycode>,
     /// The type and level count needed to cover every level in the keymap.
-    fill: (&'static str, usize),
+    fill: FillType,
 }
 
 impl Keymap {
-    /// Pick the smallest standard XKB type that can hold `levels` shift levels
-    /// and return its name together with the number of levels it exposes.
-    pub(super) fn levels_type(levels: u32) -> (&'static str, usize) {
+    /// Pick the smallest standard XKB type that can hold `levels` shift levels.
+    fn levels_type(levels: u32) -> FillType {
         match levels {
-            0 | 1 => ("ONE_LEVEL", 1),
-            2 => ("TWO_LEVEL", 2),
-            3 | 4 => ("FOUR_LEVEL", 4),
-            _ => ("EIGHT_LEVEL", 8),
+            0 | 1 => FILL_ONE_LEVEL,
+            2 => FILL_TWO_LEVEL,
+            3 | 4 => FILL_FOUR_LEVEL,
+            _ => FILL_EIGHT_LEVEL,
         }
     }
 
-    /// Make sure the `xkb_types` section of `keymap_string` defines
-    /// `type_name`, one of the types returned by [`Self::levels_type`].
+    /// Make sure the `xkb_types` section of `keymap_string` defines `fill`.
     ///
-    /// libxkbcommon 1.13 only serializes the types that some key uses, so the
+    /// libxkbcommon 1.12+ only serializes the types that some key uses, so the
     /// type picked for remapped keys can be missing from the canonical string
-    /// (the `us` layout needs `EIGHT_LEVEL` but no key uses it). xkbcommon
-    /// then falls back to `ONE_LEVEL` and drops every level but the first.
-    /// Older versions serialize every type, so nothing is added there.
-    ///
-    /// The definitions match xkeyboard-config's `complete` types. The virtual
-    /// modifiers are declared first because the insertion precedes the
-    /// section's own `virtual_modifiers` line; redeclaring them is a no-op.
-    fn ensure_type_is_defined(keymap_string: String, type_name: &str) -> InputResult<String> {
-        if keymap_string.contains(&format!("type \"{type_name}\" {{")) {
+    /// (the `us` layout needs `EIGHT_LEVEL` but no key uses it). xkbcommon then
+    /// falls back to `ONE_LEVEL` and drops every level but the first. Older
+    /// versions serialize every type, so nothing is added there.
+    fn ensure_type_is_defined(keymap_string: String, fill: FillType) -> InputResult<String> {
+        if Self::defines_type(&keymap_string, fill.name) {
             return Ok(keymap_string);
         }
-        let definition = match type_name {
-            "ONE_LEVEL" => concat!(
-                "\ttype \"ONE_LEVEL\" {\n",
-                "\t\tmodifiers= none;\n",
-                "\t};\n"
-            ),
-            "TWO_LEVEL" => concat!(
-                "\ttype \"TWO_LEVEL\" {\n",
-                "\t\tmodifiers= Shift;\n",
-                "\t\tmap[Shift]= 2;\n",
-                "\t};\n",
-            ),
-            "FOUR_LEVEL" => concat!(
-                "\tvirtual_modifiers LevelThree;\n",
-                "\ttype \"FOUR_LEVEL\" {\n",
-                "\t\tmodifiers= Shift+LevelThree;\n",
-                "\t\tmap[Shift]= 2;\n",
-                "\t\tmap[LevelThree]= 3;\n",
-                "\t\tmap[Shift+LevelThree]= 4;\n",
-                "\t};\n",
-            ),
-            "EIGHT_LEVEL" => concat!(
-                "\tvirtual_modifiers LevelThree,LevelFive;\n",
-                "\ttype \"EIGHT_LEVEL\" {\n",
-                "\t\tmodifiers= Shift+LevelThree+LevelFive;\n",
-                "\t\tmap[Shift]= 2;\n",
-                "\t\tmap[LevelThree]= 3;\n",
-                "\t\tmap[Shift+LevelThree]= 4;\n",
-                "\t\tmap[LevelFive]= 5;\n",
-                "\t\tmap[Shift+LevelFive]= 6;\n",
-                "\t\tmap[LevelThree+LevelFive]= 7;\n",
-                "\t\tmap[Shift+LevelThree+LevelFive]= 8;\n",
-                "\t};\n",
-            ),
-            _ => {
-                return Err(InputError::Mapping(format!(
-                    "no definition for the XKB type {type_name}"
-                )));
-            }
-        };
-        Self::insert_after_section_header(keymap_string, "xkb_types ", definition)
+        Self::insert_after_section_header(keymap_string, "xkb_types ", fill.definition)
+    }
+
+    /// Whether the canonical keymap text already declares `type_name`.
+    ///
+    /// `source` is always produced by `xkb::Keymap::get_as_string`, so a type
+    /// declaration is serialized as `type "NAME" {`. The compiled keymap
+    /// cannot be queried instead because the `xkbcommon` crate exposes no type
+    /// introspection.
+    fn defines_type(keymap_string: &str, type_name: &str) -> bool {
+        let declaration = format!("type \"{type_name}\"");
+        keymap_string
+            .lines()
+            .any(|line| line.trim_start().starts_with(&declaration))
     }
 
     /// Scan the usable keycode range once, classifying each keycode and picking
@@ -1483,15 +1509,19 @@ mod tests {
         // `map_key` derives the type for a remapped key from the highest level
         // count in the keymap. Pin the exact mapping so a future refactor
         // cannot silently pick a type that drops levels.
-        assert_eq!(Keymap::levels_type(0), ("ONE_LEVEL", 1));
-        assert_eq!(Keymap::levels_type(1), ("ONE_LEVEL", 1));
-        assert_eq!(Keymap::levels_type(2), ("TWO_LEVEL", 2));
-        assert_eq!(Keymap::levels_type(3), ("FOUR_LEVEL", 4));
-        assert_eq!(Keymap::levels_type(4), ("FOUR_LEVEL", 4));
-        assert_eq!(Keymap::levels_type(5), ("EIGHT_LEVEL", 8));
-        assert_eq!(Keymap::levels_type(8), ("EIGHT_LEVEL", 8));
+        let fill = |levels: u32| {
+            let fill = Keymap::levels_type(levels);
+            (fill.name, fill.levels)
+        };
+        assert_eq!(fill(0), ("ONE_LEVEL", 1));
+        assert_eq!(fill(1), ("ONE_LEVEL", 1));
+        assert_eq!(fill(2), ("TWO_LEVEL", 2));
+        assert_eq!(fill(3), ("FOUR_LEVEL", 4));
+        assert_eq!(fill(4), ("FOUR_LEVEL", 4));
+        assert_eq!(fill(5), ("EIGHT_LEVEL", 8));
+        assert_eq!(fill(8), ("EIGHT_LEVEL", 8));
         // More levels than any standard type has still use EIGHT_LEVEL.
-        assert_eq!(Keymap::levels_type(9), ("EIGHT_LEVEL", 8));
+        assert_eq!(fill(9), ("EIGHT_LEVEL", 8));
     }
 
     /// A keymap whose `xkb_types` section only defines `ONE_LEVEL`, like the
@@ -1514,7 +1544,7 @@ mod tests {
             )
             .expect("keymap should compile");
             keymap.fill = Keymap::levels_type(levels);
-            let (type_name, _) = keymap.fill;
+            let type_name = keymap.fill.name;
             assert!(!keymap.source.contains(&format!("type \"{type_name}\"")));
 
             let keycode = Keycode::new(u32::from(keymap.map_key(Key::Unicode('❤')).expect("map")));
@@ -1559,10 +1589,8 @@ mod tests {
 
     #[test]
     fn fill_uses_one_level_for_a_single_level_keymap() {
-        assert_eq!(
-            Keymap::scan_keycodes(&compile(SINGLE_LEVEL)).fill,
-            ("ONE_LEVEL", 1)
-        );
+        let fill = Keymap::scan_keycodes(&compile(SINGLE_LEVEL)).fill;
+        assert_eq!((fill.name, fill.levels), ("ONE_LEVEL", 1));
 
         let mut keymap = Keymap::from_string(
             context(),
@@ -1571,7 +1599,7 @@ mod tests {
             Duration::ZERO,
         )
         .expect("single-level keymap should compile");
-        assert_eq!(keymap.fill, ("ONE_LEVEL", 1));
+        assert_eq!((keymap.fill.name, keymap.fill.levels), ("ONE_LEVEL", 1));
 
         let keycode = keymap.map_key(Key::Unicode('❤')).expect("map");
         let string = keymap.keymap_string().expect("keymap string");
@@ -1589,10 +1617,8 @@ mod tests {
 
     #[test]
     fn fill_uses_eight_levels_when_the_keymap_exceeds_four_levels() {
-        assert_eq!(
-            Keymap::scan_keycodes(&compile(FIVE_LEVEL)).fill,
-            ("EIGHT_LEVEL", 8)
-        );
+        let fill = Keymap::scan_keycodes(&compile(FIVE_LEVEL)).fill;
+        assert_eq!((fill.name, fill.levels), ("EIGHT_LEVEL", 8));
 
         let mut keymap = Keymap::from_string(
             context(),
@@ -1601,7 +1627,7 @@ mod tests {
             Duration::ZERO,
         )
         .expect("five-level keymap should compile");
-        assert_eq!(keymap.fill, ("EIGHT_LEVEL", 8));
+        assert_eq!((keymap.fill.name, keymap.fill.levels), ("EIGHT_LEVEL", 8));
 
         let keycode = keymap.map_key(Key::Unicode('❤')).expect("map");
         let string = keymap.keymap_string().expect("keymap string");
@@ -1618,6 +1644,37 @@ mod tests {
                 "level {level} should produce the remapped keysym"
             );
         }
+    }
+
+    #[test]
+    fn an_already_defined_fill_type_is_not_added_again() {
+        // `FIVE_LEVEL` uses `EIGHT_LEVEL` for its own key, so the type is
+        // required and survives serialization on every libxkbcommon version.
+        let mut keymap = Keymap::from_string(
+            context(),
+            FIVE_LEVEL.to_string(),
+            KEYMAP_FORMAT_TEXT_V1,
+            Duration::ZERO,
+        )
+        .expect("five-level keymap should compile");
+        assert_eq!(keymap.fill.name, "EIGHT_LEVEL");
+        assert_eq!(keymap.source.matches("type \"EIGHT_LEVEL\"").count(), 1);
+
+        // The early return leaves the keymap string byte-for-byte unchanged.
+        let unchanged =
+            Keymap::ensure_type_is_defined(keymap.source.clone(), keymap.fill).expect("no error");
+        assert_eq!(unchanged, keymap.source);
+
+        // Mapping a key must not insert a second definition.
+        let keycode = keymap.map_key(Key::Unicode('❤')).expect("map");
+        let string = keymap.keymap_string().expect("keymap string");
+        assert_eq!(string.matches("type \"EIGHT_LEVEL\"").count(), 1);
+
+        let compiled = compile(&string);
+        assert_eq!(
+            compiled.num_levels_for_key(Keycode::new(u32::from(keycode)), 0),
+            8
+        );
     }
 
     // ------------------------------------------------------------------
@@ -2284,7 +2341,8 @@ mod tests {
                 .expect("canonical us,de should compile");
 
         let keycode = keymap.map_key(Key::Unicode('❤')).expect("map");
-        let expected_levels = u32::try_from(keymap.fill.1).expect("the level count fits in u32");
+        let expected_levels =
+            u32::try_from(keymap.fill.levels).expect("the level count fits in u32");
         let compiled = compile(&keymap.keymap_string().expect("keymap string"));
         let mapped = Keycode::new(u32::from(keycode));
 
