@@ -96,6 +96,14 @@ jobs:
         if: runner.os == 'Linux' # This step is only needed on Linux. The other OSs don't need to be set up
         uses: ./.github/actions/headless_display
 
+      # Firefox only hides its toolbars in kiosk mode once the window is
+      # fullscreen, and on X11 a window manager has to grant that.
+      - name: Start a window manager on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y openbox
+          openbox > /dev/null 2>&1 &
+
       - name: Install Firefox on macOS
         if: runner.os == 'macOS'
         run: brew install --cask firefox
