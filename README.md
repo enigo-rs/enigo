@@ -88,8 +88,8 @@ cargo test
 ```
 
 The browser integration test needs the `serde` feature, Firefox and a display.
-It launches Firefox with the session's `GDK_BACKEND`, so it can run twice in a
-Wayland session:
+Firefox has to run on the protocol the compiled backend injects through, so
+`GDK_BACKEND` selects it:
 
 ```Bash
 # Wayland: Firefox on Wayland and the backend talks to the compositor directly

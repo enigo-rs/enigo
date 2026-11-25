@@ -30,12 +30,17 @@ env:
     --remote-env RUST_BACKTRACE=1
     --remote-env WAYLAND_DEBUG=1
     --remote-env REIS_DEBUG=1
+  # For the processes that postStartCommand starts. The debug variables are what
+  # make the collected logs show what happened to an injected event.
+  SESSION_ENV: >-
+    --remote-env G_MESSAGES_DEBUG=all
+    --remote-env MUTTER_DEBUG=input,remote-desktop,eis,focus
 
 jobs:
   session:
-    # One entry per session and backend. `browser` selects which browser
-    # integration tests to run: `wayland` (Firefox on Wayland), `x11` (Firefox on
-    # X11, including a Wayland session's Xwayland), or `all` (both).
+    # `gdk_backend` is the protocol Firefox has to run on: an X11 backend cannot
+    # reach a Wayland window. `xwayland` adds the x11rb run on the session's
+    # Xwayland.
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -47,72 +52,79 @@ jobs:
             config: .devcontainer/devcontainer.json
             features: x11rb
             features2: xdo
-            browser: x11
+            gdk_backend: x11
 
           - name: GNOME on Xorg
             config: .devcontainer/gnome-x11/devcontainer.json
             features: x11rb
-            browser: x11
+            gdk_backend: x11
 
           - name: Plasma on X11
             config: .devcontainer/plasma-x11/devcontainer.json
             features: x11rb
-            browser: x11
+            gdk_backend: x11
 
           - name: sway
             config: .devcontainer/sway/devcontainer.json
             features: wayland
-            browser: all
+            gdk_backend: wayland
+            xwayland: true
 
           - name: labwc
             config: .devcontainer/labwc/devcontainer.json
             features: wayland
-            browser: all
+            gdk_backend: wayland
+            xwayland: true
 
           - name: GNOME Wayland (libei, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: libei,tokio,platform_specific
+            gdk_backend: wayland
 
           - name: GNOME Wayland (libei, smol)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: libei,smol,platform_specific
-            browser: wayland
+            gdk_backend: wayland
 
           - name: GNOME Wayland (xdg_desktop, tokio)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: xdg_desktop,tokio,platform_specific
+            gdk_backend: wayland
 
           - name: GNOME Wayland (xdg_desktop, smol)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: xdg_desktop,smol,platform_specific
-            browser: wayland
+            gdk_backend: wayland
 
           - name: GNOME Wayland (x11rb)
             config: .devcontainer/gnome-wayland/devcontainer.json
             features: x11rb,platform_specific
-            browser: x11
+            gdk_backend: x11
 
           - name: Plasma Wayland (libei, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: libei,tokio,platform_specific
+            gdk_backend: wayland
 
           - name: Plasma Wayland (libei, smol)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: libei,smol,platform_specific
-            browser: wayland
+            gdk_backend: wayland
 
           - name: Plasma Wayland (xdg_desktop, tokio)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: xdg_desktop,tokio,platform_specific
+            gdk_backend: wayland
 
           - name: Plasma Wayland (xdg_desktop, smol)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: xdg_desktop,smol,platform_specific
+            gdk_backend: wayland
 
           - name: Plasma Wayland (x11rb)
             config: .devcontainer/plasma-wayland/devcontainer.json
             features: x11rb,platform_specific
-            browser: x11
+            gdk_backend: x11
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -129,22 +141,22 @@ jobs:
 
       - name: Build the image and start the session
         timeout-minutes: 15
-        run: devcontainer up --workspace-folder . --config "${{ matrix.config }}"
+        run: devcontainer up --workspace-folder . --config "${{ matrix.config }}" $SESSION_ENV
 
       # Run the browser tests first: the input tests press every key and click
       # every button, which can leave a shell modal open. A modal grabs the
       # keyboard, so the browser never sees the events even though it has the X
       # input focus.
-      - name: Test the browser integration through Wayland
-        if: matrix.browser == 'wayland' || matrix.browser == 'all'
+      - name: Test the browser integration (${{ matrix.features }})
         timeout-minutes: 5
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
+            env GDK_BACKEND=${{ matrix.gdk_backend }} \
             cargo test --no-default-features --features "${{ matrix.features }},serde" \
               --test integration_browser_events
 
-      - name: Test the browser integration through X11
-        if: matrix.browser == 'x11' || matrix.browser == 'all'
+      - name: Test the browser integration through Xwayland
+        if: matrix.xwayland
         timeout-minutes: 5
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
@@ -163,3 +175,23 @@ jobs:
         run: |
           devcontainer exec --workspace-folder . --config "${{ matrix.config }}" $TEST_ENV \
             cargo test --no-default-features --features "${{ matrix.features2 }}" --lib
+
+      # The exec runs in the bind-mounted workspace, so the container can write
+      # the logs into the checkout for the upload.
+      - name: Collect the session logs
+        if: failure()
+        timeout-minutes: 2
+        run: |
+          devcontainer exec --workspace-folder . --config "${{ matrix.config }}" sh -c '
+            mkdir -p ci-logs
+            cp "$XDG_RUNTIME_DIR"/*.log ci-logs/ 2>/dev/null || true
+            ls -l ci-logs
+          ' || true
+
+      - name: Upload the session logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: session-logs-${{ matrix.name }}
+          path: ci-logs/
+          if-no-files-found: ignore
