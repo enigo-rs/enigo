@@ -3,15 +3,15 @@
 These were found while working on the devcontainers. They are recorded here but
 intentionally not fixed in this PR.
 
-## The browser integration test runs once per protocol
+## The browser integration test runs on the protocol of the backend
 
-In a Wayland session the browser test runs twice. The Wayland run launches
-Firefox on Wayland (`GDK_BACKEND=wayland`, `MOZ_ENABLE_WAYLAND=1`) and uses the
-compiled Wayland backend, so the events travel over the compositor's own
-protocol (EIS through libei/xdg_desktop, or the wlroots virtual-input protocol).
-The XWayland run launches Firefox with `GDK_BACKEND=x11` and uses `x11rb`
-against `DISPLAY`, which is the compositor's Xwayland. There is no separate
-Xvfb: both runs use the session's own compositor and window manager.
+Each CI entry runs the browser test for its backend, and Firefox has to run on
+the protocol that backend injects through: `GDK_BACKEND=wayland` for the portal
+and wlroots backends, `GDK_BACKEND=x11` for `x11rb`, which talks to `DISPLAY`
+(the compositor's Xwayland in a Wayland session). An X11 backend cannot reach a
+Wayland window, so the two are never mixed. The wlroots sessions (`sway`,
+`labwc`) additionally run `x11rb` against their own Xwayland, so that path stays
+tested for those compositors; neither needs a separate Xvfb.
 
 Wayland browser runs currently fail in some sessions for the same reasons as
 the unit tests, or before them:

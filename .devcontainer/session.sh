@@ -46,8 +46,12 @@ start_session_bus() {
             rm -f "${path%%,*}"
             ;;
     esac
-    dbus-daemon --session --fork --nopidfile --address="$DBUS_SESSION_BUS_ADDRESS" || {
+    # Activated services inherit our stdio; without systemd this is the only
+    # place the portals log.
+    dbus-daemon --session --fork --nopidfile \
+        --address="$DBUS_SESSION_BUS_ADDRESS" >"$XDG_RUNTIME_DIR/dbus.log" 2>&1 || {
         echo "could not start the session bus at $DBUS_SESSION_BUS_ADDRESS" >&2
+        show_log_tail "$XDG_RUNTIME_DIR/dbus.log"
         return 1
     }
     for _ in 1 2 3 4 5 6 7 8 9 10; do
