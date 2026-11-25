@@ -104,6 +104,10 @@ jobs:
           # quarantined, so Gatekeeper holds the first launch at a dialog.
           xattr -dr com.apple.quarantine /Applications/Firefox.app
 
+          # The test clicks Control, which macOS reads as the Dictation shortcut and
+          # answers with an "Enable Dictation?" dialog that takes the keyboard focus.
+          defaults write com.apple.HIToolbox AppleDictationAutoEnable -int 0
+
       - name: Run integration tests in release mode
         if: matrix.features != 'wayland' && matrix.features != 'libei,tokio' && matrix.features != 'libei,smol' && matrix.features != 'libei,tokio,wayland,xdo,x11rb'&& matrix.features != 'libei,smol,wayland,xdo,x11rb' # On Linux, the integration tests only work with X11 for now
         run: cargo test integration --release --no-default-features --features ${{ matrix.features }},serde -- --nocapture --include-ignored
