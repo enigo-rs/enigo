@@ -87,6 +87,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/install_deps
+
+      # Ubuntu's libxdo (3.20160805) adds Alt to F1-F12 with xkeyboard-config
+      # 2.46 and later (jordansissel/xdotool#491). Test against the fixed release;
+      # xdotool main at 5c27b117 sends Alt+F1 again, so check before bumping.
+      - name: Build the fixed libxdo on Linux
+        if: runner.os == 'Linux' && matrix.features == 'xdo'
+        run: |
+          sudo apt-get remove -y libxdo-dev
+          sudo apt-get install -y libxinerama-dev
+          git clone --quiet --depth 1 --branch v4.20260303.1 https://github.com/jordansissel/xdotool "$RUNNER_TEMP/xdotool"
+          test "$(git -C "$RUNNER_TEMP/xdotool" rev-parse HEAD)" = d37c16111dbe38ea29194f20ac9de03cff8dfc1c
+          make -C "$RUNNER_TEMP/xdotool" libxdo.so
+          sudo make -C "$RUNNER_TEMP/xdotool" installlib
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/local/lib" >> "$GITHUB_ENV"
+
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master branch
         with:
           toolchain: ${{ matrix.rust }}
