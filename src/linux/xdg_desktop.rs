@@ -136,7 +136,47 @@ impl Con {
             .restore_token()
             .map(str::to_owned);
         trace!("start session");
+
+        Self::pre_create_devices(&session, &remote_desktop).await;
+
         Ok((session, remote_desktop, restore_token))
+    }
+
+    /// Create the virtual keyboard and pointer up front.
+    ///
+    /// The portal creates each device lazily on the first event for its type,
+    /// which is also the step that advertises the capability. A client that has
+    /// not bound `wl_keyboard`/`wl_pointer` yet therefore misses that first
+    /// event. Creating the devices here moves the capability advertisement
+    /// before the caller's first real event.
+    ///
+    /// A relative motion of (0, 0) still creates the pointer device (Mutter
+    /// emits a harmless empty motion). `NoSymbol` (0) creates the keyboard
+    /// device; the compositor cannot map it and drops the event after logging
+    /// "No keycode found for keyval 0", before it records any key state, so no
+    /// key reaches an application and no release is needed.
+    ///
+    /// This is best effort: if the portal rejects a no-op, the devices stay
+    /// lazy and nothing else changes.
+    async fn pre_create_devices(session: &Session<RemoteDesktop>, remote_desktop: &RemoteDesktop) {
+        if let Err(e) = remote_desktop
+            .notify_pointer_motion(session, 0.0, 0.0, NotifyPointerMotionOptions::default())
+            .await
+        {
+            debug!("failed to pre-create the virtual pointer: {e}");
+        }
+
+        if let Err(e) = remote_desktop
+            .notify_keyboard_keysym(
+                session,
+                0,
+                KeyState::Pressed,
+                NotifyKeyboardKeysymOptions::default(),
+            )
+            .await
+        {
+            debug!("failed to pre-create the virtual keyboard: {e}");
+        }
     }
 
     #[allow(clippy::unnecessary_wraps)]
