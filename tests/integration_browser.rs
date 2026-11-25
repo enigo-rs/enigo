@@ -35,7 +35,16 @@ fn integration_browser_events() {
         enigo.key(Key::Numlock, Click).unwrap();
         enigo.key(Key::Help, Click).unwrap();
     }
-    enigo.text("TestText❤️").unwrap();
+    // These backends can only enter characters the compositor keymap can map:
+    // the portal cannot upload a keymap and Mutter's EIS seat has no `ei_text`.
+    // That interface has existed since libei 1.6, but Mutter does not advertise
+    // `EIS_DEVICE_CAP_TEXT` yet (still absent in 51.1), so ❤ never produces an
+    // event.
+    if cfg!(any(feature = "libei", feature = "xdg_desktop")) {
+        enigo.text("TestText").unwrap();
+    } else {
+        enigo.text("TestText❤️").unwrap();
+    }
     #[cfg(not(any(
         target_os = "macos",
         all(
@@ -57,7 +66,11 @@ fn integration_browser_events() {
     enigo.key(Key::Backspace, Click).unwrap();
     enigo.key(Key::PageUp, Click).unwrap();
 
-    enigo.text("❤️TestText❤️").unwrap();
+    if cfg!(any(feature = "libei", feature = "xdg_desktop")) {
+        enigo.text("TestText").unwrap();
+    } else {
+        enigo.text("❤️TestText❤️").unwrap();
+    }
     enigo.key(Key::Backspace, Press).unwrap();
     enigo.key(Key::Backspace, Release).unwrap();
 
