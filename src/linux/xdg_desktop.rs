@@ -433,7 +433,7 @@ impl Mouse for Con {
     }
 
     fn main_display(&self) -> InputResult<(i32, i32)> {
-        let (width, height) = Self::custom_block_on(async {
+        Self::custom_block_on(async {
             let response = ashpd::desktop::screenshot::Screenshot::request()
                 .interactive(false)
                 .modal(true) // I don't see a modal and it prevents a scary warning
@@ -461,12 +461,6 @@ impl Mouse for Con {
             log::error!("{e}");
             InputError::Simulate("Failed in custom_block_on")
         })?
-        .map_err(|e: InputError| {
-            log::error!("{e}");
-            InputError::Simulate("Failed to scroll")
-        })?;
-
-        Ok((width, height))
     }
 
     fn location(&self) -> InputResult<(i32, i32)> {
