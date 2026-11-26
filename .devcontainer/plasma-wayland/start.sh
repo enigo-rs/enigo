@@ -8,6 +8,7 @@ require_container
 require_command kwin_wayland
 require_command plasmashell
 require_command xdpyinfo
+require_command gdbus
 
 # Start a normal headless KDE Plasma Wayland session: a session and system bus,
 # PipeWire, KWin with its virtual backend and Xwayland, and plasmashell.
@@ -51,3 +52,18 @@ if ! wait_for_x; then
     show_log_tail "$XDG_RUNTIME_DIR/kwin.log"
     exit 1
 fi
+
+# The KDE RemoteDesktop portal shows a consent dialog unless the calling app is
+# "mega-authorized", and a headless session can never answer that dialog. Grant
+# the test app ids the permission so RemoteDesktop.Start() proceeds without it.
+timeout 10 gdbus call --session \
+    --dest org.freedesktop.impl.portal.PermissionStore \
+    --object-path /org/freedesktop/impl/portal/PermissionStore \
+    --method org.freedesktop.impl.portal.PermissionStore.Set \
+    kde-authorized true remote-desktop \
+    "{'': ['yes'], 'enigo-test': ['yes']}" \
+    "<@a{sv} {}>" \
+    >/dev/null || {
+    echo "could not seed the KDE RemoteDesktop mega-authorization" >&2
+    exit 1
+}

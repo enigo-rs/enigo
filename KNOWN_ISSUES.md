@@ -24,8 +24,6 @@ the unit tests, or before them:
   the X input focus and still received no key events, so it is not a focus
   problem on the browser side. The Wayland run fails at the first key. This
   needs a follow-up investigation of the portal/headless session.
-- Plasma Wayland: the KDE RemoteDesktop portal is unavailable because the
-  headless KWin cannot provide a screencast stream.
 
 These Wayland runs are not excluded from CI, so they fail until the underlying
 limitation is fixed. The `xdg_desktop` browser run skips absolute pointer
@@ -55,11 +53,10 @@ implement `main_display()`.
 
 ## `libei` cannot enter keys that are not in the active keymap
 
-Mutter 48 (the version in Debian trixie and in the GNOME container) sets up its
-EIS seat without the `ei_text` interface and does not advertise
-`EIS_DEVICE_CAP_TEXT`. The backend therefore cannot use `ei_text.utf8` or
-`ei_text.keysym` and falls back to `ei_keyboard` plus the xkb keymap that the
-compositor sent.
+Mutter 48 (the GNOME container) and KWin 6.3 (the Plasma container) set up
+their EIS seat without `ei_text`, because Debian trixie's `libeis` predates
+libei 1.6. The backend therefore cannot use `ei_text.utf8` or `ei_text.keysym`
+and falls back to `ei_keyboard` plus the compositor's xkb keymap.
 
 That fallback can only press keycodes that already exist in the active keymap
 at the current shift level. Two test cases fail because of this, not because of
@@ -69,10 +66,11 @@ the container:
   does not map (`Key::Begin`; `Mode_switch`, `script_switch`, `Shift_Lock` and
   similar keysyms would fail as well) with
   `InvalidInput("failed to map the requested key to a keycode: the provided key is not mapped at the current shift level")`.
-- `tests::keyboard::unit_text` fails on the first character the keymap cannot
-  produce (the special `𝕊` character, emoji, CJK and Arabic text as used by the
-  test), with the same error. `text()` falls back to `key(Key::Unicode(c))`
-  when `fast_text` returns `Ok(None)`.
+- `tests::keyboard::unit_text` fails on the first character that needs a shift
+  level or is not in the keymap (`%` and uppercase letters need Shift; `𝕊`,
+  emoji, CJK and Arabic are not in the us layout), with the same error.
+  `text()` falls back to `key(Key::Unicode(c))` when `fast_text` returns
+  `Ok(None)`.
 
 The mouse tests (`unit_button_click`, `unit_10th_click`, `unit_scroll`,
 `unit_mouse_drag`) and the other key paths do work against the real compositor.
@@ -80,17 +78,8 @@ The mouse tests (`unit_button_click`, `unit_10th_click`, `unit_scroll`,
 The library fix is to use `ei_text` when the seat advertises it (already
 implemented) or to synthesize a keymap/modifier sequence that can produce the
 requested keysym instead of rejecting it. Until then, these two tests are
-expected to fail on Mutter. They are left enabled so the limitation stays
-visible.
-
-## The KDE RemoteDesktop portal is unavailable in the headless Plasma container
-
-KWin's screencast plugin needs OpenGL, but its virtual and windowed backends
-only provide QPainter here. KWin therefore does not expose
-`zkde_screencast_unstable_v1`, so the KDE RemoteDesktop portal cannot create a
-session and the `libei` and `xdg_desktop` tests cannot connect. Nesting KWin in
-Xvfb or another compositor does not help. A normal Plasma session with a GPU or
-a VM is needed. `kwin_x11` on Xvfb does use OpenGL.
+expected to fail on Mutter and on KWin. They are left enabled so the limitation
+stays visible.
 
 ## Linux backend selection is compile-time
 
