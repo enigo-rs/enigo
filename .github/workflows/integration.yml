@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload screenshot
         if: always() && steps.screenshot.outcome == 'success'
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
           path: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
