@@ -1,7 +1,8 @@
 version: 2
 updates:
 
-  # Maintain dependencies for GitHub Actions
+  # Maintain dependencies for GitHub Actions. Dependabot also regenerates the
+  # matching entries in .github/workflows/actions.lock in the same pull request.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
