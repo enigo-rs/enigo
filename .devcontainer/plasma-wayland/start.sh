@@ -27,6 +27,13 @@ configure_kwin
 if ! name_has_owner org.kde.KWin; then
     reset_wayland_session
 fi
+# KWin gates restricted Wayland interfaces (org_kde_kwin_fake_input and friends)
+# behind the client's X-KDE-Wayland-Interfaces desktop entry, which it resolves
+# through the KSycoca service database. The headless container has no menu
+# files, so that database is empty and the KDE RemoteDesktop portal is denied
+# fake-input. Disable the permission check so the portal can bind fake_input
+# and deliver the injected key and pointer events.
+export KWIN_WAYLAND_NO_PERMISSION_CHECKS=1
 start_dbus_service org.kde.KWin "KWin" "$XDG_RUNTIME_DIR/kwin.log" \
     kwin_wayland --virtual --xwayland --socket "$WAYLAND_DISPLAY"
 if ! wait_for_socket "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"; then

@@ -133,6 +133,20 @@ RUN if getcap /usr/bin/kwin_wayland | grep -q .; then setcap -r /usr/bin/kwin_wa
 # plasmashell. plasma-wayland/start.sh launches it.
 FROM plasma AS plasma-wayland
 
+# Temporary: build a patched xdg-desktop-portal-kde and install it over the
+# distro package, so input-only RemoteDesktop sessions work without a
+# screencast stream. Only the Wayland session uses the xdg_desktop backend; the
+# X11 session talks to the X server directly. Remove this block,
+# packages/plasma-portal-build.txt and patch-portal.sh once the fix is accepted
+# upstream and a fixed package ships.
+COPY packages/plasma-portal-build.txt /tmp/packages.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends $(cat /tmp/packages.txt) \
+    && rm -rf /var/lib/apt/lists/* /tmp/packages.txt
+
+COPY patch-portal.sh /tmp/patch-portal.sh
+RUN sh /tmp/patch-portal.sh
+
 USER enigo
 
 # KDE Plasma X11 session: Xvfb, KWin as the X11 window manager and
