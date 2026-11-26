@@ -116,3 +116,11 @@ jobs:
 
       - name: Run ignored integration tests in release mode
         run: cargo test integration --release --no-default-features --features ${{ matrix.features }} -- --ignored --nocapture
+
+      - name: Upload the logs
+        if: failure()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.rust }}-${{ matrix.features }}
+          path: ci-logs/
+          if-no-files-found: ignore

@@ -1,4 +1,6 @@
-use std::process::{Child, Command, Stdio};
+use std::fs::File;
+use std::path::PathBuf;
+use std::process::{Child, Command, ExitStatus, Stdio};
 
 /// A Firefox instance that is stopped on drop, including on test failure.
 ///
@@ -8,6 +10,10 @@ pub struct Browser {
     /// Unique profile passed to Firefox. On macOS it identifies the browser,
     /// because the child is only the `open` launcher.
     profile: String,
+    /// Where Firefox's stdout/stderr go. A file instead of a pipe, so a
+    /// browser outliving the test cannot keep cargo's output open. CI uploads
+    /// the `ci-logs/` directory on failure.
+    log_path: PathBuf,
 }
 
 impl Browser {
@@ -61,14 +67,59 @@ impl Browser {
         };
 
         // Don't inherit stdout/stderr: a browser outliving the test would keep
-        // cargo's pipe (and the CI step) open.
+        // cargo's pipe (and the CI step) open. A log file keeps the output for
+        // diagnosing why Firefox did not connect.
+        let log_dir = cwd.join("ci-logs");
+        std::fs::create_dir_all(&log_dir).expect("Failed to create the ci-logs directory");
+        let log_path = log_dir.join(format!("firefox-{}.log", std::process::id()));
+        let log = File::create(&log_path).expect("Failed to create the Firefox log file");
+        let log_err = log
+            .try_clone()
+            .expect("Failed to clone the Firefox log file handle");
         command
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stdout(Stdio::from(log))
+            .stderr(Stdio::from(log_err));
 
         let child = command.spawn().expect("Failed to start Firefox");
-        Self { child, profile }
+        log::debug!(
+            "Firefox started, logging its output to {}",
+            log_path.display()
+        );
+        Self {
+            child,
+            profile,
+            log_path,
+        }
+    }
+
+    /// Returns the exit status if the browser process has already exited.
+    ///
+    /// Only meaningful on Linux, where the child is Firefox itself. On macOS
+    /// and Windows the child is only a launcher that exits right after handing
+    /// the launch off, so its exit says nothing about the browser.
+    pub fn exited(&mut self) -> Option<ExitStatus> {
+        #[cfg(target_os = "linux")]
+        {
+            match self.child.try_wait() {
+                Ok(status) => status,
+                Err(e) => {
+                    log::warn!("failed to query the Firefox process: {e}");
+                    None
+                }
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            None
+        }
+    }
+
+    /// The tail of Firefox's output, trimmed to keep panic messages readable.
+    pub fn log(&self) -> String {
+        let output = std::fs::read(&self.log_path).unwrap_or_default();
+        let start = output.len().saturating_sub(8 * 1024);
+        String::from_utf8_lossy(&output[start..]).into_owned()
     }
 }
 
