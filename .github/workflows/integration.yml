@@ -85,8 +85,8 @@ jobs:
           #  features: "xdg_desktop,smol"
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/install_deps
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/install_deps
 
       # Ubuntu's libxdo (3.20160805) adds Alt to F1-F12 with xkeyboard-config
       # 2.46 and later (jordansissel/xdotool#491). Test against the fixed release;
@@ -103,14 +103,14 @@ jobs:
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/local/lib" >> "$GITHUB_ENV"
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master branch
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Setup headless display for tests on Linux
         if: runner.os == 'Linux' # This step is only needed on Linux. The other OSs don't need to be set up
-        uses: ./.github/actions/headless_display
+        uses: $/.github/actions/headless_display
 
       # Firefox only hides its toolbars in kiosk mode once the window is
       # fullscreen, and on X11 a window manager has to grant that.
@@ -138,8 +138,17 @@ jobs:
 
       - name: Take screenshot
         if: always()
-        uses: ./.github/actions/screenshot
+        id: screenshot
+        uses: $/.github/actions/screenshot
         with:
           platform: ${{ matrix.platform }}
           rust: ${{ matrix.rust }}
           feature: ${{ matrix.features }}
+
+      - name: Upload screenshot
+        if: always() && steps.screenshot.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
+          path: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
+          overwrite: true

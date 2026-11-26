@@ -87,19 +87,19 @@ jobs:
           #  features: "xdg_desktop,smol"
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           # If manually triggered, use the current commit (GITHUB_SHA), otherwise use the head_sha from the Build workflow
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - uses: ./.github/actions/install_deps
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master branch
+      - uses: $/.github/actions/install_deps
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Setup headless display for tests on Linux
         if: runner.os == 'Linux' # This step is only needed on Linux. The other OSs don't need to be set up
-        uses: ./.github/actions/headless_display
+        uses: $/.github/actions/headless_display
 
       - name: Install Firefox on macOS
         if: runner.os == 'macOS'
