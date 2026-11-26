@@ -118,7 +118,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install -y openbox
-          openbox > /dev/null 2>&1 &
+          # Keep the window manager log for the `ci-logs/` artifact on failure.
+          mkdir -p ci-logs
+          openbox > ci-logs/openbox.log 2>&1 &
 
       - name: Install Firefox on macOS
         if: runner.os == 'macOS'
@@ -152,3 +154,10 @@ jobs:
           name: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
           path: '${{ matrix.platform }}_${{ matrix.rust }}_${{ matrix.features }}.jpg'
           overwrite: true
+      - name: Upload the logs
+        if: failure()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.rust }}-${{ matrix.features }}
+          path: ci-logs/
+          if-no-files-found: ignore

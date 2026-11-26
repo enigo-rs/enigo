@@ -16,7 +16,7 @@ tests/firefox-profile/*
 # Downloaded by `npm ci --prefix .github` in the workflows
 .github/node_modules/
 
-# Session logs uploaded by the Linux sessions workflow on failure
+# Session and browser logs uploaded by the workflows on failure
 ci-logs/
 
 # RustFmt files

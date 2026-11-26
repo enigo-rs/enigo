@@ -17,8 +17,11 @@ impl EnigoTest {
     pub fn new(settings: &Settings) -> Self {
         env_logger::try_init().ok();
         let enigo = super::token::new_enigo(settings);
-        let browser = super::browser::Browser::launch(); // Launch Firefox
-        let websocket = Self::websocket();
+        // Bind before launching the browser so the page can connect on its
+        // first attempt instead of racing the listener.
+        let listener = Self::listener();
+        let mut browser = super::browser::Browser::launch();
+        let websocket = Self::accept(listener, &mut browser);
 
         websocket
             .get_ref()
@@ -47,7 +50,7 @@ impl EnigoTest {
         let _ = self.read_message();
     }
 
-    fn websocket() -> tungstenite::WebSocket<TcpStream> {
+    fn listener() -> TcpListener {
         let listener = TcpListener::bind("127.0.0.1:26541").expect("failed to bind to port");
         log::debug!("TcpListener was created");
 
@@ -55,15 +58,31 @@ impl EnigoTest {
         listener
             .set_nonblocking(true)
             .expect("Unable to make the listener non-blocking");
+        listener
+    }
+
+    fn accept(
+        listener: TcpListener,
+        browser: &mut super::browser::Browser,
+    ) -> tungstenite::WebSocket<TcpStream> {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
         let (stream, addr) = loop {
             match listener.accept() {
                 Ok(connection) => break connection,
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    if let Some(status) = browser.exited() {
+                        panic!(
+                            "Firefox exited before connecting to the test websocket \
+                             (status: {status}). Firefox output:\n{}",
+                            browser.log()
+                        );
+                    }
                     if std::time::Instant::now() >= deadline {
                         panic!(
                             "the browser did not connect to the test websocket within 60s; \
-                             did Firefox fail to start or load tests/index.html?"
+                             did Firefox fail to start or load tests/index.html?\n\
+                             Firefox output:\n{}",
+                            browser.log()
                         );
                     }
                     std::thread::sleep(std::time::Duration::from_millis(100));

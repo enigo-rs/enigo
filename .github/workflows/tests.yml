@@ -119,3 +119,11 @@ jobs:
 
       - name: Run the sync example
         run: cargo run --example sync --no-default-features --features ${{ matrix.features }}
+
+      - name: Upload the logs
+        if: failure()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.rust }}-${{ matrix.features }}
+          path: ci-logs/
+          if-no-files-found: ignore

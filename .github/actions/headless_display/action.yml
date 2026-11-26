@@ -15,7 +15,8 @@ runs:
           # resetting when the last client disconnects. The tests open and close
           # a connection per test, and a reset can race the next connect, which
           # then fails with an XCB_CONN_ERROR (IoError/UnknownError).
-          Xvfb :99 -screen 0 1024x768x24 -noreset > /dev/null 2>&1 &
+          mkdir -p ci-logs
+          Xvfb :99 -screen 0 1024x768x24 -noreset > ci-logs/xvfb.log 2>&1 &
           # Wait for Xvfb to start
           sleep 3
       shell: bash

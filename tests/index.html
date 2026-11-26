@@ -53,7 +53,7 @@
         // Initialize or reconnect WebSocket
         function initializeWebSocket() {
             console.log('Attempting to connect WebSocket...');
-            ws = new WebSocket('ws://localhost:26541');
+            ws = new WebSocket('ws://127.0.0.1:26541');
 
             ws.addEventListener('open', () => {
                 console.log('WebSocket connected');
