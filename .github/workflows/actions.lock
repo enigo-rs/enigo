@@ -8,7 +8,7 @@ workflows:
         - 'dtolnay/rust-toolchain@v1'
     '.github/workflows/failing_tests.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/upload-artifact@v7.0.0'
+        - 'actions/upload-artifact@v7.0.2'
         - 'dtolnay/rust-toolchain@v1'
     '.github/workflows/integration.yml':
         - 'actions/checkout@v7.0.1'
@@ -20,7 +20,7 @@ workflows:
         - 'actions/upload-artifact@v7.0.2'
     '.github/workflows/tests.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/upload-artifact@v7.0.0'
+        - 'actions/upload-artifact@v7.0.2'
         - 'dtolnay/rust-toolchain@v1'
     '.github/workflows/verify-lockfile.yml':
         - 'actions/checkout@v7.0.1'
